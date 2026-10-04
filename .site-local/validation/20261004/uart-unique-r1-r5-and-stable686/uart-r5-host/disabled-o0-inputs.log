@@ -1,0 +1,546 @@
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.c \
+ /usr/include/stdc-predef.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_resource.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/lib/boot_private_buffer.c \
+ /usr/include/stdc-predef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h /usr/include/string.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/boot_private_buffer.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/lib/image_policy_snapshot.c \
+ /usr/include/stdc-predef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h /usr/include/string.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/image_policy_snapshot.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_dma_handoff.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/dma_handoff.h \
+ /usr/include/string.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_resource.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_host_bridge.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/diagnostic.h \
+ /home/sean/uart-unique-final.20261004-r5/build/include/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/payload_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_configuration.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_resource.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_hobs.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_host_bridge.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/diagnostic.h \
+ /home/sean/uart-unique-final.20261004-r5/build/include/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/payload_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_configuration.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/capsule_delivery_policy.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /usr/include/string.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_topology_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/dma_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/memory_allocation_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/mcfg.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/acpi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_hobs.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_resource.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/modules/pci_host_bridge/model.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_host_bridge.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/diagnostic.h \
+ /home/sean/uart-unique-final.20261004-r5/build/include/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/payload_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_configuration.h \
+ /usr/include/string.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_handoff.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/library/cdk2_native_services.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/acpi_board_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/cbmem_table_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/cfr_setup_menu.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/deadline_tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/firmware_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/graphics_info_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/serial_port_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/diagnostic.h \
+ /home/sean/uart-unique-final.20261004-r5/build/include/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/dma_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/early_splash.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/payload_mm_authvar_service.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/smmstore_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/smram_memory.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/smm_register_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/acpi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/local_apic_timer_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/mcfg.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/tpm20.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/tpm2_acpi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/uefi_tcg_platform.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/tcg_physical_presence.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/variable_flash_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/hob_payload.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_hobs.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/pe.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/pe_image.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/symbols.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/lib/boot_logo.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/boot_logo.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h /usr/include/string.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/early_splash.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/early_splash.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/boot_logo.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_hobs.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/services.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/library/cdk2_platform_lib.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/services.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/library/cdk2_native_services.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/lib/linear_boot.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/lib/diagnostic.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/diagnostic.h \
+ /home/sean/uart-unique-final.20261004-r5/build/include/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/uart.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/lib/direct_image_table.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pe_image_view.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/pe_image.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/lib/pe_image_view.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pe_image_view.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/pe_image.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h
+model-dependencies: \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_test.c \
+ /usr/include/stdc-predef.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/boot_private_buffer.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdbool.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/15/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/bits/timesize.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/long-double.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/bits/types.h \
+ /usr/include/x86_64-linux-gnu/bits/typesizes.h \
+ /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/coreboot_tables.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/uefi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/capsule_delivery_policy.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/pi/boot_mode.h \
+ /usr/include/string.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/diagnostic.h \
+ /home/sean/uart-unique-final.20261004-r5/build/include/cdk2/config.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/linear_boot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/uart.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/dma_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/direct_image_table.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/hob_payload.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/image_policy_snapshot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_host_bridge.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/payload_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_configuration.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/cdk2/pci_topology_handoff.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/acpi_board_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/deadline_tsc_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/memory_allocation_hob.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/smram_memory.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/serial_port_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/guid/smmstore_info.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/acpi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/mcfg.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/pe_image.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/tpm20.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/tpm2_acpi.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/industry_standard/uefi_tcg_platform.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/library/hob_lib.h \
+ /usr/include/stdio.h /usr/lib/gcc/x86_64-linux-gnu/15/include/stdarg.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn.h \
+ /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
+ /usr/include/x86_64-linux-gnu/sys/mman.h \
+ /usr/include/x86_64-linux-gnu/bits/mman.h \
+ /usr/include/x86_64-linux-gnu/bits/mman-map-flags-generic.h \
+ /usr/include/x86_64-linux-gnu/bits/mman-linux.h \
+ /usr/include/x86_64-linux-gnu/bits/mman-shared.h \
+ /usr/include/x86_64-linux-gnu/bits/mman_ext.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_checksum.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/coreboot_hobs.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/services.h \
+ /home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/include/library/cdk2_native_services.h

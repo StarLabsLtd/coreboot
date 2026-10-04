@@ -1,0 +1,279 @@
+diff --git a/include/cdk2/diagnostic.h b/include/cdk2/diagnostic.h
+index 4184d24862..409409e7d4 100644
+--- a/include/cdk2/diagnostic.h
++++ b/include/cdk2/diagnostic.h
+@@ -289,6 +289,7 @@ EFI_STATUS cdk2_diag_configure_system_table(void *system_table);
+ #define CDK2_DIAG_CONFIGURE_OPTIONAL_SYSTEM_TABLE(system_table) ((void)0)
+ #endif
+ #if defined(CDK2_DIAG_UNIT_TEST)
++void cdk2_diag_test_snapshot_config(struct cdk2_diag_config *config);
+ void cdk2_diag_test_spi_status(UINT32 status);
+ EFI_STATUS cdk2_diag_test_cbmem_validate(
+ 	const struct cdk2_cbmem_console *console, UINTN total_bytes);
+diff --git a/src/boot/coreboot.h b/src/boot/coreboot.h
+index 4728f25436..34232a25d7 100644
+--- a/src/boot/coreboot.h
++++ b/src/boot/coreboot.h
+@@ -123,6 +123,9 @@ cdk2_coreboot_authorize_framebuffer(
+ 	const struct cb_framebuffer *framebuffer);
+ 
+ #if defined(CDK2_COREBOOT_BACKEND_TEST)
++EFI_STATUS EFIAPI
++cdk2_coreboot_test_validate_handoff(UINTN bootloader_parameter);
++
+ struct cdk2_coreboot_test_cbmem_result
+ EFIAPI
+ cdk2_coreboot_test_find_cbmem_entry(const struct cdk2_coreboot_handoff *coreboot, UINT32 id,
+diff --git a/src/boot/coreboot_handoff.c b/src/boot/coreboot_handoff.c
+index a5fec16fb0..381bd60ba7 100644
+--- a/src/boot/coreboot_handoff.c
++++ b/src/boot/coreboot_handoff.c
+@@ -2860,7 +2860,7 @@ static EFI_STATUS cdk2_coreboot_fill_diagnostic_handoff(
+ #if CONFIG_CDK2_SERIAL
+ 	const void *record;
+ 
+-	status = cdk2_coreboot_find_record(coreboot, CB_TAG_SERIAL,
++	status = cdk2_coreboot_find_unique_record(coreboot, CB_TAG_SERIAL,
+ 		CDK2_COREBOOT_SERIAL_MIN_SIZE, &record);
+ 	if (!EFI_ERROR(status)) {
+ 		serial = record;
+@@ -3111,7 +3111,7 @@ static EFI_STATUS cdk2_coreboot_append_serial_hobs(EFI_HOB_HANDOFF_INFO_TABLE *h
+ #endif
+ 	SERIAL_PORT_INFO legacy_serial_info;
+ 
+-	status = cdk2_coreboot_find_record(coreboot, CB_TAG_SERIAL,
++	status = cdk2_coreboot_find_unique_record(coreboot, CB_TAG_SERIAL,
+ 					   CDK2_COREBOOT_SERIAL_MIN_SIZE, &record);
+ 	if (!EFI_ERROR(status)) {
+ 		serial = (const struct cb_serial *)record;
+@@ -4149,7 +4149,10 @@ static EFI_STATUS cdk2_coreboot_validate_handoff(UINTN bootloader_parameter)
+ {
+ 	struct cdk2_coreboot_handoff handoff;
+ 	struct cdk2_diag_config diagnostic = {0};
+-#if CONFIG_CDK2_SERIAL || CONFIG_CDK2_CBMEM_TIMESTAMPS
++#if CONFIG_CDK2_SERIAL
++	const void *serial_record;
++#endif
++#if CONFIG_CDK2_CBMEM_TIMESTAMPS
+ 	const void *record;
+ #endif
+ #if CONFIG_CDK2_SPI_CONSOLE
+@@ -4165,6 +4168,12 @@ static EFI_STATUS cdk2_coreboot_validate_handoff(UINTN bootloader_parameter)
+ 	status = cdk2_coreboot_parse(bootloader_parameter, &handoff);
+ 	if (EFI_ERROR(status))
+ 		return status;
++#if CONFIG_CDK2_SERIAL
++	status = cdk2_coreboot_find_unique_record(&handoff, CB_TAG_SERIAL,
++		CDK2_COREBOOT_SERIAL_MIN_SIZE, &serial_record);
++	if (EFI_ERROR(status) && status != EFI_NOT_FOUND)
++		return status;
++#endif
+ #if CONFIG_PAYLOAD_DMA_HANDOFF
+ 	status = cdk2_dma_handoff_import(&handoff, &m_dma_handoff);
+ 	if (EFI_ERROR(status))
+@@ -4173,10 +4182,8 @@ static EFI_STATUS cdk2_coreboot_validate_handoff(UINTN bootloader_parameter)
+ #endif
+ 	m_coreboot_handoff = handoff;
+ #if CONFIG_CDK2_SERIAL
+-	status = cdk2_coreboot_find_record(&handoff, CB_TAG_SERIAL,
+-		CDK2_COREBOOT_SERIAL_MIN_SIZE, &record);
+-	if (!EFI_ERROR(status)) {
+-		const struct cb_serial *serial = record;
++	if (serial_record != NULL) {
++		const struct cb_serial *serial = serial_record;
+ 
+ 		if (serial->type == CB_SERIAL_TYPE_IO_MAPPED &&
+ 		    cdk2_uart_registers_valid(CDK2_DIAG_SERIAL_PIO, serial->baseaddr,
+@@ -4254,6 +4261,13 @@ static EFI_STATUS cdk2_coreboot_validate_handoff(UINTN bootloader_parameter)
+ 	return EFI_SUCCESS;
+ }
+ 
++#if defined(CDK2_COREBOOT_BACKEND_TEST)
++EFI_STATUS EFIAPI cdk2_coreboot_test_validate_handoff(UINTN bootloader_parameter)
++{
++	return cdk2_coreboot_validate_handoff(bootloader_parameter);
++}
++#endif
++
+ #if CONFIG_CDK2_LINEAR_BOOT
+ struct cdk2_coreboot_linear_context {
+ 	UINTN bootloader_parameter;
+diff --git a/src/boot/coreboot_test.c b/src/boot/coreboot_test.c
+index ad39ccd157..4efa78b52b 100644
+--- a/src/boot/coreboot_test.c
++++ b/src/boot/coreboot_test.c
+@@ -3005,6 +3005,150 @@ static int test_capsule_delivery_policy_import(void)
+ 	return failures;
+ }
+ 
++static int test_serial_unique_authority(void)
++{
++	uint8_t storage[TEST_TABLE_SIZE] __aligned(8);
++	uint8_t hobs[TEST_TABLE_SIZE] __aligned(8);
++	uint8_t saved_hobs[TEST_TABLE_SIZE];
++#if CONFIG_CDK2_SERIAL
++	uint8_t console_storage[sizeof(struct cdk2_cbmem_console) + 128U] __aligned(8);
++	struct cdk2_cbmem_console *console = (void *)console_storage;
++	struct cdk2_diag_config diagnostic;
++	struct cdk2_diag_config before, after;
++#endif
++	struct cdk2_coreboot_handoff handoff;
++	EFI_HOB_HANDOFF_INFO_TABLE *hob;
++	struct cb_serial serial[2];
++	EFI_STATUS status;
++	int failures = 0;
++
++	for (unsigned int scenario = 0U; scenario < 7U; scenario++) {
++		struct cb_header *header = (void *)storage;
++		struct cb_memory *memory = (void *)(storage + sizeof(*header));
++		size_t bytes;
++		uint32_t count;
++		EFI_STATUS expected = EFI_SUCCESS;
++
++		if (scenario > 1U)
++			expected = EFI_COMPROMISED_DATA;
++
++		build_memory_table(storage, sizeof(storage));
++		/* This fixture owns no legacy CBMEM allocation at the synthetic address. */
++		memory->map[2].type = CB_MEM_RESERVED;
++		bytes = header->table_bytes;
++		count = header->table_entries;
++		serial[0] = (struct cb_serial) {
++			.tag = CB_TAG_SERIAL, .size = CDK2_COREBOOT_SERIAL_MIN_SIZE,
++			.type = CB_SERIAL_TYPE_IO_MAPPED, .baseaddr = 0x3f8U,
++			.baud = 115200U, .regwidth = 1U,
++		};
++		serial[1] = serial[0];
++		if (scenario == 3U)
++			serial[1].baseaddr = 0x2f8U;
++		if (scenario == 4U)
++			serial[0].baseaddr = 0x2f8U;
++		if (scenario == 5U)
++			serial[1].size = sizeof(struct cb_record);
++		if (scenario == 6U)
++			serial[0].size = sizeof(struct cb_record);
++		for (unsigned int index = 0U; index < (scenario > 1U ? 2U : scenario);
++		     index++) {
++			memcpy(storage + sizeof(*header) + bytes, &serial[index],
++				serial[index].size);
++			bytes += serial[index].size;
++			count++;
++		}
++		finalize_table(storage, sizeof(storage), bytes, count);
++		status = cdk2_coreboot_parse_table(storage, sizeof(*header) + bytes,
++			&handoff);
++		failures += expect(status == EFI_SUCCESS,
++			"unique UART authority fixture parse failed");
++		if (EFI_ERROR(status))
++			continue;
++		handoff.memory_ranges[handoff.memory_range_count++] =
++			(struct cdk2_coreboot_memory_range) {
++				.base = (UINTN)hobs, .size = sizeof(hobs), .type = CB_MEM_RAM,
++			};
++		memset(hobs, 0, sizeof(hobs));
++		status = cdk2_coreboot_build_hobs(&handoff, hobs, hobs + sizeof(hobs),
++			hobs, hobs + sizeof(hobs), FALSE, (void **)&hob);
++		failures += expect(status == EFI_SUCCESS,
++			"unique UART authority base HOB construction failed");
++		if (EFI_ERROR(status))
++			continue;
++		memcpy(saved_hobs, hobs, sizeof(hobs));
++		status = cdk2_coreboot_test_append_serial_hobs(hob, &handoff);
++		failures += expect(status == expected,
++			"serial HOB producer did not enforce unique UART authority");
++		if (scenario != 1U)
++			failures += expect(memcmp(saved_hobs, hobs, sizeof(hobs)) == 0,
++				"absent or ambiguous UART published a serial device HOB");
++		memcpy(hobs, saved_hobs, sizeof(hobs));
++#if !CONFIG_CDK2_SERIAL
++		EFI_PEI_HOB_POINTERS diagnostic_hob;
++
++		diagnostic_hob.guid = (void *)(UINTN)hob->efi_end_of_hob_list;
++		expected = EFI_SUCCESS;
++#endif
++		status = cdk2_coreboot_test_append_diagnostic_hob(hob, &handoff);
++		failures += expect(status == expected,
++			"diagnostic HOB producer did not enforce unique UART authority");
++#if !CONFIG_CDK2_SERIAL
++		if (status == EFI_SUCCESS) {
++			const struct cdk2_diag_handoff *info = (const void *)(diagnostic_hob.guid + 1);
++
++			failures += expect(diagnostic_hob.guid->header.hob_type ==
++				EFI_HOB_TYPE_GUID_EXTENSION && diagnostic_hob.guid->header.hob_length ==
++				sizeof(*diagnostic_hob.guid) + sizeof(*info) &&
++				memcmp(&diagnostic_hob.guid->name, &cdk2_diag_handoff_guid,
++					sizeof(diagnostic_hob.guid->name)) == 0 &&
++				info->serial_type == 0U && info->register_base == 0U &&
++				info->register_width == 0U && info->register_stride == 0U &&
++				info->baud_rate == 0U && info->input_hertz == 0U,
++				"disabled diagnostic console exported a UART tuple");
++		}
++#else
++		if (scenario <= 1U)
++			continue;
++		failures += expect(memcmp(saved_hobs, hobs, sizeof(hobs)) == 0,
++			"ambiguous UART published a diagnostic HOB");
++		memset(console_storage, 0, sizeof(console_storage));
++		console->size = 128U;
++		diagnostic = (struct cdk2_diag_config) {
++			.cbmem_console = console, .cbmem_console_bytes = sizeof(console_storage),
++		};
++		cdk2_diag_configure(&diagnostic);
++		cdk2_diag_test_snapshot_config(&before);
++		status = cdk2_coreboot_test_validate_handoff((UINTN)storage);
++		cdk2_diag_test_snapshot_config(&after);
++		failures += expect(status == EFI_COMPROMISED_DATA,
++			"early handoff did not refuse ambiguous UART before DMA admission");
++		failures += expect(after.putc == before.putc &&
++			after.putc_context == before.putc_context &&
++			after.putc_provenance == before.putc_provenance &&
++			after.cbmem_console == before.cbmem_console &&
++			after.cbmem_console_bytes == before.cbmem_console_bytes &&
++			after.timestamps == before.timestamps &&
++			after.timestamp_bytes == before.timestamp_bytes &&
++			after.clock == before.clock && after.clock_context == before.clock_context &&
++			after.clock_hz == before.clock_hz &&
++			after.spi_console_buffer == before.spi_console_buffer &&
++			after.spi_console_buffer_bytes == before.spi_console_buffer_bytes &&
++			after.spi_console_max_chunk == before.spi_console_max_chunk &&
++			after.spi_console_boot_limit == before.spi_console_boot_limit &&
++			after.spi_console_apm_cmd == before.spi_console_apm_cmd &&
++			after.spi_console_remaining == before.spi_console_remaining &&
++			after.owner == before.owner && after.owner_context == before.owner_context &&
++			after.emission_owner == before.emission_owner,
++			"ambiguous UART replaced the admitted diagnostic configuration");
++		failures += expect(console->cursor == 0U,
++			"ambiguous UART emitted before authority admission");
++		cdk2_diag_runtime_transition();
++#endif
++	}
++	return failures;
++}
++
+ int main(void)
+ {
+ 	UINT8 storage[TEST_TABLE_SIZE];
+@@ -3122,6 +3266,7 @@ int main(void)
+ 	int failures;
+ 
+ 	failures = test_boot_splash_short_bmp();
++	failures += test_serial_unique_authority();
+ 	failures += test_capsule_delivery_policy_import();
+ #if defined(CDK2_COREBOOT_SPLASH_LENGTH_TEST_ONLY)
+ 	if (!failures)
+diff --git a/src/lib/diagnostic.c b/src/lib/diagnostic.c
+index 9c49da54f8..29b1b523e7 100644
+--- a/src/lib/diagnostic.c
++++ b/src/lib/diagnostic.c
+@@ -438,6 +438,11 @@ void cdk2_diag_test_set_putc(cdk2_diag_putc_fn putc, void *context)
+ 	active.putc_context = context;
+ }
+ 
++void cdk2_diag_test_snapshot_config(struct cdk2_diag_config *config)
++{
++	*config = active;
++}
++
+ BOOLEAN cdk2_diag_test_direct_serial_allowed(BOOLEAN debug,
+ 	BOOLEAN cbmem_configured)
+ {

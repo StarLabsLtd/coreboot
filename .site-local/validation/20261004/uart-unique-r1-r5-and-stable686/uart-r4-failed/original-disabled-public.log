@@ -1,0 +1,6 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684'
+Segmentation fault
+ERROR: deadline first-match mutant missed the duplicate oracle
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684/src/boot/Makefile:2797: native-deadline-cbmem-mutation-test] Error 1
+make: *** [Makefile:1150: native-coreboot-test] Error 2
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684'

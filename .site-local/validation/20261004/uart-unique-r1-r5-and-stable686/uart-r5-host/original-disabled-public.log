@@ -1,0 +1,13 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684'
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
+diagnostic literal profile tests: PASS
+legacy diagnostic profile tests: PASS
+diagnostic core dependencies: 23 shared and one per-key production objects covered
+diagnostic SMM classification: no payload-resident SMM image: PASS
+diagnostic SMM classification hostile mutations: PASS
+cdk2 coreboot test: PASS
+diagnostic runtime transition test: PASS
+diagnostic handoff inventory: 35 linked images covered
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684'

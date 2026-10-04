@@ -1,0 +1,1 @@
+16 /home/sean/stable-lint-after686.20261004-r1/stable-script-inventory.txt

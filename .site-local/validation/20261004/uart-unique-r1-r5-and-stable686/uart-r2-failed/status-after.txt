@@ -1,0 +1,5 @@
+ M include/cdk2/diagnostic.h
+ M src/boot/coreboot.h
+ M src/boot/coreboot_handoff.c
+ M src/boot/coreboot_test.c
+ M src/lib/diagnostic.c

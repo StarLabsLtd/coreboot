@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/whole-regression-after685-host",
+    "verify-commit",
+    "e55028c13d7126262cd9d1e2c49fc45a386021dd"
+  ],
+  "environment": {
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/stable-lint-after686.20261004-r1/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

@@ -1,0 +1,6 @@
+37e099638b3ea7e28a06a801bd84007356cf80ff5318937cefc23daac7dfbed2  /home/sean/uart-unique-final.20261004-r5/mutations/cdk2_coreboot_append_serial_hobs.c
+599aa9a83a11cf838285b6a5a1fd2d3f8d025e435990f929e358d239286e94bc  /home/sean/uart-unique-final.20261004-r5/mutations/cdk2_coreboot_append_serial_hobs.inverse.c
+b7763f2152c5dd730d16bc419cc84409d60c0e15973f5847c73c0faa3864f993  /home/sean/uart-unique-final.20261004-r5/mutations/cdk2_coreboot_fill_diagnostic_handoff.c
+599aa9a83a11cf838285b6a5a1fd2d3f8d025e435990f929e358d239286e94bc  /home/sean/uart-unique-final.20261004-r5/mutations/cdk2_coreboot_fill_diagnostic_handoff.inverse.c
+adc21749c294c30392da4b7ade10a0b99789a0ac99445ddffd3e14705d2acf26  /home/sean/uart-unique-final.20261004-r5/mutations/cdk2_coreboot_validate_handoff.c
+599aa9a83a11cf838285b6a5a1fd2d3f8d025e435990f929e358d239286e94bc  /home/sean/uart-unique-final.20261004-r5/mutations/cdk2_coreboot_validate_handoff.inverse.c

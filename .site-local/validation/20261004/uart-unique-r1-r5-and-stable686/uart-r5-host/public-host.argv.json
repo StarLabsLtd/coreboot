@@ -1,0 +1,39 @@
+{
+  "argv": [
+    "make",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684",
+    "-j1",
+    "CDK2_BUILD_DIR=/home/sean/uart-unique-final.20261004-r5/enabled-build",
+    "CDK2_CONFIG=/home/sean/uart-unique-final.20261004-r5/enabled-build/.config",
+    "COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388",
+    "COREBOOT_CONFIG=/home/sean/fresh-normal-focus-after657.CftZZg/build/producer-input.config",
+    "MBEDTLS_SOURCE=/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/3rdparty/mbedtls",
+    "CC=cc",
+    "HOSTCC=cc",
+    "native-coreboot-test",
+    "native-cbmem-console-test"
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "abort_on_error=1:detect_leaks=1",
+    "CC": "cc",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKE": "make",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "OLDPWD": "/home/sean",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean/Documents/.cdk2-worktrees/uart-unique-authority-after684",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/uart-unique-final.20261004-r5/tmp",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}
