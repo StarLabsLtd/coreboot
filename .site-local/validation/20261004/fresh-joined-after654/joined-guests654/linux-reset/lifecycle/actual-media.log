@@ -1,0 +1,2 @@
+/home/sean/Documents/cdk2/util/qemu/bin/assert-linux-fw-ui-reset-store.sh: line 128: 376691 Aborted                 ASAN_OPTIONS=abort_on_error=1:detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/comparison-mutant" "$output/initial.bin" "$output/final.bin" "${guids[0]}" --self-test > "$output/mutant.log" 2>&1
+Linux firmware-UI real-codec actual-media receipts: /home/sean/fresh-normal-joined-guest-after654.Vr3XYD/linux-reset/lifecycle/codec/linux-reset-store.ZQyk9P

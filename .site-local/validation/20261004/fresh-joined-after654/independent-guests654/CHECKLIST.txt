@@ -1,0 +1,93 @@
+Independent actual654 guest review plan (not executed)
+
+Selected signed source: /home/sean/Documents/cdk2 at
+0bb127b503d8c5d973b07d608f564ff0ef2ef6bb, clean throughout both guests.
+Producer389: /home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388
+at signed clean 7ee34bed989c46913c3ee6672fb25e83227c3b6c.
+One build: /home/sean/fresh-normal-after654.nP6Vda/build.
+Guest owner: /home/sean/fresh-normal-joined-guest-after654.Vr3XYD.
+Review owner: /home/sean/fresh-normal-guest-independent-review654.o7hehD.
+No guest or compiler execution by independent reviewer. Replay commands are
+prepared for root's explicit compiler-lane release, not run by this checklist.
+
+Shared admission and closure
+- Require actual build aggregate.status 0, native/producer outer.status 0,
+  producer toolchain.status 0 and sealed fresh-build.json; no inferred status.
+- Bind run manifest ROM/Core/config/descriptor/reference to that one signed
+  build. Check fresh-current-signed-head binding, not historical628 source mode.
+- Require outer driver status 0 and whole run-one result outer/QEMU/observer 0,
+  deadline_seconds exactly 180, measured 0 < wall_seconds <= 180, failure null.
+  Inspect raw qemu.status, observer.status, outer.status and command.json too.
+- Check actual devices NVMe/USB enabled; ESP/SATA/SD/network/TPM disabled;
+  one CPU max; no pflash seed/mutator, host reset marker, QMP input helper,
+  capsule CHECK/SET transport, new kernel, media expected-value learning.
+- Both runs' pflash-before.rom must equal the one pristine built ROM. Linux
+  must not use UI pflash. Both actual NVMe after hashes must match their admitted
+  before hashes (UI canonical disk; Linux exact pinned631 installed requester).
+- Retain real source/tool/recipe/input before/after closures and signatures.
+  Input maps must match; current canonical/producer heads stay fixed and clean.
+- Empty qemu.log is not silently replaced with invented output. Reaped status,
+  manifest and actual serial/CBMEM evidence remain separately required.
+
+UI cancellation: six actual frames, each inspected directly at 800x600
+Run: Vr3XYD/ui-cancel/lifecycle/ui-cancel.
+1 setup-status-original.ppm: real admitted splash/status baseline before INPUT_UI.
+2 setup-form-initial.ppm: Graphical UI Configuration, UI Scale 1x (native),
+  centered checkbox unchecked; Frame Height/Aspect dependencies disabled.
+3 setup-form-navigated.ppm: Down focuses Centered Aspect-Ratio Frame; native
+  checkbox remains unchecked and focused-help text describes centered layout.
+4 setup-form-control-edited.ppm: Right visibly checks the real checkbox; the
+  rebuilt form returns focus to UI Scale and enables the dependent controls.
+5 setup-form-dependent-focused.ppm: two Downs visibly focus enabled Frame Height
+  (%) and show its matching help; this is semantic visual review, not merely
+  pixel-change/readiness inference. Inspect all checkbox/control/help states.
+6 setup-firmware-restored.ppm: Esc returns to the exact original splash/status
+  pixels; no leftover form. Bind unique ABORTED, OS_HANDOFF and BootLogo restore
+  and BGRT SUCCESS markers in order, then ordinary Linux CDK2_RUNTIME_OK and
+  typed shutdown/not-running followed by intentional QMP quit.
+- Queued F2 down/up transcript must match current expected_actions, with the
+  accepted USB-keyboard-enumeration snapshot and configured zero wait metadata.
+- Full 64KiB actual-media oracle must prove pristine defaults, zero FmpState,
+  one MTC, exact Probe create/update and source-derived EMPTY FTW/workspace;
+  no OsIndications request and no LvglUiScale append/update anywhere, not just
+  an unchanged final live value. Check unchanged bytes outside actual SMMSTORE.
+- Review O0/O2 ASan/UBSan full-media/self-test logs, discarded-final-comparison
+  mutant expected134 and reversed source match, actual compiler closures and
+  source/executable/media immutability. Do not equate a frame review with this.
+
+Linux request/reset: four actual second-boot frames inspected directly
+Run: Vr3XYD/linux-reset/lifecycle/same-vm.
+1 setup-status-original.ppm: second firmware epoch's admitted splash/status.
+2 setup-form-initial.ppm: actual firmware-intent setup, native initial settings.
+3 setup-form-navigated.ppm: Down focus/help change; no checkbox edit in this lane.
+4 setup-firmware-restored.ppm: Esc exact baseline restoration and BGRT success.
+- Verify immutable actual631 UKI/manifest/source-body/section/CPIO binding and
+  ordinary installation readback, not a rebuilt kernel or a host variable seed.
+- First boot no key/no setup, exact serial Probe write/update/RUNTIME_OK, then
+  Linux helper SUPPORTED/REQUESTED/RESET markers in order with no returned reset.
+- Exactly one actual QMP RESET event with data.guest true in the retained full
+  event vector. This is observation of guest EFI Runtime reboot, not a host
+  system_reset command. Inspect linux-reset-observed.json and final event record.
+- Boot0 checked CBMEM remains an immutable prefix of the raw two-boot body;
+  exactly two complete handoff/splash/DXE prefix groups; saved current epoch
+  bytes/hash match cbmem-current.log. No rewind, changed table hash or partial
+  publication substitutes for the actual RESET event.
+- Second epoch intent SetupHotkey result SUCCESS/0us but no SetupHotkey wait,
+  queued F2 snapshot or F2 action; setup begin/ABORTED/handoff/BGRT in order.
+- Same second Linux reads persisted UPDATED Probe, clears immutable flag,
+  successfully deletes it and verifies absence, CDK2_ACCEPTANCE_OK once, then
+  typed QAPI shutdown/not-running and intentional QMP quit; no second request
+  or RESET. Exact current-source expected_actions and saved_epoch enforce this.
+- Full 64KiB real-codec expectation derives pristine defaults/EMPTY FTW,
+  FmpState0, MTC1, Probe create/update, OsIndications1, MTC2, OsIndications0,
+  Probe delete in that fixed source-derived order. All other bytes must match.
+  Verify O0/O2, selected-byte and FTW header/write-record mutation oppositions,
+  discarded-final-comparison
+  mutant expected134, inverse source equality and inverse self-test success.
+- No hardware, Selecting persistence or whole-project completion claim.
+
+Current654 replay commands are in replay-commands.sh. They create only new
+owned review output; never mutate/rewrite original guest receipts or media.
+The saved oracle itself repeats fresh descriptor/config/Core/proof/reference
+admission using current source. It may compile its owned direct-pair expected
+ELF, so root must authorize the compiler lane even though media inputs are read-only.

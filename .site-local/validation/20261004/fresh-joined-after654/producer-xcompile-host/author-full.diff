@@ -1,0 +1,122 @@
+diff --git a/tests/fresh_normal_fwui_admission_test.py b/tests/fresh_normal_fwui_admission_test.py
+index 7810b40068..e4f61fa64c 100644
+--- a/tests/fresh_normal_fwui_admission_test.py
++++ b/tests/fresh_normal_fwui_admission_test.py
+@@ -20,6 +20,49 @@ spec.loader.exec_module(helper)
+ 
+ 
+ class FreshAdmissionTest(unittest.TestCase):
++    def test_actual_five_invocations_require_owned_toolchain_preparation(self):
++        recipe = (repo / "util/qemu/bin/build-normal-fwui-fresh.sh").read_text()
++        preparation = '"${outer[@]}" "$stage/initial9/build/xcompile"'
++        self.assertEqual(recipe.count(preparation), 2)
++        actual_preparation = recipe.index(preparation, recipe.index('"${outer[@]}" olddefconfig >'))
++        self.assertLess(actual_preparation, recipe.index('" producer-tools "$stage"'))
++        self.assertLess(recipe.index('" producer-tools "$stage"'), recipe.index('"${outer[@]}" all >'))
++        for mutation in (None, "absent-preparation", "copied-old-xcompile", "all-before-capture", "environment"):
++            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as name:
++                stage = Path(name)
++                firmware, producer = stage / "firmware", stage / "producer"
++                (stage / "initial9").mkdir()
++                clean = ["env", "-i", "PATH=" + fresh.BUILD_PATH, "TMPDIR=/home/sean",
++                         "LANG=C", "LC_ALL=C", "make", "-C"]
++                common = clean + [str(firmware), "-j2", "CDK2_BUILD_DIR=" + str(stage),
++                    "CDK2_CONFIG=" + str(stage / "resolved.config"), "COREBOOT_TREE=" + str(producer),
++                    "COREBOOT_CONFIG=" + str(stage / "producer-input.config"),
++                    "CDK2_BEARSSL_DIR=/home/sean/Documents/cdk2/3rdparty/bearssl",
++                    "CDK2_LVGL_ROOT=/home/sean/Documents/cdk2/3rdparty/lvgl", "CC=cc", "HOSTCC=cc"]
++                outer = clean + [str(producer), "-j2", "UPDATED_SUBMODULES=1",
++                    "obj=" + str(stage / "initial9/build"), "DOTCONFIG=" + str(stage / "initial9/full.config"),
++                    "VBOOT_SOURCE=" + str(fresh.VBOOT), "HOSTCC=gcc", "HOSTCXX=g++"]
++                commands = {"configure.argv.json": common + ["olddefconfig"],
++                    "core.argv.json": common + ["native-coreboot-image", "native-lvgl-renderer-test"],
++                    "initial9/configure.argv.json": outer + ["olddefconfig"],
++                    "initial9/toolchain.argv.json": outer + [str(stage / "initial9/build/xcompile")],
++                    "initial9/build.argv.json": outer + ["all"]}
++                if mutation == "copied-old-xcompile":
++                    commands["initial9/toolchain.argv.json"][-1] = str(stage / "old-worktree/xcompile")
++                elif mutation == "all-before-capture":
++                    commands["initial9/toolchain.argv.json"][-1] = "all"
++                elif mutation == "environment":
++                    commands["initial9/toolchain.argv.json"].insert(-1, "HOSTCC=foreign-cc")
++                for filename, argv in commands.items():
++                    if mutation != "absent-preparation" or filename != "initial9/toolchain.argv.json":
++                        (stage / filename).write_text(json.dumps(argv) + "\n")
++                if mutation is None:
++                    self.assertEqual(fresh.invocation_receipts(stage, firmware, producer),
++                                     [stage / filename for filename in commands])
++                else:
++                    with self.assertRaises((ValueError, FileNotFoundError)):
++                        fresh.invocation_receipts(stage, firmware, producer)
++
+     def test_tracked_vboot_links_are_exact_without_generic_alias_admission(self):
+         for mutation in (None, "target", "regular", "git-target"):
+             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as name:
+diff --git a/util/qemu/bin/build-normal-fwui-fresh.sh b/util/qemu/bin/build-normal-fwui-fresh.sh
+index 0dc06ee8e6..a7fd1039b0 100644
+--- a/util/qemu/bin/build-normal-fwui-fresh.sh
++++ b/util/qemu/bin/build-normal-fwui-fresh.sh
+@@ -106,10 +106,19 @@ git -C "$producer" rev-parse HEAD > "$stage/initial9/source-head.txt"
+ outer=(env -i PATH="$PATH" TMPDIR="$TMPDIR" LANG=C LC_ALL=C make -C "$producer" -j2 UPDATED_SUBMODULES=1 obj="$stage/initial9/build"
+   DOTCONFIG="$stage/initial9/full.config" VBOOT_SOURCE="$vboot" HOSTCC=gcc HOSTCXX=g++)
+ python3 -B "$firmware/util/qemu/bin/fresh_normal_fwui.py" record-command "$stage" initial9/configure.argv.json "${outer[@]}" olddefconfig
++python3 -B "$firmware/util/qemu/bin/fresh_normal_fwui.py" record-command "$stage" initial9/toolchain.argv.json "${outer[@]}" "$stage/initial9/build/xcompile"
+ python3 -B "$firmware/util/qemu/bin/fresh_normal_fwui.py" record-command "$stage" initial9/build.argv.json "${outer[@]}" all
+ sha256sum "$core" "$stage/producer-input.config" "$recipe" "$stage/initial9/input.config" \
+-  "$stage/initial9/configure.argv.json" "$stage/initial9/build.argv.json" > "$stage/initial9/inputs-before.sha256"
++  "$stage/initial9/configure.argv.json" "$stage/initial9/toolchain.argv.json" \
++  "$stage/initial9/build.argv.json" > "$stage/initial9/inputs-before.sha256"
+ "${outer[@]}" olddefconfig > "$stage/initial9/configure.log" 2>&1
++# Configuration goals deliberately skip xcompile. Ask Make's owned output
++# target to generate it before binding selected tools and compiling firmware.
++status=0
++/usr/bin/time -o "$stage/initial9/toolchain.time" -f 'WALL=%e USER=%U SYS=%S PEAK_KIB=%M EXIT=%x' \
++  "${outer[@]}" "$stage/initial9/build/xcompile" > "$stage/initial9/toolchain.log" 2>&1 || status=$?
++printf '%s\n' "$status" > "$stage/initial9/toolchain.status"
++[[ $status == 0 ]]
+ python3 -B "$firmware/util/qemu/bin/fresh_normal_fwui.py" producer-tools "$stage"
+ grep -qx 'CONFIG_DRIVERS_EFI_MAIN_FW_VERSION=0x001a0009' "$stage/initial9/full.config"
+ status=0
+@@ -121,6 +130,7 @@ sha256sum -c "$stage/initial9/inputs-before.sha256" > "$stage/initial9/inputs-af
+ git -C "$producer" status --porcelain > "$stage/initial9/source-after.status"
+ [[ $status == 0 ]]
+ sha256sum "$stage/initial9/full.config" "$stage/initial9/configure.log" \
++  "$stage/initial9/toolchain.log" "$stage/initial9/toolchain.time" "$stage/initial9/toolchain.status" \
+   "$stage/initial9/build/xcompile" \
+   "$stage/initial9/build/coreboot.rom" "$stage/initial9/build/util/cbfstool/cbfstool" \
+   > "$stage/initial9/outputs.sha256"
+diff --git a/util/qemu/bin/fresh_normal_fwui.py b/util/qemu/bin/fresh_normal_fwui.py
+index 639c8aeb39..80763f6628 100644
+--- a/util/qemu/bin/fresh_normal_fwui.py
++++ b/util/qemu/bin/fresh_normal_fwui.py
+@@ -149,7 +149,9 @@ def invocation_receipts(stage, firmware, producer):
+         "DOTCONFIG=" + str(stage / "initial9/full.config"), "VBOOT_SOURCE=" + str(VBOOT), "HOSTCC=gcc", "HOSTCXX=g++"]
+     expected = {"configure.argv.json": common + ["olddefconfig"],
+         "core.argv.json": common + ["native-coreboot-image", "native-lvgl-renderer-test"],
+-        "initial9/configure.argv.json": outer + ["olddefconfig"], "initial9/build.argv.json": outer + ["all"]}
++        "initial9/configure.argv.json": outer + ["olddefconfig"],
++        "initial9/toolchain.argv.json": outer + [str(stage / "initial9/build/xcompile")],
++        "initial9/build.argv.json": outer + ["all"]}
+     for name, argv in expected.items():
+         if json.loads((stage / name).read_bytes()) != argv:
+             raise ValueError("fresh actual sanitized build invocation rejected: " + name)
+@@ -233,6 +235,9 @@ def build_receipts(stage, firmware, producer, output, helper):
+     invocations = invocation_receipts(stage, firmware, producer)
+     if not set(invocations) <= set(paths):
+         raise ValueError("fresh build omitted actual invocation receipts")
++    if (stage / "initial9/toolchain.status").read_text() != "0\n" or not re.search(
++            r"(?:^| )EXIT=0(?:\n|$)", (stage / "initial9/toolchain.time").read_text()):
++        raise ValueError("fresh producer toolchain preparation did not succeed")
+     if helper.sha(stage / "input.config") != PAYLOAD_CONFIG_SHA or \
+             helper.sha(stage / "producer-input.config") != PRODUCER_INPUT_SHA:
+         raise ValueError("fresh build must start from original normal configuration inputs")
+@@ -279,7 +284,8 @@ def build_receipts(stage, firmware, producer, output, helper):
+         "tools-after-check.log", "configure.log", "configure.time", "native/command-inputs",
+         "native/native-direct-image-inventory.tsv", "native/native-direct-composition-inventory.tsv",
+         "native/native-direct-images.rsp", "native/cdk2-coreboot-image.elf", "native/direct-pair-provenance.tsv",
+-        "initial9/input.config", "initial9/full.config", "initial9/configure.log", "initial9/build/xcompile")]
++        "initial9/input.config", "initial9/full.config", "initial9/configure.log", "initial9/build/xcompile",
++        "initial9/toolchain.log", "initial9/toolchain.time", "initial9/toolchain.status")]
+     # Receipts must include the signed recipe and every generated build fact,
+     # not merely hash a caller-chosen unrelated inventory.
+     if not set(required) <= set(paths + tool_paths + [stage / "vendor-heads.txt", stage / "tools.json",

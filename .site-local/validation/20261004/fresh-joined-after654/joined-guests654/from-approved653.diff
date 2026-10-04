@@ -1,0 +1,38 @@
+--- approved653/guest-common.sh
++++ fresh654/guest-common.sh
+@@ -1,12 +1,12 @@
+ #!/usr/bin/env bash
+ # Outside-repo bookkeeping for the reviewed original180 guest runners.
+ set -euo pipefail
+-driver=/home/sean/fresh-normal-joined-guest-after653.c0aR1l
+-rootreceipt=/home/sean/fresh-normal-after653.noNGMS
++driver=/home/sean/fresh-normal-joined-guest-after654.Vr3XYD
++rootreceipt=/home/sean/fresh-normal-after654.nP6Vda
+ build=$rootreceipt/build
+ firmware=/home/sean/Documents/cdk2
+ producer=/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388
+-expected=8229ed31abca6017dec0c5877646f8bc43dbca71
++expected=0bb127b503d8c5d973b07d608f564ff0ef2ef6bb
+ producer_expected=7ee34bed989c46913c3ee6672fb25e83227c3b6c
+ bundle=/home/sean/Documents/cdk2-validation/qemu/pr331-627e3bbe/qemu/fixtures
+ unused_request_fixture=/home/sean/normal-fwui-native-aftere63.BRRN8B/requester
+--- approved653/run-ui-cancel.sh
++++ fresh654/run-ui-cancel.sh
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env bash
+ # One pristine normal UI checkbox edit/Esc discard guest, then actual media oracle.
+-source /home/sean/fresh-normal-joined-guest-after653.c0aR1l/guest-common.sh
++source /home/sean/fresh-normal-joined-guest-after654.Vr3XYD/guest-common.sh
+ prepare ui-cancel
+ # Positional historical EFI requester is deliberately unused by this phase.
+ # Outer420 covers admission/codec/cleanup; existing run_stage/run-one retain180.
+--- approved653/run-linux-reset.sh
++++ fresh654/run-linux-reset.sh
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env bash
+ # One pristine normal VM: pinned631 Linux Runtime request, guestRESET, UI/delete.
+-source /home/sean/fresh-normal-joined-guest-after653.c0aR1l/guest-common.sh
++source /home/sean/fresh-normal-joined-guest-after654.Vr3XYD/guest-common.sh
+ prepare linux-reset
+ # The first guest must pass, and the same recipes/build/source must stay frozen.
+ test "$(cat "$driver/ui-cancel/outer.status")" = 0

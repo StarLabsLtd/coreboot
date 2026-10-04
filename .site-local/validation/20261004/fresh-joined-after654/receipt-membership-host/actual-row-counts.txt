@@ -1,0 +1,4 @@
+    1637 /home/sean/fresh-normal-after653.noNGMS/build/source-before.sha256
+   25087 /home/sean/fresh-normal-after653.noNGMS/build/initial9/source-before.sha256
+   35735 /home/sean/fresh-normal-after653.noNGMS/build/outputs.sha256
+   62459 total

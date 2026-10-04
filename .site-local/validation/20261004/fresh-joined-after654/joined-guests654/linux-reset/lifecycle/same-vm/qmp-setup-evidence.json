@@ -1,0 +1,293 @@
+{
+  "actions": [
+    {
+      "vnc_connected": true
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_serial": "CDK2_LINUX_BOOT_TO_FW_UI_RESET"
+    },
+    {
+      "guest_reset": true
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "SPLASH_EARLY | complete | SUCCESS"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "capture": "status-original"
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "INPUT_UI | begin | NOT_STARTED"
+    },
+    {
+      "wait_cbmem": "INPUT_UI | complete | SUCCESS"
+    },
+    {
+      "wait_cbmem": "SetupHotkey | result | SUCCESS"
+    },
+    {
+      "wait_cbmem": "SetupForm | begin | SUCCESS"
+    },
+    {
+      "capture": "form-initial"
+    },
+    {
+      "state": "down",
+      "vnc_key": "down"
+    },
+    {
+      "state": "up",
+      "vnc_key": "down"
+    },
+    {
+      "capture": "form-navigated"
+    },
+    {
+      "state": "down",
+      "vnc_key": "esc"
+    },
+    {
+      "state": "up",
+      "vnc_key": "esc"
+    },
+    {
+      "wait_cbmem": "SetupForm | return | ABORTED"
+    },
+    {
+      "wait_cbmem": "OS_HANDOFF | begin | NOT_STARTED"
+    },
+    {
+      "wait_cbmem": "BootLogo | restore and BGRT | SUCCESS"
+    },
+    {
+      "capture": "firmware-restored"
+    },
+    {
+      "wait_serial": "CDK2_ACCEPTANCE_OK"
+    },
+    {
+      "qmp_shutdown": {
+        "id": "fw-ui-shutdown",
+        "return": {
+          "running": false,
+          "status": "shutdown"
+        }
+      }
+    }
+  ],
+  "completion": {
+    "intentional": true,
+    "os_marker": "CDK2_ACCEPTANCE_OK",
+    "qmp_quit": {
+      "return": {}
+    },
+    "shutdown": {
+      "id": "fw-ui-shutdown",
+      "return": {
+        "running": false,
+        "status": "shutdown"
+      }
+    }
+  },
+  "diagnostics": {
+    "file": "cbmem-live.log",
+    "observer_file": "cbmem-observer.json",
+    "observer_sha256": "9ffc0c52aa39849f362f2ae5611d85a3ec876eb82856c8e4c00460b4b68d5edb",
+    "sha256": "45f19db4a234262e307e16ae81a607229ccb66d9b49515a954564f2068bbe81d",
+    "source": "qmp-physical-cbmem"
+  },
+  "linux_guest_reset": {
+    "boot0_sha256": "a24ba58c3596920b6e7dab05025895cf247503175727aa91b35eacb104b09fcb",
+    "current_sha256": "cb9984961d4219ad7ca0218feeedacce28ae0a557399bb10dfcef4c4b461ae7b",
+    "event": {
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      },
+      "event": "RESET",
+      "timestamp": {
+        "microseconds": 944624,
+        "seconds": 1791114303
+      }
+    },
+    "events": [
+      {
+        "event": "RESUME",
+        "timestamp": {
+          "microseconds": 135549,
+          "seconds": 1791114264
+        }
+      },
+      {
+        "data": {
+          "offset": 0,
+          "qom-path": "/machine/unattached/device[2]/rtc"
+        },
+        "event": "RTC_CHANGE",
+        "timestamp": {
+          "microseconds": 343329,
+          "seconds": 1791114264
+        }
+      },
+      {
+        "data": {
+          "offset": 0,
+          "qom-path": "/machine/unattached/device[2]/rtc"
+        },
+        "event": "RTC_CHANGE",
+        "timestamp": {
+          "microseconds": 343372,
+          "seconds": 1791114264
+        }
+      },
+      {
+        "data": {
+          "guest": true,
+          "reason": "guest-reset"
+        },
+        "event": "RESET",
+        "timestamp": {
+          "microseconds": 944624,
+          "seconds": 1791114303
+        }
+      },
+      {
+        "event": "STOP",
+        "timestamp": {
+          "microseconds": 969726,
+          "seconds": 1791114303
+        }
+      },
+      {
+        "event": "RESUME",
+        "timestamp": {
+          "microseconds": 972429,
+          "seconds": 1791114303
+        }
+      },
+      {
+        "data": {
+          "offset": 0,
+          "qom-path": "/machine/unattached/device[2]/rtc"
+        },
+        "event": "RTC_CHANGE",
+        "timestamp": {
+          "microseconds": 523629,
+          "seconds": 1791114304
+        }
+      },
+      {
+        "event": "STOP",
+        "timestamp": {
+          "microseconds": 491327,
+          "seconds": 1791114305
+        }
+      },
+      {
+        "data": {
+          "offset": 0,
+          "qom-path": "/machine/unattached/device[2]/rtc"
+        },
+        "event": "RTC_CHANGE",
+        "timestamp": {
+          "microseconds": 523680,
+          "seconds": 1791114304
+        }
+      },
+      {
+        "event": "RESUME",
+        "timestamp": {
+          "microseconds": 562516,
+          "seconds": 1791114305
+        }
+      },
+      {
+        "data": {
+          "guest": true,
+          "reason": "guest-shutdown"
+        },
+        "event": "SHUTDOWN",
+        "timestamp": {
+          "microseconds": 21117,
+          "seconds": 1791114349
+        }
+      },
+      {
+        "event": "STOP",
+        "timestamp": {
+          "microseconds": 21573,
+          "seconds": 1791114349
+        }
+      }
+    ]
+  },
+  "mode": "default-zero-linux-fw-ui-reset",
+  "profile": "quiet",
+  "screens": {
+    "firmware-restored": {
+      "file": "setup-firmware-restored.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    },
+    "form-initial": {
+      "file": "setup-form-initial.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "fba4b72539dd561bbd230ea87720e8e2dd4be1a1627c9a04edf33235c5d2c3f9",
+      "width": 800
+    },
+    "form-navigated": {
+      "file": "setup-form-navigated.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "55cc69ce88168424978525f2e4875a3e4fa15bf6e18e5a79e804a9ae979791db",
+      "width": 800
+    },
+    "status-original": {
+      "file": "setup-status-original.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    }
+  },
+  "selecting_reference": {
+    "file": "selecting-reference.ppm",
+    "height": 480,
+    "manifest_sha256": "8012d684b7e8eb1abfaab81399e7b3343d184a455bc5fba3f925907ba056c53e",
+    "sha256": "75039173afda30d0c558251728db6867accc24a7bac7477cb43edc7c4ea73172",
+    "status": [
+      157,
+      339,
+      486,
+      48
+    ],
+    "width": 800
+  }
+}

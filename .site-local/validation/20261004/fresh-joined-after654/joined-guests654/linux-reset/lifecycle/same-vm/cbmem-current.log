@@ -1,0 +1,299 @@
+CDK2 | HANDOFF_VALIDATE | start | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | HANDOFF_VALIDATE | complete | SUCCESS (0x0000000000000000) | 5238 us
+CDK2 | SPLASH_EARLY | start | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | SPLASH_EARLY | complete | SUCCESS (0x0000000000000000) | 2413 us
+[INFO] CDK2:m=01:e=1000:status=0000000000000000
+[INFO] CDK2:m=01:e=1001:status=0000000000000000
+[INFO] CDK2:m=01:e=1003:status=0000000000000000
+CDK2 | DXE_SERVICES | begin | NOT_STARTED (0x8000000000000013) | 0 us
+[INFO] CDK2:m=02:e=1100:status=0000000000000000
+[INFO] CDK2:m=02:e=1101:status=0000000000000000
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000000
+CDK2 | module 0x03 | direct driver GUID | e99706f8d67f6546864688e33ef71dfc
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | SecurityStubDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | DXE_SERVICES | complete | SUCCESS (0x0000000000000000) | 41624 us
+CDK2 | ARCH_PROTOCOLS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000001
+CDK2 | module 0x03 | direct driver GUID | 86481e1a17950e449fde3be44cee2136
+CDK2 | module 0x03 | direct image bytes | 0x000000000000d000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=24:e=26ab:status=0000000000000000
+[INFO] CDK2:m=24:e=2b8f:status=0000000000000000
+[INFO] CDK2:m=24:e=28ac:status=0000000000000000
+[INFO] CDK2:m=24:e=2bbe:status=0000000000000000
+[INFO] CDK2:m=24:e=258c:status=0000000000000000
+[INFO] CDK2:m=24:e=205f:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | CpuDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000003
+CDK2 | module 0x03 | direct driver GUID | c4f801b6b743844795b1f4226cb40cee
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006400
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | RuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000002
+CDK2 | module 0x03 | direct driver GUID | e71f9ba1bcc1f849875f54a5d542443f
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | CpuIo2Dxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000004
+CDK2 | module 0x03 | direct driver GUID | 739933c863a56145b858d8476f9defc4
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | Metronome | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000007
+CDK2 | module 0x03 | direct driver GUID | c7e4284b36ff104e93cfa82159e777c5
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=25:e=23a1:status=0000000000000000
+[INFO] CDK2:m=25:e=239a:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | ResetSystemRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000009
+CDK2 | module 0x03 | direct driver GUID | 9681fe52def9074db22f51f77a0e7c41
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=24:e=2b95:status=0000000000000000
+[INFO] CDK2:m=24:e=2542:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | LocalApicTimerDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000005
+CDK2 | module 0x03 | direct driver GUID | 7fd699f0ae71364cb2a3dceb0eb2b7d8
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | WatchdogTimer | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | ARCH_PROTOCOLS | complete | SUCCESS (0x0000000000000000) | 62206 us
+CDK2 | VARIABLES_MIN | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000a
+CDK2 | module 0x03 | direct driver GUID | d5e4d2cb6870f54fb4629822b4ad8d60
+CDK2 | module 0x03 | direct image bytes | 0x000000000001c000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=22:e=25c7:status=0000000000000000
+[INFO] CDK2:m=22:e=2620:status=0000000000000000
+[INFO] CDK2:m=22:e=2a19:status=0000000000000000
+[INFO] CDK2:m=22:e=2f28:status=0000000000000000
+[INFO] CDK2:m=22:e=2386:status=0000000000000000
+[INFO] CDK2:m=22:e=2386:status=0000000000000000
+[INFO] CDK2:m=22:e=29ad:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | VariableRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000008
+CDK2 | module 0x03 | direct driver GUID | 657b8d37a98d7347b6e4a47826a833e1
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PcRtc | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000006
+CDK2 | module 0x03 | direct driver GUID | 728260ad7fd06449801e7bd3b7888652
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | MonotonicCounterRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001b
+CDK2 | module 0x03 | direct driver GUID | 0a7f8542f213214b8a2353d3f714b840
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005600
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=01:e=2dc4:status=0000000000000000
+[INFO] CDK2:m=01:e=2938:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | CapsuleRuntimeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001d
+CDK2 | module 0x03 | direct driver GUID | e6d05c9740c52b4e906c72c0d0d1e40d
+CDK2 | module 0x03 | direct image bytes | 0x0000000000056000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | FmpDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001c
+CDK2 | module 0x03 | direct driver GUID | 18d89b99f77d9a4aa5029b75033e6a0f
+CDK2 | module 0x03 | direct image bytes | 0x0000000000005000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+[INFO] CDK2:m=22:e=243c:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | EsrtDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | variable policy protocols | 0x0000000000000001
+CDK2 | module 0x02 | firmware management protocols | 0x0000000000000001
+CDK2 | module 0x02 | ESRT management protocols | 0x0000000000000001
+CDK2 | Tcg2Dxe | hardware absent | NOT_FOUND (0x800000000000000e) | 0 us
+CDK2 | Tcg2Dxe | hardware absent | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | VARIABLES_MIN | complete | SUCCESS (0x0000000000000000) | 1010711 us
+CDK2 | CAPSULE_EARLY_GATE | begin | NOT_STARTED (0x8000000000000013) | 0 us
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+CDK2 | CAPSULE_EARLY_GATE | complete | SUCCESS (0x0000000000000000) | 157121 us
+CDK2 | CAPSULE_RAM | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | CAPSULE_RAM | complete | SUCCESS (0x0000000000000000) | 1576 us
+CDK2 | PLATFORM_TABLES | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000b
+CDK2 | module 0x03 | direct driver GUID | 2ce42296388e084a9e8f54f784652f6b
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=0a:e=24f1:status=0000000000000000
+[INFO] CDK2:m=0a:e=22af:status=0000000000000000
+CDK2 | module 0x0a | RSDP address | 0x000000003ec79040
+[INFO] CDK2:m=0a:e=220c:status=0000000000000000
+CDK2 | module 0x0a | source RSDT length | 0x0000000000000040
+[INFO] CDK2:m=0a:e=2c1f:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | AcpiTableDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | PLATFORM_TABLES | complete | SUCCESS (0x0000000000000000) | 6230 us
+CDK2 | PCI_ROOTS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000d
+CDK2 | module 0x03 | direct driver GUID | 70b78f12795e76419e519bb268a17dd1
+CDK2 | module 0x03 | direct image bytes | 0x0000000000009000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=17:e=22a6:status=0000000000000000
+[INFO] CDK2:m=17:e=2ad3:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PciHostBridgeDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | PCI_ROOTS | complete | SUCCESS (0x0000000000000000) | 34090 us
+CDK2 | PCI_ENUMERATE | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000e
+CDK2 | module 0x03 | direct driver GUID | 0400b893b39fd4119a3a0090273fc14d
+CDK2 | module 0x03 | direct image bytes | 0x000000000000c000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PciBusDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | PCI_ENUMERATE | complete | SUCCESS (0x0000000000000000) | 148838 us
+CDK2 | STORAGE_CONTROLLERS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | STORAGE_CONTROLLERS | complete | SUCCESS (0x0000000000000000) | 1466 us
+CDK2 | BLOCK_DISCOVERY | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000000f
+CDK2 | module 0x03 | direct driver GUID | f4bde35bcf53a346a6a973c34a6e5ee3
+CDK2 | module 0x03 | direct image bytes | 0x000000000000f800
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=1e:e=2ba5:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | NvmExpressDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000016
+CDK2 | module 0x03 | direct driver GUID | b4f7386b98ade9409093aca2b5a253c4
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | DiskIoDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000017
+CDK2 | module 0x03 | direct driver GUID | 9ef3a11ffffeae4abd7b38a070a3b609
+CDK2 | module 0x03 | direct image bytes | 0x0000000000009000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=15:e=28d9:status=0000000000000000
+[INFO] CDK2:m=15:e=2daa:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | PartitionDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001e
+CDK2 | module 0x03 | direct driver GUID | b6af3bcdfb50e84f8e4eab74d2c1a600
+CDK2 | module 0x03 | direct image bytes | 0x0000000000004000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | EnglishDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000018
+CDK2 | module 0x03 | direct driver GUID | fe781596b7b6c344af356bc705cd2b1f
+CDK2 | module 0x03 | direct image bytes | 0x000000000000ce00
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=1a:e=2480:status=0000000000000000
+[INFO] CDK2:m=1a:e=21b7:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | Fat | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | SataController | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | AtaAtapiPassThruDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | AtaBusDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | BLOCK_DISCOVERY | complete | SUCCESS (0x0000000000000000) | 220613 us
+CDK2 | FILESYSTEMS | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | FILESYSTEMS | complete | SUCCESS (0x0000000000000000) | 107 us
+CDK2 | CAPSULE_DISK | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | CAPSULE_DISK | complete | SUCCESS (0x0000000000000000) | 36878 us
+CDK2 | DISPLAY_ADOPT | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | DISPLAY_ADOPT | complete | SUCCESS (0x0000000000000000) | 1717 us
+CDK2 | INPUT_UI | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000013
+CDK2 | module 0x03 | direct driver GUID | 910ef5b759a72c41ade4dcd03e7f7c28
+CDK2 | module 0x03 | direct image bytes | 0x000000000000c000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=1f:e=28cf:status=0000000000000000
+[INFO] CDK2:m=1f:e=2845:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | XhciDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=1f:e=2f3e:status=0000000000000000
+[INFO] CDK2:m=1f:e=2f52:status=0000000000000000
+[INFO] CDK2:m=1f:e=2d9c:status=0000000000000000
+[INFO] CDK2:m=1f:e=26c9:status=0000000000000000
+[INFO] CDK2:m=1f:e=255b:status=0000000000000000
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000014
+CDK2 | module 0x03 | direct driver GUID | b712062463a0d4119a3a0090273fc14d
+CDK2 | module 0x03 | direct image bytes | 0x000000000000a000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=11:e=22ee:status=0000000000000000
+[INFO] CDK2:m=11:e=2b8d:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | UsbBusDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001a
+CDK2 | module 0x03 | direct driver GUID | cf622e2dcf9eb743821994e7fc713dfe
+CDK2 | module 0x03 | direct image bytes | 0x0000000000007000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | UsbKbDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | USB keyboard controllers | 0x0000000000000001
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000019
+CDK2 | module 0x03 | direct driver GUID | ecdc8e406dcf7c47a5a8b4844e3de281
+CDK2 | module 0x03 | direct image bytes | 0x000000000000c000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=01:e=2351:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | ConSplitterDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x000000000000001f
+CDK2 | module 0x03 | direct driver GUID | c1dff487f1a2904c952d4a881ed95231
+CDK2 | module 0x03 | direct image bytes | 0x000000000006c000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | LvglUiDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | UsbMassStorageDxe | route not selected | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | SplashStatus | phase | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | INPUT_UI | complete | SUCCESS (0x0000000000000000) | 287754 us
+CDK2 | SplashStatus | phase | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | BOOT_POLICY | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | module 0x03 | direct driver ordinal | 0x0000000000000020
+CDK2 | module 0x03 | direct driver GUID | 4a94336d75ec5548a54d809c75241f6c
+CDK2 | module 0x03 | direct image bytes | 0x0000000000006200
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=04:e=1300:status=0000000000000000
+[INFO] CDK2:m=04:e=1301:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=04:e=130b:status=0000000000000000
+[INFO] CDK2:m=03:e=1201:status=0000000000000000
+CDK2 | BdsDxe | required driver | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | SetupForm | available | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=04:e=130b:status=0000000000000000
+CDK2 | SetupHotkey | result | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | SetupForm | begin | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | SetupForm | return | ABORTED (0x8000000000000015) | 0 us
+CDK2 | EndOfDxe | signal and lock | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | BOOT_POLICY | complete | SUCCESS (0x0000000000000000) | 2501780 us
+CDK2 | SplashStatus | phase | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | OS_HANDOFF | begin | NOT_STARTED (0x8000000000000013) | 0 us
+CDK2 | BootNext | probe | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+CDK2 | ReadyToBoot | signal | SUCCESS (0x0000000000000000) | 0 us
+CDK2 | module 0x02 | firmware management protocols after ReadyToBoot | 0x0000000000000001
+CDK2 | module 0x02 | ESRT management protocols after ReadyToBoot | 0x0000000000000001
+CDK2 | module 0x02 | ESRT tables after ReadyToBoot | 0x0000000000000001
+[INFO] CDK2:m=0a:e=2b5c:status=0000000000000000
+CDK2 | BootLogo | restore and BGRT | SUCCESS (0x0000000000000000) | 0 us
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=22:e=2a1d:status=0000000000000000
+[INFO] CDK2:m=01:e=2416:status=0000000000000000
+[INFO] CDK2:m=22:e=29d0:status=0000000000000000

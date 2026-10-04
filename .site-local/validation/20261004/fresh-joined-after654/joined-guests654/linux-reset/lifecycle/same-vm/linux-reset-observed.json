@@ -1,0 +1,57 @@
+{
+  "boot0_sha256": "a24ba58c3596920b6e7dab05025895cf247503175727aa91b35eacb104b09fcb",
+  "event": {
+    "data": {
+      "guest": true,
+      "reason": "guest-reset"
+    },
+    "event": "RESET",
+    "timestamp": {
+      "microseconds": 944624,
+      "seconds": 1791114303
+    }
+  },
+  "events": [
+    {
+      "event": "RESUME",
+      "timestamp": {
+        "microseconds": 135549,
+        "seconds": 1791114264
+      }
+    },
+    {
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      },
+      "event": "RTC_CHANGE",
+      "timestamp": {
+        "microseconds": 343329,
+        "seconds": 1791114264
+      }
+    },
+    {
+      "data": {
+        "offset": 0,
+        "qom-path": "/machine/unattached/device[2]/rtc"
+      },
+      "event": "RTC_CHANGE",
+      "timestamp": {
+        "microseconds": 343372,
+        "seconds": 1791114264
+      }
+    },
+    {
+      "data": {
+        "guest": true,
+        "reason": "guest-reset"
+      },
+      "event": "RESET",
+      "timestamp": {
+        "microseconds": 944624,
+        "seconds": 1791114303
+      }
+    }
+  ],
+  "scope": "checked guest RESET observation only; not final acceptance"
+}

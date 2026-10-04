@@ -1,0 +1,277 @@
+{
+  "actions": [
+    {
+      "vnc_connected": true
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "SPLASH_EARLY | complete | SUCCESS"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "capture": "status-original"
+    },
+    {
+      "cont": {
+        "return": {}
+      }
+    },
+    {
+      "wait_cbmem": "INPUT_UI | begin | NOT_STARTED"
+    },
+    {
+      "wait_cbmem": "module 0x03 | USB keyboard controllers | 0x0000000000000001"
+    },
+    {
+      "stop": {
+        "return": {}
+      }
+    },
+    {
+      "queued_input_snapshot": true
+    },
+    {
+      "qmp_pipeline": [
+        {
+          "execute": "cont",
+          "id": "queued-cont"
+        },
+        {
+          "arguments": {
+            "device": "cdk2-vga",
+            "events": [
+              {
+                "data": {
+                  "down": true,
+                  "key": {
+                    "data": "f2",
+                    "type": "qcode"
+                  }
+                },
+                "type": "key"
+              }
+            ]
+          },
+          "execute": "input-send-event",
+          "id": "queued-f2-down"
+        }
+      ],
+      "replies": [
+        {
+          "id": "queued-cont",
+          "return": {}
+        },
+        {
+          "id": "queued-f2-down",
+          "return": {}
+        }
+      ]
+    },
+    {
+      "wait_cbmem": "INPUT_UI | complete | SUCCESS"
+    },
+    {
+      "wait_cbmem": "SetupHotkey | result | SUCCESS"
+    },
+    {
+      "wait_cbmem": "SetupForm | begin | SUCCESS"
+    },
+    {
+      "qmp_pipeline": [
+        {
+          "arguments": {
+            "device": "cdk2-vga",
+            "events": [
+              {
+                "data": {
+                  "down": false,
+                  "key": {
+                    "data": "f2",
+                    "type": "qcode"
+                  }
+                },
+                "type": "key"
+              }
+            ]
+          },
+          "execute": "input-send-event",
+          "id": "queued-f2-up"
+        }
+      ],
+      "replies": [
+        {
+          "id": "queued-f2-up",
+          "return": {}
+        }
+      ]
+    },
+    {
+      "capture": "form-initial"
+    },
+    {
+      "state": "down",
+      "vnc_key": "down"
+    },
+    {
+      "state": "up",
+      "vnc_key": "down"
+    },
+    {
+      "capture": "form-navigated"
+    },
+    {
+      "state": "down",
+      "vnc_key": "right"
+    },
+    {
+      "state": "up",
+      "vnc_key": "right"
+    },
+    {
+      "capture": "form-control-edited"
+    },
+    {
+      "state": "down",
+      "vnc_key": "down"
+    },
+    {
+      "state": "up",
+      "vnc_key": "down"
+    },
+    {
+      "state": "down",
+      "vnc_key": "down"
+    },
+    {
+      "state": "up",
+      "vnc_key": "down"
+    },
+    {
+      "capture": "form-dependent-focused"
+    },
+    {
+      "state": "down",
+      "vnc_key": "esc"
+    },
+    {
+      "state": "up",
+      "vnc_key": "esc"
+    },
+    {
+      "wait_cbmem": "SetupForm | return | ABORTED"
+    },
+    {
+      "wait_cbmem": "OS_HANDOFF | begin | NOT_STARTED"
+    },
+    {
+      "wait_cbmem": "BootLogo | restore and BGRT | SUCCESS"
+    },
+    {
+      "capture": "firmware-restored"
+    },
+    {
+      "wait_serial": "CDK2_RUNTIME_OK"
+    },
+    {
+      "qmp_shutdown": {
+        "id": "fw-ui-shutdown",
+        "return": {
+          "running": false,
+          "status": "shutdown"
+        }
+      }
+    }
+  ],
+  "completion": {
+    "intentional": true,
+    "os_marker": "CDK2_RUNTIME_OK",
+    "qmp_quit": {
+      "return": {}
+    },
+    "shutdown": {
+      "id": "fw-ui-shutdown",
+      "return": {
+        "running": false,
+        "status": "shutdown"
+      }
+    }
+  },
+  "diagnostics": {
+    "file": "cbmem-live.log",
+    "observer_file": "cbmem-observer.json",
+    "observer_sha256": "6e0a9dd59b3d947963a40ac2e68b4d5294d8e9a8ada229dbd186a8f093de21ea",
+    "sha256": "29757394b83a8f3139bd59ef9ef14a7b49fb12100f8b0cb7cb3cb248b0afd295",
+    "source": "qmp-physical-cbmem"
+  },
+  "mode": "default-zero-control-cancel",
+  "profile": "quiet",
+  "queued_input_snapshot": {
+    "file": "queued-input-console.log",
+    "sha256": "71235c8133d7495d63d470df7efc1eed62994eab8f39e084f817b6aa0886d116"
+  },
+  "screens": {
+    "firmware-restored": {
+      "file": "setup-firmware-restored.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    },
+    "form-control-edited": {
+      "file": "setup-form-control-edited.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "44e2ce1cee62e4c46ddfa359e0251a9283bab31983776952a986c8a5f78a0420",
+      "width": 800
+    },
+    "form-dependent-focused": {
+      "file": "setup-form-dependent-focused.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "552019030366b13e1bd2167abb474b3e9cd4e0420df3e6864c44cdc5a1266679",
+      "width": 800
+    },
+    "form-initial": {
+      "file": "setup-form-initial.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "fba4b72539dd561bbd230ea87720e8e2dd4be1a1627c9a04edf33235c5d2c3f9",
+      "width": 800
+    },
+    "form-navigated": {
+      "file": "setup-form-navigated.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "55cc69ce88168424978525f2e4875a3e4fa15bf6e18e5a79e804a9ae979791db",
+      "width": 800
+    },
+    "status-original": {
+      "file": "setup-status-original.ppm",
+      "height": 600,
+      "nonuniform": true,
+      "sha256": "8075d373b07f94e7b2f1faa71e059d6eb798276a1e2865f242735a00930117f0",
+      "width": 800
+    }
+  },
+  "selecting_reference": {
+    "file": "selecting-reference.ppm",
+    "height": 480,
+    "manifest_sha256": "8012d684b7e8eb1abfaab81399e7b3343d184a455bc5fba3f925907ba056c53e",
+    "sha256": "75039173afda30d0c558251728db6867accc24a7bac7477cb43edc7c4ea73172",
+    "status": [
+      157,
+      339,
+      486,
+      48
+    ],
+    "width": 800
+  }
+}

@@ -1,0 +1,1 @@
+final-mutant: /home/sean/fresh-normal-joined-guest-after654.Vr3XYD/ui-cancel/lifecycle/ui-cancel/protected-store-oracle.YjSmLi/final-mutant.c:337: main: Assertion `!ui_cancel_matches(initial, final, guid)' failed.

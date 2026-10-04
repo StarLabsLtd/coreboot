@@ -1,0 +1,47 @@
+Independent actual654 UI review: PASS (QEMU only, no hardware/Selecting claim).
+
+Original actual run owner:
+/home/sean/fresh-normal-joined-guest-after654.Vr3XYD/ui-cancel
+Current signed canonical head: 0bb127b503d8c5d973b07d608f564ff0ef2ef6bb.
+Actual guest manifest ROM SHA:
+ab4e77ec30d1016ce66dc2d7e4987e8e746603923564680dd3307fbf312ab38a.
+Fresh descriptor SHA:
+ab7a8ba1b835299e8a8b50e9252c3a2b749503d9310732afaec182b24dbd483b.
+
+All six actual frames personally inspected. Initial 1x(native), centered
+checkbox unchecked, Frame Height/Aspect dependents visibly disabled. Down
+selects centered help; Right visibly checks its native checkbox and enables
+dependents. Two Downs show Frame Height(%)90 help with enabled control.
+Esc restores the original STARLABS splash; both actual PPM files are byte equal.
+Images viewed via ui-cancel-previews: lossless PNGs, all RGB hashes exactly
+equal the original PPM RGB bytes, original PPM before/after immutable. The PPM
+viewer was unsupported; no actual screenshot was edited or generated anew.
+
+Independent read-only checks passed for current-source expected_actions,
+all actual frame SHA/800x600 extents, physical CBMEM diagnostics, raw/result
+statuses, exact fresh descriptor/config copies, pristine pflash-before ROM,
+no seed/mutator/reset marker, devices NVMe+USB only, immutable input maps,
+and canonical signed head still clean. Run-one outer/QEMU/observer all0,
+whole run-one86.48752859399974s within original180; parent owner reaped0.
+
+Actual cbfstool FMAP read-only review: SMMSTORE offset0 size65536. Actual
+pristine/final ROM lengths equal; all bytes outside SMMSTORE equal; the real
+codec initial/final extracted bins exactly equal those raw ROM slices, and
+producer config extraction is identical. No expected media learned from guest.
+
+Original saved/full-media oracle log:
+lifecycle/two-boot-oracle.log. Actual producer codecs O0/O2 PASS; rejected
+discarded-final comparison mutant preserves its expected assertion/134 branch;
+inverse source matches current protected_setup_media_check.c. Original codec
+compile statuses1/2/3 all0 and execution-before hashes verified unchanged.
+
+Root-authorized independent direct replay of ALREADY-BUILT O0/O2 codecs:
+ui-built-model-replay under this review owner. Both raw exits0, aggregate0,
+closure0. Exact executable/media/source/header/tool/original negative-trace
+hashes unchanged before/after. No compiler, VM, pflash mutation, source edit,
+or original guest receipt writes by independent reviewer. Expected negative
+trace is preserved separately, not erased or counted as a positive gate.
+
+Read-only review plus full-media models establish this bounded UI edit/Esc
+discard history, including no LvglUiScale append/update; they do not establish
+Linux Runtime reset success, hardware, Selecting persistence or project closure.

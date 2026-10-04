@@ -1,0 +1,35 @@
+Read-only actual654 UI focus/accessibility audit: OPEN UI TODO, no implementation.
+This is not a failure of the bounded UI edit/Esc or Linux-reset guest gates.
+
+Visual observation: the current focus target is not outlined or otherwise
+obviously differentiated in the control area. Help text proves functional
+keyboard focus, not accessible visible focus. Native checked/unchecked and
+enabled/disabled appearances are distinct; focus remains a separate issue.
+
+Measured actual original PPM RGB comparisons:
+- form-initial -> form-navigated: 9,164 pixels change, only y544..589.
+- form-control-edited -> form-dependent-focused: 7,024 pixels change, y526..581.
+Both pairs have ZERO changed pixels in y<520, which contains all controls.
+No new screenshots or expected visual media were manufactured for this check.
+
+Concrete source mechanism, current canonical0bb127 and pinned LVGL:
+- src/modules/lvgl_renderer/driver.c:466 poll_key reads the UEFI key directly;
+  lines494/496 manually call lv_group_focus_next/prev and line501 updates help.
+- Its only LVGL input device is POINTER at line605, no registered KEYPAD or
+  ENCODER and no application-specific focus outline style on form controls.
+- focus_help at line756/update_focused_help859 changes the help label.
+- LVGL src/core/lv_group.c:550 get_indev prefers the POINTER device when sending
+  the manual LV_EVENT_FOCUSED event.
+- LVGL src/core/lv_obj.c:982 sets LV_STATE_FOCUSED, but line998 adds
+  LV_STATE_FOCUS_KEY only for a KEYPAD/ENCODER input device.
+- Pinned default theme outlines buttons at lv_theme_default.c:820 and checkboxes
+  at920 only for LV_STATE_FOCUS_KEY, not plain FOCUSED. Outline width/padding and
+  half-opacity style exists at268..272 but this manual pointer-derived path
+  does not select it. This accounts for the observed controls-area equality.
+
+Follow-up needs explicit scoped authorization and source review. Possible design
+choices are an application-visible FOCUSED style or correct keyboard-indev focus
+state handling. Do not patch vendor policy, current frozen guests or artifacts
+under this audit. Require future real current-head captures demonstrating an
+unambiguous high-contrast focus indicator for buttons, checkbox and dependents,
+including focus after form rebuild, without confusing selected or disabled state.

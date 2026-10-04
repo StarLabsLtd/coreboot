@@ -1,0 +1,14 @@
+[
+  "/usr/bin/python3",
+  "/home/sean/Documents/cdk2/util/qemu/bin/run-deadline.py",
+  "--kill-after",
+  "3",
+  "180",
+  "--",
+  "bash",
+  "/home/sean/Documents/cdk2/util/qemu/bin/run-one.sh",
+  "normal-ui-control-cancel",
+  "/home/sean/fresh-normal-after654.nP6Vda/build/initial9/build/coreboot.rom",
+  "/home/sean/fresh-normal-joined-guest-after654.Vr3XYD/ui-cancel/lifecycle/ui-cancel",
+  "180"
+]

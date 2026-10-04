@@ -1,0 +1,5 @@
+PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin
+TMPDIR=/home/sean
+LANG=C
+LC_ALL=C
+PYTHONOPTIMIZE=unset

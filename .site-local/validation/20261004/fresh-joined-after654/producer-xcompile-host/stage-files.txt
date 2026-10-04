@@ -1,0 +1,6 @@
+/home/sean/fresh-producer-xcompile-final.UGloK0/stage/initial9/build/mainboard/emulation/qemu-q35/cbfs-file.pHmECU
+/home/sean/fresh-producer-xcompile-final.UGloK0/stage/initial9/build/mainboard/emulation/qemu-q35/cbfs-file.sTURq3
+/home/sean/fresh-producer-xcompile-final.UGloK0/stage/initial9/build/util/kconfig/Makefile.real
+/home/sean/fresh-producer-xcompile-final.UGloK0/stage/initial9/build/xcompile
+/home/sean/fresh-producer-xcompile-final.UGloK0/stage/initial9/full.config
+/home/sean/fresh-producer-xcompile-final.UGloK0/stage/initial9/toolchain.argv.json

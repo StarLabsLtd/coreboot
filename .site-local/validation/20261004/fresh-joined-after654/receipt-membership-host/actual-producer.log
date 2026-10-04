@@ -1,0 +1,8 @@
+{
+  "cwd": "/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388",
+  "receipt": "/home/sean/fresh-normal-after653.noNGMS/build/initial9/source-before.sha256",
+  "receipt_sha256": "8bf7691dc82530b08e92fc6a104c5dd069a8954fa17d851beb909e93e63cef14",
+  "rows": 25087,
+  "scope": "every actual receipt row hash/duplicate/path check; not full build admission",
+  "wall_seconds": 1.0459725950004213
+}

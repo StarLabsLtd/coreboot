@@ -1,0 +1,8 @@
+{
+  "cwd": "/home/sean/Documents/cdk2",
+  "receipt": "/home/sean/fresh-normal-after653.noNGMS/build/outputs.sha256",
+  "receipt_sha256": "5ae3d462016e750f9641fbcb843ba5527de019b607bb68bba314fcd3a8e2bc4a",
+  "rows": 35735,
+  "scope": "every actual receipt row hash/duplicate/path check; not full build admission",
+  "wall_seconds": 1.833163209000304
+}

@@ -1,0 +1,87 @@
+diff --git a/tests/normal_fwui_admission_test.py b/tests/normal_fwui_admission_test.py
+index 71dce0d1bf..6984463d5d 100644
+--- a/tests/normal_fwui_admission_test.py
++++ b/tests/normal_fwui_admission_test.py
+@@ -260,15 +260,59 @@ class ReceiptTest(unittest.TestCase):
+             row = runner.sha(source) + "  source.c\n"
+             receipt.write_text(row)
+             self.assertEqual(runner.verify_hash_receipt(receipt, root), [source])
+-            for value in (row + row, "", "bad  source.c\n"):
++            second = root / "second.c"
++            second.write_bytes(b"HOST second source")
++            second_row = runner.sha(second) + "  second.c\n"
++            receipt.write_text(second_row + row)
++            self.assertEqual(runner.verify_hash_receipt(receipt, root), [second, source])
++            for value in (row + row, row + second_row + row,
++                          row + runner.sha(source) + "  " + str(source) + "\n",
++                          "", "bad  source.c\n"):
+                 receipt.write_text(value)
+                 with self.subTest(value=value), self.assertRaises(ValueError):
+                     runner.verify_hash_receipt(receipt, root)
++            # Preserve lexical Path identity, not a new resolved-path policy.
++            nested = root / "nested"
++            nested.mkdir()
++            spelling = nested / ".." / source.name
++            receipt.write_text(row + runner.sha(spelling) + "  " + str(spelling) + "\n")
++            self.assertEqual(runner.verify_hash_receipt(receipt, root), [source, spelling])
++            alias = root / "cc"
++            alias.symlink_to(source)
++            receipt.write_text(runner.sha(source) + "  " + str(alias) + "\n")
++            with self.assertRaisesRegex(ValueError, "regular file"):
++                runner.verify_hash_receipt(receipt, root)
++            with patch.object(runner, "TOOL_ALIASES", {alias}):
++                self.assertEqual(runner.verify_hash_receipt(receipt, root), [alias])
+             receipt.write_text(row)
+             source.write_bytes(b"changed")
+             with self.assertRaises(ValueError):
+                 runner.verify_hash_receipt(receipt, root)
+ 
++    def test_receipt_duplicate_membership_is_linear_for_unique_rows(self):
++        # Structural HOST model: hashes are explicitly stubbed; this is not
++        # an artifact admission or a timing claim about the real build.
++        class CountedPath(type(Path())):
++            comparisons = 0
++            __hash__ = Path.__hash__
++
++            def __eq__(self, other):
++                CountedPath.comparisons += 1
++                return super().__eq__(other)
++
++        with tempfile.TemporaryDirectory() as temporary:
++            root = Path(temporary)
++            receipt = root / "before.sha256"
++            names = ["source-" + str(index) for index in range(2048)]
++            receipt.write_text("".join("0" * 64 + "  " + name + "\n" for name in names))
++            with patch.object(runner, "Path", CountedPath), \
++                    patch.object(runner, "sha", return_value="0" * 64) as hashing:
++                admitted = runner.verify_hash_receipt(receipt, root)
++            comparisons = CountedPath.comparisons
++            self.assertLessEqual(comparisons, len(names) * 4)
++            self.assertEqual([str(path) for path in admitted], [str(root / name) for name in names])
++            self.assertEqual(hashing.call_count, len(names))
++
+     def test_signed_clean_rejects_wrong_head_or_dirty_current_source(self):
+         for head, status in (("wrong", b""), (runner.FW_HEAD, b" M source.c\n")):
+             with self.subTest(head=head, status=status), \
+diff --git a/util/qemu/bin/run-normal-boot-to-fw-ui.py b/util/qemu/bin/run-normal-boot-to-fw-ui.py
+index a33609de9b..ac3cdd1811 100644
+--- a/util/qemu/bin/run-normal-boot-to-fw-ui.py
++++ b/util/qemu/bin/run-normal-boot-to-fw-ui.py
+@@ -78,14 +78,16 @@ def tracked(repo):
+ 
+ def verify_hash_receipt(receipt, cwd):
+     paths = []
++    seen = set()
+     for row in Path(receipt).read_text().splitlines():
+         digest, separator, name = row.partition("  ")
+         if not separator or not re.fullmatch(r"[0-9a-f]{64}", digest):
+             raise ValueError("malformed historical hash receipt")
+         path = Path(name)
+         path = path if path.is_absolute() else Path(cwd) / path
+-        if sha(path, tool_alias=True) != digest or path in paths:
++        if sha(path, tool_alias=True) != digest or path in seen:
+             raise ValueError("historical/current input mismatch or duplicate")
++        seen.add(path)
+         paths.append(path)
+     if not paths:
+         raise ValueError("empty historical hash receipt")

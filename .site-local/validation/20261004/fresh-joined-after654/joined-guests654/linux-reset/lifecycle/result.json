@@ -1,0 +1,15 @@
+{
+  "build_admission": "fresh-current-head",
+  "failure": null,
+  "firmware_head": "0bb127b503d8c5d973b07d608f564ff0ef2ef6bb",
+  "observer_head": "0bb127b503d8c5d973b07d608f564ff0ef2ef6bb",
+  "producer_head": "7ee34bed989c46913c3ee6672fb25e83227c3b6c",
+  "requester_binding": {
+    "firmware_requester_sha256": "3164b54cde22dff935703efee68f18e4c1af36c9c0db9b4d590287bef05c08b3",
+    "init_sha256": "a4a07b9b4ec2cc70830001986697fd96ed1f99da714297da108f04735210c754",
+    "init_source_commit": "2f83d2bdac334f31237a0f67ac2878fe608a2480",
+    "manifest_sha256": "f2e22ea79fcafccc16a896847ad7f45409c7086ca7adbff092c626e80af96c80",
+    "uki_sha256": "ed36f81f717b92bd4a1a23c77707eb5a51b45461384d3dedd84e0dfe1a8e7a59"
+  },
+  "scope": "one normal SystemFmp VM, Linux Runtime request/guestRESET/intent UI/delete; not hardware"
+}

@@ -1,0 +1,8 @@
+/usr/lib/cargo/bin/coreutils/env: OK
+/usr/bin/bash: OK
+/usr/bin/git: OK
+/usr/lib/cargo/bin/coreutils/sha256sum: OK
+/usr/bin/cmp: OK
+/usr/lib/cargo/bin/coreutils/cut: OK
+/usr/bin/time: OK
+/usr/lib/cargo/bin/coreutils/realpath: OK

@@ -1,0 +1,2 @@
+ M tests/normal_fwui_admission_test.py
+ M util/qemu/bin/run-normal-boot-to-fw-ui.py

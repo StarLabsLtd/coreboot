@@ -1,0 +1,1 @@
+comparison-mutant: /home/sean/fresh-normal-joined-guest-after654.Vr3XYD/linux-reset/lifecycle/codec/linux-reset-store.ZQyk9P/comparison-mutant.c:99: main: Assertion `!linux_reset_matches(initial, final, guid)' failed.

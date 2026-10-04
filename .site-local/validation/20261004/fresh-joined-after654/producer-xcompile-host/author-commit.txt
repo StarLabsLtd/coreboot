@@ -1,0 +1,12 @@
+commit 6553df276db544d36e068f310adf0d0fcb2fe357
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+Author:     Sean Rhodes <sean@starlabs.systems>
+AuthorDate: Sun Oct 4 12:07:20 2026 +0100
+Commit:     Sean Rhodes <sean@starlabs.systems>
+CommitDate: Sun Oct 4 12:07:20 2026 +0100
+
+    qemu: prepare producer tool selection before firmware build
+    
+    Ask coreboot Make for its owned xcompile output after olddefconfig and before binding the selected tool/archive closure or compiling firmware. Bind and admit the exact fifth invocation and its preparation status, timing and log without copying xcompile or bypassing Make.
+    
+    Keep the original normal profile and production build invocation unchanged. Cover preparation ordering and absent, old-worktree, premature-all and foreign-environment invocation refusals.

@@ -1,0 +1,11 @@
+/usr/bin/python3.13: OK
+/usr/bin/bash: OK
+/usr/bin/git: OK
+/usr/lib/cargo/bin/coreutils/sha256sum: OK
+/usr/bin/mawk: OK
+/usr/bin/xargs: OK
+/usr/lib/cargo/bin/coreutils/sort: OK
+/usr/bin/cmp: OK
+/usr/lib/cargo/bin/coreutils/wc: OK
+/usr/lib/cargo/bin/coreutils/cut: OK
+/usr/bin/time: OK

@@ -1,0 +1,84 @@
+TOOL	python3	/usr/bin/python3	/usr/bin/python3.13
+efb29ce53d36ebaeee80e3aa44fd6c7f9d71bbded5fe1665240b2ed8ecaeee0e  /usr/bin/python3.13
+TOOL	bash	/usr/bin/bash	/usr/bin/bash
+2986231b72a4ad6d21ce85f05f6630b6bddf2100a80fa49198c527e87eb1a6af  /usr/bin/bash
+TOOL	sh	/usr/bin/sh	/usr/bin/dash
+781c19b56fbdb17284707f9026e107f639e5447df7df3b248a5d5a50c4b0806c  /usr/bin/dash
+TOOL	git	/usr/bin/git	/usr/bin/git
+3446b26047255f16d588eda4527aeedf02bd173449382d93bfe8a141257876c9  /usr/bin/git
+TOOL	sha256sum	/usr/bin/sha256sum	/usr/lib/cargo/bin/coreutils/sha256sum
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/sha256sum
+TOOL	awk	/usr/bin/awk	/usr/bin/mawk
+9f11bee2561b60b79397c67086c58734334cee3d7382a275ab40530c9dc9e9b7  /usr/bin/mawk
+TOOL	xargs	/usr/bin/xargs	/usr/bin/xargs
+a4903cc9f9eb9532cb34f08f04ead3a82be9f8c15de7d23f98922b3600062499  /usr/bin/xargs
+TOOL	cmp	/usr/bin/cmp	/usr/bin/cmp
+fec89e553875fec383eb836797a38ec7886a00c91b102fd790e3b8e3d3c04334  /usr/bin/cmp
+TOOL	realpath	/usr/bin/realpath	/usr/lib/cargo/bin/coreutils/realpath
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/realpath
+TOOL	tee	/usr/bin/tee	/usr/lib/cargo/bin/coreutils/tee
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/tee
+TOOL	time	/usr/bin/time	/usr/bin/time
+acc7bb5fc9250d5a6abe1974c39fe4e11ca4e9454f3994e3117aceae1b988d57  /usr/bin/time
+TOOL	make	/usr/bin/make	/usr/bin/make
+93fc2b4bbe134f593c864748fce8a101588d0ca68577b216ae09aa08acd3e61e  /usr/bin/make
+TOOL	gcc	/usr/bin/gcc	/usr/bin/x86_64-linux-gnu-gcc-15
+1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722  /usr/bin/x86_64-linux-gnu-gcc-15
+TOOL	g++	/usr/bin/g++	/usr/bin/x86_64-linux-gnu-g++-15
+148558fc6e291be5a3a1c14adef7638c4c8bec30d085ebaff740244c0204be37  /usr/bin/x86_64-linux-gnu-g++-15
+TOOL	cc	/usr/bin/cc	/usr/bin/x86_64-linux-gnu-gcc-15
+1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722  /usr/bin/x86_64-linux-gnu-gcc-15
+TOOL	x86_64-linux-gnu-gcc	/usr/bin/x86_64-linux-gnu-gcc	/usr/bin/x86_64-linux-gnu-gcc-15
+1fa7bb6439186b9f4912ad97d9072b6e0ded5b98b831a257d23d619719b74722  /usr/bin/x86_64-linux-gnu-gcc-15
+TOOL	x86_64-linux-gnu-cpp	/usr/bin/x86_64-linux-gnu-cpp	/usr/bin/x86_64-linux-gnu-cpp-15
+0f2aae4b67a638ede50e27843be4c238440dd1783bf88ecd48d30adc851baa1b  /usr/bin/x86_64-linux-gnu-cpp-15
+TOOL	x86_64-linux-gnu-as	/usr/bin/x86_64-linux-gnu-as	/usr/bin/x86_64-linux-gnu-as
+08e2eb5eba30847fde888592e6534b96c4846ad83d5fef3e966ef642c658e487  /usr/bin/x86_64-linux-gnu-as
+TOOL	x86_64-linux-gnu-ld.bfd	/usr/bin/x86_64-linux-gnu-ld.bfd	/usr/bin/x86_64-linux-gnu-ld.bfd
+ec8f4b671347b2f5680fce5ffbb1357ed465415fbfe67a5a828489aa18a87662  /usr/bin/x86_64-linux-gnu-ld.bfd
+TOOL	x86_64-linux-gnu-gcc-nm	/usr/bin/x86_64-linux-gnu-gcc-nm	/usr/bin/x86_64-linux-gnu-gcc-nm-15
+9d6ed3ce0e3b6548368b1268c60ee2a527ef1f23bd1c72329334d2d3c88fbb33  /usr/bin/x86_64-linux-gnu-gcc-nm-15
+TOOL	x86_64-linux-gnu-gcc-ar	/usr/bin/x86_64-linux-gnu-gcc-ar	/usr/bin/x86_64-linux-gnu-gcc-ar-15
+6bff93367292a322dc29fa9558e44a62d1c322165fd88952fe7e5567a1a1d0eb  /usr/bin/x86_64-linux-gnu-gcc-ar-15
+TOOL	objcopy	/usr/bin/objcopy	/usr/bin/x86_64-linux-gnu-objcopy
+c38dc6bcee96c9b7426419a95e0bf6c15dd0024f50b4c5057d173b72c5f092dc  /usr/bin/x86_64-linux-gnu-objcopy
+TOOL	objdump	/usr/bin/objdump	/usr/bin/x86_64-linux-gnu-objdump
+ee13b1f49eb30f1b9183d1fd651daf1acd124a7e4249da9b9be923d157f16acc  /usr/bin/x86_64-linux-gnu-objdump
+TOOL	readelf	/usr/bin/readelf	/usr/bin/x86_64-linux-gnu-readelf
+d1459ee29cd3ae90f4b703e7a76748d48c89f1050ecfa626c3825af2cc1efcfb  /usr/bin/x86_64-linux-gnu-readelf
+TOOL	strip	/usr/bin/strip	/usr/bin/x86_64-linux-gnu-strip
+0fe2fe19189d04124283e7d583b56eb8962da737058f8da70304dd35b5dde203  /usr/bin/x86_64-linux-gnu-strip
+TOOL	nm	/usr/bin/nm	/usr/bin/x86_64-linux-gnu-nm
+9a811468a6a478b28e19b3749dce7e9d7f586ee8cb6f3a3a1fe0174e4387016e  /usr/bin/x86_64-linux-gnu-nm
+TOOL	ar	/usr/bin/ar	/usr/bin/x86_64-linux-gnu-ar
+e448e111724ab2584d855ba00897bd860d272009fac201ea30ddc6d7d8f7c4a4  /usr/bin/x86_64-linux-gnu-ar
+TOOL	head	/usr/bin/head	/usr/lib/cargo/bin/coreutils/head
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/head
+TOOL	tail	/usr/bin/tail	/usr/lib/cargo/bin/coreutils/tail
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/tail
+TOOL	sed	/usr/bin/sed	/usr/bin/sed
+ed5640ac9a0af33a8be9a981ef70f03cd83d5e902a7c5eeff18ee02b2fd48505  /usr/bin/sed
+TOOL	grep	/usr/bin/grep	/usr/bin/grep
+20a35a4c18f2fe9e6305c1cbf866b9c0fcc3f957132ae66028c99ec353bb0a80  /usr/bin/grep
+TOOL	cut	/usr/bin/cut	/usr/lib/cargo/bin/coreutils/cut
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/cut
+TOOL	tr	/usr/bin/tr	/usr/lib/cargo/bin/coreutils/tr
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/tr
+TOOL	date	/usr/bin/date	/usr/lib/cargo/bin/coreutils/date
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/date
+TOOL	uname	/usr/bin/uname	/usr/lib/cargo/bin/coreutils/uname
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/uname
+TOOL	mkdir	/usr/bin/mkdir	/usr/lib/cargo/bin/coreutils/mkdir
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/mkdir
+TOOL	rm	/usr/bin/rm	/usr/bin/gnurm
+6d63d4e7c3f3acf3045380816ac6a62a0b745b4451f8c61c744a345768349eab  /usr/bin/gnurm
+TOOL	mv	/usr/bin/mv	/usr/bin/gnumv
+61e00542a18d07205f5dfbfe8e34d616c574ad3b36dcb2496190b0b0734d05c8  /usr/bin/gnumv
+TOOL	cp	/usr/bin/cp	/usr/bin/gnucp
+2555c1da675f51062e08155bc16e45f3555461f68e838c51b344b2ac6aa694ca  /usr/bin/gnucp
+TOOL	mktemp	/usr/bin/mktemp	/usr/lib/cargo/bin/coreutils/mktemp
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/mktemp
+TOOL	cat	/usr/bin/cat	/usr/lib/cargo/bin/coreutils/cat
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/cat
+TOOL	sort	/usr/bin/sort	/usr/lib/cargo/bin/coreutils/sort
+2a9b9ccf4e9724a6d6d8c97c835c9932223fbdefc9706fef9d0dfef7a9076739  /usr/lib/cargo/bin/coreutils/sort

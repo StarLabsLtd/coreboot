@@ -1,0 +1,48 @@
+Independent actual654 Linux Runtime request/reset review: PASS.
+QEMU only; no hardware, Selecting persistence or project completion claim.
+
+Original owner:
+/home/sean/fresh-normal-joined-guest-after654.Vr3XYD/linux-reset
+Selected signed clean canonical0bb127b503d8c5d973b07d608f564ff0ef2ef6bb
+and producer3897ee34bed989c46913c3ee6672fb25e83227c3b6c unchanged.
+Same pristine654 ROM as UI:
+ab4e77ec30d1016ce66dc2d7e4987e8e746603923564680dd3307fbf312ab38a.
+
+All four actual second-epoch frames personally inspected: STARLABS baseline,
+real1x(native) settings/unchecked centered/disabled dependents, Down changes
+centered-help only, Esc restores exact original splash. Owned lossless PNG
+preview RGB hashes exactly match actual PPMs; originals remain unchanged.
+
+Actual run-one outer/QEMU/observer raw0, failure null, wall133.8643854969996s
+within original180. Final driver outer0, whole command WALL269.36/EXIT0,
+source/tool/recipe/input before-after closure and heads unchanged.
+
+Independent current-source read-only checks passed: exact expected_actions
+without F2 or queued-input branch, screen binding/extent/equality, current
+fresh descriptor/config copies, physical CBMEM identity, saved_epoch exact
+accepted boot0 prefix/current bytes and hashes, two complete boot-prefix
+groups, and full-event-vector exactly one RESET data.guest true/reason guest-reset.
+This is a guest EFI Runtime reboot observation, not a HOST reset command.
+
+Actual serial history: initial Probe write/update, RUNTIME_OK, helper
+SUPPORTED/REQUESTED/RESET once; second Linux reads UPDATED Probe, clears
+immutable flag, deleteOK attempt1, verifies absent, ACCEPTANCE_OK once;
+typed QAPI shutdown/not-running then intentional quit. No second request/reset.
+NVMe before/after equal; exact installed pinned631 UKI SHA
+ed36f81f717b92bd4a1a23c77707eb5a51b45461384d3dedd84e0dfe1a8e7a59.
+No kernel build, pflash seed/mutator, host reset marker or expected-media learning.
+
+Read-only actual FMAP review: SMMSTORE offset0/size65536; pristine pflash-before
+equals the same built ROM, final size equal, every outside-store byte equal;
+codec extracted bins exactly match raw ROM slices and producer configs equal.
+Original savedUI/actual-media oracle logs PASS. Root codec ZQyk9P O0/O2 full
+64KiB source-derived history comparisons PASS with selected-byte plus all
+FTW-header/write-record mutation oppositions. Expected discarded-comparison
+mutant assertion/134 retained separately; inverse source equals current C
+and inverse self-test passes. No claim that Linux perturbs every64KiB byte.
+
+Root-released independent direct replay of already-built O0/O2 real codecs:
+linux-built-model-replay under this review owner. Raw0/0, aggregate0/closure0;
+exact exes, original/extracted media, configs, sources, selected header/tool
+closures and prior negative trace immutable before/after. No compiler/VM,
+actual-media/source/recipe/original-receipt writes by independent reviewer.

@@ -1,0 +1,11 @@
+make: Entering directory '/home/sean/Documents/cdk2'
+"/home/sean/Documents/cdk2/tests/review-profile-test"
+review profile cache tests passed
+review profile collector tests passed
+review profile emitter tests passed
+review profile CLI tests passed
+review profile tests passed
+"/home/sean/Documents/cdk2/util/review_profile/coreboot-review-profile" verify
+coreboot review profile verified
+make: *** [Makefile:30: legacy-boundary-inventory-test] Error 1
+make: Leaving directory '/home/sean/Documents/cdk2'

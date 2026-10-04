@@ -1,0 +1,6 @@
+make: Entering directory '/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388'
+payloads/external/cdk2/Kconfig:7:warning: config symbol defined without type
+#
+# No change to /home/sean/fresh-normal-after654.nP6Vda/build/initial9/full.config
+#
+make: Leaving directory '/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388'
