@@ -1,0 +1,183 @@
+diff --git a/src/modules/lvgl_renderer/driver.c b/src/modules/lvgl_renderer/driver.c
+index 5aa39f942b..b93f7e20f4 100644
+--- a/src/modules/lvgl_renderer/driver.c
++++ b/src/modules/lvgl_renderer/driver.c
+@@ -358,6 +358,21 @@ static lv_coord_t control_height(void)
+ 	return scale == 0U ? 36 : scale == 1U ? 54 : 72;
+ }
+ 
++static void configure_focus_indicator(lv_obj_t *control)
++{
++	/*
++	 * Native keyboard navigation uses group focus events, not a keypad indev.
++	 * Style the actual focused control without changing input or checked state;
++	 * LVGL's defocus event removes that state on navigation and pointer focus.
++	 */
++	lv_style_selector_t selector = LV_PART_MAIN | LV_STATE_FOCUSED;
++
++	lv_obj_set_style_outline_color(control, lv_color_hex(0xffffff), selector);
++	lv_obj_set_style_outline_opa(control, LV_OPA_COVER, selector);
++	lv_obj_set_style_outline_width(control, 2, selector);
++	lv_obj_set_style_outline_pad(control, 2, selector);
++}
++
+ static void flush(lv_display_t *display, const lv_area_t *area, UINT8 *pixels)
+ {
+ 	struct menu_context *menu = lv_display_get_user_data(display);
+@@ -1111,6 +1126,7 @@ create_view:
+ 			goto out;
+ 		lv_obj_set_width(button, LV_PCT(100));
+ 		lv_obj_set_height(button, control_height());
++		configure_focus_indicator(button);
+ 		if (items[index].disabled)
+ 			lv_obj_add_state(button, LV_STATE_DISABLED);
+ 		else {
+@@ -1392,6 +1408,7 @@ create_view:
+ configure_control:
+ 			lv_obj_set_width(widget, LV_PCT(100));
+ 			lv_obj_set_height(widget, control_height());
++			configure_focus_indicator(widget);
+ 		}
+ 		if (statement->disabled || statement->read_only)
+ 			lv_obj_add_state(widget, LV_STATE_DISABLED);
+@@ -1425,6 +1442,7 @@ configure_control:
+ 	}
+ 	controls[control_count].menu = &menu;
+ 	controls[control_count].index = 0U;
++	configure_focus_indicator(done);
+ 	menu.focus_objects[menu.focus_count] = done;
+ 	menu.focus_values[menu.focus_count++] = 0U;
+ 	menu.focus_help[menu.focus_count - 1U] = NULL;
+diff --git a/tests/lvgl_ui_driver_test.c b/tests/lvgl_ui_driver_test.c
+index ed949f7548..610d4d504c 100644
+--- a/tests/lvgl_ui_driver_test.c
++++ b/tests/lvgl_ui_driver_test.c
+@@ -40,6 +40,7 @@ static bool setup_requested;
+ static uint32_t setup_key_index;
+ static uint32_t setup_stalls;
+ static uint32_t polling_framebuffer[ARRAY_SIZE(framebuffer)];
++static uint32_t focus_framebuffer[ARRAY_SIZE(framebuffer)];
+ 
+ EFI_STATUS splash_setup_join(void *system, UINTN timeout);
+ 
+@@ -485,6 +486,103 @@ static EFI_STATUS CDK2_MS_ABI fake_read(struct cdk2_simple_text_input *input,
+ 	return EFI_SUCCESS;
+ }
+ 
++static size_t focus_outline_pixels(const uint32_t *pixels, lv_obj_t *control)
++{
++	lv_area_t area;
++	size_t count = 0U;
++
++	lv_obj_get_coords(control, &area);
++	/* Count the outline outside the control, not white caption/check pixels. */
++	for (int y = area.y1 - 4; y <= area.y2 + 4; y++)
++		for (int x = area.x1 - 4; x <= area.x2 + 4; x++) {
++			if (x < 0 || y < 0 || x >= (int)TEST_FRAMEBUFFER_WIDTH ||
++			    y >= (int)TEST_FRAMEBUFFER_HEIGHT ||
++			    (x >= area.x1 && x <= area.x2 &&
++			     y >= area.y1 && y <= area.y2))
++				continue;
++			count += (pixels[y * TEST_FRAMEBUFFER_WIDTH + x] & 0xffffffU)
++				== 0xffffffU;
++		}
++	return count;
++}
++
++static void verify_focus_move(uint16_t scan, lv_obj_t *from, lv_obj_t *to)
++{
++	assert(lv_group_get_focused(session_group) == from);
++	assert(lv_obj_has_state(from, LV_STATE_FOCUSED));
++	memcpy(focus_framebuffer, framebuffer, sizeof(framebuffer));
++	requested_scan = scan;
++	key_sent = FALSE;
++	active_menu->complete = FALSE;
++	poll_key(active_menu, session_group);
++	requested_scan = 0U;
++	lv_refr_now(session_display);
++	assert(!active_menu->complete && lv_group_get_focused(session_group) == to);
++	assert(!lv_obj_has_state(from, LV_STATE_FOCUSED));
++	assert(lv_obj_has_state(to, LV_STATE_FOCUSED));
++	assert(lv_obj_get_style_outline_width(to, LV_PART_MAIN) == 2);
++	assert(lv_obj_get_style_outline_opa(to, LV_PART_MAIN) == LV_OPA_COVER);
++	assert(focus_outline_pixels(focus_framebuffer, from) >
++		focus_outline_pixels(framebuffer, from));
++	assert(focus_outline_pixels(framebuffer, to) >
++		focus_outline_pixels(focus_framebuffer, to));
++}
++
++static void verify_keyboard_focus(const struct cdk2_lvgl_form *original)
++{
++	static const CHAR16 next_help[] = L"Next help";
++	struct cdk2_lvgl_statement statements[3] = {
++		original->statements[0], original->statements[0], original->statements[0],
++	};
++	struct cdk2_lvgl_form form = *original;
++	UINT16 question;
++	INTN adjustment;
++	lv_obj_t *checkbox, *numeric, *done, *disabled;
++
++	statements[1].kind = CDK2_LVGL_NUMERIC;
++	statements[1].question_id = 43U;
++	statements[1].help = next_help;
++	statements[2].disabled = TRUE;
++	form.statements = statements;
++	form.statement_count = ARRAY_SIZE(statements);
++	key_sent = FALSE;
++	assert(ui_protocol.show_form(&ui_protocol, &form, &question, &adjustment) ==
++		EFI_SUCCESS && question == 42U);
++	assert(active_menu->focus_count == 3U && session_pointer != NULL);
++	assert(lv_indev_get_type(session_pointer) == LV_INDEV_TYPE_POINTER);
++	checkbox = active_menu->focus_objects[0];
++	numeric = active_menu->focus_objects[1];
++	done = active_menu->focus_objects[2];
++	disabled = lv_obj_get_child(lv_obj_get_parent(checkbox), 2);
++	assert(lv_obj_has_state(disabled, LV_STATE_DISABLED));
++	assert(lv_group_get_focused(session_group) == checkbox);
++	assert(lv_obj_has_state(checkbox, LV_STATE_FOCUSED));
++	assert(lv_obj_has_state(checkbox, LV_STATE_CHECKED));
++	assert(!lv_obj_has_state(checkbox, LV_STATE_FOCUS_KEY));
++	assert(focus_outline_pixels(framebuffer, checkbox) != 0U);
++	verify_focus_move(2U, checkbox, numeric);
++	assert(!strcmp(lv_label_get_text(active_menu->help_label), "Next help"));
++	verify_focus_move(2U, numeric, done); /* Disabled control is skipped. */
++	assert(!lv_obj_has_state(disabled, LV_STATE_FOCUSED));
++	assert(!strcmp(lv_label_get_text(active_menu->help_label), ""));
++	verify_focus_move(1U, done, numeric);
++	verify_focus_move(1U, numeric, checkbox);
++	assert(lv_obj_has_state(checkbox, LV_STATE_CHECKED));
++	assert(!strcmp(lv_label_get_text(active_menu->help_label), "Help"));
++	/* Manual focus still has pointer event provenance, not synthetic key state. */
++	lv_group_focus_obj(done);
++	lv_refr_now(session_display);
++	assert(!lv_obj_has_state(checkbox, LV_STATE_FOCUSED));
++	assert(!lv_obj_has_state(done, LV_STATE_FOCUS_KEY));
++	assert(focus_outline_pixels(framebuffer, done) != 0U);
++	/* Rebuild creates new controls and restores the initial focus indicator. */
++	key_sent = FALSE;
++	assert(ui_protocol.show_form(&ui_protocol, original, &question, &adjustment) ==
++		EFI_SUCCESS && question == 42U);
++	assert(lv_group_get_focused(session_group) == active_menu->focus_objects[0]);
++	assert(focus_outline_pixels(framebuffer, active_menu->focus_objects[0]) != 0U);
++}
++
+ int main(void)
+ {
+ 	static const CHAR16 title[] = { 'S', 'e', 't', 'u', 'p', 0 };
+@@ -647,6 +745,8 @@ int main(void)
+ 		&selection) == EFI_SUCCESS);
+ 	assert(video_reads == 1U);
+ 	assert(selection == 0U);
++	assert(lv_obj_has_state(active_menu->focus_objects[0], LV_STATE_FOCUSED));
++	assert(focus_outline_pixels(framebuffer, active_menu->focus_objects[0]) != 0U);
+ 	assert(lv_color_eq(lv_obj_get_style_text_color(
+ 		lv_obj_get_child(lv_screen_active(), 0), 0), lv_color_hex(0xeef2f8)));
+ 	assert(strlen(lv_label_get_text(lv_obj_get_child(
+@@ -688,6 +788,7 @@ int main(void)
+ 	assert(lv_obj_get_y(lv_obj_get_parent(active_menu->help_label)) >=
+ 		lv_obj_get_y(lv_obj_get_parent(active_menu->focus_objects[0])) +
+ 		lv_obj_get_height(lv_obj_get_parent(active_menu->focus_objects[0])));
++	verify_keyboard_focus(&form);
+ 	blt_status = EFI_DEVICE_ERROR;
+ 	key_sent = FALSE;
+ 	assert(ui_protocol.show_form(&ui_protocol, &form, &question, &adjustment) ==

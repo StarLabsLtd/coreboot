@@ -1,0 +1,19 @@
+Authorized isolated donor publication after root and independent final HOST
+receipt release. No source changes after released actual HOST source15609.
+
+HEAD: 853cc1592509bff26e814c0edf0e8b9791932acb
+Parent: 0bb127b503d8c5d973b07d608f564ff0ef2ef6bb
+Parent-to-HEAD binary diff SHA256:
+15609eb42abac33ab4ccf1fd125b6ff839bbe2f0915d18aedb757e9139d33401
+Only committed paths:
+src/modules/lvgl_renderer/driver.c
+tests/lvgl_ui_driver_test.c
+
+git verify-commit HEAD succeeded with good git SSH signature for sean@horizon,
+ED25519 public fingerprint SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs.
+Worktree status was clean after commit.
+Push origin HEAD:refs/heads/agent/lvgl-keyboard-focus-after654 completed status0,
+new branch at https://github.com/StarLabsLtd/cdk2.git.
+
+No canonical/ready/notes changes or additional gates were performed. Retained
+first failed white2 and corrected HOST0 receipts/qualification remain unchanged.

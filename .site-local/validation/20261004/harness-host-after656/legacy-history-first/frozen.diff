@@ -1,0 +1,53 @@
+diff --git a/tests/legacy_boundary_inventory_test.sh b/tests/legacy_boundary_inventory_test.sh
+index a171de0958..c0233b891f 100755
+--- a/tests/legacy_boundary_inventory_test.sh
++++ b/tests/legacy_boundary_inventory_test.sh
+@@ -5,6 +5,12 @@ set -eu
+ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ temporary=$(mktemp -d)
+ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
++
++historical_gitlink()
++{
++	test "$(git -C "$root" ls-tree "$1" -- "$2" | awk '{ print $1 }')" = 160000
++}
++
+ awk -F '\t' '
+ 	/^#/ { next }
+ 	NF != 6 || seen[$1]++ { failed = 1 }
+@@ -20,9 +26,15 @@ while IFS="$(printf '\t')" read -r id family reachability action evidence replac
+ 		# This ledger describes the approved historical audit, not today's
+ 		# checkout. A subsequently removed package remains valid evidence.
+ 		vendor=${path#3rdparty/}
+-		test "$(git -C "$root" ls-tree \
+-			e70a428b3ff24bb0a1e0242cffd543a0f6827f96 -- \
+-			"3rdparty/${vendor%%/*}" | awk '{ print $1 }')" = 160000
++		revision=e70a428b3ff24bb0a1e0242cffd543a0f6827f96
++		case "${vendor%%/*}" in
++		lvgl)
++			# The direct LVGL gitlink was added after the original audit.
++			# Bind it to its introduction, not a later working checkout.
++			revision=3616c6e4420aaeedee6eedab9ce50d0524b20a90
++			;;
++		esac
++		historical_gitlink "$revision" "3rdparty/${vendor%%/*}"
+ 		continue
+ 		;;
+ 	esac
+@@ -31,6 +43,16 @@ while IFS="$(printf '\t')" read -r id family reachability action evidence replac
+ 		exit 1
+ 	}
+ done < "$root/migration/legacy-boundary-disposition.tsv"
++
++# The removed package remains valid at the original audit revision.
++historical_gitlink e70a428b3ff24bb0a1e0242cffd543a0f6827f96 3rdparty/LvglPkg
++# A missing historical vendor or ordinary file must not impersonate a gitlink.
++if historical_gitlink e70a428b3ff24bb0a1e0242cffd543a0f6827f96 3rdparty/lvgl ||
++   historical_gitlink 3616c6e4420aaeedee6eedab9ce50d0524b20a90 Makefile; then
++	echo 'invalid historical vendor evidence was accepted as a gitlink' >&2
++	exit 1
++fi
++
+ fixture=$temporary/source
+ mkdir -p "$fixture/src" "$fixture/tests" "$fixture/migration"
+ git -C "$fixture" init -q

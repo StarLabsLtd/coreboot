@@ -1,0 +1,6 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654'
+LVGL source/config provenance: PASS
+LVGL UI driver form test passed
+LVGL framebuffer restore mutant: PASS
+splash status ownership contract: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654'

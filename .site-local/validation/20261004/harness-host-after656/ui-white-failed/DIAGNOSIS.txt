@@ -1,0 +1,28 @@
+Actual first released white-outline HOST gate failed with renderer.status=2 and
+aggregate.status=2. Original failed logs, executable, PE and closure receipts in
+run/ are preserved unchanged. Source/tools/vendors/original config/head/diff and
+recipe before/after closure passed; approved source remained701418c9. This was
+not a Core/producer ROM or QEMU gate.
+
+Root authorized bounded read-only gdb inspection of the existing actual failed
+HOST executable, with no source/compiler/media writes. Executable SHA256:
+7e6e323610ae345796e074ad5e48ceff13d32eaff93a3053e1c378049ea39bb8.
+Break focus_outline_pixels, finish and inspect RAX returned counts:
+initial menu3116; initial checkbox4088; old-snapshot checkbox4088;
+actual after-defocus checkbox4112. Separate breakpoint40495c immediately after
+actual lv_obj_get_coords showed initial and both post-move checkbox rectangles
+identically [174,68,625,121]. Thus the first failed move did not change geometry.
+
+The checked exterior ring spans (452+8)*(54+8)-452*54=4112 pixels. The defocused
+pane's entire ring is white. Pinned default theme LIGHT_COLOR_CARD is white,
+and this renderer's list receives that light card style. An opaque white focus
+outline therefore blends with the actual white pane; counting white pixels
+was not a valid positive high-contrast focus proof. This is a real visibility
+issue, not justification to relax the pixel assertion or blame clock settling.
+
+Source-only correction requested by root: dark opaque0x10141c indicator against
+the pinned white card/blue controls, count that exact contrasting color, and
+capture pre/post rectangles separately to avoid reusing moved geometry against
+an older raster in later steps. Initial focus proof compares actual LVGL
+focused/defocused/refocused redraws. Requires new source review and exclusive
+lane release before recompilation; no corrected run is claimed here.

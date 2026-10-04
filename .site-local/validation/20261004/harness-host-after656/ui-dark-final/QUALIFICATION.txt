@@ -1,0 +1,24 @@
+Native LVGL focus validation qualification
+
+First released white-outline source701418c9: actual HOST aggregate2/renderer2
+at /home/sean/lvgl-keyboard-focus-host-final.9za0tJ/run. Its original failure,
+source-built executable/PE, and source/vendor/tool/config/diff/recipe closurePASS
+remain intact. Read-only existing-executable observations in DIAGNOSIS.txt
+identified white-on-white contrast against the pinned light card background;
+this failed result is not reclassified or overwritten.
+
+Corrected dark-outline source15609eb42abac33ab4ccf1fd125b6ff839bbe2f0915d18aedb757e9139d33401:
+actual configure0/renderer0/aggregate0 at this directory's run/. Real pinned LVGL
+UI fixture passed contrasting ring focused/defocused/refocused and forward/back
+pixel proofs with separate pre/post geometry, disabled skip, checked/help
+preservation, initial menu/form and rebuilt focus. Production LvglUiDxe.efi was
+source-built with the public target's subsystem11 relocation/layout checks;
+existing framebuffer restore mutant and splash status contract passed. Actual
+source/vendor/tools/original config/head/diff/config/recipe closure passed.
+
+This was the released bounded -j2 HOST lane alongside root's disjoint -j1 DEFAULT
+regression. Recorded duration is not an exclusive-lane performance benchmark.
+No Core build, producer ROM build, QEMU guest, hardware, or separate sanitizer
+coverage is claimed. Manual pointer-derived focus event provenance is tested;
+it is not claimed as actual mouse-click coverage. Future guest visibility still
+requires an actual freshly built and independently reviewed capture.

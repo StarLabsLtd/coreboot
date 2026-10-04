@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "make",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654",
+    "-j2",
+    "CDK2_BUILD_DIR=/home/sean/lvgl-keyboard-focus-host-final.9za0tJ/run/build",
+    "CDK2_CONFIG=/home/sean/lvgl-keyboard-focus-host-final.9za0tJ/run/build/.config",
+    "COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388",
+    "COREBOOT_CONFIG=/home/sean/lvgl-keyboard-focus-host-final.9za0tJ/run/producer-input.config",
+    "CDK2_BEARSSL_DIR=/home/sean/Documents/cdk2/3rdparty/bearssl",
+    "CDK2_LVGL_ROOT=/home/sean/Documents/cdk2/3rdparty/lvgl",
+    "CC=cc",
+    "HOSTCC=cc",
+    "native-lvgl-renderer-test"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/cdk2/3rdparty/lvgl",
+    "worktree",
+    "add",
+    "--detach",
+    "/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654/3rdparty/lvgl",
+    "85aa60d18b3d5e5588d7b247abf90198f07c8a63"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

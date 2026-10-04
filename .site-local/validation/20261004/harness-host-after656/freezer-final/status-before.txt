@@ -1,0 +1,2 @@
+ M util/qemu/bin/freeze-tpm-evidence-selftest.py
+ M util/qemu/bin/freeze-tpm-evidence.py

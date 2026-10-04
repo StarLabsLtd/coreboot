@@ -1,0 +1,24 @@
+This is a Python-only filesystem/provenance/oracle model receipt, not TPM
+runtime acceptance, a firmware build, or a guest run. The exact isolated source
+base was signed ready656 14a42004d0b4932dccf5393a2e1cf7bc380494b4 with reviewed
+dirty diff f4a0483ec656d09d0eb712ab06049c6938fdca5a130a0788860147ce5f061ba9.
+
+Root and XHCI independent source-code releases both preceded actual execution
+11130 under root's explicit authorization to run cheap Python HOST gates after
+those source releases. The later root message requiring a separate full outer
+recipe peer release arrived after this actual run had completed. XHCI's full
+outer recipe review of e9a5122c48706ba971750e0cf6cfa6474ba8957c11cbe3dcf81dab1bbe8007d0
+also completed after the run; it must not be represented as preceding it.
+Root accepted this chronology and independently verified the actual successful
+receipt before authorizing the isolated signed donor commit. No rerun occurred.
+
+Raw AST, normal freezer selftest, optimized freezer selftest and unchanged
+event-log selftest statuses are all zero. Execution, source/tool/recipe and
+head/status/diff closure, and aggregate statuses are zero. The -O run checks
+explicit model-refusal robustness only, not optimized runtime admission.
+Missing/directory diagnostics, each other empty mandatory file and an empty
+diagnostic paired with unsuccessful QEMU status remain model refusals.
+
+No compiler, firmware/ROM build, VM, actual media or canonical source mutation
+was performed by this gate. Source and recipe bytes remained frozen. Actual
+TPM-present/absent acceptance and complete release gates remain separate work.

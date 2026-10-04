@@ -1,0 +1,6 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654'
+LVGL source/config provenance: PASS
+cdk2-lvgl-ui-driver-test: /home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654//tests/lvgl_ui_driver_test.c:525: verify_focus_move: Assertion `focus_outline_pixels(focus_framebuffer, from) > focus_outline_pixels(framebuffer, from)' failed.
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654/src/boot/Makefile:3939: native-lvgl-renderer-test] Aborted
+make: *** [Makefile:1150: native-lvgl-renderer-test] Error 2
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654'

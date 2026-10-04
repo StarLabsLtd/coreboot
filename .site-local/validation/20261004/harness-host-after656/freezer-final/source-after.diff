@@ -1,0 +1,107 @@
+diff --git a/util/qemu/bin/freeze-tpm-evidence-selftest.py b/util/qemu/bin/freeze-tpm-evidence-selftest.py
+index 7e23e6fa9e..4f5db7ac5e 100755
+--- a/util/qemu/bin/freeze-tpm-evidence-selftest.py
++++ b/util/qemu/bin/freeze-tpm-evidence-selftest.py
+@@ -4,6 +4,7 @@
+ 
+ import importlib.util
+ from pathlib import Path
++import tempfile
+ 
+ 
+ FREEZER = Path(__file__).with_name("freeze-tpm-evidence.py")
+@@ -20,7 +21,47 @@ def rejected(call):
+     raise AssertionError("hostile TPM provenance was accepted")
+ 
+ 
++def run_file_fixtures():
++    # These exercise only filesystem/status admission, not a guest or oracle.
++    names = ("serial.log", "debugcon.log", "qemu.log", "qemu.status",
++             "pflash-before.rom", "pflash.rom", "nvme-before.raw", "nvme.raw",
++             "qemu-command.txt")
++    with tempfile.TemporaryDirectory(prefix="cdk2-tpm-freezer-") as directory:
++        run = Path(directory)
++        for name in names:
++            data = "0\n" if name == "qemu.status" else "evidence\n"
++            (run / name).write_text(data)
++        diagnostic = run / "qemu.log"
++        diagnostic.write_bytes(b"")
++        files = freezer.validate_run_files(run)
++        if tuple(files) != names or freezer.sha256(files["qemu.log"]) != (
++                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"):
++            raise AssertionError(
++                "empty QEMU diagnostic was not retained and hashed")
++
++        diagnostic.unlink()
++        rejected(lambda: freezer.validate_run_files(run))
++        diagnostic.mkdir()
++        rejected(lambda: freezer.validate_run_files(run))
++        diagnostic.rmdir()
++        diagnostic.write_text("captured diagnostic\n")
++        freezer.validate_run_files(run)
++
++        for name in names:
++            if name == "qemu.log":
++                continue
++            path = run / name
++            data = path.read_bytes()
++            path.write_bytes(b"")
++            rejected(lambda: freezer.validate_run_files(run))
++            path.write_bytes(data)
++        diagnostic.write_bytes(b"")
++        (run / "qemu.status").write_text("1\n")
++        rejected(lambda: freezer.validate_run_files(run))
++
++
+ def main():
++    run_file_fixtures()
+     heads = {"coreboot": "a" * 40, "cdk2": "b" * 40}
+     digest = "c" * 64
+     manifest = {
+diff --git a/util/qemu/bin/freeze-tpm-evidence.py b/util/qemu/bin/freeze-tpm-evidence.py
+index 01ef7dbd9e..30974e03a0 100755
+--- a/util/qemu/bin/freeze-tpm-evidence.py
++++ b/util/qemu/bin/freeze-tpm-evidence.py
+@@ -79,6 +79,22 @@ def validate_coreboot_banner(debugcon, head):
+         raise ValueError("executed coreboot banner does not match the source head")
+ 
+ 
++def validate_run_files(run):
++    names = ("serial.log", "debugcon.log", "qemu.log", "qemu.status",
++             "pflash-before.rom",
++             "pflash.rom", "nvme-before.raw", "nvme.raw", "qemu-command.txt")
++    files = {name: run / name for name in names}
++    for name, path in files.items():
++        # Successful QEMU can produce no stdout/stderr diagnostics. The log
++        # remains required and hashed, unlike a missing evidence file.
++        if not path.is_file() or (
++                name != "qemu.log" and path.stat().st_size == 0):
++            raise ValueError(f"missing or empty evidence file: {name}")
++    if files["qemu.status"].read_text().strip() != "0":
++        raise ValueError("QEMU did not exit successfully")
++    return files
++
++
+ def main():
+     parser = argparse.ArgumentParser()
+     parser.add_argument("run", type=Path)
+@@ -90,18 +106,10 @@ def main():
+     parser.add_argument("output", type=Path)
+     args = parser.parse_args()
+ 
+-    names = ("serial.log", "debugcon.log", "qemu.log", "qemu.status",
+-             "pflash-before.rom",
+-             "pflash.rom", "nvme-before.raw", "nvme.raw", "qemu-command.txt")
+-    files = {name: args.run / name for name in names}
+-    for name, path in files.items():
+-        if not path.is_file() or path.stat().st_size == 0:
+-            raise ValueError(f"missing or empty evidence file: {name}")
++    files = validate_run_files(args.run)
+     for path in (args.rom, args.rom_manifest, args.cbfstool):
+         if not path.is_file():
+             raise ValueError(f"missing bound input: {path}")
+-    if files["qemu.status"].read_text().strip() != "0":
+-        raise ValueError("QEMU did not exit successfully")
+ 
+     rom_manifest = json.loads(args.rom_manifest.read_text())
+     heads = {"coreboot": git(args.coreboot_tree, "rev-parse", "HEAD"),

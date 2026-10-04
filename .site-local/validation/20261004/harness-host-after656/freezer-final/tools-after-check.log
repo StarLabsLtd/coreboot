@@ -1,0 +1,13 @@
+/home/sean/tpm-empty-diagnostics-final.LA8Itf/run.sh: OK
+/usr/bin/time: OK
+/usr/bin/bash: OK
+/usr/bin/python3.13: OK
+/usr/bin/git: OK
+/usr/bin/mawk: OK
+/usr/lib/cargo/bin/coreutils/sha256sum: OK
+/usr/bin/cmp: OK
+/usr/lib/cargo/bin/coreutils/cut: OK
+/usr/lib/cargo/bin/coreutils/cat: OK
+/usr/lib/cargo/bin/coreutils/mkdir: OK
+/usr/lib/cargo/bin/coreutils/env: OK
+/usr/lib/cargo/bin/coreutils/readlink: OK

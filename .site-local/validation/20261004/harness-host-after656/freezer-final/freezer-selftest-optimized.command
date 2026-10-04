@@ -1,0 +1,1 @@
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin TMPDIR=/home/sean/tpm-empty-diagnostics-final.LA8Itf/tmp LANG=C LC_ALL=C PYTHONDONTWRITEBYTECODE=1 python3 -O -B util/qemu/bin/freeze-tpm-evidence-selftest.py 

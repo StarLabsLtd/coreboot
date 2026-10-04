@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/cdk2/3rdparty/bearssl",
+    "worktree",
+    "add",
+    "--detach",
+    "/home/sean/Documents/.cdk2-worktrees/lvgl-keyboard-focus-after654/3rdparty/bearssl",
+    "8ef7680081c61b486622f2d983c0d3d21e83caad"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}
