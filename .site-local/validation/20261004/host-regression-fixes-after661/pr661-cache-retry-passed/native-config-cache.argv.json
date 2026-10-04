@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "sh",
+    "-x",
+    "/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/tests/native_config_cache_test.sh"
+  ],
+  "environment": {
+    "CC": "cc",
+    "COREBOOT_CONFIG": "",
+    "COREBOOT_TREE": "/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKE": "make",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MBEDTLS_SOURCE": "/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/3rdparty/mbedtls",
+    "MFLAGS": "",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

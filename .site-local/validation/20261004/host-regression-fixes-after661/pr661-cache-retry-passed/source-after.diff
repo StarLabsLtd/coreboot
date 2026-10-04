@@ -1,0 +1,14 @@
+diff --git a/src/boot/Makefile b/src/boot/Makefile
+index cf529a1db4..a71dfad147 100644
+--- a/src/boot/Makefile
++++ b/src/boot/Makefile
+@@ -9224,7 +9224,8 @@ CDK2_NATIVE_CONFIG_OUTPUTS += $(addprefix $(CDK2_NATIVE_BUILD_DIR)/,\
+ 	image-authorization-test-o0 image-authorization-test-o2 \
+ 	mem-set.o mem-copy-set.o signature-database.o bds-lvgl-form.o bds-lvgl-settings.o \
+ 	liblvgl.a lvgl-config/lv_conf.h bearssl-x509-minimal.c \
+-	sata-diagnostic.o dxe-core-coreboot-checksum.o coreboot_dma_handoff.o)
++	sata-diagnostic.o dxe-core-coreboot-checksum.o dxe-core-capsule_report.o \
++	coreboot_dma_handoff.o)
+ # Recheck command inputs without rebuilding unchanged outputs. Keep this outside
+ # the output inventory so the stamp cannot acquire itself as a prerequisite.
+ CDK2_NATIVE_COMMAND_INPUTS := $(CDK2_NATIVE_BUILD_DIR)/command-inputs

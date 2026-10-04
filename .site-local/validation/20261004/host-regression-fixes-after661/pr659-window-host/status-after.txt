@@ -1,0 +1,1 @@
+ M tests/capsule_ram_window_core_test.sh

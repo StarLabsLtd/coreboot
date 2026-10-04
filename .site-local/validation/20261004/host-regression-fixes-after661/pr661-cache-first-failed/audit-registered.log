@@ -1,0 +1,7 @@
+target: /home/sean/capsule-report-cache-host-final.20261004-r1/audit-build/native/dxe-core-capsule_report.o
+evaluated prerequisites: ['/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658//src/lib/capsule_report.c', '/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658//include/cdk2/capsule_report.h', '/home/sean/capsule-report-cache-host-final.20261004-r1/audit-build/include/cdk2/config.h', '/home/sean/capsule-report-cache-host-final.20261004-r1/audit-build/native/command-inputs', '/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658//Makefile', '/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658//src/boot/Makefile', '|', '/home/sean/capsule-report-cache-host-final.20261004-r1/audit-build/native']
+configuration binding: {'/home/sean/capsule-report-cache-host-final.20261004-r1/audit-build/include/cdk2/config.h': True, '/home/sean/capsule-report-cache-host-final.20261004-r1/audit-build/native/command-inputs': True, '/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/Makefile': False, '/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/src/boot/Makefile': False}
+Traceback (most recent call last):
+  File "/home/sean/capsule-report-cache-host-recipe.pGyK7O/audit.py", line 39, in <module>
+    raise RuntimeError('registered recipe lacks an exact configuration input')
+RuntimeError: registered recipe lacks an exact configuration input

@@ -1,0 +1,48 @@
+Unexecuted source-only whole DEFAULT regression recipe for exact future signed
+ready661 6faf053c28d7b33de30daeaeae8408340685d006. Root owns canonical and the
+compiler lanes; this recipe must wait for source/peer review, explicit lane
+release, and the future canonical head. Approved normal build/UI/Linux guest
+recipes and all existing regression attempts remain unchanged.
+
+Minimal adaptation of frozen /home/sean/default-regression-after658.eskK4y/run.sh
+(SHA256 ace7bc5c3ae58ce314626de932bf78cd66b3ed0af286b213449f082001f8f5c1):
+initially only the new receipt path and exact expected signed head changed.
+After independent review, root additionally binds the actual GCC-resolved
+ASan/UBSan/TSAN libraries and the recipe's direct utility binaries. Source,
+standalone profile, goals and failure handling remain unchanged. The tool and
+support receipt is finite and enumerated, not complete runtime attestation.
+That earlier source-only recipe had adapted the actual656 recipe as follows:
+new empty owned receipt/build root, fixed future head, PATH adds/usr/sbin:/sbin,
+actual resolved required tool alias/target/hash bindings and before/after target
+resolution comparison, separate configure/regression status receipts in
+addition to existing execution/closure/aggregate statuses. Genuine standalone
+defconfig, empty COREBOOT_CONFIG, explicit empty coreboot-source.tmp and
+standalone identity checks, clean producer7ee34/vendor pins, -j1 -k and exact
+review-profile-check check native-stage goals are unchanged.
+
+Independent source inspection of actual tests/tool paths:
+- tests/efi_loader_matrix_test.sh invokes run-efi-loader-matrix.sh --prepare-only
+  and its real media reproducibility/negative-hash checks. That harness explicitly
+  requires mcopy,mmd,mkfs.vfat,sgdisk; current actual resolver paths are/usr/bin
+  for mtools and/usr/sbin for mkfs.vfat+sgdisk.
+- tests/secure_boot_loader_matrix_test.sh and its harness use the same real
+  media tools plus sbsign,sbverify,python3. Prepare-only is not a QEMU guest.
+  Their preparation paths also invoke truncate for scratch disks, jq for
+  manifests, and wc/ln in the actual contract test inventories and oppositions;
+  these four actual HOST tools are explicitly resolved and hashed too.
+- tests/authenticode_spc_test.sh explicitly requires openssl,sbsign,sbverify,
+  sbattach for actual external Authenticode/timestamp/signature fixtures.
+- tests/secure_boot_test_pki_test.sh calls source-owned make-secure-boot-test-pki.py
+  (Python cryptography) and openssl; source-owned generator serializes ESL/auth
+  headers itself. cert-to-efi-sig-list/sign-efi-sig-list are not required by those
+  inspected tests and are not invented as prerequisite binaries.
+- Protected-variable native auth/enrolled inputs use openssl CMS; enrolled
+  fullgraph sources additionally use sbsign/sbverify. Git owned signature
+  verification tools git/ssh-keygen are now also bound.
+
+No compiler, tests, VM or recipe were executed during preparation; only
+read-only command resolution confirmed prerequisite tool placement. Whole gate is not yet
+passing, and no missing prerequisite or prior failure is waived.
+
+After source review/release and future canonical FF:
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin LANG=C LC_ALL=C bash /home/sean/default-regression-after661.E4XtC9/run.sh 6faf053c28d7b33de30daeaeae8408340685d006

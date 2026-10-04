@@ -1,0 +1,38 @@
+{
+  "argv": [
+    "make",
+    "-pn",
+    "-C",
+    "/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658",
+    "-j1",
+    "-f",
+    "/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/Makefile",
+    "-f",
+    "/dev/null",
+    "CDK2_CONFIG_READY=1",
+    "CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-final.20261004-r1/audit-build",
+    "/home/sean/capsule-report-cache-host-final.20261004-r1/audit-build/native/dxe-core-capsule_report.o"
+  ],
+  "environment": {
+    "CC": "cc",
+    "COREBOOT_CONFIG": "",
+    "COREBOOT_TREE": "/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKE": "make",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MBEDTLS_SOURCE": "/home/sean/Documents/.coreboot-worktrees/capsule-disk-delivery-capability-after388/3rdparty/mbedtls",
+    "MFLAGS": "",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/capsule-report-cache-host-final.20261004-r1/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

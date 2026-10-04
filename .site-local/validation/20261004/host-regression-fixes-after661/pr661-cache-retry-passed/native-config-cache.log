@@ -1,0 +1,178 @@
++ set -eu
++ dirname -- /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/tests/native_config_cache_test.sh
++ CDPATH= cd -- /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/tests/..
++ pwd
++ root=/home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658
++ . /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/tests/scratch_make_environment.sh
++ cdk2_clear_scratch_make_environment
++ unset CDK2_CONFIG_READY
++ unset CDK2_CONFIG
++ unset CDK2_CONFIG_HEADER
++ unset CDK2_BUILD_DIR
++ unset CDK2_KCONFIG_AUTOCONFIG
++ unset CDK2_KCONFIG_AUTOHEADER
++ unset CDK2_KCONFIG_RUSTCCFG
++ unset CDK2_KCONFIG_SPLITCONFIG
++ unset CDK2_NATIVE_BUILD_DIR
++ unset CDK2_DEFCONFIG
++ unset MAKEFLAGS
++ unset MFLAGS
++ unset MAKEOVERRIDES
++ mktemp -d
++ temporary=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn
++ trap rm -rf "$temporary" EXIT HUP INT TERM
++ build=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build
++ make_command=make
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY= CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build defconfig
++ cp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/.config /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/base.config
++ header=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/include/cdk2/config.h
++ lifecycle=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ acpi=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test
++ object=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o
++ session=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ awk !/^(# )?CONFIG_CDK2_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPOSITION(=| )/ /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/base.config
++ printf CONFIG_CDK2_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPOSITION=%s\n n
++ build_targets
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ stat -c %y /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ test -f /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps
++ sha256sum /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ awk { print $1 }
++ test -f /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest
++ build_targets
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ stat -c %y /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ cmp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/unchanged
++ cp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps
++ cp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/digest /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest
++ audit_recipes /dev/null
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -pn -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 -f /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/Makefile -f /dev/null CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ awk -v native=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/ -v header=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/include/cdk2/config.h 
+		/^# Files$/ { files = 1; next }
+		!files { next }
+		/^[^#[:space:]][^:]*:/ {
+			if ($0 ~ /: \.EXTRA_PREREQS[[:space:]]*=/)
+				next;
+			target = $0;
+			sub(/:.*/, "", target);
+			prerequisites = $0;
+		}
+		/^#  recipe to execute/ {
+			if (index(target, native) != 1)
+				next;
+			count++;
+			if (index(" " prerequisites " ", " " header " ") == 0) {
+				print "native cache missing configuration prerequisite: " target;
+				failed = 1;
+			}
+		}
+		END {
+			if (!count) {
+				print "native recipe inventory was empty";
+				failed = 1;
+			}
+			exit failed;
+		}
+	 /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/database
++ awk !/^(# )?CONFIG_CDK2_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPOSITION(=| )/ /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/base.config
++ printf CONFIG_CDK2_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPOSITION=%s\n y
++ build_targets
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ stat -c %y /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ test -f /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps
++ paste /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps
++ awk -F \t $1 == $2 { exit 1 }
++ sha256sum /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ awk { print $1 }
++ test -f /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest
++ cmp -s /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/digest
++ build_targets
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ stat -c %y /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ cmp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/unchanged
++ cp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps
++ cp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/digest /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest
++ audit_recipes /dev/null
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -pn -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 -f /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/Makefile -f /dev/null CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ awk -v native=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/ -v header=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/include/cdk2/config.h 
+		/^# Files$/ { files = 1; next }
+		!files { next }
+		/^[^#[:space:]][^:]*:/ {
+			if ($0 ~ /: \.EXTRA_PREREQS[[:space:]]*=/)
+				next;
+			target = $0;
+			sub(/:.*/, "", target);
+			prerequisites = $0;
+		}
+		/^#  recipe to execute/ {
+			if (index(target, native) != 1)
+				next;
+			count++;
+			if (index(" " prerequisites " ", " " header " ") == 0) {
+				print "native cache missing configuration prerequisite: " target;
+				failed = 1;
+			}
+		}
+		END {
+			if (!count) {
+				print "native recipe inventory was empty";
+				failed = 1;
+			}
+			exit failed;
+		}
+	 /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/database
++ awk !/^(# )?CONFIG_CDK2_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPOSITION(=| )/ /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/base.config
++ printf CONFIG_CDK2_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_COMPOSITION=%s\n n
++ build_targets
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ stat -c %y /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ test -f /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps
++ paste /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps
++ awk -F \t $1 == $2 { exit 1 }
++ sha256sum /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ awk { print $1 }
++ test -f /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest
++ cmp -s /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/digest
++ build_targets
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -s -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ stat -c %y /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-acpi-table-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/coreboot_checksum.o /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-system-fmp-session-test-o0
++ cmp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/unchanged
++ cp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/timestamps /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.timestamps
++ cp /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/digest /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/previous.digest
++ audit_recipes /dev/null
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -pn -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 -f /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658/Makefile -f /dev/null CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ awk -v native=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/ -v header=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/include/cdk2/config.h 
+		/^# Files$/ { files = 1; next }
+		!files { next }
+		/^[^#[:space:]][^:]*:/ {
+			if ($0 ~ /: \.EXTRA_PREREQS[[:space:]]*=/)
+				next;
+			target = $0;
+			sub(/:.*/, "", target);
+			prerequisites = $0;
+		}
+		/^#  recipe to execute/ {
+			if (index(target, native) != 1)
+				next;
+			count++;
+			if (index(" " prerequisites " ", " " header " ") == 0) {
+				print "native cache missing configuration prerequisite: " target;
+				failed = 1;
+			}
+		}
+		END {
+			if (!count) {
+				print "native recipe inventory was empty";
+				failed = 1;
+			}
+			exit failed;
+		}
+	 /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/database
++ printf %s: .EXTRA_PREREQS =\n /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/usb-bus-model-test
++ audit_recipes /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/mutant.mk
++ grep -Fxq native cache missing configuration prerequisite: /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/usb-bus-model-test /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/mutant.log
++ MAKEFLAGS= MFLAGS= MAKEOVERRIDES= make -n -C /home/sean/Documents/.cdk2-worktrees/capsule-report-cache-input-after658 CDK2_CONFIG_READY=1 CDK2_BUILD_DIR=/home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build .FEATURES= /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/build/native/cdk2-dxe-lifecycle-test
++ grep -Fq require GNU Make extra-prereqs support /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn/features.log
++ echo native configuration cache rebuild and recipe coverage: PASS
+native configuration cache rebuild and recipe coverage: PASS
++ rm -rf /home/sean/capsule-report-cache-host-retry.20261004-r2/tmp/tmp.NvZF2uzqEn

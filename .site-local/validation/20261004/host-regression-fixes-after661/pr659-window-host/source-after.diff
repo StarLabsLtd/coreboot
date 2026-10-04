@@ -1,0 +1,12 @@
+diff --git a/tests/capsule_ram_window_core_test.sh b/tests/capsule_ram_window_core_test.sh
+index e2488675e2..716d829c63 100644
+--- a/tests/capsule_ram_window_core_test.sh
++++ b/tests/capsule_ram_window_core_test.sh
+@@ -32,6 +32,7 @@ compile()
+ 		"$root/src/lib/tcg_hash/vendor/vboot/2sha512.c" \
+ 		"$root/src/lib/tcg_hash/vendor/linux/lib/crypto/sm3.c" \
+ 		"$root/src/lib/linear_boot.c" "$root/src/lib/capsule_disk.c" \
++		"$root/src/lib/capsule_report.c" \
+ 		"$root/src/lib/diagnostic.c" "$root/src/lib/deadline.c" \
+ 		"$root/src/modules/system_fmp/transport.c" -Wl,--gc-sections
+ }

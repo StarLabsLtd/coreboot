@@ -1,0 +1,11 @@
+The original frozen recipe and executed statuses/logs are unchanged.
+Actual RAM-window O0/O2 positives and causal gate/reset mutants passed;
+execution, enumerated closure and aggregate statuses are 0.
+The shell also executes dirname, which was not included in the recipe's
+enumerated tool hash list. Therefore this receipt establishes the recorded
+source/config/head/diff and enumerated compiler/tool/support closure, not
+a complete hash closure over every utility actually executed.
+This is HOST fixture evidence only, not a whole-suite, QEMU or hardware pass.
+Root accepted this explicit qualification rather than repeating compilation
+solely to add the omitted utility hash. No production or assertion change
+was made in response to the omission.

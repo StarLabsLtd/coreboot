@@ -1,0 +1,55 @@
+diff --git a/tests/protected_variable_boot_gate_test.c b/tests/protected_variable_boot_gate_test.c
+index 5b7509e560..b9e9fcfea0 100644
+--- a/tests/protected_variable_boot_gate_test.c
++++ b/tests/protected_variable_boot_gate_test.c
+@@ -2,9 +2,11 @@
+ 
+ #include <assert.h>
+ #include <stdbool.h>
++#include <stdint.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <cdk2/config.h>
++#include <cdk2/hob.h>
+ #include <cdk2/linear_boot.h>
+ #include <pi/hob.h>
+ #include <guid/cbmem_table_hob.h>
+@@ -89,6 +91,8 @@ int main(void)
+ 		EFI_HOB_GUID_TYPE coreboot_guid;
+ 		COREBOOT_TABLE_HOB coreboot_table;
+ 		_Alignas(8) EFI_HOB_GENERIC_HEADER end;
++		/* The real entry requires nonempty, owned free space after the HOBs. */
++		uint64_t free_memory;
+ 	} hobs = { 0 }, saved;
+ 	struct cdk2_linear_state parsed;
+ 	struct {
+@@ -156,8 +160,11 @@ int main(void)
+ 
+ 	hobs.handoff.header.hob_type = EFI_HOB_TYPE_HANDOFF;
+ 	hobs.handoff.header.hob_length = sizeof(hobs.handoff);
+-	hobs.handoff.efi_free_memory_bottom = 0x1000;
+-	hobs.handoff.efi_free_memory_top = 0x2000;
++	hobs.handoff.version = EFI_HOB_HANDOFF_TABLE_VERSION;
++	hobs.handoff.efi_memory_bottom = (UINTN)(uintptr_t)&hobs;
++	hobs.handoff.efi_memory_top = (UINTN)(uintptr_t)(&hobs + 1);
++	hobs.handoff.efi_free_memory_bottom = (UINTN)(uintptr_t)(&hobs.end + 1);
++	hobs.handoff.efi_free_memory_top = (UINTN)(uintptr_t)(&hobs + 1);
+ 	hobs.handoff.efi_end_of_hob_list = (UINTN)(uintptr_t)&hobs.end;
+ 	hobs.guid.header.hob_type = EFI_HOB_TYPE_GUID_EXTENSION;
+ 	hobs.guid.header.hob_length = ALIGN_VALUE(sizeof(hobs.guid) +
+@@ -175,6 +182,15 @@ int main(void)
+ 	hobs.end.hob_type = EFI_HOB_TYPE_END_OF_HOB_LIST;
+ 	hobs.end.hob_length = sizeof(hobs.end);
+ 	saved = hobs;
++	assert(cdk2_hob_list_validate(&hobs) == EFI_SUCCESS);
++	/* The old dispatch fixture did not satisfy canonical handoff geometry. */
++	hobs.handoff.version = 0;
++	hobs.handoff.efi_memory_bottom = 0;
++	hobs.handoff.efi_memory_top = 0;
++	hobs.handoff.efi_free_memory_bottom = 0x1000;
++	hobs.handoff.efi_free_memory_top = 0x2000;
++	assert(cdk2_hob_list_validate(&hobs) == EFI_COMPROMISED_DATA);
++	hobs = saved;
+ 	assert(cdk2_linear_state_from_hob(&hobs, &parsed) == EFI_SUCCESS);
+ 	assert(cdk2_dxe_core_entry(NULL) == EFI_INVALID_PARAMETER);
+ 	hobs.handoff.header.hob_length--;

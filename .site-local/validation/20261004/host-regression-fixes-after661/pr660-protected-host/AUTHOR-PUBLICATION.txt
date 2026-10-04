@@ -1,0 +1,22 @@
+Protected boot-entry fixture donor publication
+
+Root and independent XHCI source releases preceded the final HOST execution.
+Source freeze: b1fdeefa9232afeb98ece78902b92087e824ff595284634967d127f03425d7ca.
+Outer run.sh: e166952d5600317844732521763631e1eec1b5b11f65799dbc38e84e10653117.
+Actual execution session 79577 reaped exit 0.
+protected.status, execution.status, closure.status and aggregate.status: all 0.
+Recorded WALL=91.72, EXIT=0.
+Six unchanged original local profiles passed; the unchanged scoped guard-deletion
+mutant failed its exact phase-count assertion as required by the source shell.
+Before/after diff, head and status comparisons passed. Independent post-run checks
+verified 1637 tracked source rows, 29 enumerated tool rows and 2 config/header rows.
+
+Signed clean isolated donor: e469ae88202f7e9908d66cf0ad5453d6b1e15f90.
+Parent: b37a977ec5f81b6fa0bce527ab74acd743040a24 (signed ready658).
+Sole path: tests/protected_variable_boot_gate_test.c (+18/-2).
+Committed body exactly matches the released source freeze above.
+Branch: agent/protected-boot-hob-fixture-after658.
+No canonical or ready worktree writes, Core/producer build or VM by the author.
+These are HOST fixture/dispatch-boundary checks using the retained genuine
+standalone DEFAULT656 config/header, not fresh Kconfig or guest execution claims.
+The original DEFAULT656 failure remains preserved in its own receipt.

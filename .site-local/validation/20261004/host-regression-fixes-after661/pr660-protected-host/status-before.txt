@@ -1,0 +1,1 @@
+ M tests/protected_variable_boot_gate_test.c
