@@ -28,18 +28,30 @@ pass. Standalone component profiles have capsule/strict/expert all disabled.
 These are candidate-admission and configuration proofs, not USB hardware proof.
 All changes received independent source and actual-result review before signing.
 
-In progress, not qualified yet
------------------------------
+Joined688 gates closed, follow-up required
+-----------------------------------------
 Exact joined688 normal: whole-normal-after688.20261004-r1.
 Exact joined688 full lint: full-lint-after688-final.20261004-r1.
-Both source/tool/config closures remain frozen through completion. Default
-review-profile-check/check/native-stage is queued after normal closes, using
-the same reviewed recipe package; it has not run on joined688 yet.
-The active normal run has reported review-profile-test failure: the checker
+Both completed and their finite source/tool/config closure checks passed.
+Full lint: all 14 statuses zero, including full checkpatch; extended lint has
+no populated scripts, so its empty dispatcher is not extra coverage.
+Normal: regression and execution raw 2, aggregate 1, closure 0. Its two actual
+failures are stale checker provenance and an ignored Python bytecode cache
+created during the run changing a nested fixture's file-hash inventory.
+The normal run reported review-profile-test failure: the checker
 changed in commit 094122722c, but its local provenance pins were not updated.
 The actual local checker and the pinned predecessor differ by the reviewed
 comparison-operand whitespace normalization. This is a tooling failure;
-the remaining -k tests continue, and no whole-normal PASS is claimed.
+the remaining -k tests completed, and no whole-normal PASS is claimed.
+The outer env-i dropped PYTHONDONTWRITEBYTECODE; a reviewed replacement outer
+will pass it explicitly, without reducing coverage or ignoring file changes.
+Default review-profile-check/check/native-stage has not run on joined688.
+An isolated provenance correction passed its bounded actual HOST gate:
+review-profile-provenance-final.20261004-r1, execution/closure/aggregate 0,
+14 zero statuses and one expected stale-pin raw refusal 1. Exact zero-fuzz
+patch reconstruction, unchanged corpus and full profile tests passed.
+It is not integrated or signed yet; independent actual-result review remains
+required before integration and any latest-head whole-build retry.
 The original full mixed-device suite is retained for the joined regression,
 not duplicated in the targeted USB receipt. No latest-head guest or hardware
 acceptance is implied by these bounded results or by an active process.

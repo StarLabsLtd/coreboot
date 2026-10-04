@@ -1,0 +1,32 @@
+Thread-owned artifact cleanup, 2026-10-04
+
+Completed first broad pass:
+- 91 retired CDK2 parent worktrees removed; exact commit/branch refs retained.
+- Eight nested retired vendor worktrees unregistered through their owning
+  canonical module repository before removing four parent worktrees.
+- Two old TPM parents included ten ignored raw media copies verified byte
+  identical to the retained canonical fixtures. No canonical media deleted.
+- One retired firmware-UI parent contained only ignored Python cache files;
+  its signed source/refs were retained and the generated cache was removed.
+- 41 closed HOST receipt/recipe directories removed. Relevant literal text
+  evidence and failed statuses remain in committed, previously audited
+  evidence packets. Full packet SHA checks and original-file comparisons or
+  signed original SHA ledger checks passed before removal. Unarchived build
+  binaries were generated/rebuildable, not unique source or evidence.
+
+Recovery: source worktrees can be recreated from retained Git branch refs;
+text evidence is in the committed archive packets; deleted generated binaries
+must be rebuilt. Branch refs, objects and canonical media were not pruned.
+
+This is an interim cleanup checkpoint, NOT an assertion all unused artifacts
+have been removed. Remaining worktrees, old generated directories and clone
+dependencies are being classified. Dirty/unarchived work, incoming object
+alternates and unique future test inputs remain excluded pending proof.
+
+Preserved: canonical CDK2, user's dirty coreboot tree, EDK2 reference, durable
+evidence, active isolated proposals, latest test receipts, current/golden
+configurations, required QEMU media and producer tools. No Home Assistant,
+Plex, VM, unrelated repository, secrets, or hardware state was changed.
+
+Cleanup scripts are temporary orchestration, not CDK2 build infrastructure.
+Root performed deletion; workers independently inventoried dependencies.
