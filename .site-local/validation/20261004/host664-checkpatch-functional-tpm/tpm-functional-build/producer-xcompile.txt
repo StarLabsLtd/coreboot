@@ -1,0 +1,439 @@
+# platform agnostic and host tools
+XGCCPATH:=
+NASM:=
+IASL:=iasl
+HOSTCC?=gcc
+HOSTCXX?=g++
+CPUS?=8
+
+###########################################################################
+# arm
+# TARCH_SEARCH=  armv7-a-eabi- armv7-a-eabi- armv7-a-linux-gnu- armv7-a-linux- armv7-a- armv7-a-linux-gnueabi- armv7a-eabi- armv7a-eabi- armv7a-linux-gnu- armv7a-linux- armv7a- armv7a-linux-gnueabi- arm-eabi- arm-eabi- arm-linux-gnu- arm-linux- arm- arm-linux-gnueabi-
+# elf32-littlearm toolchain ()
+ARCH_SUPPORTED+=arm
+SUBARCH_SUPPORTED+=arm armv4 armv7 armv7_m armv7_r
+ARCH_SUFFIX_arm:=
+
+# GCC
+GCC_CC_arm:=
+GCC_CFLAGS_arm:= 
+# Generally available for GCC's cc1:
+GCC_CFLAGS_arm+=-fno-delete-null-pointer-checks -Wlogical-op
+GCC_ADAFLAGS_arm:=
+GCC_COMPILER_RT_arm:=
+GCC_COMPILER_RT_FLAGS_arm:=
+
+# Clang
+CLANG_CC_arm := 
+CLANG_CFLAGS_arm := 
+CLANG_CFLAGS_arm += -Qunused-arguments
+CLANG_CFLAGS_arm += -m32
+# tone down clang compiler warnings
+CLANG_CFLAGS_arm += -Wno-unused-variable
+CLANG_CFLAGS_arm += -Wno-unused-function
+CLANG_CFLAGS_arm += -Wno-tautological-compare
+CLANG_CFLAGS_arm += -Wno-shift-overflow
+CLANG_CFLAGS_arm += -Wno-address-of-packed-member
+CLANG_CFLAGS_arm += -Wno-initializer-overrides
+CLANG_CFLAGS_arm += -fbracket-depth=2048
+CLANG_CFLAGS_arm += -mllvm
+CLANG_CFLAGS_arm += -asm-macro-max-nesting-depth=1000
+CLANG_COMPILER_RT_arm:=
+CLANG_COMPILER_RT_FLAGS_arm:=
+# Leak the target arch into the preprocessor flags with clang.
+# This is needed to preprocess linker scripts
+CLANG_CPPFLAGS_arm:=
+
+# GCC/Clang Common
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	CC_arm:=$(GCC_CC_arm)
+	CFLAGS_arm:=$(GCC_CFLAGS_arm)
+	COMPILER_RT_arm:=$(GCC_COMPILER_RT_arm)
+	COMPILER_RT_FLAGS_arm:=$(GCC_COMPILER_RT_FLAGS_arm)
+else
+	CC_arm:=$(CLANG_CC_arm)
+	CFLAGS_arm:=$(CLANG_CFLAGS_arm)
+	CPPFLAGS_arm:=$(CLANG_CPPFLAGS_arm)
+	COMPILER_RT_arm:=$(CLANG_COMPILER_RT_arm)
+	COMPILER_RT_FLAGS_arm:=$(CLANG_COMPILER_RT_FLAGS_arm)
+endif
+
+CPP_arm:=invalidcpp
+AS_arm:=invalidas 
+LD_arm:=invalidld 
+GCOV_arm:=invalidgcov
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	NM_arm:=invalidgcc-nm
+	AR_arm:=invalidgcc-ar
+else
+	NM_arm:=invalidnm
+	AR_arm:=invalidar
+endif
+OBJCOPY_arm:=invalidobjcopy
+OBJDUMP_arm:=invalidobjdump
+READELF_arm:=invalidreadelf
+STRIP_arm:=invalidstrip
+GNATBIND_arm:=invalidgnatbind
+CROSS_COMPILE_arm:=invalid
+
+
+###########################################################################
+# arm64
+# TARCH_SEARCH=  aarch64-elf- aarch64-elf- aarch64-linux-gnu- aarch64-linux- aarch64- aarch64-linux-gnueabi-
+# elf64-littleaarch64 toolchain ()
+ARCH_SUPPORTED+=arm64
+SUBARCH_SUPPORTED+=arm64 armv8_64
+ARCH_SUFFIX_arm64:=
+
+# GCC
+GCC_CC_arm64:=
+GCC_CFLAGS_arm64:= -mgeneral-regs-only 
+# Generally available for GCC's cc1:
+GCC_CFLAGS_arm64+=-fno-delete-null-pointer-checks -Wlogical-op
+GCC_ADAFLAGS_arm64:=
+GCC_COMPILER_RT_arm64:=
+GCC_COMPILER_RT_FLAGS_arm64:=
+
+# Clang
+CLANG_CC_arm64 := 
+CLANG_CFLAGS_arm64 :=  -mno-implicit-float
+CLANG_CFLAGS_arm64 += -Qunused-arguments
+CLANG_CFLAGS_arm64 += -m64
+# tone down clang compiler warnings
+CLANG_CFLAGS_arm64 += -Wno-unused-variable
+CLANG_CFLAGS_arm64 += -Wno-unused-function
+CLANG_CFLAGS_arm64 += -Wno-tautological-compare
+CLANG_CFLAGS_arm64 += -Wno-shift-overflow
+CLANG_CFLAGS_arm64 += -Wno-address-of-packed-member
+CLANG_CFLAGS_arm64 += -Wno-initializer-overrides
+CLANG_CFLAGS_arm64 += -fbracket-depth=2048
+CLANG_CFLAGS_arm64 += -mllvm
+CLANG_CFLAGS_arm64 += -asm-macro-max-nesting-depth=1000
+CLANG_COMPILER_RT_arm64:=
+CLANG_COMPILER_RT_FLAGS_arm64:=
+# Leak the target arch into the preprocessor flags with clang.
+# This is needed to preprocess linker scripts
+CLANG_CPPFLAGS_arm64:=
+
+# GCC/Clang Common
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	CC_arm64:=$(GCC_CC_arm64)
+	CFLAGS_arm64:=$(GCC_CFLAGS_arm64)
+	COMPILER_RT_arm64:=$(GCC_COMPILER_RT_arm64)
+	COMPILER_RT_FLAGS_arm64:=$(GCC_COMPILER_RT_FLAGS_arm64)
+else
+	CC_arm64:=$(CLANG_CC_arm64)
+	CFLAGS_arm64:=$(CLANG_CFLAGS_arm64)
+	CPPFLAGS_arm64:=$(CLANG_CPPFLAGS_arm64)
+	COMPILER_RT_arm64:=$(CLANG_COMPILER_RT_arm64)
+	COMPILER_RT_FLAGS_arm64:=$(CLANG_COMPILER_RT_FLAGS_arm64)
+endif
+
+CPP_arm64:=invalidcpp
+AS_arm64:=invalidas 
+LD_arm64:=invalidld 
+GCOV_arm64:=invalidgcov
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	NM_arm64:=invalidgcc-nm
+	AR_arm64:=invalidgcc-ar
+else
+	NM_arm64:=invalidnm
+	AR_arm64:=invalidar
+endif
+OBJCOPY_arm64:=invalidobjcopy
+OBJDUMP_arm64:=invalidobjdump
+READELF_arm64:=invalidreadelf
+STRIP_arm64:=invalidstrip
+GNATBIND_arm64:=invalidgnatbind
+CROSS_COMPILE_arm64:=invalid
+
+
+###########################################################################
+# riscv
+# TARCH_SEARCH=  riscv64-elf- riscv64-elf- riscv64-linux-gnu- riscv64-linux- riscv64- riscv64-linux-gnueabi- riscv-elf- riscv-elf- riscv-linux-gnu- riscv-linux- riscv- riscv-linux-gnueabi-
+# elf64-littleriscv toolchain ()
+ARCH_SUPPORTED+=riscv
+SUBARCH_SUPPORTED+=riscv
+ARCH_SUFFIX_riscv:=
+
+# GCC
+GCC_CC_riscv:=
+GCC_CFLAGS_riscv:= 
+# Generally available for GCC's cc1:
+GCC_CFLAGS_riscv+=-fno-delete-null-pointer-checks -Wlogical-op
+GCC_ADAFLAGS_riscv:=
+GCC_COMPILER_RT_riscv:=
+GCC_COMPILER_RT_FLAGS_riscv:=
+
+# Clang
+CLANG_CC_riscv := 
+CLANG_CFLAGS_riscv := 
+CLANG_CFLAGS_riscv += -Qunused-arguments
+CLANG_CFLAGS_riscv += -m64
+# tone down clang compiler warnings
+CLANG_CFLAGS_riscv += -Wno-unused-variable
+CLANG_CFLAGS_riscv += -Wno-unused-function
+CLANG_CFLAGS_riscv += -Wno-tautological-compare
+CLANG_CFLAGS_riscv += -Wno-shift-overflow
+CLANG_CFLAGS_riscv += -Wno-address-of-packed-member
+CLANG_CFLAGS_riscv += -Wno-initializer-overrides
+CLANG_CFLAGS_riscv += -fbracket-depth=2048
+CLANG_CFLAGS_riscv += -mllvm
+CLANG_CFLAGS_riscv += -asm-macro-max-nesting-depth=1000
+CLANG_COMPILER_RT_riscv:=
+CLANG_COMPILER_RT_FLAGS_riscv:=
+# Leak the target arch into the preprocessor flags with clang.
+# This is needed to preprocess linker scripts
+CLANG_CPPFLAGS_riscv:=
+
+# GCC/Clang Common
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	CC_riscv:=$(GCC_CC_riscv)
+	CFLAGS_riscv:=$(GCC_CFLAGS_riscv)
+	COMPILER_RT_riscv:=$(GCC_COMPILER_RT_riscv)
+	COMPILER_RT_FLAGS_riscv:=$(GCC_COMPILER_RT_FLAGS_riscv)
+else
+	CC_riscv:=$(CLANG_CC_riscv)
+	CFLAGS_riscv:=$(CLANG_CFLAGS_riscv)
+	CPPFLAGS_riscv:=$(CLANG_CPPFLAGS_riscv)
+	COMPILER_RT_riscv:=$(CLANG_COMPILER_RT_riscv)
+	COMPILER_RT_FLAGS_riscv:=$(CLANG_COMPILER_RT_FLAGS_riscv)
+endif
+
+CPP_riscv:=invalidcpp
+AS_riscv:=invalidas 
+LD_riscv:=invalidld 
+GCOV_riscv:=invalidgcov
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	NM_riscv:=invalidgcc-nm
+	AR_riscv:=invalidgcc-ar
+else
+	NM_riscv:=invalidnm
+	AR_riscv:=invalidar
+endif
+OBJCOPY_riscv:=invalidobjcopy
+OBJDUMP_riscv:=invalidobjdump
+READELF_riscv:=invalidreadelf
+STRIP_riscv:=invalidstrip
+GNATBIND_riscv:=invalidgnatbind
+CROSS_COMPILE_riscv:=invalid
+
+
+###########################################################################
+# x64
+# TARCH_SEARCH=  x86_64-elf- x86_64-elf- x86_64-linux-gnu- x86_64-linux- x86_64- x86_64-linux-gnueabi-
+# elf64-x86-64 toolchain (x86_64-linux-gnu-gcc)
+ARCH_SUPPORTED+=x86_64
+SUBARCH_SUPPORTED+=x86_64
+ARCH_SUFFIX_x86_64:=
+
+# GCC
+GCC_CC_x86_64:=x86_64-linux-gnu-gcc
+GCC_CFLAGS_x86_64:= -Wno-address-of-packed-member --param=min-pagesize=1024 -Wflex-array-member-not-at-end -Wcalloc-transposed-args -Walloc-size -Wno-unused-parameter -Wno-sign-compare -Wno-empty-body -Wno-missing-field-initializers -Wno-override-init -Wno-ignored-qualifiers -Wno-shift-negative-value -Wno-unused-but-set-parameter -Wno-type-limits -Wno-cast-function-type -Wextra  -m64  -fuse-ld=bfd -fno-stack-protector -Wl,--build-id=none
+# Generally available for GCC's cc1:
+GCC_CFLAGS_x86_64+=-fno-delete-null-pointer-checks -Wlogical-op
+GCC_ADAFLAGS_x86_64:= -m64  -fuse-ld=bfd -fno-stack-protector -Wl,--build-id=none
+GCC_COMPILER_RT_x86_64:=/usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a
+GCC_COMPILER_RT_FLAGS_x86_64:=
+	GCC_CFLAGS_x86_64 += -malign-data=abi
+
+# Clang
+CLANG_CC_x86_64 := 
+CLANG_CFLAGS_x86_64 := 
+CLANG_CFLAGS_x86_64 += -Qunused-arguments
+CLANG_CFLAGS_x86_64 += -m64
+# tone down clang compiler warnings
+CLANG_CFLAGS_x86_64 += -Wno-unused-variable
+CLANG_CFLAGS_x86_64 += -Wno-unused-function
+CLANG_CFLAGS_x86_64 += -Wno-tautological-compare
+CLANG_CFLAGS_x86_64 += -Wno-shift-overflow
+CLANG_CFLAGS_x86_64 += -Wno-address-of-packed-member
+CLANG_CFLAGS_x86_64 += -Wno-initializer-overrides
+CLANG_CFLAGS_x86_64 += -fbracket-depth=2048
+CLANG_CFLAGS_x86_64 += -mllvm
+CLANG_CFLAGS_x86_64 += -asm-macro-max-nesting-depth=1000
+CLANG_COMPILER_RT_x86_64:=/usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a
+CLANG_COMPILER_RT_FLAGS_x86_64:=
+# Leak the target arch into the preprocessor flags with clang.
+# This is needed to preprocess linker scripts
+CLANG_CPPFLAGS_x86_64:=
+
+# GCC/Clang Common
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	CC_x86_64:=$(GCC_CC_x86_64)
+	CFLAGS_x86_64:=$(GCC_CFLAGS_x86_64)
+	COMPILER_RT_x86_64:=$(GCC_COMPILER_RT_x86_64)
+	COMPILER_RT_FLAGS_x86_64:=$(GCC_COMPILER_RT_FLAGS_x86_64)
+else
+	CC_x86_64:=$(CLANG_CC_x86_64)
+	CFLAGS_x86_64:=$(CLANG_CFLAGS_x86_64)
+	CPPFLAGS_x86_64:=$(CLANG_CPPFLAGS_x86_64)
+	COMPILER_RT_x86_64:=$(CLANG_COMPILER_RT_x86_64)
+	COMPILER_RT_FLAGS_x86_64:=$(CLANG_COMPILER_RT_FLAGS_x86_64)
+endif
+	CFLAGS_x86_64 += -march=nocona
+
+CPP_x86_64:=x86_64-linux-gnu-cpp
+AS_x86_64:=x86_64-linux-gnu-as 
+LD_x86_64:=x86_64-linux-gnu-ld.bfd  --no-warn-rwx-segments
+GCOV_x86_64:=x86_64-linux-gnu-gcov
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	NM_x86_64:=x86_64-linux-gnu-gcc-nm
+	AR_x86_64:=x86_64-linux-gnu-gcc-ar
+else
+	NM_x86_64:=x86_64-linux-gnu-nm
+	AR_x86_64:=x86_64-linux-gnu-ar
+endif
+OBJCOPY_x86_64:=x86_64-linux-gnu-objcopy
+OBJDUMP_x86_64:=x86_64-linux-gnu-objdump
+READELF_x86_64:=x86_64-linux-gnu-readelf
+STRIP_x86_64:=x86_64-linux-gnu-strip
+GNATBIND_x86_64:=x86_64-linux-gnu-gnatbind
+CROSS_COMPILE_x86_64:=x86_64-linux-gnu-
+
+
+###########################################################################
+# x86
+# TARCH_SEARCH=  i386-elf- i386-elf- i386-linux-gnu- i386-linux- i386- i386-linux-gnueabi- x86_64-elf- x86_64-elf- x86_64-linux-gnu- x86_64-linux- x86_64- x86_64-linux-gnueabi-
+# elf32-i386 toolchain (x86_64-linux-gnu-gcc)
+ARCH_SUPPORTED+=x86_32
+SUBARCH_SUPPORTED+=x86_32
+ARCH_SUFFIX_x86_32:=
+
+# GCC
+GCC_CC_x86_32:=x86_64-linux-gnu-gcc
+GCC_CFLAGS_x86_32:= -Wno-address-of-packed-member --param=min-pagesize=1024 -Wflex-array-member-not-at-end -Wcalloc-transposed-args -Walloc-size -Wno-unused-parameter -Wno-sign-compare -Wno-empty-body -Wno-missing-field-initializers -Wno-override-init -Wno-ignored-qualifiers -Wno-shift-negative-value -Wno-unused-but-set-parameter -Wno-type-limits -Wno-cast-function-type -Wextra -m32 -Wl,-b,elf32-i386 -Wl,-melf_i386 -m32  -fuse-ld=bfd -fno-stack-protector -Wl,--build-id=none
+# Generally available for GCC's cc1:
+GCC_CFLAGS_x86_32+=-fno-delete-null-pointer-checks -Wlogical-op
+GCC_ADAFLAGS_x86_32:=-m32 -Wl,-b,elf32-i386 -Wl,-melf_i386 -m32  -fuse-ld=bfd -fno-stack-protector -Wl,--build-id=none
+GCC_COMPILER_RT_x86_32:=/usr/lib/gcc/x86_64-linux-gnu/15/32/libgcc.a
+GCC_COMPILER_RT_FLAGS_x86_32:=--wrap __divdi3 --wrap __udivdi3 --wrap __moddi3 --wrap __umoddi3
+
+# Clang
+CLANG_CC_x86_32 := 
+CLANG_CFLAGS_x86_32 := -m32 -Wl,-b,elf32-i386 -Wl,-melf_i386
+CLANG_CFLAGS_x86_32 += -Qunused-arguments
+CLANG_CFLAGS_x86_32 += -m32
+# tone down clang compiler warnings
+CLANG_CFLAGS_x86_32 += -Wno-unused-variable
+CLANG_CFLAGS_x86_32 += -Wno-unused-function
+CLANG_CFLAGS_x86_32 += -Wno-tautological-compare
+CLANG_CFLAGS_x86_32 += -Wno-shift-overflow
+CLANG_CFLAGS_x86_32 += -Wno-address-of-packed-member
+CLANG_CFLAGS_x86_32 += -Wno-initializer-overrides
+CLANG_CFLAGS_x86_32 += -fbracket-depth=2048
+CLANG_CFLAGS_x86_32 += -mllvm
+CLANG_CFLAGS_x86_32 += -asm-macro-max-nesting-depth=1000
+CLANG_COMPILER_RT_x86_32:=/usr/lib/gcc/x86_64-linux-gnu/15/32/libgcc.a
+CLANG_COMPILER_RT_FLAGS_x86_32:=
+# Leak the target arch into the preprocessor flags with clang.
+# This is needed to preprocess linker scripts
+CLANG_CPPFLAGS_x86_32:=
+
+# GCC/Clang Common
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	CC_x86_32:=$(GCC_CC_x86_32)
+	CFLAGS_x86_32:=$(GCC_CFLAGS_x86_32)
+	COMPILER_RT_x86_32:=$(GCC_COMPILER_RT_x86_32)
+	COMPILER_RT_FLAGS_x86_32:=$(GCC_COMPILER_RT_FLAGS_x86_32)
+else
+	CC_x86_32:=$(CLANG_CC_x86_32)
+	CFLAGS_x86_32:=$(CLANG_CFLAGS_x86_32)
+	CPPFLAGS_x86_32:=$(CLANG_CPPFLAGS_x86_32)
+	COMPILER_RT_x86_32:=$(CLANG_COMPILER_RT_x86_32)
+	COMPILER_RT_FLAGS_x86_32:=$(CLANG_COMPILER_RT_FLAGS_x86_32)
+endif
+
+CFLAGS_x86_32 += -march=i686
+
+CPP_x86_32:=x86_64-linux-gnu-cpp
+AS_x86_32:=x86_64-linux-gnu-as --32
+LD_x86_32:=x86_64-linux-gnu-ld.bfd -b elf32-i386 -melf_i386 --no-warn-rwx-segments
+GCOV_x86_32:=x86_64-linux-gnu-gcov
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	NM_x86_32:=x86_64-linux-gnu-gcc-nm
+	AR_x86_32:=x86_64-linux-gnu-gcc-ar
+else
+	NM_x86_32:=x86_64-linux-gnu-nm
+	AR_x86_32:=x86_64-linux-gnu-ar
+endif
+OBJCOPY_x86_32:=x86_64-linux-gnu-objcopy
+OBJDUMP_x86_32:=x86_64-linux-gnu-objdump
+READELF_x86_32:=x86_64-linux-gnu-readelf
+STRIP_x86_32:=x86_64-linux-gnu-strip
+GNATBIND_x86_32:=x86_64-linux-gnu-gnatbind
+CROSS_COMPILE_x86_32:=x86_64-linux-gnu-
+
+
+###########################################################################
+# ppc64
+# TARCH_SEARCH=  powerpc64-linux-gnu- powerpc64-linux-gnu- powerpc64-linux-gnu- powerpc64-linux- powerpc64- powerpc64-linux-gnueabi-
+# elf64-powerpc toolchain ()
+ARCH_SUPPORTED+=ppc64
+SUBARCH_SUPPORTED+=ppc64
+ARCH_SUFFIX_ppc64:=
+
+# GCC
+GCC_CC_ppc64:=
+GCC_CFLAGS_ppc64:= 
+# Generally available for GCC's cc1:
+GCC_CFLAGS_ppc64+=-fno-delete-null-pointer-checks -Wlogical-op
+GCC_ADAFLAGS_ppc64:=
+GCC_COMPILER_RT_ppc64:=
+GCC_COMPILER_RT_FLAGS_ppc64:=
+
+# Clang
+CLANG_CC_ppc64 := 
+CLANG_CFLAGS_ppc64 := 
+CLANG_CFLAGS_ppc64 += -Qunused-arguments
+CLANG_CFLAGS_ppc64 += -m64
+# tone down clang compiler warnings
+CLANG_CFLAGS_ppc64 += -Wno-unused-variable
+CLANG_CFLAGS_ppc64 += -Wno-unused-function
+CLANG_CFLAGS_ppc64 += -Wno-tautological-compare
+CLANG_CFLAGS_ppc64 += -Wno-shift-overflow
+CLANG_CFLAGS_ppc64 += -Wno-address-of-packed-member
+CLANG_CFLAGS_ppc64 += -Wno-initializer-overrides
+CLANG_CFLAGS_ppc64 += -fbracket-depth=2048
+CLANG_CFLAGS_ppc64 += -mllvm
+CLANG_CFLAGS_ppc64 += -asm-macro-max-nesting-depth=1000
+CLANG_COMPILER_RT_ppc64:=
+CLANG_COMPILER_RT_FLAGS_ppc64:=
+# Leak the target arch into the preprocessor flags with clang.
+# This is needed to preprocess linker scripts
+CLANG_CPPFLAGS_ppc64:=
+
+# GCC/Clang Common
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	CC_ppc64:=$(GCC_CC_ppc64)
+	CFLAGS_ppc64:=$(GCC_CFLAGS_ppc64)
+	COMPILER_RT_ppc64:=$(GCC_COMPILER_RT_ppc64)
+	COMPILER_RT_FLAGS_ppc64:=$(GCC_COMPILER_RT_FLAGS_ppc64)
+else
+	CC_ppc64:=$(CLANG_CC_ppc64)
+	CFLAGS_ppc64:=$(CLANG_CFLAGS_ppc64)
+	CPPFLAGS_ppc64:=$(CLANG_CPPFLAGS_ppc64)
+	COMPILER_RT_ppc64:=$(CLANG_COMPILER_RT_ppc64)
+	COMPILER_RT_FLAGS_ppc64:=$(CLANG_COMPILER_RT_FLAGS_ppc64)
+endif
+
+CPP_ppc64:=invalidcpp
+AS_ppc64:=invalidas 
+LD_ppc64:=invalidld 
+GCOV_ppc64:=invalidgcov
+ifeq ($(CONFIG_COMPILER_GCC)$(CONFIG_LP_COMPILER_GCC),y)
+	NM_ppc64:=invalidgcc-nm
+	AR_ppc64:=invalidgcc-ar
+else
+	NM_ppc64:=invalidnm
+	AR_ppc64:=invalidar
+endif
+OBJCOPY_ppc64:=invalidobjcopy
+OBJDUMP_ppc64:=invalidobjdump
+READELF_ppc64:=invalidreadelf
+STRIP_ppc64:=invalidstrip
+GNATBIND_ppc64:=invalidgnatbind
+CROSS_COMPILE_ppc64:=invalid
+
+
+XCOMPILE_COMPLETE:=1

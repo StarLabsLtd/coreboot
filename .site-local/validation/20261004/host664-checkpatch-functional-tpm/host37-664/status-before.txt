@@ -1,0 +1,7 @@
+ M src/boot/pe_test.c
+ M tests/capsule_certified_refusal_core_test.c
+ M tests/con_splitter_entry_test.c
+ M tests/dxe_core_capsule_disk_stage_test.c
+ M tests/linear_boot_test.c
+ M tests/splash_status_report_test.c
+ M tests/usb_keyboard_binding_test.c

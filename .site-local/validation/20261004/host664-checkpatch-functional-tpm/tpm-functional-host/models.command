@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/tpm-fifo-command-ready-host-gates.XFCZpH/tmp LANG=C LC_ALL=C CC=/home/sean/tpm-fifo-command-ready-host-gates.XFCZpH/cc.sh sh tests/lib/tpm2_fifo_pre_os_lifecycle_test.sh 

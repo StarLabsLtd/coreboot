@@ -1,0 +1,81 @@
+diff --git a/tests/checkpatch_generic_test.sh b/tests/checkpatch_generic_test.sh
+index e97206c923..0285d97461 100644
+--- a/tests/checkpatch_generic_test.sh
++++ b/tests/checkpatch_generic_test.sh
+@@ -52,3 +52,64 @@ for label in default 'case 1'; do
+ 	done
+ done
+ printf '%s\n' 'C11 generic association and genuine switch trailing-statement checks: PASS'
++
++# LvalOrFunc includes trailing whitespace. It must not turn a macro/macro
++# comparison into constant-left style, or conceal a genuine native operand.
++for expression in 'LEFT_VALUE > RIGHT_VALUE ? 1 : 0' \
++	'LEFT_VALUE > RIGHT_VALUE' 'value < LEFT_VALUE'; do
++	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '' \
++		'#define LEFT_VALUE 2' '#define RIGHT_VALUE 1' \
++		'int comparison(int value)' '{' "	return $expression;" '}' \
++		> "$temporary/constant-clean.c"
++	${HOSTCC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wno-unused-parameter \
++		-fsyntax-only "$temporary/constant-clean.c"
++	perl "$check" --no-tree --show-types --file "$temporary/constant-clean.c" \
++		> "$temporary/constant-clean.log" || true
++	if grep -q '^WARNING:CONSTANT_COMPARISON:' "$temporary/constant-clean.log"; then
++		echo 'constant-right parser rejected a macro comparison' >&2
++		exit 1
++	fi
++done
++for expression in 'LEFT_VALUE > value' '2 > value' \
++	'LEFT_VALUE > *pointer' 'LEFT_VALUE > callback()'; do
++	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '' \
++		'#define LEFT_VALUE 2' 'int callback(void);' \
++		'int comparison(int value, int *pointer)' '{' \
++		"	return $expression;" '}' > "$temporary/constant-wrong.c"
++	${HOSTCC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wno-unused-parameter \
++		-fsyntax-only "$temporary/constant-wrong.c"
++	if perl "$check" --no-tree --show-types --file "$temporary/constant-wrong.c" \
++			> "$temporary/constant-wrong.log"; then
++		echo 'constant-left native operand escaped diagnosis' >&2
++		exit 1
++	fi
++	grep -q '^WARNING:CONSTANT_COMPARISON:' "$temporary/constant-wrong.log"
++	case "$expression" in
++	'LEFT_VALUE > value') corrected='value < LEFT_VALUE' ;;
++	'2 > value') corrected='value < 2' ;;
++	'LEFT_VALUE > *pointer') corrected='*pointer < LEFT_VALUE' ;;
++	'LEFT_VALUE > callback()') corrected='callback() < LEFT_VALUE' ;;
++	esac
++	# Only a parenthesized comparison is eligible for the existing fixer.
++	# Retain operand whitespace to check both diagnosis and exact correction.
++	for option in --fix --fix-inplace; do
++		printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '' \
++			'#define LEFT_VALUE 2' 'int callback(void);' \
++			'int comparison(int value, int *pointer)' '{' \
++			"	return ($expression );" '}' > "$temporary/constant-fix.c"
++		perl "$check" --no-tree --show-types "$option" \
++			--file "$temporary/constant-fix.c" > "$temporary/constant-fix.log" || true
++		grep -q '^WARNING:CONSTANT_COMPARISON:' "$temporary/constant-fix.log"
++		fixed=$temporary/constant-fix.c
++		test "$option" = --fix-inplace || fixed=$fixed.EXPERIMENTAL-checkpatch-fixes
++		grep -Fq "return ($corrected);" "$fixed"
++		${HOSTCC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wno-unused-parameter \
++			-fsyntax-only -x c "$fixed"
++		perl "$check" --no-tree --show-types --file "$fixed" \
++			> "$temporary/constant-fixed.log" || true
++		if grep -q '^WARNING:CONSTANT_COMPARISON:' "$temporary/constant-fixed.log"; then
++			echo 'constant-left correction remained diagnosed' >&2
++			exit 1
++		fi
++	done
++done
+diff --git a/util/lint/checkpatch.pl b/util/lint/checkpatch.pl
+index eb4c8627e7..e14cea374a 100755
+--- a/util/lint/checkpatch.pl
++++ b/util/lint/checkpatch.pl
+@@ -5157,6 +5157,7 @@ sub process {
+ 			my $const = $2;
+ 			my $comp = $3;
+ 			my $to = $4;
++			$to =~ s/\s+$//;
+ 			my $newcomp = $comp;
+ 			if ($lead !~ /(?:$Operators|\.)\s*$/ &&
+ 			    $to !~ /^(?:Constant|[A-Z_][A-Z0-9_]*)$/ &&

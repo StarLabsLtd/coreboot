@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "python3",
+    "/home/sean/Documents/cdk2/util/qemu/bin/assert-linear-run.py",
+    "tpm-linux",
+    "/home/sean/tpm-fifo-functional-guest-after661/tpm-linux",
+    "--output",
+    "/home/sean/tpm-fifo-functional-guest-after661/tpm-linux-assertions.json"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

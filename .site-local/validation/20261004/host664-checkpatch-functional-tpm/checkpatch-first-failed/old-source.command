@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/checkpatch-constant-host-gates.WbHfdg/tmp LANG=C LC_ALL=C HOSTCC=/usr/bin/gcc sh /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/tests/checkpatch_generic_test.sh 

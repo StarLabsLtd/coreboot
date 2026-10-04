@@ -1,0 +1,152 @@
+diff --git a/src/drivers/pc80/tpm/tis.c b/src/drivers/pc80/tpm/tis.c
+index a16b5379f14..d2253617211 100644
+--- a/src/drivers/pc80/tpm/tis.c
++++ b/src/drivers/pc80/tpm/tis.c
+@@ -797,10 +797,15 @@ static bool lifecycle_read_idle(bool *idle)
+ 	if (!idle || !lifecycle_owned())
+ 		return false;
+ 	status = lifecycle_read_status(0);
+-	if (!(status & TIS_STS_VALID))
++	if (!(status & (TIS_STS_VALID | TIS_STS_COMMAND_READY)))
+ 		return false;
++	/*
++	 * COMMAND_READY is independent of STS_VALID. Only interpret DATA_AVAILABLE
++	 * and EXPECT when STS_VALID is set (TCG PTP 5.5.2.3).
++	 */
+ 	*idle = (status & TIS_STS_COMMAND_READY) &&
+-		!(status & (TIS_STS_DATA_AVAILABLE | TIS_STS_EXPECT));
++		(!(status & TIS_STS_VALID) ||
++		 !(status & (TIS_STS_DATA_AVAILABLE | TIS_STS_EXPECT)));
+ 	return true;
+ }
+ 
+diff --git a/tests/lib/tpm2_fifo_pre_os_lifecycle_test.sh b/tests/lib/tpm2_fifo_pre_os_lifecycle_test.sh
+index b93cb6170d3..68bf6d8683b 100755
+--- a/tests/lib/tpm2_fifo_pre_os_lifecycle_test.sh
++++ b/tests/lib/tpm2_fifo_pre_os_lifecycle_test.sh
+@@ -21,7 +21,9 @@ transmit-lost-locality transmit-seized-locality
+ quiesce-resurrection release-failure release-resurrection'
+ 
+ tis_scenarios='idle data-available expect lost-locality seized-locality
+-ready-timeout ready-bad-postcondition invalid-status
++ready-only ready-undefined-data ready-undefined-expect
++ready-valid-data ready-valid-expect ready-lost-locality ready-seized-locality
++ready-timeout ready-bad-postcondition invalid-status invalid-data invalid-expect
+ transmit-lost-locality transmit-seized-locality
+ release-success release-wait-timeout release-still-active release-invalid
+ release-seized release-lost-locality release-seized-locality'
+diff --git a/tests/lib/tpm2_fifo_tis_lifecycle_test.c b/tests/lib/tpm2_fifo_tis_lifecycle_test.c
+index 2d33d934e21..4e8e82e27ba 100644
+--- a/tests/lib/tpm2_fifo_tis_lifecycle_test.c
++++ b/tests/lib/tpm2_fifo_tis_lifecycle_test.c
+@@ -113,15 +113,18 @@ static void reset(void)
+ 	pc80_tis_fifo_set_test_backend(&backend);
+ }
+ 
+-static void quiesce_idle(void)
++static void quiesce_idle(u8 status)
+ {
+ 	reset();
+ 	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
+ 	access_count = 1;
+-	status_values[0] = STATUS_VALID | STATUS_READY;
++	status_values[0] = status;
+ 	status_count = 1;
++	CHECK(pc80_tis_fifo_validate_idle() == CB_SUCCESS);
+ 	CHECK(pc80_tis_fifo_quiesce() == CB_SUCCESS);
+ 	CHECK(ready_calls == 0);
++	CHECK(write_calls == 0);
++	CHECK(wait_calls == 0);
+ }
+ 
+ static void quiesce_busy(u8 busy_status)
+@@ -202,26 +205,42 @@ static void release_lost(u8 lost_access)
+ 	CHECK(wait_calls == 0);
+ }
+ 
+-static void invalid_status(void)
++static void invalid_status(u8 status)
+ {
+ 	reset();
+ 	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
+ 	access_count = 1;
+-	status_values[0] = STATUS_READY;
++	status_values[0] = status;
+ 	status_count = 1;
++	CHECK(pc80_tis_fifo_validate_idle() == CB_ERR);
+ 	CHECK(pc80_tis_fifo_quiesce() == CB_ERR);
++	CHECK(pc80_tis_fifo_release_locality() == CB_ERR);
++	CHECK(ready_calls == 0);
++	CHECK(write_calls == 0);
++	CHECK(wait_calls == 0);
++}
++
++static void contradictory_status(u8 status)
++{
++	reset();
++	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
++	access_count = 1;
++	status_values[0] = STATUS_VALID | STATUS_READY | status;
++	status_count = 1;
++	CHECK(pc80_tis_fifo_validate_idle() == CB_ERR);
++	CHECK(pc80_tis_fifo_release_locality() == CB_ERR);
+ 	CHECK(ready_calls == 0);
+ 	CHECK(write_calls == 0);
+ 	CHECK(wait_calls == 0);
+ }
+ 
+-static void transmit_lost(u8 lost_access)
++static void transmit_lost(u8 lost_access, u8 status)
+ {
+ 	reset();
+ 	access_values[0] = ACCESS_VALID | ACCESS_ACTIVE;
+ 	access_values[1] = lost_access;
+ 	access_count = 2;
+-	status_values[0] = STATUS_VALID | STATUS_READY;
++	status_values[0] = status;
+ 	status_count = 1;
+ 	CHECK(pc80_tis_fifo_validate_idle() == CB_ERR);
+ 	CHECK(ready_calls == 0);
+@@ -233,7 +252,17 @@ int main(int argc, char **argv)
+ {
+ 	CHECK(argc == 2);
+ 	if (!strcmp(argv[1], "idle"))
+-		quiesce_idle();
++		quiesce_idle(STATUS_VALID | STATUS_READY);
++	else if (!strcmp(argv[1], "ready-only"))
++		quiesce_idle(STATUS_READY);
++	else if (!strcmp(argv[1], "ready-undefined-data"))
++		quiesce_idle(STATUS_READY | STATUS_DATA);
++	else if (!strcmp(argv[1], "ready-undefined-expect"))
++		quiesce_idle(STATUS_READY | STATUS_EXPECT);
++	else if (!strcmp(argv[1], "ready-valid-data"))
++		contradictory_status(STATUS_DATA);
++	else if (!strcmp(argv[1], "ready-valid-expect"))
++		contradictory_status(STATUS_EXPECT);
+ 	else if (!strcmp(argv[1], "data-available"))
+ 		quiesce_busy(STATUS_DATA);
+ 	else if (!strcmp(argv[1], "expect"))
+@@ -247,11 +276,20 @@ int main(int argc, char **argv)
+ 	else if (!strcmp(argv[1], "ready-bad-postcondition"))
+ 		quiesce_ready_failure(true);
+ 	else if (!strcmp(argv[1], "invalid-status"))
+-		invalid_status();
++		invalid_status(0);
++	else if (!strcmp(argv[1], "invalid-data"))
++		invalid_status(STATUS_DATA);
++	else if (!strcmp(argv[1], "invalid-expect"))
++		invalid_status(STATUS_EXPECT);
+ 	else if (!strcmp(argv[1], "transmit-lost-locality"))
+-		transmit_lost(ACCESS_VALID);
++		transmit_lost(ACCESS_VALID, STATUS_VALID | STATUS_READY);
+ 	else if (!strcmp(argv[1], "transmit-seized-locality"))
+-		transmit_lost(ACCESS_VALID | ACCESS_ACTIVE | ACCESS_SEIZED);
++		transmit_lost(ACCESS_VALID | ACCESS_ACTIVE | ACCESS_SEIZED,
++			STATUS_VALID | STATUS_READY);
++	else if (!strcmp(argv[1], "ready-lost-locality"))
++		transmit_lost(ACCESS_VALID, STATUS_READY);
++	else if (!strcmp(argv[1], "ready-seized-locality"))
++		transmit_lost(ACCESS_VALID | ACCESS_ACTIVE | ACCESS_SEIZED, STATUS_READY);
+ 	else if (!strcmp(argv[1], "release-lost-locality"))
+ 		release_lost(ACCESS_VALID);
+ 	else if (!strcmp(argv[1], "release-seized-locality"))

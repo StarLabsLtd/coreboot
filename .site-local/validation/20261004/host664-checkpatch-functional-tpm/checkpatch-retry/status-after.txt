@@ -1,0 +1,2 @@
+ M tests/checkpatch_generic_test.sh
+ M util/lint/checkpatch.pl

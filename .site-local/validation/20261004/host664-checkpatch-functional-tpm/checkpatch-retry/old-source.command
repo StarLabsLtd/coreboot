@@ -1,0 +1,1 @@
+env -i PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin HOME=/home/sean TMPDIR=/home/sean/checkpatch-constant-host-retry.9Mc6Rb/tmp LANG=C LC_ALL=C HOSTCC=/usr/bin/gcc sh /home/sean/checkpatch-constant-host-retry.9Mc6Rb/old-source/tests/checkpatch_generic_test.sh 

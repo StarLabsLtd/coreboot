@@ -1,0 +1,3 @@
+ M src/drivers/pc80/tpm/tis.c
+ M tests/lib/tpm2_fifo_pre_os_lifecycle_test.sh
+ M tests/lib/tpm2_fifo_tis_lifecycle_test.c

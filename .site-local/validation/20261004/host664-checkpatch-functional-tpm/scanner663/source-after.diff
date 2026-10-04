@@ -1,0 +1,383 @@
+diff --git a/tests/native_boundary_style_lint_test.sh b/tests/native_boundary_style_lint_test.sh
+index b8e6161cdc..d3cd7e14cf 100755
+--- a/tests/native_boundary_style_lint_test.sh
++++ b/tests/native_boundary_style_lint_test.sh
+@@ -492,6 +492,140 @@ for scenario in valid excluded hidden nested unresolved shell comma; do
+ 	test ! -e "$filter_root/forbidden"
+ done
+ 
++# Exact compiler prerequisite filters do not require Make evaluation. Foreign
++# files are ignored by the owned inventory so these checks need the build edge.
++recipe_root=$temporary/recipe-filter
++mkdir -p "$recipe_root/util/lint" "$recipe_root/src" "$recipe_root/outside"
++cp "$root/util/lint/helper_functions.sh" \
++	"$root/util/lint/lint-stable-025-native-boundary" "$recipe_root/util/lint/"
++printf 'build Makefile\n' > "$recipe_root/manifest"
++printf 'int good;\n' > "$recipe_root/src/good.c"
++printf '#include <Library/BaseLib.h>\n' > "$recipe_root/outside/bad.c"
++printf 'outside/\nresult\n' > "$recipe_root/.gitignore"
++for scenario in direct helper actual_helper nested conditional_list conditional_alias \
++    prerequisite helper_argument helper_literal excluded unknown_helper \
++    helper_redefined helper_assigned helper_conditional helper_environment \
++    helper_constructed helper_function unknown_function forged_assignment \
++    forged_prerequisite forged_assignment_continued forged_prerequisite_continued \
++    conditional_cycle conditional_environment conditional_environment_alias \
++    conditional_unknown conditional_transitive conditional_outside \
++    cross_file_define cross_file_continuation dangling_define dangling_recipe; do
++	printf 'build Makefile\n' > "$recipe_root/manifest"
++	{
++		printf 'CC := cc\nBASE := src/good.c\nSOURCES := src/good.c\n'
++		case "$scenario" in
++		helper_conditional) printf 'ifeq ($(MODE),then)\n' ;;
++		esac
++		printf 'define host_test\n'
++		case "$scenario" in
++		actual_helper)
++			awk '
++			 $0 == "define cdk2_native_host_test" { selected = 1; next }
++			 selected && $0 == "endef" { exit }
++			 selected { print }
++			' "$root/src/boot/Makefile"
++			;;
++		helper_constructed) printf '\t$(CC) $(1) outside/$(2)\n' ;;
++		helper_function) printf '\t$(CC) $(1) $(word 1,$(2))\n' ;;
++		helper_literal) printf '\t$(CC) $(1) $(2) outside/bad.c\n' ;;
++		cross_file_define|dangling_define) ;;
++		*) printf '\t$(CC) $(1) $(2)\n' ;;
++		esac
++		case "$scenario" in
++		cross_file_define|dangling_define) ;;
++		*) printf 'endef\n' ;;
++		esac
++		case "$scenario" in
++		helper_redefined) printf 'define host_test\n\t$(CC) $(1) $(2)\nendef\n' ;;
++		helper_assigned) printf 'host_test = $(shell touch forbidden)\n' ;;
++		helper_conditional) printf 'endif\n' ;;
++		esac
++		case "$scenario" in
++		conditional_list|conditional_alias|conditional_cycle|conditional_environment|\
++		conditional_environment_alias|\
++		conditional_unknown|conditional_transitive|conditional_outside)
++			case "$scenario" in
++			conditional_alias) printf 'LIST := $(BASE)\n' ;;
++			conditional_cycle) printf 'LIST = $(ALIAS)\nALIAS = $(LIST)\n' ;;
++			conditional_unknown) printf 'LIST = $(UNKNOWN)/bad.c\n' ;;
++			conditional_environment_alias) printf 'ALIAS := src/good.c\nLIST = $(ALIAS)\n' ;;
++			conditional_transitive) printf 'ifeq ($(MODE),then)\nALIAS := outside/bad.c\nelse\nALIAS := src/good.o\nendif\nLIST = $(ALIAS)\n' ;;
++			conditional_outside) printf 'LIST := outside/bad.c\n' ;;
++			*) printf 'LIST := src/good.c\n' ;;
++			esac
++			printf 'ifeq ($(MODE),then)\nSOURCES += $(LIST)\nendif\n'
++			;;
++		forged_assignment) printf 'SOURCES := $(filter %%.c,$^)\n' ;;
++		forged_assignment_continued)
++			printf 'SOURCES := \\\n\t$(filter %%.c,$^)\n' ;;
++		esac
++		case "$scenario" in
++		prerequisite) printf 'all: outside/bad.c\n' ;;
++		forged_prerequisite) printf 'all: $(filter %%.c,$^)\n' ;;
++		forged_prerequisite_continued)
++			printf 'all: \\\n\t$(filter %%.c,$^)\n' ;;
++		*) printf 'all: $(SOURCES)\n' ;;
++		esac
++		case "$scenario" in
++		direct|prerequisite|forged_*|conditional_*)
++			printf '\t@$(CC) $(filter %%.c,$^) -o "$@"\n' ;;
++		nested|excluded)
++			printf '\t$(call host_test,-O2,\\\n'
++			if [ "$scenario" = excluded ]; then exclusion=outside/bad.c
++			else exclusion=src/good.c; fi
++			printf '\t  $(filter-out %s,$(filter %%.c,$^)))\n' "$exclusion"
++			;;
++		helper_argument) printf '\t$(call host_test,outside/bad.c,$(filter %%.c,$^))\n' ;;
++		unknown_helper) printf '\t$(call missing,-O2,$(filter %%.c,$^))\n' ;;
++		unknown_function) printf '\t@$(CC) $(word 1,$(filter %%.c,$^))\n' ;;
++		cross_file_continuation|dangling_recipe)
++			printf '\t$(call host_test,-O2,\\\n' ;;
++		*) printf '\t$(call host_test,-O2,$(filter %%.c,$^))\n' ;;
++		esac
++	} > "$recipe_root/Makefile"
++	case "$scenario" in
++	cross_file_define)
++		printf 'build fragment.mk\n' >> "$recipe_root/manifest"
++		printf '\t$(CC) $(1) $(2)\nendef\nall:\n\t$(call host_test,-O2,$(filter %%.c,$^))\n' > "$recipe_root/fragment.mk"
++		;;
++	cross_file_continuation)
++		printf 'build fragment.mk\n' >> "$recipe_root/manifest"
++		printf '\t$(filter %%.c,$^))\n' > "$recipe_root/fragment.mk"
++		;;
++	*) printf '\n' > "$recipe_root/fragment.mk" ;;
++	esac
++	git -C "$recipe_root" init -q
++	git -C "$recipe_root" add .
++	case "$scenario" in
++	helper_environment) control='host_test=$(shell touch forbidden)' ;;
++		conditional_environment) control='LIST=outside/bad.c' ;;
++	conditional_environment_alias) control='ALIAS=outside/bad.c' ;;
++	*) control= ;;
++	esac
++	(cd "$recipe_root" && if [ -n "$control" ]; then
++		env "$control" CDK2_NATIVE_INPUT_MANIFEST=manifest \
++			util/lint/lint-stable-025-native-boundary
++	else
++		CDK2_NATIVE_INPUT_MANIFEST=manifest \
++			util/lint/lint-stable-025-native-boundary
++	fi) > "$recipe_root/result"
++	case "$scenario" in
++	direct|helper|actual_helper|nested|conditional_list|conditional_alias)
++		if [ -s "$recipe_root/result" ]; then
++			cat "$recipe_root/result"
++			exit 1
++		fi ;;
++	prerequisite|helper_argument|helper_literal|excluded|conditional_outside)
++		grep -q 'EDK-style include path.*outside/bad.c' "$recipe_root/result" ;;
++	conditional_cycle|conditional_environment|conditional_environment_alias|\
++	conditional_unknown|conditional_transitive)
++		grep -q 'Invalid build source reference.*__CDK2_CONDITIONAL_UNSUPPORTED__' \
++			"$recipe_root/result" ;;
++	*) grep -q 'Invalid build source reference' "$recipe_root/result" ;;
++	esac
++	test ! -e "$recipe_root/forbidden"
++done
++
+ hostile_root=$temporary/hostile-include
+ mkdir -p "$hostile_root/util/lint" "$hostile_root/outside/Bad"
+ cp "$root/util/lint/helper_functions.sh" "$hostile_root/util/lint/"
+diff --git a/util/lint/lint-stable-025-native-boundary b/util/lint/lint-stable-025-native-boundary
+index 0af5e93534..5cad2a1406 100755
+--- a/util/lint/lint-stable-025-native-boundary
++++ b/util/lint/lint-stable-025-native-boundary
+@@ -339,6 +339,104 @@ evaluate_build_descriptions()
+ 	function has_source(value) {
+ 		return value ~ /\.(c|h|S)([^A-Za-z0-9_.-]|$)/
+ 	}
++	function continued(value, count) {
++		count = 0
++		while (substr(value, length(value) - count, 1) == "\\")
++			count++
++		return count % 2
++	}
++	function inspect_helper(value, remainder, token, start, size) {
++		remainder = value
++		while (match(remainder, /\$\([0-9]+\)/)) {
++			start = RSTART
++			size = RLENGTH
++			token = substr(remainder, start, size)
++			# Only naked flags/source parameters are understood. Do not
++			# trust a helper that constructs paths or functions around them.
++			if (token !~ /^\$\([12]\)$/ || \
++			    (start > 1 && substr(remainder, start - 1, 1) !~ /[[:space:]]/) || \
++			    substr(remainder, start + size, 1) !~ /^([[:space:]]|$)/)
++				helper_invalid[helper_name] = 1
++			if (token == "$(2)")
++				helper_sources[helper_name] = 1
++			remainder = substr(remainder, start + size)
++		}
++		gsub(/\$\([12]\)|\$\([A-Za-z_][A-Za-z0-9_]*\)|\$\{[A-Za-z_][A-Za-z0-9_]*\}/,
++		    "", value)
++		if (value ~ /\$\(|\$\{/)
++			helper_invalid[helper_name] = 1
++	}
++	function expand_recipe(value, token, name, prefix_size) {
++		if (value !~ /\$\(filter[[:space:]]+%\.c,[[:space:]]*\$\^\)/)
++			return expand(value)
++		if (value ~ /\$\(call[[:space:]]/) {
++			if (!match(value,
++			    /^[[:space:]]+\$\(call[[:space:]]+[A-Za-z_][A-Za-z0-9_]*,/))
++				return "__CDK2_UNSUPPORTED__.c"
++			prefix_size = RLENGTH
++			token = substr(value, 1, prefix_size)
++			sub(/^[[:space:]]+\$\(call[[:space:]]+/, "", token)
++			sub(/,$/, "", token)
++			name = token
++			if (!helper_defined[name] || helper_invalid[name] || \
++			    !helper_sources[name] || (name in ENVIRON) || value !~ /\)[[:space:]]*$/)
++				return "__CDK2_UNSUPPORTED__.c"
++			# Inspect every argument, not Make call/filter selection. The
++			# owned helper body is independently inspected as recipe text.
++			value = substr(value, prefix_size + 1)
++			sub(/\)[[:space:]]*$/, "", value)
++		}
++		# $^ denotes the independently inspected literal/variable rule
++		# prerequisites. A source-shaped symbol retains source sensitivity
++		# inside any other, unsupported enclosing function.
++		gsub(/\$\(filter[[:space:]]+%\.c,[[:space:]]*\$\^\)/,
++		    "__CDK2_RECIPE_PREREQUISITES__.c", value)
++		return expand(value)
++	}
++	function record_recipe(value, recipe_index) {
++		if (value ~ /\$\(filter[[:space:]]+%\.c,[[:space:]]*\$\^\)/) {
++			line[++line_count] = value
++			line_location[line_count] = recipe_location
++			line_recipe[line_count] = 1
++		} else {
++			# Preserve physical-line inspection for all other expressions.
++			for (recipe_index = 1; recipe_index <= recipe_count; recipe_index++) {
++				line[++line_count] = recipe_text[recipe_index]
++				line_location[line_count] = recipe_at[recipe_index]
++			}
++		}
++		recipe_count = 0
++	}
++	function unconditional_list(name, depth, event_index, remainder, reference,
++	    expanded) {
++		if (locked[name])
++			return 1
++		if (depth >= 32 || list_active[name] || !(name in defined) || \
++		    (name in ENVIRON))
++			return 0
++		list_active[name] = 1
++		for (event_index = 1; event_index <= event_count; event_index++) {
++			if (event_name[event_index] != name)
++				continue
++			if (event_conditional[event_index]) {
++				delete list_active[name]
++				return 0
++			}
++			remainder = event_value[event_index]
++			while (match(remainder,
++			    /\$\([A-Za-z_][A-Za-z0-9_]*\)|\$\{[A-Za-z_][A-Za-z0-9_]*\}/)) {
++				reference = substr(remainder, RSTART + 2, RLENGTH - 3)
++				remainder = substr(remainder, RSTART + RLENGTH)
++				if (!unconditional_list(reference, depth + 1)) {
++					delete list_active[name]
++					return 0
++				}
++			}
++		}
++		delete list_active[name]
++		expanded = variable_value(name)
++		return expanded !~ /__CDK2_(UNRESOLVED|CYCLE|UNSUPPORTED|ENV_UNSUPPORTED)_/
++	}
+ 	function source_expression_allowed(name, event_index, value, expanded,
+ 	    found) {
+ 		for (event_index = 1; event_index <= event_count; event_index++) {
+@@ -382,10 +480,62 @@ evaluate_build_descriptions()
+ 		}
+ 		close(manifest)
+ 	}
++	FNR == 1 {
++		# A definition/recipe cannot gain approval from another input file.
++		if (helper_name != "")
++			helper_invalid[helper_name] = 1
++		helper_name = ""
++		nonrecipe_continued = 0
++		if (recipe_pending != "") {
++			line[++line_count] = "__CDK2_UNSUPPORTED__.c"
++			line_location[line_count] = recipe_location
++			recipe_pending = ""
++		}
++		recipe_count = 0
++	}
+ 	{
+ 		assignment = $0
+ 		directive = assignment
+ 		sub(/^[[:space:]]+/, "", directive)
++		if (directive ~ /^define[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*$/) {
++			helper_name = directive
++			sub(/^define[[:space:]]+/, "", helper_name)
++			sub(/[[:space:]]*$/, "", helper_name)
++			if (helper_seen[helper_name]++ || conditional_depth)
++				helper_invalid[helper_name] = 1
++			next
++		}
++		if (directive ~ /^endef([[:space:]]|$)/ && helper_name != "") {
++			helper_defined[helper_name] = 1
++			helper_name = ""
++			next
++		}
++		# Join recipe continuations only. Source assignments retain their
++		# existing ordered interpretation; no Make or shell is executed.
++		if (nonrecipe_continued) {
++			nonrecipe_continued = continued($0)
++			line[++line_count] = $0
++			line_location[line_count] = FILENAME ":" FNR
++			next
++		}
++		if ($0 ~ /^\t/ || recipe_pending != "") {
++			if (recipe_pending == "")
++				recipe_location = FILENAME ":" FNR
++			recipe_text[++recipe_count] = $0
++			recipe_at[recipe_count] = FILENAME ":" FNR
++			value = recipe_pending $0
++			if (continued(value)) {
++				recipe_pending = substr(value, 1, length(value) - 1) " "
++				next
++			}
++			recipe_pending = ""
++			if (helper_name != "")
++				inspect_helper(value)
++			record_recipe(value)
++			next
++		}
++		if (helper_name != "" && directive !~ /^(#|$)/)
++			helper_invalid[helper_name] = 1
+ 		if (directive ~ /^(ifeq|ifneq|ifdef|ifndef)([[:space:](]|$)/) {
+ 			conditional_depth++
+ 			line[++line_count] = $0
+@@ -407,6 +557,7 @@ evaluate_build_descriptions()
+ 		sub(/^[[:space:]]*override[[:space:]]+/, "", assignment)
+ 		if (!match(assignment,
+ 		    /^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[:+?]?=/)) {
++			nonrecipe_continued = continued($0)
+ 			line[++line_count] = $0
+ 			line_location[line_count] = FILENAME ":" FNR
+ 			next
+@@ -422,14 +573,26 @@ evaluate_build_descriptions()
+ 			operator = "?="
+ 		name = left
+ 		sub(/[[:space:]]*[:+?]?=$/, "", name)
++		if (helper_seen[name])
++			helper_invalid[name] = 1
+ 		sub(/^[[:space:]]+/, "", value)
+ 		event_name[++event_count] = name
+ 		event_operator[event_count] = operator
+ 		event_value[event_count] = value
+ 		event_location[event_count] = FILENAME ":" FNR
+ 		event_conditional[event_count] = conditional_depth
++		nonrecipe_continued = continued($0)
+ 	}
+ 	END {
++		if (helper_name != "")
++			helper_invalid[helper_name] = 1
++		if (recipe_pending != "") {
++			line[++line_count] = "__CDK2_UNSUPPORTED__.c"
++			line_location[line_count] = recipe_location
++		}
++		for (event_index = 1; event_index <= event_count; event_index++)
++			if (helper_seen[event_name[event_index]])
++				helper_invalid[event_name[event_index]] = 1
+ 		for (event_index = 1; event_index <= event_count; event_index++)
+ 			# A variable may provide the final source suffix.  Treat that
+ 			# expression as source-relevant before ordered expansion.
+@@ -592,17 +755,24 @@ evaluate_build_descriptions()
+ 			if (!event_conditional[event_index] || !needed[name])
+ 				continue
+ 			value = event_value[event_index]
+-			if (value ~ /\$\(|\$\{/)
++			if (event_operator[event_index] == "+=" && \
++			    value ~ /^\$\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*$/ && \
++			    unconditional_list(substr(value, 3, index(value, ")") - 3), 0))
++				print event_location[event_index] ":" name "=" expand(value)
++			else if (value ~ /\$\(|\$\{/)
+ 				print event_location[event_index] ":" name \
+ 					"=__CDK2_CONDITIONAL_UNSUPPORTED__.c"
+ 			else
+ 				print event_location[event_index] ":" name "=" value
+ 		}
+-		for (line_index = 1; line_index <= line_count; line_index++)
+-			if (line_relevant[line_index] && \
+-			    has_source(expand(line[line_index])))
+-				print line_location[line_index] ":" \
+-					expand(line[line_index])
++		for (line_index = 1; line_index <= line_count; line_index++) {
++			if (!line_relevant[line_index])
++				continue
++			value = line_recipe[line_index] ? expand_recipe(line[line_index]) : \
++				expand(line[line_index])
++			if (has_source(value))
++				print line_location[line_index] ":" value
++		}
+ 	}' $BUILDLIST
+ }
+ 

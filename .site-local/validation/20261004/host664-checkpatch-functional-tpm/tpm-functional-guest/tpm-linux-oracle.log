@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-tpm-event-log.py", line 273, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-tpm-event-log.py", line 269, in main
+    print(validate(args.serial_log))
+          ~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-tpm-event-log.py", line 182, in validate
+    log = enclosed_hex(text, "TPM_EVENT_LOG_HEX_BEGIN", "TPM_EVENT_LOG_HEX_END")
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-tpm-event-log.py", line 33, in enclosed_hex
+    raise ValueError(f"expected one {begin}/{end} block")
+ValueError: expected one TPM_EVENT_LOG_HEX_BEGIN/TPM_EVENT_LOG_HEX_END block
+Traceback (most recent call last):
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-linear-run.py", line 1096, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-linear-run.py", line 696, in main
+    subprocess.run([
+    ~~~~~~~~~~~~~~^^
+        str(ROOT / "bin" / "assert-tpm-event-log.py"),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        str(args.runs[0] / "serial.log"),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ], check=True)
+    ^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/home/sean/Documents/cdk2/util/qemu/bin/assert-tpm-event-log.py', '/home/sean/tpm-fifo-functional-guest-after661/tpm-linux/serial.log']' returned non-zero exit status 1.

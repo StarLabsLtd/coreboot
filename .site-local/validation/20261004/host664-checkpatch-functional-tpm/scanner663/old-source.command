@@ -1,0 +1,1 @@
+env -i PATH=/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin TMPDIR=/home/sean/native-boundary-source-filter-host-gates.VtwT74/tmp LANG=C LC_ALL=C sh /home/sean/native-boundary-source-filter-host-gates.VtwT74/old-source/tests/native_boundary_style_lint_test.sh 

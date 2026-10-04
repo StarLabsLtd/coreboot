@@ -1,0 +1,15 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/host-style-lint-after661'
+#
+# No change to /home/sean/host-style37-final.20261004-r1/build/resolved.config
+#
+Splash HOST artifacts: /home/sean/host-style37-final.20261004-r1/tmp/tmp.3JxxptP4dz
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+b117aff99bdf1ce705421deeeb8d5e28e074dbd0e3c9baf770b0899f600e3efd  /home/sean/host-style37-final.20261004-r1/tmp/tmp.3JxxptP4dz/argv-0-0
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+c79d7cc5407d6031bb3dc12fc105c07ddaba05bc48e515ec743ff671421b2cae  /home/sean/host-style37-final.20261004-r1/tmp/tmp.3JxxptP4dz/argv-0-2
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+b1a0229ca1df64cbde25d84d5d1331ef8331c012978b305e0f7672ad9c71665e  /home/sean/host-style37-final.20261004-r1/tmp/tmp.3JxxptP4dz/argv-1-0
+Actual DXE splash callbacks: both logo owners, begin/completion and quiet release: PASS
+27d0612a2aa6dde81ca2bc851ec542134250ac60e9fa31ca0bf5fdd616b219be  /home/sean/host-style37-final.20261004-r1/tmp/tmp.3JxxptP4dz/argv-1-2
+Splash owner/begin-sentinel/snapshot lifetime coupled source mutants: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/host-style-lint-after661'

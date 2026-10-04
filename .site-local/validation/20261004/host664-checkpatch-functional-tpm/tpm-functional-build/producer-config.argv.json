@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "make",
+    "-C",
+    "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee",
+    "-j2",
+    "UPDATED_SUBMODULES=1",
+    "VBOOT_SOURCE=../../coreboot/3rdparty/vboot",
+    "HOSTCC=gcc",
+    "HOSTCXX=g++",
+    "olddefconfig"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

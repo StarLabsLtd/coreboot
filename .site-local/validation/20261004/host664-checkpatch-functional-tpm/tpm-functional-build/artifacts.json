@@ -1,0 +1,42 @@
+[
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee/.config",
+    "sha256": "43023a30a8ffa2a1d407aa77dbfc5065f4258719429bafc63d89388fdfd50465"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee/build/xcompile",
+    "sha256": "3d4e43898a953ecfad1f1534e767dd709cee11c724bb9ca42b3c22c480919a86"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee/build/coreboot.rom",
+    "sha256": "788e5275eac0671c830a01b2b24b3e8c1d37e7ebe4d8a4cc069ca00749a8b1e1"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-fifo-command-ready-after7ee/build/util/cbfstool/cbfstool",
+    "sha256": "29908aa58cf90f48b12911be8bd781670c23a1bfce3b2b1801aac32ad8b3b9a4"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/payload/.config",
+    "sha256": "51a81cd1edecaefc0c176d4d3c36bff26b3220c9a95e48d53596cbd1cdf1b1c6"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/payload/include/cdk2/config.h",
+    "sha256": "46a4a9d6bce99e78ed6fea666b8f281bf35efa30b594983a5ace6a6f70ecd73c"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/payload/native/cdk2-coreboot-image.elf",
+    "sha256": "420908799a9db9c836b3cd0442e18dcfc865acf5ebf8e1ead3162efc266c4199"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/tpm-acceptance.rom",
+    "sha256": "b19d508b8c15e143608933e58ce27cf9375cc603de4583e1bfeee702a98b68de"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/tpm-acceptance.rom.manifest.json",
+    "sha256": "7d82d74bd613699a5e6f691539366acf5380e2c2880540eaf8b136c5e68aa33e"
+  },
+  {
+    "path": "/home/sean/tpm-fifo-functional-build-after661/tpm-acceptance.rom.direct-provenance.tsv",
+    "sha256": "05ed9730e614509449cfee17b11982653ffdcb583a45cbb61f2853b2e7403093"
+  }
+]

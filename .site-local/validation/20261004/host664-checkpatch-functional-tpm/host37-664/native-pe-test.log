@@ -1,0 +1,7 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/host-style-lint-after661'
+#
+# No change to /home/sean/host-style37-final.20261004-r1/build/resolved.config
+#
+cdk2 PE test: PASS
+native PE loader 4 KiB guarded-stack test passed
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/host-style-lint-after661'

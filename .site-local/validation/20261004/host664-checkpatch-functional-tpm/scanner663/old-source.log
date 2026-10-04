@@ -1,0 +1,1 @@
+Invalid build source reference: Makefile:8:	@cc __CDK2_UNSUPPORTED__.c -o "$@":__CDK2_UNSUPPORTED__.c

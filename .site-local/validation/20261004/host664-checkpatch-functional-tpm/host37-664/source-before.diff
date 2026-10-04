@@ -1,0 +1,251 @@
+diff --git a/src/boot/pe_test.c b/src/boot/pe_test.c
+index e5e0d7c3a6..9931c0f0e7 100644
+--- a/src/boot/pe_test.c
++++ b/src/boot/pe_test.c
+@@ -294,7 +294,7 @@ int main(void)
+ 		(EFI_PHYSICAL_ADDRESS)(UINTN)loaded, sizeof(loaded), &loaded_base,
+ 		&loaded_size, &entry_point);
+ 	failures += expect(status == EFI_UNSUPPORTED,
+-		"non-executable main Linux entry accepted by loader");
++		"non-executable primary Linux entry accepted by loader");
+ 
+ 	if (fixture != NULL && fixture[0] != '\0') {
+ 		FILE *stream = fopen(fixture, "rb");
+diff --git a/tests/capsule_certified_refusal_core_test.c b/tests/capsule_certified_refusal_core_test.c
+index e1059dd8fc..bb21ef1cc5 100644
+--- a/tests/capsule_certified_refusal_core_test.c
++++ b/tests/capsule_certified_refusal_core_test.c
+@@ -311,8 +311,13 @@ int main(void)
+ #define VALID() certified_ram_check_refusal(&context, &runtime, &input.header, \
+ 	sizeof(input), EFI_DEVICE_ERROR)
+ 	assert(VALID());
+-#define REFUSE(field, value) do { __typeof__(field) saved = (field); \
+-	(field) = (value); assert(!VALID()); (field) = saved; assert(VALID()); } while (0)
++#define REFUSE(field, value) do { \
++	__typeof__(field) saved = (field); \
++	(field) = (value); \
++	assert(!VALID()); \
++	(field) = saved; \
++	assert(VALID()); \
++} while (0)
+ 	REFUSE(runtime.outcome.active, true);
+ 	REFUSE(runtime.outcome.completed, false);
+ 	REFUSE(runtime.outcome.set_begun, true);
+@@ -375,9 +380,13 @@ int main(void)
+ 		resident.check.sealed_floor = 9;
+ #define LOCAL_VALID() certified_ram_check_refusal(&context, &runtime, &input.header, \
+ 	sizeof(input), EFI_UNSUPPORTED)
+-#define LOCAL_DENY(field, value) do { __typeof__(field) saved_field = (field); \
+-	(field) = (value); assert(!LOCAL_VALID()); (field) = saved_field; \
+-	assert(LOCAL_VALID()); } while (0)
++#define LOCAL_DENY(field, value) do { \
++	__typeof__(field) saved_field = (field); \
++	(field) = (value); \
++	assert(!LOCAL_VALID()); \
++	(field) = saved_field; \
++	assert(LOCAL_VALID()); \
++} while (0)
+ 		assert(LOCAL_VALID());
+ 		LOCAL_DENY(resident.check.signature_refused, true);
+ 		LOCAL_DENY(resident.check.local_floor_refused, false);
+diff --git a/tests/con_splitter_entry_test.c b/tests/con_splitter_entry_test.c
+index 6f321617c7..daac2b154e 100644
+--- a/tests/con_splitter_entry_test.c
++++ b/tests/con_splitter_entry_test.c
+@@ -21,7 +21,7 @@ typedef EFI_STATUS CDK2_MS_ABI close_protocol_fn(void *, const EFI_GUID *, void
+ 	void *);
+ typedef event_notify_fn * event_notify_ptr;
+ typedef const EFI_GUID *guid_ptr;
+-typedef UINT8 * uint8_ptr;
++typedef UINT8 *uint8_ptr;
+ typedef struct cdk2_split_key_data *key_data_ptr;
+ typedef cdk2_split_key_notify_fn * key_notify_ptr;
+ struct boot_services_view {
+diff --git a/tests/dxe_core_capsule_disk_stage_test.c b/tests/dxe_core_capsule_disk_stage_test.c
+index 593f4fff1f..ac8637429b 100644
+--- a/tests/dxe_core_capsule_disk_stage_test.c
++++ b/tests/dxe_core_capsule_disk_stage_test.c
+@@ -13,9 +13,9 @@
+ static bool filesystem_retired;
+ 
+ extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+-	struct cdk2_fat_simple_fs_protocol *, cdk2_capsule_disk_alloc_fn,
+-	cdk2_capsule_disk_free_fn, cdk2_capsule_disk_report_fn, void *,
+-	struct cdk2_capsule_list *, struct cdk2_capsule_disk_result *);
++	struct cdk2_fat_simple_fs_protocol *filesystem, cdk2_capsule_disk_alloc_fn allocate,
++	cdk2_capsule_disk_free_fn release, cdk2_capsule_disk_report_fn report, void *context,
++	struct cdk2_capsule_list *capsules, struct cdk2_capsule_disk_result *result);
+ 
+ EFI_STATUS __wrap_cdk2_capsule_disk_complete_esp(
+ 	struct cdk2_fat_simple_fs_protocol *filesystem, cdk2_capsule_disk_alloc_fn allocate,
+@@ -49,10 +49,10 @@ static struct cdk2_local_apic_timer_control model_timer PCI_DATA;
+ static struct cdk2_pci_dma_control model_pci PCI_DATA;
+ static struct driver_binding_view model_xhci_binding XHCI_DATA;
+ static struct cdk2_xhci_control *model_xhci;
+-static unsigned query_calls, stop_calls, timer_calls, pci_calls, xhci_calls, update_calls, frees;
++static unsigned int query_calls, stop_calls, timer_calls, pci_calls, xhci_calls, update_calls, frees;
+ static uint64_t retained;
+ static size_t retained_pages;
+-static unsigned fault;
++static unsigned int fault;
+ static bool retire_filesystem_on_stop;
+ static struct {
+ 	struct cdk2_capsule_header header;
+@@ -347,7 +347,7 @@ static EFI_STATUS CDK2_MS_ABI disconnect_model(void *controller, void *image, vo
+ 	return EFI_SUCCESS;
+ }
+ 
+-static void publish(void *handle, const EFI_GUID *guid, void *interface, unsigned owner)
++static void publish(void *handle, const EFI_GUID *guid, void *interface, unsigned int owner)
+ {
+ 	assert(cdk2_dxe_restore(&core.database, handle, guid, interface) == EFI_SUCCESS);
+ 	struct cdk2_dxe_protocol *record = &core.database.protocols[core.database.protocol_count - 1];
+@@ -357,7 +357,7 @@ static void publish(void *handle, const EFI_GUID *guid, void *interface, unsigne
+ 	}
+ }
+ 
+-static void initialize_stage(unsigned selected_fault)
++static void initialize_stage(unsigned int selected_fault)
+ {
+ 	static const EFI_GUID boot_guid = { 0x2890d42b, 0x7f9b, 0x4a66,
+ 		{ 0x9a, 0x12, 0x54, 0x8d, 0x6b, 0x57, 0xd8, 0x20 } };
+@@ -372,7 +372,7 @@ static void initialize_stage(unsigned selected_fault)
+ 	assert(cdk2_dxe_memory_initialize(&core.memory, storage, 64) == EFI_SUCCESS);
+ 	core.images.memory = &core.memory;
+ 	core.images.count = 3;
+-	for (unsigned index = 0; index < 3; index++) {
++	for (unsigned int index = 0; index < 3; index++) {
+ 		struct cdk2_dxe_image *image = &core.images.images[index];
+ 		image->handle = (void *)(uintptr_t)(index + 1);
+ 		image->base = index == 2 ? stage_xhci_begin :
+@@ -397,7 +397,7 @@ static void initialize_stage(unsigned selected_fault)
+ 	model_processor.delivery_policy.allowed_transports =
+ 		CB_CAPSULE_DELIVERY_RAM | CB_CAPSULE_DELIVERY_DISK;
+ 	publish((void *)1, &boot_guid, &model_processor, 1);
+-	for (unsigned index = 0; index < 4; index++) {
++	for (unsigned int index = 0; index < 4; index++) {
+ 		model_bindings[index] = (struct driver_binding_view) {
+ 			.supported = binding_supported, .start = binding_supported,
+ 			.stop = binding_stop, .image = (void *)1,
+@@ -574,7 +574,7 @@ int main(int argc, char **argv)
+ 	}
+ 	if (argc == 2)
+ 		assert(!strcmp(argv[1], "storage") || !strcmp(argv[1], "control"));
+-	for (unsigned scenario = 0; scenario <= 29; scenario++) {
++	for (unsigned int scenario = 0; scenario <= 29; scenario++) {
+ 		if (argc == 2 && scenario != (!strcmp(argv[1], "storage") ? 11U : 16U))
+ 			continue;
+ 		initialize_stage(scenario);
+@@ -611,11 +611,14 @@ int main(int argc, char **argv)
+ 	}
+ 	if (argc == 2)
+ 		return 0;
+-	for (unsigned scenario = 0; scenario < 4; scenario++) {
++	for (unsigned int scenario = 0; scenario < 4; scenario++) {
+ 		initialize_stage(0);
+-		if (scenario == 0) model_result.loaded = 0;
+-		if (scenario == 1) model_result.cleanup_failed = TRUE;
+-		if (scenario == 2) selected_storage_backend = STORAGE_AHCI;
++		if (scenario == 0)
++			model_result.loaded = 0;
++		if (scenario == 1)
++			model_result.cleanup_failed = TRUE;
++		if (scenario == 2)
++			selected_storage_backend = STORAGE_AHCI;
+ 		assert(stage_disk_capsule(&model_scan, &model_candidate,
+ 			scenario == 3 ? 2 : 1) == EFI_UNSUPPORTED);
+ 		assert(!query_calls && !stop_calls && !update_calls && !model_scan.teardown_begun);
+diff --git a/tests/linear_boot_test.c b/tests/linear_boot_test.c
+index 135c7ac0e5..9874232878 100644
+--- a/tests/linear_boot_test.c
++++ b/tests/linear_boot_test.c
+@@ -659,7 +659,7 @@ int main(void)
+ 			.state = &ram, .outcome = CDK2_LINEAR_CAPSULE_RESULT_RAM,
+ 		};
+ 		const struct cdk2_linear_plan retired_plan = {
+-			.phases = phases, .count = sizeof(phases) / sizeof(phases[0]),
++			.phases = phases, .count = ARRAY_SIZE(phases),
+ 			.clock = clock_now, .report = report_phase, .context = &retired,
+ 		};
+ 		enum cdk2_linear_capsule_outcome outcome;
+diff --git a/tests/splash_status_report_test.c b/tests/splash_status_report_test.c
+index 64959ad47d..ba5ba859d4 100644
+--- a/tests/splash_status_report_test.c
++++ b/tests/splash_status_report_test.c
+@@ -235,23 +235,50 @@ static void verify_owner(bool coreboot_logo)
+ 		size_t saved_protocols = core.database.protocol_count;
+ 
+ 		switch (mutation) {
+-		case 0: owner->load_generation++; break;
+-		case 1: owner->protocol_pins = 0U; break;
+-		case 2: owner->started = FALSE; break;
+-		case 3: owner->exit_status = EFI_DEVICE_ERROR; break;
+-		case 4: owner->size = 1U; break;
+-		case 5: core.database.protocols[0].owner_generation++; break;
+-		case 6: core.database.protocols[0].interface_dynamic = TRUE; break;
+-		case 7: core.database.protocols[0].interface = pixels; break;
+-		case 8: core.database.protocols[0].handle = pixels; break;
+-		case 9: core.images.images[1] = *owner; core.images.count = 2U; break;
++		case 0:
++			owner->load_generation++;
++			break;
++		case 1:
++			owner->protocol_pins = 0U;
++			break;
++		case 2:
++			owner->started = FALSE;
++			break;
++		case 3:
++			owner->exit_status = EFI_DEVICE_ERROR;
++			break;
++		case 4:
++			owner->size = 1U;
++			break;
++		case 5:
++			core.database.protocols[0].owner_generation++;
++			break;
++		case 6:
++			core.database.protocols[0].interface_dynamic = TRUE;
++			break;
++		case 7:
++			core.database.protocols[0].interface = pixels;
++			break;
++		case 8:
++			core.database.protocols[0].handle = pixels;
++			break;
++		case 9:
++			core.images.images[1] = *owner;
++			core.images.count = 2U;
++			break;
+ 		case 10:
+ 			core.database.protocols[1] = core.database.protocols[0];
+ 			core.database.protocol_count = 2U;
+ 			break;
+-		case 11: context.status_output.show_status = NULL; break;
+-		case 12: owner->exited = FALSE; break;
+-		case 13: protocol.show_status = NULL; break;
++		case 11:
++			context.status_output.show_status = NULL;
++			break;
++		case 12:
++			owner->exited = FALSE;
++			break;
++		case 13:
++			protocol.show_status = NULL;
++			break;
+ 		case 14:
+ 			context.status_output.interface = (void *)((uint8_t *)&protocol + 1U);
+ 			break;
+diff --git a/tests/usb_keyboard_binding_test.c b/tests/usb_keyboard_binding_test.c
+index 57c4d25808..3819430429 100644
+--- a/tests/usb_keyboard_binding_test.c
++++ b/tests/usb_keyboard_binding_test.c
+@@ -98,7 +98,7 @@ static void release(void *context, void *buffer)
+ { (void)context; free(buffer); pools--; }
+ static EFI_STATUS CDK2_MS_ABI interface_descriptor(
+ 	struct cdk2_usb_io_protocol *protocol, void *data)
+-{ UINT8 * bytes = data; (void)protocol; memset(bytes, 0, 9U); bytes[5] = 3U;
++{ UINT8 *bytes = data; (void)protocol; memset(bytes, 0, 9U); bytes[5] = 3U;
+ 	bytes[4] = 1U; bytes[6] = 1U; bytes[7] = 1U; return EFI_SUCCESS; }
+ static EFI_STATUS CDK2_MS_ABI endpoint_descriptor(
+ 	struct cdk2_usb_io_protocol *protocol, UINT8 index, void *data)

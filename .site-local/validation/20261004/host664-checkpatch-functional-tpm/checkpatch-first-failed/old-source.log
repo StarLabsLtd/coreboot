@@ -1,0 +1,23 @@
+Use of uninitialized value $ENV{"HOME"} in concatenation (.) or string at /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/checkpatch.pl line 1316.
+No typos will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/spelling.txt': No such file or directory
+No structs that should be const will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/const_structs.checkpatch': No such file or directory
+Use of uninitialized value $ENV{"HOME"} in concatenation (.) or string at /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/checkpatch.pl line 1316.
+No typos will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/spelling.txt': No such file or directory
+No structs that should be const will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/const_structs.checkpatch': No such file or directory
+Use of uninitialized value $ENV{"HOME"} in concatenation (.) or string at /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/checkpatch.pl line 1316.
+No typos will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/spelling.txt': No such file or directory
+No structs that should be const will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/const_structs.checkpatch': No such file or directory
+Use of uninitialized value $ENV{"HOME"} in concatenation (.) or string at /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/checkpatch.pl line 1316.
+No typos will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/spelling.txt': No such file or directory
+No structs that should be const will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/const_structs.checkpatch': No such file or directory
+Use of uninitialized value $ENV{"HOME"} in concatenation (.) or string at /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/checkpatch.pl line 1316.
+No typos will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/spelling.txt': No such file or directory
+No structs that should be const will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/const_structs.checkpatch': No such file or directory
+Use of uninitialized value $ENV{"HOME"} in concatenation (.) or string at /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/checkpatch.pl line 1316.
+No typos will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/spelling.txt': No such file or directory
+No structs that should be const will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/const_structs.checkpatch': No such file or directory
+C11 generic association and genuine switch trailing-statement checks: PASS
+Use of uninitialized value $ENV{"HOME"} in concatenation (.) or string at /home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/checkpatch.pl line 1316.
+No typos will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/spelling.txt': No such file or directory
+No structs that should be const will be found - file '/home/sean/checkpatch-constant-host-gates.WbHfdg/old-source/util/lint/const_structs.checkpatch': No such file or directory
+constant-right parser rejected a macro comparison
