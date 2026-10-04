@@ -21,7 +21,9 @@ transmit-lost-locality transmit-seized-locality
 quiesce-resurrection release-failure release-resurrection'
 
 tis_scenarios='idle data-available expect lost-locality seized-locality
-ready-timeout ready-bad-postcondition invalid-status
+ready-only ready-undefined-data ready-undefined-expect
+ready-valid-data ready-valid-expect ready-lost-locality ready-seized-locality
+ready-timeout ready-bad-postcondition invalid-status invalid-data invalid-expect
 transmit-lost-locality transmit-seized-locality
 release-success release-wait-timeout release-still-active release-invalid
 release-seized release-lost-locality release-seized-locality'
