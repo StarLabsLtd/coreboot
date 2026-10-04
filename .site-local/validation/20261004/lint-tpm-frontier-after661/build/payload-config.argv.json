@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "make",
+    "-C",
+    "/home/sean/Documents/cdk2",
+    "-j2",
+    "CDK2_BUILD_DIR=/home/sean/tpm-acceptance-relative-build-after661/payload",
+    "CDK2_CONFIG=/home/sean/tpm-acceptance-relative-build-after661/payload/.config",
+    "COREBOOT_TREE=/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661",
+    "COREBOOT_CONFIG=/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/.config",
+    "CC=cc",
+    "HOSTCC=cc",
+    "olddefconfig"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

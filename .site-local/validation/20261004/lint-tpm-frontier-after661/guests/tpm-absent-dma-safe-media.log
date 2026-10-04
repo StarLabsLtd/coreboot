@@ -1,0 +1,1 @@
+{"coreboot_region_immutable": true, "disk_immutable": true, "fmap": {"CONSOLE": {"offset": 524288, "size": 131072}, "COREBOOT": {"offset": 659456, "size": 7729152}, "SMMSTORE": {"offset": 0, "size": 524288}}, "pflash_changed_bytes": 16201, "usb_immutable": true}

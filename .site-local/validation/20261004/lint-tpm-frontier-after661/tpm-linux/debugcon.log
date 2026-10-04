@@ -1,0 +1,28 @@
+[0m[INFO ]  QEMU debugcon detected [port 0x402][0m
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c-26.09 Sat Oct 03 04:21:17 UTC 2026 x86_32 bootblock starting (log level: 7)...[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[DEBUG]  FMAP: Found "FLASH" version 1.1 at 0xa0000.[0m
+[0m[DEBUG]  FMAP: base = 0x0 size = 0x800000 #areas = 5[0m
+[0m[DEBUG]  FMAP: area COREBOOT found @ a1000 (7729152 bytes)[0m
+[0m[INFO ]  Booting from COREBOOT region[0m
+[0m[INFO ]  CBFS: mcache @0x00015600 built for 12 files, used 0x294 of 0x4000 bytes[0m
+[0m[INFO ]  CBFS: Found 'fallback/romstage' @0x80 size 0x7218 in mcache @0x0001562c[0m
+[0m[INFO ]  VB2:vb2_digest_init() 29208 bytes, hash algo 2, HW acceleration unsupported[0m
+[0m[INFO ]  TPM LOG: clearing the log[0m
+[0m[DEBUG]  FMAP: area FMAP found @ a0000 (4096 bytes)[0m
+[0m[INFO ]  VB2:vb2_digest_init() 4096 bytes, hash algo 2, HW acceleration unsupported[0m
+[0m[DEBUG]  TPM: Digest of `FMAP: FMAP` to PCR 2 logged[0m
+[0m[DEBUG]  Starting cbfs_boot_device[0m
+[0m[INFO ]  CBFS: Found 'bootblock' @0x757fc0 size 0x7000 in mcache @0x00015850[0m
+[0m[INFO ]  VB2:vb2_digest_init() 28672 bytes, hash algo 2, HW acceleration unsupported[0m
+[0m[DEBUG]  TPM: Digest of `CBFS: bootblock` to PCR 2 logged[0m
+[0m[DEBUG]  CRTM initialized.[0m
+[0m[DEBUG]  TPM: Digest of `CBFS: fallback/romstage` to PCR 2 logged[0m
+[0m[DEBUG]  BS: bootblock times (exec / console): total (unknown) / 5 ms[0m
+[0m[INFO ]  QEMU debugcon detected [port 0x402][0m
+[0m
+[0m
+[1m[NOTE ]  coreboot-release_26.09-451-g7ee34bed989c-26.09 Sat Oct 03 04:21:17 UTC 2026 x86_32 romstage starting (log level: 7)...[0m

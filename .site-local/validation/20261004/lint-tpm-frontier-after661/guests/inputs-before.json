@@ -1,0 +1,38 @@
+[
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom",
+    "sha256": "f9fbba15e986b7318f5d235c73e4afe18ce8397dda0ff97e6334c4a919d14198"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom.manifest.json",
+    "sha256": "bc0ff422d3226da58a4974f3b45246cee9205eff79b377d3567d2ba923882508"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom.direct-provenance.tsv",
+    "sha256": "e3d8680d5808e6c8b3d44d907c4056a3285e6576d40765348109f6c437e9b704"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/build/util/cbfstool/cbfstool",
+    "sha256": "7992af942868d85762cf846b3c066ed13a2871791176a973de95e008632bfb0d"
+  },
+  {
+    "path": "/home/sean/Documents/cdk2/util/qemu/fixtures/nvme-final-c4bec.raw",
+    "sha256": "054a451e67b291adc7390301ef21c9df2de3582e768612cc66459e58d1305e36"
+  },
+  {
+    "path": "/home/sean/Documents/cdk2/util/qemu/fixtures/usb.raw",
+    "sha256": "3b6a07d0d404fab4e23b6d34bc6696a6a312dd92821332385e5af7c01c421351"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/.config",
+    "sha256": "43023a30a8ffa2a1d407aa77dbfc5065f4258719429bafc63d89388fdfd50465"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/payload/.config",
+    "sha256": "51a81cd1edecaefc0c176d4d3c36bff26b3220c9a95e48d53596cbd1cdf1b1c6"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/payload/native/cdk2-coreboot-image.elf",
+    "sha256": "420908799a9db9c836b3cd0442e18dcfc865acf5ebf8e1ead3162efc266c4199"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/home/sean/Documents/cdk2/util/qemu/bin/build-cdk2-pair.sh",
+    "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661",
+    "/home/sean/Documents/cdk2",
+    "/home/sean/tpm-acceptance-relative-build-after661/payload/native/cdk2-coreboot-image.elf",
+    "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom",
+    "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/.config"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

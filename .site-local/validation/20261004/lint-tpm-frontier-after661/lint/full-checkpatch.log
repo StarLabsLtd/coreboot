@@ -1,0 +1,4089 @@
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'main', this function's name, in a string
+#297: FILE: src/boot/pe_test.c:297:
++		"non-executable main Linux entry accepted by loader");
+
+total: 0 errors, 1 warnings, 617 lines checked
+WARNING:REPEATED_WORD: Possible repeated word: 'the'
+#5: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:5:
++ * SHA-1 implementation largely based on libmincrypt in the the Android
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#52: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:52:
++#define SHA_F1(A,B,C,D,E,t)				\
+                 ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#52: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:52:
++#define SHA_F1(A,B,C,D,E,t)				\
+                   ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#52: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:52:
++#define SHA_F1(A,B,C,D,E,t)				\
+                     ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#52: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:52:
++#define SHA_F1(A,B,C,D,E,t)				\
+                       ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#52: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:52:
++#define SHA_F1(A,B,C,D,E,t)				\
+                         ^
+
+ERROR:MULTISTATEMENT_MACRO_USE_DO_WHILE: Macros with multiple statements should be enclosed in a do - while loop
+#52: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:52:
++#define SHA_F1(A,B,C,D,E,t)				\
++	E += ror27(A) +					\
++		(W[t] = bswap_32(ctx->buf.w[t])) +	\
++		(D^(B&(C^D))) + 0x5A827999;		\
++	B = ror2(B);
+
+WARNING:TRAILING_SEMICOLON: macros should not use a trailing semicolon
+#52: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:52:
++#define SHA_F1(A,B,C,D,E,t)				\
++	E += ror27(A) +					\
++		(W[t] = bswap_32(ctx->buf.w[t])) +	\
++		(D^(B&(C^D))) + 0x5A827999;		\
++	B = ror2(B);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#59: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:59:
++		SHA_F1(A,B,C,D,E,t + 0);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#59: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:59:
++		SHA_F1(A,B,C,D,E,t + 0);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#59: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:59:
++		SHA_F1(A,B,C,D,E,t + 0);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#59: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:59:
++		SHA_F1(A,B,C,D,E,t + 0);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#59: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:59:
++		SHA_F1(A,B,C,D,E,t + 0);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#60: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:60:
++		SHA_F1(E,A,B,C,D,t + 1);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#60: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:60:
++		SHA_F1(E,A,B,C,D,t + 1);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#60: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:60:
++		SHA_F1(E,A,B,C,D,t + 1);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#60: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:60:
++		SHA_F1(E,A,B,C,D,t + 1);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#60: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:60:
++		SHA_F1(E,A,B,C,D,t + 1);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#61: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:61:
++		SHA_F1(D,E,A,B,C,t + 2);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#61: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:61:
++		SHA_F1(D,E,A,B,C,t + 2);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#61: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:61:
++		SHA_F1(D,E,A,B,C,t + 2);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#61: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:61:
++		SHA_F1(D,E,A,B,C,t + 2);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#61: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:61:
++		SHA_F1(D,E,A,B,C,t + 2);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#62: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:62:
++		SHA_F1(C,D,E,A,B,t + 3);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#62: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:62:
++		SHA_F1(C,D,E,A,B,t + 3);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#62: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:62:
++		SHA_F1(C,D,E,A,B,t + 3);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#62: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:62:
++		SHA_F1(C,D,E,A,B,t + 3);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#62: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:62:
++		SHA_F1(C,D,E,A,B,t + 3);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#63: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:63:
++		SHA_F1(B,C,D,E,A,t + 4);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#63: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:63:
++		SHA_F1(B,C,D,E,A,t + 4);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#63: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:63:
++		SHA_F1(B,C,D,E,A,t + 4);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#63: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:63:
++		SHA_F1(B,C,D,E,A,t + 4);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#63: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:63:
++		SHA_F1(B,C,D,E,A,t + 4);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#65: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:65:
++	SHA_F1(A,B,C,D,E,t + 0);  /* 16th one, t == 15 */
+ 	        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#65: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:65:
++	SHA_F1(A,B,C,D,E,t + 0);  /* 16th one, t == 15 */
+ 	          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#65: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:65:
++	SHA_F1(A,B,C,D,E,t + 0);  /* 16th one, t == 15 */
+ 	            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#65: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:65:
++	SHA_F1(A,B,C,D,E,t + 0);  /* 16th one, t == 15 */
+ 	              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#65: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:65:
++	SHA_F1(A,B,C,D,E,t + 0);  /* 16th one, t == 15 */
+ 	                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#69: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:69:
++#define SHA_F1(A,B,C,D,E,t)						\
+                 ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#69: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:69:
++#define SHA_F1(A,B,C,D,E,t)						\
+                   ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#69: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:69:
++#define SHA_F1(A,B,C,D,E,t)						\
+                     ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#69: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:69:
++#define SHA_F1(A,B,C,D,E,t)						\
+                       ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#69: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:69:
++#define SHA_F1(A,B,C,D,E,t)						\
+                         ^
+
+ERROR:MULTISTATEMENT_MACRO_USE_DO_WHILE: Macros with multiple statements should be enclosed in a do - while loop
+#69: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:69:
++#define SHA_F1(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		(D^(B&(C^D))) + 0x5A827999;				\
++	B = ror2(B);
+
+WARNING:TRAILING_SEMICOLON: macros should not use a trailing semicolon
+#69: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:69:
++#define SHA_F1(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		(D^(B&(C^D))) + 0x5A827999;				\
++	B = ror2(B);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#75: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:75:
++	SHA_F1(E,A,B,C,D,t + 1);
+ 	        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#75: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:75:
++	SHA_F1(E,A,B,C,D,t + 1);
+ 	          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#75: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:75:
++	SHA_F1(E,A,B,C,D,t + 1);
+ 	            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#75: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:75:
++	SHA_F1(E,A,B,C,D,t + 1);
+ 	              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#75: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:75:
++	SHA_F1(E,A,B,C,D,t + 1);
+ 	                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#76: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:76:
++	SHA_F1(D,E,A,B,C,t + 2);
+ 	        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#76: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:76:
++	SHA_F1(D,E,A,B,C,t + 2);
+ 	          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#76: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:76:
++	SHA_F1(D,E,A,B,C,t + 2);
+ 	            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#76: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:76:
++	SHA_F1(D,E,A,B,C,t + 2);
+ 	              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#76: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:76:
++	SHA_F1(D,E,A,B,C,t + 2);
+ 	                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#77: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:77:
++	SHA_F1(C,D,E,A,B,t + 3);
+ 	        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#77: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:77:
++	SHA_F1(C,D,E,A,B,t + 3);
+ 	          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#77: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:77:
++	SHA_F1(C,D,E,A,B,t + 3);
+ 	            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#77: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:77:
++	SHA_F1(C,D,E,A,B,t + 3);
+ 	              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#77: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:77:
++	SHA_F1(C,D,E,A,B,t + 3);
+ 	                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#78: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:78:
++	SHA_F1(B,C,D,E,A,t + 4);
+ 	        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#78: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:78:
++	SHA_F1(B,C,D,E,A,t + 4);
+ 	          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#78: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:78:
++	SHA_F1(B,C,D,E,A,t + 4);
+ 	            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#78: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:78:
++	SHA_F1(B,C,D,E,A,t + 4);
+ 	              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#78: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:78:
++	SHA_F1(B,C,D,E,A,t + 4);
+ 	                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#82: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:82:
++#define SHA_F2(A,B,C,D,E,t)						\
+                 ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#82: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:82:
++#define SHA_F2(A,B,C,D,E,t)						\
+                   ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#82: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:82:
++#define SHA_F2(A,B,C,D,E,t)						\
+                     ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#82: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:82:
++#define SHA_F2(A,B,C,D,E,t)						\
+                       ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#82: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:82:
++#define SHA_F2(A,B,C,D,E,t)						\
+                         ^
+
+ERROR:MULTISTATEMENT_MACRO_USE_DO_WHILE: Macros with multiple statements should be enclosed in a do - while loop
+#82: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:82:
++#define SHA_F2(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		(B^C^D) + 0x6ED9EBA1;					\
++	B = ror2(B);
+
+WARNING:TRAILING_SEMICOLON: macros should not use a trailing semicolon
+#82: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:82:
++#define SHA_F2(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		(B^C^D) + 0x6ED9EBA1;					\
++	B = ror2(B);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#89: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:89:
++		SHA_F2(A,B,C,D,E,t + 0);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#89: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:89:
++		SHA_F2(A,B,C,D,E,t + 0);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#89: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:89:
++		SHA_F2(A,B,C,D,E,t + 0);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#89: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:89:
++		SHA_F2(A,B,C,D,E,t + 0);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#89: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:89:
++		SHA_F2(A,B,C,D,E,t + 0);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#90: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:90:
++		SHA_F2(E,A,B,C,D,t + 1);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#90: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:90:
++		SHA_F2(E,A,B,C,D,t + 1);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#90: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:90:
++		SHA_F2(E,A,B,C,D,t + 1);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#90: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:90:
++		SHA_F2(E,A,B,C,D,t + 1);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#90: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:90:
++		SHA_F2(E,A,B,C,D,t + 1);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#91: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:91:
++		SHA_F2(D,E,A,B,C,t + 2);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#91: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:91:
++		SHA_F2(D,E,A,B,C,t + 2);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#91: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:91:
++		SHA_F2(D,E,A,B,C,t + 2);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#91: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:91:
++		SHA_F2(D,E,A,B,C,t + 2);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#91: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:91:
++		SHA_F2(D,E,A,B,C,t + 2);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#92: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:92:
++		SHA_F2(C,D,E,A,B,t + 3);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#92: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:92:
++		SHA_F2(C,D,E,A,B,t + 3);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#92: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:92:
++		SHA_F2(C,D,E,A,B,t + 3);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#92: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:92:
++		SHA_F2(C,D,E,A,B,t + 3);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#92: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:92:
++		SHA_F2(C,D,E,A,B,t + 3);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#93: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:93:
++		SHA_F2(B,C,D,E,A,t + 4);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#93: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:93:
++		SHA_F2(B,C,D,E,A,t + 4);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#93: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:93:
++		SHA_F2(B,C,D,E,A,t + 4);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#93: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:93:
++		SHA_F2(B,C,D,E,A,t + 4);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#93: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:93:
++		SHA_F2(B,C,D,E,A,t + 4);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#98: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:98:
++#define SHA_F3(A,B,C,D,E,t)						\
+                 ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#98: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:98:
++#define SHA_F3(A,B,C,D,E,t)						\
+                   ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#98: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:98:
++#define SHA_F3(A,B,C,D,E,t)						\
+                     ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#98: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:98:
++#define SHA_F3(A,B,C,D,E,t)						\
+                       ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#98: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:98:
++#define SHA_F3(A,B,C,D,E,t)						\
+                         ^
+
+ERROR:MULTISTATEMENT_MACRO_USE_DO_WHILE: Macros with multiple statements should be enclosed in a do - while loop
+#98: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:98:
++#define SHA_F3(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		((B&C)|(D&(B|C))) + 0x8F1BBCDC;				\
++	B = ror2(B);
+
+WARNING:TRAILING_SEMICOLON: macros should not use a trailing semicolon
+#98: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:98:
++#define SHA_F3(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		((B&C)|(D&(B|C))) + 0x8F1BBCDC;				\
++	B = ror2(B);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#105: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:105:
++		SHA_F3(A,B,C,D,E,t + 0);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#105: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:105:
++		SHA_F3(A,B,C,D,E,t + 0);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#105: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:105:
++		SHA_F3(A,B,C,D,E,t + 0);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#105: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:105:
++		SHA_F3(A,B,C,D,E,t + 0);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#105: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:105:
++		SHA_F3(A,B,C,D,E,t + 0);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#106: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:106:
++		SHA_F3(E,A,B,C,D,t + 1);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#106: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:106:
++		SHA_F3(E,A,B,C,D,t + 1);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#106: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:106:
++		SHA_F3(E,A,B,C,D,t + 1);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#106: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:106:
++		SHA_F3(E,A,B,C,D,t + 1);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#106: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:106:
++		SHA_F3(E,A,B,C,D,t + 1);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#107: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:107:
++		SHA_F3(D,E,A,B,C,t + 2);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#107: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:107:
++		SHA_F3(D,E,A,B,C,t + 2);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#107: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:107:
++		SHA_F3(D,E,A,B,C,t + 2);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#107: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:107:
++		SHA_F3(D,E,A,B,C,t + 2);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#107: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:107:
++		SHA_F3(D,E,A,B,C,t + 2);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#108: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:108:
++		SHA_F3(C,D,E,A,B,t + 3);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#108: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:108:
++		SHA_F3(C,D,E,A,B,t + 3);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#108: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:108:
++		SHA_F3(C,D,E,A,B,t + 3);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#108: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:108:
++		SHA_F3(C,D,E,A,B,t + 3);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#108: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:108:
++		SHA_F3(C,D,E,A,B,t + 3);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#109: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:109:
++		SHA_F3(B,C,D,E,A,t + 4);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#109: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:109:
++		SHA_F3(B,C,D,E,A,t + 4);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#109: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:109:
++		SHA_F3(B,C,D,E,A,t + 4);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#109: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:109:
++		SHA_F3(B,C,D,E,A,t + 4);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#109: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:109:
++		SHA_F3(B,C,D,E,A,t + 4);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#114: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:114:
++#define SHA_F4(A,B,C,D,E,t)						\
+                 ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#114: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:114:
++#define SHA_F4(A,B,C,D,E,t)						\
+                   ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#114: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:114:
++#define SHA_F4(A,B,C,D,E,t)						\
+                     ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#114: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:114:
++#define SHA_F4(A,B,C,D,E,t)						\
+                       ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#114: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:114:
++#define SHA_F4(A,B,C,D,E,t)						\
+                         ^
+
+ERROR:MULTISTATEMENT_MACRO_USE_DO_WHILE: Macros with multiple statements should be enclosed in a do - while loop
+#114: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:114:
++#define SHA_F4(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		(B^C^D) + 0xCA62C1D6;					\
++	B = ror2(B);
+
+WARNING:TRAILING_SEMICOLON: macros should not use a trailing semicolon
+#114: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:114:
++#define SHA_F4(A,B,C,D,E,t)						\
++	E += ror27(A) +							\
++		(W[t] = ror31(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16])) +	\
++		(B^C^D) + 0xCA62C1D6;					\
++	B = ror2(B);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#121: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:121:
++		SHA_F4(A,B,C,D,E,t + 0);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#121: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:121:
++		SHA_F4(A,B,C,D,E,t + 0);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#121: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:121:
++		SHA_F4(A,B,C,D,E,t + 0);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#121: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:121:
++		SHA_F4(A,B,C,D,E,t + 0);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#121: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:121:
++		SHA_F4(A,B,C,D,E,t + 0);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#122: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:122:
++		SHA_F4(E,A,B,C,D,t + 1);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#122: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:122:
++		SHA_F4(E,A,B,C,D,t + 1);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#122: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:122:
++		SHA_F4(E,A,B,C,D,t + 1);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#122: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:122:
++		SHA_F4(E,A,B,C,D,t + 1);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#122: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:122:
++		SHA_F4(E,A,B,C,D,t + 1);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#123: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:123:
++		SHA_F4(D,E,A,B,C,t + 2);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#123: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:123:
++		SHA_F4(D,E,A,B,C,t + 2);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#123: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:123:
++		SHA_F4(D,E,A,B,C,t + 2);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#123: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:123:
++		SHA_F4(D,E,A,B,C,t + 2);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#123: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:123:
++		SHA_F4(D,E,A,B,C,t + 2);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#124: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:124:
++		SHA_F4(C,D,E,A,B,t + 3);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#124: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:124:
++		SHA_F4(C,D,E,A,B,t + 3);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#124: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:124:
++		SHA_F4(C,D,E,A,B,t + 3);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#124: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:124:
++		SHA_F4(C,D,E,A,B,t + 3);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#124: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:124:
++		SHA_F4(C,D,E,A,B,t + 3);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#125: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:125:
++		SHA_F4(B,C,D,E,A,t + 4);
+ 		        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#125: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:125:
++		SHA_F4(B,C,D,E,A,t + 4);
+ 		          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#125: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:125:
++		SHA_F4(B,C,D,E,A,t + 4);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#125: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:125:
++		SHA_F4(B,C,D,E,A,t + 4);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#125: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:125:
++		SHA_F4(B,C,D,E,A,t + 4);
+ 		                ^
+
+ERROR:POINTER_LOCATION: "(foo*)" should be "(foo *)"
+#142: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:142:
++	const uint8_t *p = (const uint8_t*)data;
+
+ERROR:POINTER_LOCATION: "(foo*)" should be "(foo *)"
+#168: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:168:
++	vb2_sha1_update(ctx, (uint8_t*)"\x80", 1);
+
+ERROR:POINTER_LOCATION: "(foo*)" should be "(foo *)"
+#170: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:170:
++		vb2_sha1_update(ctx, (uint8_t*)"\0", 1);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:206:
++		W[t] = rol(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:216:
++		uint32_t tmp = rol(5,A) + E + W[t];
+ 		                    ^
+
+ERROR:SPACING: space prohibited after that open parenthesis '('
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:220:
++		else if ( t < 40)
+
+ERROR:SPACING: space prohibited after that open parenthesis '('
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:222:
++		else if ( t < 60)
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:229:
++		C = rol(30,B);
+ 		          ^
+
+ERROR:POINTER_LOCATION: "(foo*)" should be "(foo *)"
+#246: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:246:
++	const uint8_t* p = (const uint8_t*) data;
+
+ERROR:POINTER_LOCATION: "foo* bar" should be "foo *bar"
+#246: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:246:
++	const uint8_t* p = (const uint8_t*) data;
+
+ERROR:POINTER_LOCATION: "(foo*)" should be "(foo *)"
+#264: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:264:
++	vb2_sha1_update(ctx, (uint8_t*)"\x80", 1);
+
+ERROR:POINTER_LOCATION: "(foo*)" should be "(foo *)"
+#266: FILE: src/lib/tcg_hash/vendor/vboot/2sha1.c:266:
++		vb2_sha1_update(ctx, (uint8_t*)"\0", 1);
+
+total: 167 errors, 6 warnings, 292 lines checked
+ERROR:SPACING: space prohibited after that open square bracket '['
+#176: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:176:
++		PACK32(&sub_block[ 0], &w[ 0]); PACK32(&sub_block[ 4], &w[ 1]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#177: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:177:
++		PACK32(&sub_block[ 8], &w[ 2]); PACK32(&sub_block[12], &w[ 3]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#178: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:178:
++		PACK32(&sub_block[16], &w[ 4]); PACK32(&sub_block[20], &w[ 5]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#179: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:179:
++		PACK32(&sub_block[24], &w[ 6]); PACK32(&sub_block[28], &w[ 7]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#180: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:180:
++		PACK32(&sub_block[32], &w[ 8]); PACK32(&sub_block[36], &w[ 9]);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#203: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:203:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 0); SHA256_EXP(7,0,1,2,3,4,5,6, 1);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#204: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:204:
++		SHA256_EXP(6,7,0,1,2,3,4,5, 2); SHA256_EXP(5,6,7,0,1,2,3,4, 3);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#205: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:205:
++		SHA256_EXP(4,5,6,7,0,1,2,3, 4); SHA256_EXP(3,4,5,6,7,0,1,2, 5);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#206: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:206:
++		SHA256_EXP(2,3,4,5,6,7,0,1, 6); SHA256_EXP(1,2,3,4,5,6,7,0, 7);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#207: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:207:
++		SHA256_EXP(0,1,2,3,4,5,6,7, 8); SHA256_EXP(7,0,1,2,3,4,5,6, 9);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#208: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:208:
++		SHA256_EXP(6,7,0,1,2,3,4,5,10); SHA256_EXP(5,6,7,0,1,2,3,4,11);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#209: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:209:
++		SHA256_EXP(4,5,6,7,0,1,2,3,12); SHA256_EXP(3,4,5,6,7,0,1,2,13);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#210: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:210:
++		SHA256_EXP(2,3,4,5,6,7,0,1,14); SHA256_EXP(1,2,3,4,5,6,7,0,15);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#211: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:211:
++		SHA256_EXP(0,1,2,3,4,5,6,7,16); SHA256_EXP(7,0,1,2,3,4,5,6,17);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#212: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:212:
++		SHA256_EXP(6,7,0,1,2,3,4,5,18); SHA256_EXP(5,6,7,0,1,2,3,4,19);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:213:
++		SHA256_EXP(4,5,6,7,0,1,2,3,20); SHA256_EXP(3,4,5,6,7,0,1,2,21);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:214:
++		SHA256_EXP(2,3,4,5,6,7,0,1,22); SHA256_EXP(1,2,3,4,5,6,7,0,23);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:215:
++		SHA256_EXP(0,1,2,3,4,5,6,7,24); SHA256_EXP(7,0,1,2,3,4,5,6,25);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:216:
++		SHA256_EXP(6,7,0,1,2,3,4,5,26); SHA256_EXP(5,6,7,0,1,2,3,4,27);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:217:
++		SHA256_EXP(4,5,6,7,0,1,2,3,28); SHA256_EXP(3,4,5,6,7,0,1,2,29);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:218:
++		SHA256_EXP(2,3,4,5,6,7,0,1,30); SHA256_EXP(1,2,3,4,5,6,7,0,31);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:219:
++		SHA256_EXP(0,1,2,3,4,5,6,7,32); SHA256_EXP(7,0,1,2,3,4,5,6,33);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:220:
++		SHA256_EXP(6,7,0,1,2,3,4,5,34); SHA256_EXP(5,6,7,0,1,2,3,4,35);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#221: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:221:
++		SHA256_EXP(4,5,6,7,0,1,2,3,36); SHA256_EXP(3,4,5,6,7,0,1,2,37);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#222: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:222:
++		SHA256_EXP(2,3,4,5,6,7,0,1,38); SHA256_EXP(1,2,3,4,5,6,7,0,39);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#223: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:223:
++		SHA256_EXP(0,1,2,3,4,5,6,7,40); SHA256_EXP(7,0,1,2,3,4,5,6,41);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#224: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:224:
++		SHA256_EXP(6,7,0,1,2,3,4,5,42); SHA256_EXP(5,6,7,0,1,2,3,4,43);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#225: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:225:
++		SHA256_EXP(4,5,6,7,0,1,2,3,44); SHA256_EXP(3,4,5,6,7,0,1,2,45);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#226: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:226:
++		SHA256_EXP(2,3,4,5,6,7,0,1,46); SHA256_EXP(1,2,3,4,5,6,7,0,47);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#227: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:227:
++		SHA256_EXP(0,1,2,3,4,5,6,7,48); SHA256_EXP(7,0,1,2,3,4,5,6,49);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#228: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:228:
++		SHA256_EXP(6,7,0,1,2,3,4,5,50); SHA256_EXP(5,6,7,0,1,2,3,4,51);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#229: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:229:
++		SHA256_EXP(4,5,6,7,0,1,2,3,52); SHA256_EXP(3,4,5,6,7,0,1,2,53);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#230: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:230:
++		SHA256_EXP(2,3,4,5,6,7,0,1,54); SHA256_EXP(1,2,3,4,5,6,7,0,55);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#231: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:231:
++		SHA256_EXP(0,1,2,3,4,5,6,7,56); SHA256_EXP(7,0,1,2,3,4,5,6,57);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#232: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:232:
++		SHA256_EXP(6,7,0,1,2,3,4,5,58); SHA256_EXP(5,6,7,0,1,2,3,4,59);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#233: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:233:
++		SHA256_EXP(4,5,6,7,0,1,2,3,60); SHA256_EXP(3,4,5,6,7,0,1,2,61);
+ 		                                                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#234: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:234:
++		SHA256_EXP(2,3,4,5,6,7,0,1,62); SHA256_EXP(1,2,3,4,5,6,7,0,63);
+ 		                                                          ^
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#306: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:306:
++	UNPACK32(ctx->h[0], &digest[ 0]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#307: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:307:
++	UNPACK32(ctx->h[1], &digest[ 4]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#308: FILE: src/lib/tcg_hash/vendor/vboot/2sha256.c:308:
++	UNPACK32(ctx->h[2], &digest[ 8]);
+
+total: 510 errors, 0 warnings, 317 lines checked
+ERROR:SPACING: space prohibited before that ',' (ctx:WxV)
+#67: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:67:
++#define SHA512_EXP(a, b, c, d, e, f, g ,h, j)				\
+                                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:WxV)
+#67: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:67:
++#define SHA512_EXP(a, b, c, d, e, f, g ,h, j)				\
+                                        ^
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#171: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:171:
++		PACK64(&sub_block[  0], &w[ 0]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#172: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:172:
++		PACK64(&sub_block[  8], &w[ 1]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#173: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:173:
++		PACK64(&sub_block[ 16], &w[ 2]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#174: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:174:
++		PACK64(&sub_block[ 24], &w[ 3]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#175: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:175:
++		PACK64(&sub_block[ 32], &w[ 4]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#176: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:176:
++		PACK64(&sub_block[ 40], &w[ 5]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#177: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:177:
++		PACK64(&sub_block[ 48], &w[ 6]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#178: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:178:
++		PACK64(&sub_block[ 56], &w[ 7]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#179: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:179:
++		PACK64(&sub_block[ 64], &w[ 8]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#180: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:180:
++		PACK64(&sub_block[ 72], &w[ 9]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#181: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:181:
++		PACK64(&sub_block[ 80], &w[10]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#182: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:182:
++		PACK64(&sub_block[ 88], &w[11]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#183: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:183:
++		PACK64(&sub_block[ 96], &w[12]);
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#213: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:213:
++			SHA512_EXP(0,1,2,3,4,5,6,7,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#214: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:214:
++			SHA512_EXP(7,0,1,2,3,4,5,6,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#215: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:215:
++			SHA512_EXP(6,7,0,1,2,3,4,5,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#216: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:216:
++			SHA512_EXP(5,6,7,0,1,2,3,4,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#217: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:217:
++			SHA512_EXP(4,5,6,7,0,1,2,3,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#218: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:218:
++			SHA512_EXP(3,4,5,6,7,0,1,2,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#219: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:219:
++			SHA512_EXP(2,3,4,5,6,7,0,1,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			            ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			              ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			                ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			                  ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			                    ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			                      ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			                        ^
+
+ERROR:SPACING: space required after that ',' (ctx:VxV)
+#220: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:220:
++			SHA512_EXP(1,2,3,4,5,6,7,0,j); j++;
+ 			                          ^
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#319: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:319:
++	UNPACK64(ctx->h[0], &digest[ 0]);
+
+ERROR:SPACING: space prohibited after that open square bracket '['
+#320: FILE: src/lib/tcg_hash/vendor/vboot/2sha512.c:320:
++	UNPACK64(ctx->h[1], &digest[ 8]);
+
+total: 81 errors, 0 warnings, 333 lines checked
+WARNING:SINGLE_STATEMENT_DO_WHILE_MACRO: Single statement macros should not use a do {} while (0) loop
+#17: FILE: src/lib/tcg_hash/vendor/vboot/2sha_private.h:17:
++#define PACK32(s, x) do { \
++	*(x) = (uint32_t)(s)[3] | (uint32_t)(s)[2] << 8 | \
++		(uint32_t)(s)[1] << 16 | (uint32_t)(s)[0] << 24; \
++} while (0)
+
+total: 0 errors, 1 warnings, 35 lines checked
+WARNING:CONSTANT_COMPARISON: Comparisons should place the constant on the right side of the test
+#54: FILE: src/modules/bds/entry.c:54:
++	CDK2_CON_SPLITTER_MAX_INPUTS * (CDK2_USB_KEYBOARD_QUEUE > CDK2_TERMINAL_QUEUE ? \
+
+total: 0 errors, 1 warnings, 1834 lines checked
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'persist', this function's name, in a string
+#1120: FILE: src/modules/capsule_runtime/entry.c:1120:
++	CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] persist begin\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'persist', this function's name, in a string
+#1141: FILE: src/modules/capsule_runtime/entry.c:1141:
++		CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][error] persist failed\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'persist', this function's name, in a string
+#1143: FILE: src/modules/capsule_runtime/entry.c:1143:
++		CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] persist complete\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'writeback', this function's name, in a string
+#1204: FILE: src/modules/capsule_runtime/entry.c:1204:
++	CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] writeback begin\n");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'writeback', this function's name, in a string
+#1223: FILE: src/modules/capsule_runtime/entry.c:1223:
++				CDK2_DIAG_LITERAL("[CDK2][capsule-runtime][info] writeback complete\n");
+
+total: 0 errors, 5 warnings, 1499 lines checked
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'flush', this function's name, in a string
+#10: FILE: src/modules/cpu_arch/model.c:10:
++	CDK2_CPU_DIAG("[CDK2][cpu][verbose] flush data cache\n");
+
+total: 0 errors, 1 warnings, 103 lines checked
+WARNING:DEEP_INDENTATION: Too many leading tabs - consider code refactoring
+#1942: FILE: src/modules/dxe_core/entry.c:1942:
++						if (memcmp(&driver->guid, &capsule_disk_drivers[1].guid,
+
+WARNING:DEEP_INDENTATION: Too many leading tabs - consider code refactoring
+#1945: FILE: src/modules/dxe_core/entry.c:1945:
++						if (services->capsule_fmp_source != NULL) {
+
+total: 0 errors, 2 warnings, 7410 lines checked
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#34: FILE: src/modules/fat/protocol.c:34:
++	CHAR16 file_name[1];
++};
+
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#42: FILE: src/modules/fat/protocol.c:42:
++	CHAR16 label[1];
++};
+
+ERROR:FLEXIBLE_ARRAY: Use C99 flexible arrays - see https://docs.kernel.org/process/deprecated.html#zero-length-and-one-element-arrays
+#45: FILE: src/modules/fat/protocol.c:45:
++	CHAR16 label[1];
++};
+
+total: 3 errors, 0 warnings, 1913 lines checked
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#993: FILE: src/modules/pci_bus/immutable_entry.c:993:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover probe recovery");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#997: FILE: src/modules/pci_bus/immutable_entry.c:997:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover probe journal full");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1002: FILE: src/modules/pci_bus/immutable_entry.c:1002:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root open");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1071: FILE: src/modules/pci_bus/immutable_entry.c:1071:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root HOB geometry");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1074: FILE: src/modules/pci_bus/immutable_entry.c:1074:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root configuration");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1077: FILE: src/modules/pci_bus/immutable_entry.c:1077:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover bus descriptor");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1080: FILE: src/modules/pci_bus/immutable_entry.c:1080:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover root match or path");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1083: FILE: src/modules/pci_bus/immutable_entry.c:1083:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover assignment allocation");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1086: FILE: src/modules/pci_bus/immutable_entry.c:1086:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover topology import");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1089: FILE: src/modules/pci_bus/immutable_entry.c:1089:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover topology changed");
+
+WARNING:EMBEDDED_FUNCTION_NAME: Prefer using '"%s...", __func__' to using 'discover', this function's name, in a string
+#1092: FILE: src/modules/pci_bus/immutable_entry.c:1092:
++		CDK2_PCI_BUS_DIAG("[CDK2][pci-bus][error] discover parent path allocation");
+
+total: 0 errors, 11 warnings, 1738 lines checked
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#315: FILE: tests/capsule_certified_refusal_core_test.c:315:
++	(field) = (value); assert(!VALID()); (field) = saved; assert(VALID()); } while (0)
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#380: FILE: tests/capsule_certified_refusal_core_test.c:380:
++	assert(LOCAL_VALID()); } while (0)
+
+total: 2 errors, 0 warnings, 470 lines checked
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#24: FILE: tests/con_splitter_entry_test.c:24:
++typedef UINT8 * uint8_ptr;
+
+total: 1 errors, 0 warnings, 421 lines checked
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_fat_simple_fs_protocol *' should also have an identifier name
+#15: FILE: tests/dxe_core_capsule_disk_stage_test.c:15:
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'cdk2_capsule_disk_alloc_fn' should also have an identifier name
+#15: FILE: tests/dxe_core_capsule_disk_stage_test.c:15:
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'cdk2_capsule_disk_free_fn' should also have an identifier name
+#15: FILE: tests/dxe_core_capsule_disk_stage_test.c:15:
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'cdk2_capsule_disk_report_fn' should also have an identifier name
+#15: FILE: tests/dxe_core_capsule_disk_stage_test.c:15:
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'void *' should also have an identifier name
+#15: FILE: tests/dxe_core_capsule_disk_stage_test.c:15:
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_capsule_list *' should also have an identifier name
+#15: FILE: tests/dxe_core_capsule_disk_stage_test.c:15:
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+
+WARNING:FUNCTION_ARGUMENTS: function definition argument 'struct cdk2_capsule_disk_result *' should also have an identifier name
+#15: FILE: tests/dxe_core_capsule_disk_stage_test.c:15:
++extern EFI_STATUS __real_cdk2_capsule_disk_complete_esp(
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#52: FILE: tests/dxe_core_capsule_disk_stage_test.c:52:
++static unsigned query_calls, stop_calls, timer_calls, pci_calls, xhci_calls, update_calls, frees;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#55: FILE: tests/dxe_core_capsule_disk_stage_test.c:55:
++static unsigned fault;
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#350: FILE: tests/dxe_core_capsule_disk_stage_test.c:350:
++static void publish(void *handle, const EFI_GUID *guid, void *interface, unsigned owner)
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#360: FILE: tests/dxe_core_capsule_disk_stage_test.c:360:
++static void initialize_stage(unsigned selected_fault)
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#375: FILE: tests/dxe_core_capsule_disk_stage_test.c:375:
++	for (unsigned index = 0; index < 3; index++) {
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#400: FILE: tests/dxe_core_capsule_disk_stage_test.c:400:
++	for (unsigned index = 0; index < 4; index++) {
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#577: FILE: tests/dxe_core_capsule_disk_stage_test.c:577:
++	for (unsigned scenario = 0; scenario <= 29; scenario++) {
+
+WARNING:UNSPECIFIED_INT: Prefer 'unsigned int' to bare use of 'unsigned'
+#614: FILE: tests/dxe_core_capsule_disk_stage_test.c:614:
++	for (unsigned scenario = 0; scenario < 4; scenario++) {
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#616: FILE: tests/dxe_core_capsule_disk_stage_test.c:616:
++		if (scenario == 0) model_result.loaded = 0;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#617: FILE: tests/dxe_core_capsule_disk_stage_test.c:617:
++		if (scenario == 1) model_result.cleanup_failed = TRUE;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#618: FILE: tests/dxe_core_capsule_disk_stage_test.c:618:
++		if (scenario == 2) selected_storage_backend = STORAGE_AHCI;
+
+total: 3 errors, 15 warnings, 636 lines checked
+WARNING:ARRAY_SIZE: Prefer ARRAY_SIZE(phases)
+#662: FILE: tests/linear_boot_test.c:662:
++			.phases = phases, .count = sizeof(phases) / sizeof(phases[0]),
+
+total: 0 errors, 1 warnings, 733 lines checked
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#238: FILE: tests/splash_status_report_test.c:238:
++		case 0: owner->load_generation++; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#239: FILE: tests/splash_status_report_test.c:239:
++		case 1: owner->protocol_pins = 0U; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#240: FILE: tests/splash_status_report_test.c:240:
++		case 2: owner->started = FALSE; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#241: FILE: tests/splash_status_report_test.c:241:
++		case 3: owner->exit_status = EFI_DEVICE_ERROR; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#242: FILE: tests/splash_status_report_test.c:242:
++		case 4: owner->size = 1U; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#243: FILE: tests/splash_status_report_test.c:243:
++		case 5: core.database.protocols[0].owner_generation++; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#244: FILE: tests/splash_status_report_test.c:244:
++		case 6: core.database.protocols[0].interface_dynamic = TRUE; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#245: FILE: tests/splash_status_report_test.c:245:
++		case 7: core.database.protocols[0].interface = pixels; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#246: FILE: tests/splash_status_report_test.c:246:
++		case 8: core.database.protocols[0].handle = pixels; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#247: FILE: tests/splash_status_report_test.c:247:
++		case 9: core.images.images[1] = *owner; core.images.count = 2U; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#252: FILE: tests/splash_status_report_test.c:252:
++		case 11: context.status_output.show_status = NULL; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#253: FILE: tests/splash_status_report_test.c:253:
++		case 12: owner->exited = FALSE; break;
+
+ERROR:TRAILING_STATEMENTS: trailing statements should be on next line
+#254: FILE: tests/splash_status_report_test.c:254:
++		case 13: protocol.show_status = NULL; break;
+
+total: 13 errors, 0 warnings, 462 lines checked
+ERROR:POINTER_LOCATION: "foo * bar" should be "foo *bar"
+#101: FILE: tests/usb_keyboard_binding_test.c:101:
++{ UINT8 * bytes = data; (void)protocol; memset(bytes, 0, 9U); bytes[5] = 3U;
+
+total: 1 errors, 0 warnings, 397 lines checked
+WARNING:ENOSYS: ENOSYS means 'invalid syscall nr' and nothing else
+#22: FILE: util/qemu/fixtures/linux-mini/efivar-unlock.c:22:
++		if (errno == ENOTTY || errno == EOPNOTSUPP || errno == ENOSYS) {
+
+total: 0 errors, 1 warnings, 38 lines checked

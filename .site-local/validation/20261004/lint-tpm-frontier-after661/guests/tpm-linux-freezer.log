@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/cdk2/util/qemu/bin/freeze-tpm-evidence.py", line 165, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/cdk2/util/qemu/bin/freeze-tpm-evidence.py", line 109, in main
+    files = validate_run_files(args.run)
+  File "/home/sean/Documents/cdk2/util/qemu/bin/freeze-tpm-evidence.py", line 92, in validate_run_files
+    raise ValueError(f"missing or empty evidence file: {name}")
+ValueError: missing or empty evidence file: qemu.status

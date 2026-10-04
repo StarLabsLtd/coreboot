@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "python3",
+    "/home/sean/Documents/cdk2/util/qemu/bin/freeze-tpm-evidence.py",
+    "/home/sean/tpm-acceptance-relative-guests-after661/tpm-linux",
+    "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom",
+    "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom.manifest.json",
+    "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661",
+    "/home/sean/Documents/cdk2",
+    "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/build/util/cbfstool/cbfstool",
+    "/home/sean/tpm-acceptance-relative-guests-after661/tpm-evidence.json"
+  ],
+  "environment": {
+    "LANG": "C",
+    "LC_ALL": "C",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean",
+    "_": "/usr/bin/python3"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/home/sean/Documents/cdk2",
+    "verify-commit",
+    "6faf053c28d7b33de30daeaeae8408340685d006"
+  ],
+  "environment": {
+    "CC": "cc",
+    "COREBOOT_CONFIG": "",
+    "HOME": "/home/sean",
+    "HOSTCC": "cc",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "LOGNAME": "sean",
+    "MAKEFLAGS": "",
+    "MAKEOVERRIDES": "",
+    "MFLAGS": "",
+    "PATH": "/home/sean/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "PWD": "/home/sean",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "SHLVL": "1",
+    "TMPDIR": "/home/sean/full-lint-after661-final.20261004-r1/tmp",
+    "USER": "sean",
+    "_": "/usr/bin/python3"
+  }
+}

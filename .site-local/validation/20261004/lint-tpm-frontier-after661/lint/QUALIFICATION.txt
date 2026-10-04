@@ -1,0 +1,33 @@
+Actual full lint attempt on exact signed ready6616faf053c28d7b33de30daeaeae8408340685d006.
+Source/config/recipe/vendor/tool/head/diff comparisons passed; closure0. Canonical
+and private source worktrees remain clean. No source, allowlist, vendor, assertion,
+baseline, firmware, guest or diagnostic literal was changed in response to findings.
+
+Raw statuses: configure0, lint2, lint-extended0, full-checkpatch1;
+execution1/closure0/aggregate1. Stable inventory16 scripts; full inventory2 scripts;
+extended inventory0 scripts. Extended0 is an empty dispatcher result, not extended
+assertion coverage. Make lint stopped after six stable category failures, before
+its full dispatcher; the separate actual unchanged checkpatch driver nevertheless
+completed all913 selected C/H/Kconfig inputs. Full checkpatch elapsed564.14seconds
+is a disjoint HOST elapsed measurement, not isolated benchmarking.
+
+One stable failure is an outer-recipe readiness propagation issue, not established
+firmware/Kconfig source regression: outer Make lint received CDK2_CONFIG_READY=1,
+which its nested stable008 Make olddefconfig inherited via MAKEFLAGS while creating
+a new scratch build. Make's ready branch immediately enforces PAYLOAD before that
+scratch config resolves. The source-owned lint target does not require this outer
+readiness override. This first failure is preserved literally; no retry or source
+correction has been performed and no scratch Kconfig pass is claimed.
+
+The other stable findings are literal missing-SPDX .ld fixtures, uppercase coreboot
+text, native-boundary unsupported source expressions, raw attributes and CamelCase
+words in #error messages. Full checkpatch logs contain781ERROR and45WARNING
+records across18 files. Of those826 records,765 are in four pinned imported vboot
+files and61 elsewhere. Imported source must not be mechanically rewritten, nor
+wire struct layout or fixed production diagnostics changed merely to silence lint.
+The remaining findings include exact diagnostic strings, ABI-sensitive FAT label[1]
+wire members, owned fixture macro/layout style and a Linux fixture errno warning.
+These are full current lint findings, not proof that each is a new661 regression.
+
+All raw logs/statuses/inventories/argv/environment/time/closure receipts remain
+unaltered. Complete native test, lint, checkpatch or project sign-off is NOT closed.

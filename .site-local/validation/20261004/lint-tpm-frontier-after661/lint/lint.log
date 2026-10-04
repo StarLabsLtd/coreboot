@@ -1,0 +1,48 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/full-lint-after661-host'
+Check that files have license headers (lint-stable-000-license-headers): tests/capsule_report_cold_app.ld has no recognized SPDX identifier.
+tests/system_fmp_core_ram_stage_app.ld has no recognized SPDX identifier.
+test failed
+Check for superfluous whitespace in the tree (lint-stable-003-whitespace): grep: src/modules/bds/keys/db_microsoft_uefi_2011.der: binary file matches
+grep: util/qemu/fixtures/esp-linux-cbmem.raw.xz: binary file matches
+grep: util/qemu/fixtures/nvme-final-c4bec.raw.xz: binary file matches
+success
+Check that C labels begin at start-of-line (lint-stable-004-style-labels): success
+Check that the Kconfig defconfig resolves (lint-stable-008-kconfig): Makefile:1082: *** CONFIG_CDK2_PAYLOAD must be enabled in /home/sean/full-lint-after661-final.20261004-r1/tmp/cdk2-kconfig.MMunle/.config.  Stop.
+test failed
+Check that we use a single assembler syntax (lint-stable-010-asm-syntax): success
+Check that source files are not executable (lint-stable-012-executable-bit): success
+Check for non-ASCII and unprintable characters (lint-stable-016-non-ascii): success
+Report any symbolic links (lint-stable-018-symlinks): success
+Check for auto-included headers (lint-stable-019-header-files): success
+Verify that the word 'coreboot' is lowercase (lint-stable-021-coreboot-lowercase): ROADMAP.md:431:Coreboot PR389 selects disk-delivery capability from the existing policy and
+migration/system-fmp-production-gates.tsv:9:protected-public-trust	SELECTED_Q35	source-witnesses	Coreboot sealed policy uses the explicitly configured public certificate; public-only native signing/build provenance is separate from retained XDR/HOST vector certificates; no silent trust substitution or hardware claim
+tests/protected_variable_private_media_check.sh:68:	# Coreboot HOST type aliases close its real codec; none grants authority.
+test failed
+Check for illegal characters in filename (lint-stable-023-filenames): success
+Check that production inputs stay inside the native coreboot boundary (lint-stable-025-native-boundary): Invalid build source reference: src/boot/Makefile:7941:CDK2_NATIVE_DXE_ENTRY_HOST_SOURCES=__CDK2_CONDITIONAL_UNSUPPORTED__.c:__CDK2_CONDITIONAL_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:1587:		__CDK2_UNSUPPORTED__.c)):__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:1613:	__CDK2_UNSUPPORTED__.c):__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:1619:	__CDK2_UNSUPPORTED__.c):__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:1625:	__CDK2_UNSUPPORTED__.c):__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:1649:		-DCDK2_SYSTEM_FMP_ENTRY_TEST -Ibuild/cdk2/include -I./include __CDK2_UNSUPPORTED__.c -o "$@":__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:1661:		-DCDK2_SYSTEM_FMP_ENTRY_TEST -Ibuild/cdk2/include -I./include __CDK2_UNSUPPORTED__.c -o "$@":__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:1675:		-fno-omit-frame-pointer -Ibuild/cdk2/include -I./include __CDK2_UNSUPPORTED__.c -o "$@":__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:5807:	__CDK2_UNSUPPORTED__.c):__CDK2_UNSUPPORTED__.c
+Invalid build source reference: src/boot/Makefile:7950:	__CDK2_UNSUPPORTED__.c):__CDK2_UNSUPPORTED__.c
+test failed
+Verify that files don't contain windows line endings (lint-stable-026-line-endings): success
+Check that GCC attributes use coreboot helper macros (lint-stable-027-attribute-helpers): Use coreboot attribute helper macros instead of raw GCC attributes: tests/dxe_core_capsule_disk_stage_test.c:36:#define MODEL_CODE __attribute__((section(".stage_runtime_code"), noinline))
+Use coreboot attribute helper macros instead of raw GCC attributes: tests/dxe_core_capsule_disk_stage_test.c:37:#define MODEL_DATA __attribute__((section(".stage_runtime_data")))
+Use coreboot attribute helper macros instead of raw GCC attributes: tests/dxe_core_capsule_disk_stage_test.c:38:#define PCI_CODE __attribute__((section(".stage_pci_code"), noinline))
+Use coreboot attribute helper macros instead of raw GCC attributes: tests/dxe_core_capsule_disk_stage_test.c:39:#define PCI_DATA __attribute__((section(".stage_pci_data")))
+Use coreboot attribute helper macros instead of raw GCC attributes: tests/dxe_core_capsule_disk_stage_test.c:40:#define XHCI_CODE __attribute__((section(".stage_xhci_code"), noinline))
+Use coreboot attribute helper macros instead of raw GCC attributes: tests/dxe_core_capsule_disk_stage_test.c:41:#define XHCI_DATA __attribute__((section(".stage_xhci_data")))
+test failed
+Check native C identifiers for CamelCase (lint-stable-028-camelcase): tests/protected_variable_fullgraph_runtime_app.c:12: CamelCase identifier: Normal
+tests/protected_variable_fullgraph_runtime_app.c:17: CamelCase identifier: Normal
+tests/protected_variable_fullgraph_runtime_app.c:17: CamelCase identifier: SystemFmp
+test failed
+Keep explicitly native leaf code free of UEFI compatibility aliases (lint-stable-029-native-types): success
+ERROR: 6 test(s) failed.
+make: *** [Makefile:700: lint] Error 1
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/full-lint-after661-host'

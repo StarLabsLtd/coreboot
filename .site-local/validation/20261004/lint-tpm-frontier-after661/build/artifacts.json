@@ -1,0 +1,42 @@
+[
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/.config",
+    "sha256": "43023a30a8ffa2a1d407aa77dbfc5065f4258719429bafc63d89388fdfd50465"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/build/xcompile",
+    "sha256": "3d4e43898a953ecfad1f1534e767dd709cee11c724bb9ca42b3c22c480919a86"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/build/coreboot.rom",
+    "sha256": "2e8c34ff111b32650cb09fe999544a82c1bf512761d135986d45fdd43ab4f713"
+  },
+  {
+    "path": "/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-relative-vboot-after661/build/util/cbfstool/cbfstool",
+    "sha256": "7992af942868d85762cf846b3c066ed13a2871791176a973de95e008632bfb0d"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/payload/.config",
+    "sha256": "51a81cd1edecaefc0c176d4d3c36bff26b3220c9a95e48d53596cbd1cdf1b1c6"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/payload/include/cdk2/config.h",
+    "sha256": "46a4a9d6bce99e78ed6fea666b8f281bf35efa30b594983a5ace6a6f70ecd73c"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/payload/native/cdk2-coreboot-image.elf",
+    "sha256": "420908799a9db9c836b3cd0442e18dcfc865acf5ebf8e1ead3162efc266c4199"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom",
+    "sha256": "f9fbba15e986b7318f5d235c73e4afe18ce8397dda0ff97e6334c4a919d14198"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom.manifest.json",
+    "sha256": "bc0ff422d3226da58a4974f3b45246cee9205eff79b377d3567d2ba923882508"
+  },
+  {
+    "path": "/home/sean/tpm-acceptance-relative-build-after661/tpm-acceptance.rom.direct-provenance.tsv",
+    "sha256": "e3d8680d5808e6c8b3d44d907c4056a3285e6576d40765348109f6c437e9b704"
+  }
+]

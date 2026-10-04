@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-linear-run.py", line 1096, in <module>
+    main()
+    ~~~~^^
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-linear-run.py", line 516, in main
+    results = [validate(run, contract, lane) for run in args.runs]
+               ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/cdk2/util/qemu/bin/assert-linear-run.py", line 226, in validate
+    raise ValueError(
+        f"{run}: QEMU exit {manifest.get('qemu_status')} != {expected_status}"
+    )
+ValueError: /home/sean/tpm-acceptance-relative-guests-after661/tpm-linux: QEMU exit 124 != 0
