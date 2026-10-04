@@ -1,0 +1,1 @@
+session-mutant-2: /home/sean/Documents/.cdk2-worktrees/system-fmp-entry-private-style-after566/tests/system_fmp_future_floor_test.c:175: initialize: Assertion `cdk2_system_fmp_session_initialize(&session, &config) == EFI_SUCCESS' failed.

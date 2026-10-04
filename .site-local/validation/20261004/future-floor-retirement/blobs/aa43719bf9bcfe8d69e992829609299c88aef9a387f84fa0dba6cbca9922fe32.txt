@@ -1,0 +1,678 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+#include <cdk2/system_fmp_transport.h>
+#include <cdk2/system_fmp_handoff.h>
+
+#include <string.h>
+
+#include "../../boot/coreboot.h"
+
+static UINT64 unpack64(struct cbuint64 value)
+{
+	return (UINT64)value.lo | ((UINT64)value.hi << 32);
+}
+
+static UINT32 transport_revision(const struct cdk2_system_fmp_transport *endpoint)
+{
+	return endpoint->revision == CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION ?
+		CDK2_SYSTEM_FMP_TRANSPORT_RAM_REVISION :
+		CDK2_SYSTEM_FMP_TRANSPORT_REVISION;
+}
+
+static BOOLEAN addressable_range(UINT64 base, UINT64 size)
+{
+	UINT64 maximum = (UINT64)MAX_UINTN;
+
+	return base != 0U && size != 0U && base <= maximum &&
+		size - 1U <= maximum - base;
+}
+
+static BOOLEAN ranges_overlap(UINT64 left_base, UINT64 left_size,
+	UINT64 right_base, UINT64 right_size)
+{
+	if (left_base <= right_base)
+		return left_size > right_base - left_base;
+	return right_size > left_base - right_base;
+}
+
+static BOOLEAN bytes_zero(const void *memory, UINTN size)
+{
+	const UINT8 *bytes = memory;
+	UINT8 bits = 0U;
+
+	while (size-- != 0U)
+		bits |= *bytes++;
+	return bits == 0U;
+}
+
+static BOOLEAN guid_present(const EFI_GUID *guid)
+{
+	return !bytes_zero(guid, sizeof(*guid));
+}
+
+static EFI_STATUS capsule_identity(
+	const struct cdk2_coreboot_handoff *coreboot,
+	struct cdk2_system_fmp_transport *candidate)
+{
+	const struct cb_capsule_handoff *record;
+	const void *found;
+	UINTN expected_size;
+	EFI_STATUS status;
+
+	status = cdk2_coreboot_find_unique_record(coreboot,
+		CB_TAG_CAPSULE_HANDOFF, sizeof(*record), &found);
+	if (EFI_ERROR(status))
+		return status;
+	record = found;
+	if (record->revision != CB_CAPSULE_HANDOFF_REVISION ||
+	    record->header_size != sizeof(*record) || record->region_count == 0U ||
+	    record->region_count > CDK2_SYSTEM_FMP_MAX_REGIONS)
+		return EFI_COMPROMISED_DATA;
+	expected_size = sizeof(*record) + (UINTN)record->region_count *
+		sizeof(record->regions[0]);
+	if (record->size != expected_size ||
+	    unpack64(record->image_size) == 0U ||
+	    unpack64(record->image_size) > MAX_UINT32 ||
+	    record->version == 0U ||
+	    record->lowest_supported_version > record->version ||
+	    record->broker_capabilities !=
+		CB_CAPSULE_BROKER_REQUIRED_CAPABILITIES)
+		return EFI_COMPROMISED_DATA;
+	memcpy(&candidate->image_type, record->image_type_guid,
+		sizeof(candidate->image_type));
+	if (!guid_present(&candidate->image_type))
+		return EFI_COMPROMISED_DATA;
+	candidate->current_version = record->version;
+	candidate->lowest_supported_version = record->lowest_supported_version;
+	candidate->image_size = (UINT32)unpack64(record->image_size);
+	candidate->capabilities = record->broker_capabilities;
+	return EFI_SUCCESS;
+}
+
+EFI_STATUS cdk2_system_fmp_transport_from_coreboot(
+	const struct cdk2_coreboot_handoff *coreboot,
+	struct cdk2_system_fmp_transport *transport)
+{
+	const struct cb_capsule_broker_endpoint *record;
+	struct cdk2_system_fmp_transport candidate = {0};
+	UINT64 communication_base;
+	UINT64 staging_base;
+	UINT64 staging_size;
+	const void *found;
+	EFI_STATUS status;
+
+	if (coreboot == NULL || transport == NULL)
+		return EFI_INVALID_PARAMETER;
+	*transport = (struct cdk2_system_fmp_transport){0};
+	status = cdk2_coreboot_find_unique_record(coreboot,
+		CB_TAG_CAPSULE_BROKER_ENDPOINT, sizeof(*record), &found);
+	if (EFI_ERROR(status))
+		return status;
+	record = found;
+	if (record->size != sizeof(*record) ||
+	    (record->revision != CB_CAPSULE_BROKER_ENDPOINT_REVISION &&
+	     record->revision != CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION) ||
+	    record->header_size != sizeof(*record) ||
+	    record->flags != CB_CAPSULE_ENDPOINT_REQUIRED_FLAGS ||
+	    record->communication_size != CDK2_SYSTEM_FMP_TRANSPORT_SIZE ||
+	    record->message_size != CDK2_SYSTEM_FMP_TRANSPORT_SIZE ||
+	    record->transport != CB_CAPSULE_ENDPOINT_TRANSPORT_APM_IO8 ||
+	    record->trigger_width != sizeof(UINT8) ||
+	    record->trigger_address == 0U || record->trigger_address > MAX_UINT16 ||
+	    record->trigger_value == 0U || record->trigger_value > MAX_UINT8 ||
+	    record->reserved[0] != 0U || record->reserved[1] != 0U ||
+	    record->reserved[2] != 0U)
+		return EFI_COMPROMISED_DATA;
+	candidate.generation = unpack64(record->generation);
+	candidate.revision = record->revision;
+	communication_base = unpack64(record->communication_base);
+	staging_base = unpack64(record->staging_base);
+	staging_size = unpack64(record->staging_size);
+	if (candidate.generation == 0U ||
+	    (communication_base & (sizeof(UINT64) - 1U)) != 0U ||
+	    (staging_base & (sizeof(UINT64) - 1U)) != 0U ||
+	    !addressable_range(communication_base, record->communication_size) ||
+	    !addressable_range(staging_base, staging_size) ||
+	    ranges_overlap(communication_base, record->communication_size,
+		staging_base, staging_size))
+		return EFI_COMPROMISED_DATA;
+	status = capsule_identity(coreboot, &candidate);
+	if (EFI_ERROR(status))
+		return status;
+	if (staging_size < candidate.image_size)
+		return EFI_COMPROMISED_DATA;
+	candidate.communication_base = communication_base;
+	candidate.communication_size = record->communication_size;
+	candidate.message_size = record->message_size;
+	candidate.staging_base = staging_base;
+	candidate.staging_size = staging_size;
+	candidate.trigger_port = (UINT16)record->trigger_address;
+	candidate.trigger_value = (UINT8)record->trigger_value;
+	candidate.valid = TRUE;
+	*transport = candidate;
+	return EFI_SUCCESS;
+}
+
+static void secure_zero(void *memory, UINTN size)
+{
+	volatile UINT8 *bytes = memory;
+
+	while (size-- != 0U)
+		*bytes++ = 0U;
+}
+
+static enum cdk2_system_fmp_transport_status clear_shared(
+	struct cdk2_system_fmp_client *client)
+{
+	void *communication = (void *)(UINTN)client->endpoint.communication_base;
+	void *staging = (void *)(UINTN)client->endpoint.staging_base;
+	EFI_STATUS communication_status = EFI_SUCCESS;
+	EFI_STATUS staging_status = EFI_SUCCESS;
+
+	if (!client->communication_dirty && !client->staging_dirty)
+		return CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS;
+	if (client->communication_dirty)
+		secure_zero(communication, client->endpoint.communication_size);
+	if (client->staging_dirty)
+		secure_zero(staging, client->staged_size);
+	client->port.barrier(client->port.context);
+	if (client->communication_dirty) {
+		communication_status = client->port.publish(client->port.context,
+			communication, client->endpoint.communication_size);
+		if (!EFI_ERROR(communication_status))
+			client->communication_dirty = FALSE;
+	}
+	if (client->staging_dirty) {
+		staging_status = client->port.publish(client->port.context, staging,
+			client->staged_size);
+		if (!EFI_ERROR(staging_status)) {
+			client->staging_dirty = FALSE;
+			client->staged_size = 0U;
+		}
+	}
+	client->port.barrier(client->port.context);
+	return EFI_ERROR(communication_status) || EFI_ERROR(staging_status) ?
+		CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED :
+		CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS;
+}
+
+enum cdk2_system_fmp_transport_status cdk2_system_fmp_client_init(
+	struct cdk2_system_fmp_client *client,
+	const struct cdk2_system_fmp_transport *endpoint,
+	const struct cdk2_system_fmp_transport_port *port)
+{
+	if (client == NULL || endpoint == NULL || !endpoint->valid ||
+	    (endpoint->revision != CB_CAPSULE_BROKER_ENDPOINT_REVISION &&
+	     endpoint->revision != CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION) ||
+	    endpoint->generation == 0U ||
+	    !guid_present(&endpoint->image_type) ||
+	    endpoint->current_version == 0U ||
+	    endpoint->lowest_supported_version > endpoint->current_version ||
+	    endpoint->image_size == 0U ||
+	    endpoint->capabilities != CB_CAPSULE_BROKER_REQUIRED_CAPABILITIES ||
+	    endpoint->communication_size != CDK2_SYSTEM_FMP_TRANSPORT_SIZE ||
+	    endpoint->message_size != CDK2_SYSTEM_FMP_TRANSPORT_SIZE ||
+	    !addressable_range(endpoint->communication_base,
+		endpoint->communication_size) ||
+	    !addressable_range(endpoint->staging_base, endpoint->staging_size) ||
+	    (endpoint->communication_base & (sizeof(UINT64) - 1U)) != 0U ||
+	    (endpoint->staging_base & (sizeof(UINT64) - 1U)) != 0U ||
+	    ranges_overlap(endpoint->communication_base,
+		endpoint->communication_size, endpoint->staging_base,
+		endpoint->staging_size) || endpoint->trigger_port == 0U ||
+	    endpoint->trigger_value == 0U || port == NULL ||
+	    (endpoint->revision == CB_CAPSULE_BROKER_ENDPOINT_REVISION &&
+	     port->sha256 == NULL) ||
+	    port->publish == NULL ||
+	    port->acquire == NULL || port->barrier == NULL ||
+	    port->trigger_apm_io8 == NULL)
+		return CDK2_SYSTEM_FMP_TRANSPORT_INVALID;
+	*client = (struct cdk2_system_fmp_client){
+		.endpoint = *endpoint,
+		.port = *port,
+		.initialized = TRUE,
+	};
+	return CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS;
+}
+
+enum cdk2_system_fmp_transport_status cdk2_system_fmp_client_execute(
+	struct cdk2_system_fmp_client *client,
+	enum cdk2_system_fmp_transport_operation operation, const void *image,
+	UINTN image_size, UINT32 attempted_version,
+	struct cdk2_system_fmp_outcome *outcome)
+{
+	struct cdk2_system_fmp_request request = {0};
+	struct cdk2_system_fmp_intent intent = {0};
+	struct cdk2_system_fmp_result result = {0};
+	UINT8 digest[CDK2_SYSTEM_FMP_DIGEST_SIZE] = {0};
+	UINT8 after_digest[CDK2_SYSTEM_FMP_DIGEST_SIZE] = {0};
+	UINT8 *communication;
+	UINT8 *staging;
+	UINT64 transaction;
+	UINT32 completion;
+	EFI_STATUS status;
+	enum cdk2_system_fmp_transport_status transport_status;
+
+	if (outcome != NULL)
+		*outcome = (struct cdk2_system_fmp_outcome){0};
+	if (client == NULL || !client->initialized || client->ram_closed)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CLOSED;
+	if (client->port.sha256 == NULL)
+		return CDK2_SYSTEM_FMP_TRANSPORT_INVALID;
+	if (client->busy)
+		return CDK2_SYSTEM_FMP_TRANSPORT_BUSY;
+	if (client->communication_dirty || client->staging_dirty)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+	if ((operation != CDK2_SYSTEM_FMP_CHECK &&
+	     operation != CDK2_SYSTEM_FMP_SET) || image == NULL ||
+	    image_size == 0U || outcome == NULL)
+		return CDK2_SYSTEM_FMP_TRANSPORT_INVALID;
+	if (image_size > client->endpoint.staging_size)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CAPACITY;
+	if (client->transaction == MAX_UINT64)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CLOSED;
+	client->busy = TRUE;
+	transaction = ++client->transaction;
+	communication = (UINT8 *)(UINTN)client->endpoint.communication_base;
+	staging = (UINT8 *)(UINTN)client->endpoint.staging_base;
+	client->staged_size = image_size;
+	memcpy(staging, image, image_size);
+	client->staging_dirty = TRUE;
+	status = client->port.sha256(client->port.context, staging, image_size,
+		digest);
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_HASH_FAILED;
+		goto consume;
+	}
+	request.revision = transport_revision(&client->endpoint);
+	request.size = sizeof(request);
+	request.operation = CDK2_SYSTEM_FMP_TRANSPORT_EXECUTE;
+	request.generation = client->endpoint.generation;
+	request.transaction = transaction;
+	request.intent_size = sizeof(intent);
+	request.result_size = sizeof(result);
+	intent.revision = CDK2_SYSTEM_FMP_INTENT_REVISION;
+	intent.size = sizeof(intent);
+	intent.operation = operation;
+	intent.broker_generation = client->endpoint.generation;
+	intent.transaction = transaction;
+	intent.capsule_size = image_size;
+	intent.digest_algorithm = CDK2_SYSTEM_FMP_DIGEST_SHA256;
+	intent.digest_size = sizeof(intent.digest);
+	memcpy(intent.digest, digest, sizeof(intent.digest));
+	intent.attempted_version = attempted_version;
+	memcpy(communication + CDK2_SYSTEM_FMP_REQUEST_OFFSET, &request,
+		sizeof(request));
+	memcpy(communication + CDK2_SYSTEM_FMP_INTENT_OFFSET, &intent,
+		sizeof(intent));
+	memset(communication + CDK2_SYSTEM_FMP_RESULT_OFFSET, 0,
+		sizeof(result));
+	((struct cdk2_system_fmp_result *)(void *)(communication +
+		CDK2_SYSTEM_FMP_RESULT_OFFSET))->last_attempt_status =
+		CDK2_SYSTEM_FMP_RESULT_PENDING;
+	((struct cdk2_system_fmp_result *)(void *)(communication +
+		CDK2_SYSTEM_FMP_RESULT_OFFSET))->result =
+		CDK2_SYSTEM_FMP_RESULT_PENDING;
+	client->communication_dirty = TRUE;
+
+	client->port.barrier(client->port.context);
+	status = client->port.publish(client->port.context, staging, image_size);
+	if (!EFI_ERROR(status))
+		status = client->port.publish(client->port.context, communication,
+			client->endpoint.communication_size);
+	client->port.barrier(client->port.context);
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+		goto consume;
+	}
+	status = client->port.trigger_apm_io8(client->port.context,
+		client->endpoint.trigger_port, client->endpoint.trigger_value);
+	outcome->trigger_invoked = TRUE;
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_TRIGGER_FAILED;
+		goto consume;
+	}
+	client->port.barrier(client->port.context);
+	status = client->port.acquire(client->port.context, communication,
+		client->endpoint.communication_size);
+	if (!EFI_ERROR(status))
+		status = client->port.acquire(client->port.context, staging,
+			image_size);
+	client->port.barrier(client->port.context);
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+		goto consume;
+	}
+	completion = *(volatile UINT32 *)(void *)(communication +
+		CDK2_SYSTEM_FMP_RESULT_OFFSET +
+		offsetof(struct cdk2_system_fmp_result, result));
+	if (completion == CDK2_SYSTEM_FMP_RESULT_PENDING) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+		goto consume;
+	}
+	client->port.barrier(client->port.context);
+	memcpy(&request, communication + CDK2_SYSTEM_FMP_REQUEST_OFFSET,
+		sizeof(request));
+	memcpy(&intent, communication + CDK2_SYSTEM_FMP_INTENT_OFFSET,
+		sizeof(intent));
+	memcpy(&result, communication + CDK2_SYSTEM_FMP_RESULT_OFFSET,
+		sizeof(result));
+	status = client->port.sha256(client->port.context, staging, image_size,
+		after_digest);
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_HASH_FAILED;
+		goto consume;
+	}
+	if (memcmp(digest, after_digest, sizeof(digest)) != 0 ||
+	    request.revision != transport_revision(&client->endpoint) ||
+	    request.size != sizeof(request) ||
+	    request.operation != CDK2_SYSTEM_FMP_TRANSPORT_EXECUTE ||
+	    request.flags != 0U ||
+	    request.generation != client->endpoint.generation ||
+	    request.transaction != transaction ||
+	    request.intent_size != sizeof(intent) ||
+	    request.result_size != sizeof(result) ||
+	    intent.revision != CDK2_SYSTEM_FMP_INTENT_REVISION ||
+	    intent.size != sizeof(intent) || intent.operation != operation ||
+	    intent.flags != 0U ||
+	    intent.broker_generation != client->endpoint.generation ||
+	    intent.transaction != transaction || intent.capsule_size != image_size ||
+	    intent.digest_algorithm != CDK2_SYSTEM_FMP_DIGEST_SHA256 ||
+	    intent.digest_size != sizeof(intent.digest) ||
+	    memcmp(intent.digest, digest, sizeof(intent.digest)) != 0 ||
+	    intent.attempted_version != attempted_version || intent.reserved != 0U ||
+	    result.revision != transport_revision(&client->endpoint) ||
+	    result.size != sizeof(result) ||
+	    result.generation != client->endpoint.generation ||
+	    result.transaction != transaction ||
+	    result.attempted_version != attempted_version || result.reserved != 0U ||
+	    result.result == CDK2_SYSTEM_FMP_RESULT_PENDING ||
+	    result.result > CDK2_SYSTEM_FMP_RESULT_EXECUTION ||
+	    result.last_attempt_status >
+		CDK2_SYSTEM_FMP_LAST_ATTEMPT_UNSUCCESSFUL ||
+	    (result.result == CDK2_SYSTEM_FMP_RESULT_SUCCESS) !=
+		(result.last_attempt_status ==
+		 CDK2_SYSTEM_FMP_LAST_ATTEMPT_SUCCESS)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+		goto consume;
+	}
+	outcome->attempted_version = result.attempted_version;
+	outcome->last_attempt_status = result.last_attempt_status;
+	outcome->broker_result = result.result;
+	outcome->response_authenticated = TRUE;
+	transport_status = result.result == CDK2_SYSTEM_FMP_RESULT_SUCCESS ?
+		CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS :
+		CDK2_SYSTEM_FMP_TRANSPORT_EXECUTION_FAILED;
+
+consume:
+	if (clear_shared(client) != CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS)
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+	secure_zero(&request, sizeof(request));
+	secure_zero(&intent, sizeof(intent));
+	secure_zero(&result, sizeof(result));
+	secure_zero(digest, sizeof(digest));
+	secure_zero(after_digest, sizeof(after_digest));
+	client->busy = FALSE;
+	return transport_status;
+}
+
+enum cdk2_system_fmp_transport_status cdk2_system_fmp_client_read_info(
+	struct cdk2_system_fmp_client *client, struct cdk2_system_fmp_info *info)
+{
+	struct cdk2_system_fmp_request request = {0};
+	struct cdk2_system_fmp_transport_info response = {0};
+	struct cdk2_system_fmp_info decoded = {0};
+	UINT8 *communication;
+	UINT64 transaction;
+	UINT32 completion;
+	EFI_STATUS status;
+	enum cdk2_system_fmp_transport_status transport_status;
+
+	if (info != NULL)
+		*info = (struct cdk2_system_fmp_info){0};
+	if (client == NULL || !client->initialized)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CLOSED;
+	if (client->busy)
+		return CDK2_SYSTEM_FMP_TRANSPORT_BUSY;
+	if (client->communication_dirty || client->staging_dirty)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+	if (info == NULL)
+		return CDK2_SYSTEM_FMP_TRANSPORT_INVALID;
+	if (client->transaction == MAX_UINT64)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CLOSED;
+	client->busy = TRUE;
+	transaction = ++client->transaction;
+	communication = (UINT8 *)(UINTN)client->endpoint.communication_base;
+	request.revision = transport_revision(&client->endpoint);
+	request.size = sizeof(request);
+	request.operation = CDK2_SYSTEM_FMP_TRANSPORT_READ_INFO;
+	request.generation = client->endpoint.generation;
+	request.transaction = transaction;
+	request.result_size = sizeof(response);
+	memcpy(communication + CDK2_SYSTEM_FMP_REQUEST_OFFSET, &request,
+		sizeof(request));
+	memset(communication + CDK2_SYSTEM_FMP_INFO_OFFSET, 0,
+		sizeof(response));
+	((struct cdk2_system_fmp_transport_info *)(void *)(communication +
+		CDK2_SYSTEM_FMP_INFO_OFFSET))->result =
+		CDK2_SYSTEM_FMP_RESULT_PENDING;
+	client->communication_dirty = TRUE;
+
+	client->port.barrier(client->port.context);
+	status = client->port.publish(client->port.context, communication,
+		client->endpoint.communication_size);
+	client->port.barrier(client->port.context);
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+		goto consume;
+	}
+	status = client->port.trigger_apm_io8(client->port.context,
+		client->endpoint.trigger_port, client->endpoint.trigger_value);
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_TRIGGER_FAILED;
+		goto consume;
+	}
+	client->port.barrier(client->port.context);
+	status = client->port.acquire(client->port.context, communication,
+		client->endpoint.communication_size);
+	client->port.barrier(client->port.context);
+	if (EFI_ERROR(status)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+		goto consume;
+	}
+	completion = *(volatile UINT32 *)(void *)(communication +
+		CDK2_SYSTEM_FMP_INFO_OFFSET +
+		offsetof(struct cdk2_system_fmp_transport_info, result));
+	if (completion == CDK2_SYSTEM_FMP_RESULT_PENDING) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+		goto consume;
+	}
+	client->port.barrier(client->port.context);
+	memcpy(&request, communication + CDK2_SYSTEM_FMP_REQUEST_OFFSET,
+		sizeof(request));
+	memcpy(&response, communication + CDK2_SYSTEM_FMP_INFO_OFFSET,
+		sizeof(response));
+	if (request.revision != transport_revision(&client->endpoint) ||
+	    request.size != sizeof(request) ||
+	    request.operation != CDK2_SYSTEM_FMP_TRANSPORT_READ_INFO ||
+	    request.flags != 0U ||
+	    request.generation != client->endpoint.generation ||
+	    request.transaction != transaction || request.intent_size != 0U ||
+	    request.result_size != sizeof(response) ||
+	    response.revision != transport_revision(&client->endpoint) ||
+	    response.size != sizeof(response) ||
+	    response.generation != client->endpoint.generation ||
+	    response.transaction != transaction ||
+	    response.result == CDK2_SYSTEM_FMP_RESULT_PENDING ||
+	    response.result > CDK2_SYSTEM_FMP_RESULT_EXECUTION ||
+	    !bytes_zero(response.reserved, sizeof(response.reserved))) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+		goto consume;
+	}
+	if (response.result == CDK2_SYSTEM_FMP_RESULT_EXECUTION) {
+		if (!bytes_zero(&response.image_type,
+			offsetof(struct cdk2_system_fmp_transport_info, reserved) -
+			offsetof(struct cdk2_system_fmp_transport_info, image_type))) {
+			transport_status = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+			goto consume;
+		}
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_EXECUTION_FAILED;
+		goto consume;
+	}
+	if (!guid_present(&response.image_type) ||
+	    memcmp(&response.image_type, &client->endpoint.image_type,
+		sizeof(response.image_type)) != 0 ||
+	    response.current_version != client->endpoint.current_version ||
+	    response.lowest_supported_version <
+		client->endpoint.lowest_supported_version ||
+	    response.lowest_supported_version > response.current_version ||
+	    response.image_size != client->endpoint.image_size ||
+	    response.capabilities != client->endpoint.capabilities ||
+	    (response.state_flags & ~CDK2_SYSTEM_FMP_INFO_STATE_VALID_FLAGS) != 0U ||
+	    ((response.state_flags &
+	      CDK2_SYSTEM_FMP_INFO_STATE_LAST_ATTEMPT_VERSION_VALID) == 0U &&
+	     response.last_attempt_version != 0U) ||
+	    ((response.state_flags &
+	      CDK2_SYSTEM_FMP_INFO_STATE_LAST_ATTEMPT_STATUS_VALID) == 0U &&
+	     response.last_attempt_status != 0U) ||
+	    ((response.state_flags &
+	      CDK2_SYSTEM_FMP_INFO_STATE_LAST_ATTEMPT_STATUS_VALID) != 0U &&
+	     response.last_attempt_status >
+		CDK2_SYSTEM_FMP_LAST_ATTEMPT_UNSUCCESSFUL)) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+		goto consume;
+	}
+	decoded = (struct cdk2_system_fmp_info){
+		.image_type = response.image_type,
+		.hardware_instance = response.hardware_instance,
+		.current_version = response.current_version,
+		.lowest_supported_version = response.lowest_supported_version,
+		.image_size = response.image_size,
+		.capabilities = response.capabilities,
+		.state_flags = response.state_flags,
+		.last_attempt_version = response.last_attempt_version,
+		.last_attempt_status = response.last_attempt_status,
+	};
+	transport_status = CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS;
+
+consume:
+	if (clear_shared(client) != CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS) {
+		transport_status = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+	} else if (transport_status == CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS) {
+		*info = decoded;
+	}
+	secure_zero(&request, sizeof(request));
+	secure_zero(&response, sizeof(response));
+	secure_zero(&decoded, sizeof(decoded));
+	client->busy = FALSE;
+	return transport_status;
+}
+
+enum cdk2_system_fmp_transport_status cdk2_system_fmp_client_close_ram(
+	struct cdk2_system_fmp_client *client)
+{
+	struct cdk2_system_fmp_request request = {0};
+	struct cdk2_system_fmp_request expected;
+	struct cdk2_system_fmp_result response = {0};
+	UINT8 *communication;
+	UINT32 completion;
+	EFI_STATUS status;
+	enum cdk2_system_fmp_transport_status result;
+
+	if (client == NULL || !client->initialized)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CLOSED;
+	if (client->endpoint.revision != CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION)
+		return CDK2_SYSTEM_FMP_TRANSPORT_INVALID;
+	if (client->busy)
+		return CDK2_SYSTEM_FMP_TRANSPORT_BUSY;
+	if (client->communication_dirty || client->staging_dirty)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+	if (client->transaction == MAX_UINT64)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CLOSED;
+	client->busy = TRUE;
+	communication = (UINT8 *)(UINTN)client->endpoint.communication_base;
+	request.revision = CDK2_SYSTEM_FMP_TRANSPORT_RAM_REVISION;
+	request.size = sizeof(request);
+	request.operation = CDK2_SYSTEM_FMP_TRANSPORT_CLOSE_RAM;
+	request.generation = client->endpoint.generation;
+	request.transaction = ++client->transaction;
+	request.result_size = sizeof(response);
+	expected = request;
+	memset(communication, 0, client->endpoint.communication_size);
+	memcpy(communication, &request, sizeof(request));
+	((struct cdk2_system_fmp_result *)(void *)(communication +
+		CDK2_SYSTEM_FMP_RESULT_OFFSET))->result = CDK2_SYSTEM_FMP_RESULT_PENDING;
+	client->communication_dirty = TRUE;
+	client->port.barrier(client->port.context);
+	status = client->port.publish(client->port.context, communication,
+		client->endpoint.communication_size);
+	client->port.barrier(client->port.context);
+	if (EFI_ERROR(status)) {
+		result = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+		goto consume;
+	}
+	status = client->port.trigger_apm_io8(client->port.context,
+		client->endpoint.trigger_port, client->endpoint.trigger_value);
+	if (EFI_ERROR(status)) {
+		result = CDK2_SYSTEM_FMP_TRANSPORT_TRIGGER_FAILED;
+		goto consume;
+	}
+	client->port.barrier(client->port.context);
+	status = client->port.acquire(client->port.context, communication,
+		client->endpoint.communication_size);
+	client->port.barrier(client->port.context);
+	if (EFI_ERROR(status)) {
+		result = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+		goto consume;
+	}
+	completion = *(volatile UINT32 *)(void *)(communication +
+		CDK2_SYSTEM_FMP_RESULT_OFFSET +
+		offsetof(struct cdk2_system_fmp_result, result));
+	if (completion == CDK2_SYSTEM_FMP_RESULT_PENDING) {
+		result = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+		goto consume;
+	}
+	client->port.barrier(client->port.context);
+	memcpy(&request, communication, sizeof(request));
+	memcpy(&response, communication + CDK2_SYSTEM_FMP_RESULT_OFFSET,
+		sizeof(response));
+	if (memcmp(&request, &expected, sizeof(request)) != 0 ||
+	    response.revision != expected.revision ||
+	    response.size != sizeof(response) ||
+	    response.generation != expected.generation ||
+	    response.transaction != expected.transaction ||
+	    response.attempted_version != 0U || response.reserved != 0U ||
+	    response.last_attempt_status != 0U || response.result != completion ||
+	    response.result > CDK2_SYSTEM_FMP_RESULT_EXECUTION) {
+		result = CDK2_SYSTEM_FMP_TRANSPORT_BAD_RESPONSE;
+		goto consume;
+	}
+	result = response.result == CDK2_SYSTEM_FMP_RESULT_SUCCESS ?
+		CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS :
+		CDK2_SYSTEM_FMP_TRANSPORT_EXECUTION_FAILED;
+	if (result == CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS)
+		client->ram_closed = TRUE;
+
+consume:
+	if (clear_shared(client) != CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS)
+		result = CDK2_SYSTEM_FMP_TRANSPORT_CACHE_FAILED;
+	secure_zero(&request, sizeof(request));
+	secure_zero(&expected, sizeof(expected));
+	secure_zero(&response, sizeof(response));
+	client->busy = FALSE;
+	return result;
+}
+
+enum cdk2_system_fmp_transport_status cdk2_system_fmp_client_close(
+	struct cdk2_system_fmp_client *client)
+{
+	enum cdk2_system_fmp_transport_status status;
+
+	if (client == NULL || !client->initialized)
+		return CDK2_SYSTEM_FMP_TRANSPORT_CLOSED;
+	if (client->busy)
+		return CDK2_SYSTEM_FMP_TRANSPORT_BUSY;
+	status = clear_shared(client);
+	if (status == CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS)
+		secure_zero(client, sizeof(*client));
+	return status;
+}

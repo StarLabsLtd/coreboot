@@ -1,0 +1,146 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+/*
+ * Freestanding coreboot table validation for the native cdk2 stage.
+ */
+
+#ifndef CDK2_NATIVE_COREBOOT_H_
+#define CDK2_NATIVE_COREBOOT_H_
+
+#include <uefi.h>
+#include <coreboot_tables.h>
+#include <pi/hob.h>
+
+#include "coreboot_checksum.h"
+
+#define CDK2_COREBOOT_MAX_TABLE_BYTES   (1024U * 1024U)
+#define CDK2_COREBOOT_MAX_RECORDS       256U
+#define CDK2_COREBOOT_MAX_MEMORY_RANGES 128U
+#define CDK2_COREBOOT_MAX_FORWARD_DEPTH 4U
+
+#define CDK2_COREBOOT_RECORD_FIELD_END(type, field) \
+	((UINT32)(OFFSET_OF(type, field) + sizeof(((type *)0)->field)))
+
+#define CDK2_COREBOOT_SERIAL_MIN_SIZE CDK2_COREBOOT_RECORD_FIELD_END(struct cb_serial, regwidth)
+#define CDK2_COREBOOT_FRAMEBUFFER_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_framebuffer, reserved_mask_size)
+#define CDK2_COREBOOT_SMMSTOREV2_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_smmstorev2, apm_cmd)
+#define CDK2_COREBOOT_SMRAM_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_smram, physical_size)
+#define CDK2_COREBOOT_SMM_REGISTER_INFO_MIN_SIZE \
+	(sizeof(struct cb_smm_register_info) + 2U * sizeof(struct cb_smm_generic_register))
+#define CDK2_COREBOOT_LOCAL_APIC_TIMER_INFO_MIN_SIZE \
+	(sizeof(struct cb_local_apic_timer_info))
+#define CDK2_COREBOOT_TSC_INFO_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_tsc_info, freq_khz)
+#define CDK2_COREBOOT_S3_COMMUNICATION_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_s3_communication, reserved)
+#define CDK2_COREBOOT_FW_INFO_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct lb_efi_fw_info, fw_size)
+#define CDK2_COREBOOT_TPM_PPI_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_tpm_physical_presence, ppi_version)
+#define CDK2_COREBOOT_ACPI_RSDP_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_acpi_rsdp, rsdp_pointer)
+#define CDK2_COREBOOT_PAYLOAD_RESOURCE_HANDOFF_MIN_SIZE \
+	CDK2_COREBOOT_RECORD_FIELD_END(struct cb_payload_resource_handoff, lifetime_flags)
+#define CDK2_COREBOOT_PAYLOAD_RESOURCE_SECTION_MIN_SIZE \
+	(sizeof(struct cb_payload_resource_section))
+#define CDK2_COREBOOT_PRH_FRAMEBUFFER_MIN_SIZE (sizeof(struct cb_prh_framebuffer_entry))
+
+#define CDK2_COREBOOT_PAYLOAD_RESOURCE_MAX_SECTIONS 64U
+
+static inline uint64_t cdk2_coreboot_framebuffer_address(const struct cb_framebuffer *framebuffer)
+{
+	return framebuffer->physical_address.lo |
+		((uint64_t)framebuffer->physical_address.hi << 32);
+}
+
+struct cdk2_dma_handoff_state;
+
+struct cdk2_coreboot_memory_range {
+	EFI_PHYSICAL_ADDRESS base;
+	UINT64 size;
+	UINT32 type;
+};
+
+struct cdk2_coreboot_handoff {
+	const struct cb_header *header;
+	UINTN table_size;
+	UINT32 record_count;
+	UINT32 memory_range_count;
+	UINT32 usable_ram_count;
+	EFI_PHYSICAL_ADDRESS largest_usable_ram_base;
+	UINT64 largest_usable_ram_size;
+	UINT64 forward_address;
+	EFI_STATUS payload_resource_handoff_status;
+	const struct cb_payload_resource_handoff *payload_resource_handoff;
+	EFI_PHYSICAL_ADDRESS pcie_base_address;
+	UINT64 pcie_base_size;
+	UINT8 pcie_start_bus;
+	const void *mcfg;
+	const struct cdk2_dma_handoff_state *dma_handoff;
+	struct cdk2_coreboot_memory_range memory_ranges[CDK2_COREBOOT_MAX_MEMORY_RANGES];
+};
+
+#if defined(CDK2_COREBOOT_BACKEND_TEST)
+struct cdk2_coreboot_test_cbmem_result {
+	EFI_STATUS status;
+	EFI_PHYSICAL_ADDRESS base;
+	UINT32 size;
+};
+#endif
+
+EFI_STATUS
+cdk2_coreboot_parse_table(const void *table, UINTN table_size,
+			  struct cdk2_coreboot_handoff *handoff);
+
+EFI_STATUS
+cdk2_coreboot_parse(UINTN bootloader_parameter, struct cdk2_coreboot_handoff *handoff);
+
+#if defined(CDK2_COREBOOT_BACKEND_TEST)
+EFI_STATUS EFIAPI cdk2_coreboot_test_splash_record(
+	const struct cdk2_coreboot_handoff *handoff,
+	const struct cb_framebuffer *framebuffer,
+	const struct cb_boot_splash **splash);
+#endif
+
+EFI_STATUS
+cdk2_coreboot_find_record(const struct cdk2_coreboot_handoff *handoff, UINT32 tag,
+			  UINT32 minimum_size, const void **record);
+EFI_STATUS
+cdk2_coreboot_find_unique_record(const struct cdk2_coreboot_handoff *handoff,
+	UINT32 tag, UINT32 minimum_size, const void **record);
+
+EFI_STATUS
+cdk2_coreboot_find_payload_resource_section(const struct cdk2_coreboot_handoff *handoff,
+					    UINT16 type,
+					    const struct cb_payload_resource_section **section);
+
+EFI_STATUS
+cdk2_coreboot_authorize_framebuffer(
+	const struct cdk2_coreboot_handoff *handoff,
+	const struct cb_framebuffer *framebuffer);
+
+#if defined(CDK2_COREBOOT_BACKEND_TEST)
+struct cdk2_coreboot_test_cbmem_result
+EFIAPI
+cdk2_coreboot_test_find_cbmem_entry(const struct cdk2_coreboot_handoff *coreboot, UINT32 id,
+				    UINT32 minimum_size);
+
+struct cdk2_coreboot_test_cbmem_result
+EFIAPI
+cdk2_coreboot_test_find_cbmem_console(const struct cdk2_coreboot_handoff *coreboot);
+
+EFI_STATUS EFIAPI
+cdk2_coreboot_test_append_serial_hobs(EFI_HOB_HANDOFF_INFO_TABLE *hob,
+	const struct cdk2_coreboot_handoff *coreboot);
+EFI_STATUS EFIAPI
+cdk2_coreboot_test_append_diagnostic_hob(EFI_HOB_HANDOFF_INFO_TABLE hob[],
+	const struct cdk2_coreboot_handoff *coreboot);
+EFI_STATUS EFIAPI
+cdk2_coreboot_test_append_capsule_hobs(EFI_HOB_HANDOFF_INFO_TABLE hob[],
+				       const struct cdk2_coreboot_handoff *coreboot);
+#endif
+
+#endif

@@ -1,0 +1,1 @@
+mm-cause-flags: /home/sean/Documents/.cdk2-worktrees/system-fmp-provider-session-join-after570/tests/system_fmp_mm_route_test.c:278: main: Assertion `EFI_ERROR(initialize_mm())' failed.

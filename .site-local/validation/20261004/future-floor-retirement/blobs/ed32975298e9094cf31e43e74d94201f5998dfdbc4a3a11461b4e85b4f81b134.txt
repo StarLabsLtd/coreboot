@@ -1,0 +1,524 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <cdk2/system_fmp_auth.h>
+#include <cdk2/system_fmp_board_binding.h>
+#include <cdk2/system_fmp_crypto.h>
+#include <cdk2/system_fmp_session.h>
+
+#include <stdint.h>
+#include <string.h>
+
+#include "../../boot/coreboot.h"
+
+static bool span_valid(const void *pointer, size_t size)
+{
+	return pointer != NULL && size != 0U &&
+		(uintptr_t)pointer <= UINTPTR_MAX - (size - 1U);
+}
+
+static bool span_contains(const void *outer, size_t outer_size,
+	const void *inner, size_t inner_size)
+{
+	uintptr_t outer_address = (uintptr_t)outer;
+	uintptr_t inner_address = (uintptr_t)inner;
+
+	return span_valid(outer, outer_size) && span_valid(inner, inner_size) &&
+		inner_address >= outer_address &&
+		inner_address - outer_address <= outer_size &&
+		inner_size <= outer_size - (inner_address - outer_address);
+}
+
+static bool spans_overlap(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	uintptr_t left_address = (uintptr_t)left;
+	uintptr_t right_address = (uintptr_t)right;
+
+	if (!span_valid(left, left_size) || !span_valid(right, right_size))
+		return false;
+	if (left_address <= right_address)
+		return left_size > right_address - left_address;
+	return right_size > left_address - right_address;
+}
+
+static bool pointer_in_span(const void *pointer, const void *span, size_t size)
+{
+	uintptr_t address = (uintptr_t)pointer;
+	uintptr_t start = (uintptr_t)span;
+
+	return pointer != NULL && span_valid(span, size) && address >= start &&
+		address - start < size;
+}
+
+static bool bytes_zero(const void *memory, size_t size)
+{
+	const uint8_t *bytes = memory;
+	uint8_t bits = 0U;
+
+	while (size-- != 0U)
+		bits |= *bytes++;
+	return bits == 0U;
+}
+
+static bool info_valid(const struct cdk2_system_fmp_transport *endpoint,
+	const struct cdk2_system_fmp_info *info)
+{
+	return memcmp(&info->image_type, &endpoint->image_type,
+			sizeof(info->image_type)) == 0 &&
+		info->current_version == endpoint->current_version &&
+		info->lowest_supported_version >=
+			endpoint->lowest_supported_version &&
+		info->image_size == endpoint->image_size &&
+		info->capabilities == endpoint->capabilities;
+}
+
+static EFI_STATUS transport_error(enum cdk2_system_fmp_transport_status status)
+{
+	switch (status) {
+	case CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS:
+		return EFI_SUCCESS;
+	case CDK2_SYSTEM_FMP_TRANSPORT_BUSY:
+		return EFI_ACCESS_DENIED;
+	case CDK2_SYSTEM_FMP_TRANSPORT_CAPACITY:
+		return EFI_BAD_BUFFER_SIZE;
+	case CDK2_SYSTEM_FMP_TRANSPORT_EXECUTION_FAILED:
+		return EFI_DEVICE_ERROR;
+	case CDK2_SYSTEM_FMP_TRANSPORT_INVALID:
+		return EFI_INVALID_PARAMETER;
+	default:
+		return EFI_COMPROMISED_DATA;
+	}
+}
+
+static void digest(const void *data, size_t size,
+	uint8_t value[CDK2_SYSTEM_FMP_DIGEST_SIZE])
+{
+	cdk2_system_fmp_sha256(data, size, value);
+}
+
+static bool mm_authenticated_route(const struct cdk2_system_fmp_session *session)
+{
+	const struct cdk2_system_fmp_handoff *handoff = &session->authenticated_handoff;
+	const struct cdk2_system_fmp_transport *endpoint = &session->endpoint;
+
+	/* The complete authenticated handoff must be imported during initialization. */
+	return endpoint->revision == CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION &&
+		memcmp(&handoff->image_type, &endpoint->image_type,
+			sizeof(handoff->image_type)) == 0 &&
+		handoff->version == endpoint->current_version &&
+		handoff->lowest_supported_version == endpoint->lowest_supported_version &&
+		handoff->image_size == endpoint->image_size &&
+		handoff->region_count != 0U &&
+		handoff->region_count <= CDK2_SYSTEM_FMP_MAX_REGIONS &&
+		handoff->capsule_flags == CB_CAPSULE_FLAGS_PERSIST_RESET;
+}
+
+static bool session_valid(const struct cdk2_system_fmp_session *session)
+{
+	uint8_t value[CDK2_SYSTEM_FMP_DIGEST_SIZE];
+	bool valid;
+
+	valid = session->initialized && session->ready &&
+		session->client.initialized &&
+		session->certificate_xdr_size != 0U &&
+		session->certificate_xdr_size <= sizeof(session->certificate_xdr) &&
+		session->dependency_version_count <=
+			CDK2_SYSTEM_FMP_DEPENDENCY_MAX_COUNT &&
+		session->client.port.context ==
+			session->sealed_transport_port.context &&
+		session->client.port.sha256 ==
+			session->sealed_transport_port.sha256 &&
+		session->client.port.publish ==
+			session->sealed_transport_port.publish &&
+		session->client.port.acquire ==
+			session->sealed_transport_port.acquire &&
+		session->client.port.barrier ==
+			session->sealed_transport_port.barrier &&
+		session->client.port.trigger_apm_io8 ==
+			session->sealed_transport_port.trigger_apm_io8 &&
+		memcmp(&session->client.endpoint, &session->endpoint,
+			sizeof(session->endpoint)) == 0 &&
+		memcmp(&session->info, &session->sealed_info,
+			sizeof(session->info)) == 0 &&
+		info_valid(&session->endpoint, &session->info);
+	if (!valid)
+		return false;
+	if ((session->endpoint.revision == CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION &&
+	     !mm_authenticated_route(session)) ||
+	    (session->endpoint.revision != CB_CAPSULE_BROKER_ENDPOINT_REVISION &&
+	     session->endpoint.revision != CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION))
+		return false;
+	digest(&session->endpoint, sizeof(session->endpoint), value);
+	valid = true /* removed endpoint seal */;
+	digest(&session->authenticated_handoff,
+		sizeof(session->authenticated_handoff), value);
+	valid = valid && memcmp(value, session->handoff_digest, sizeof(value)) == 0;
+	digest(session->certificate_xdr, session->certificate_xdr_size, value);
+	valid = valid && memcmp(value, session->certificate_digest, sizeof(value)) == 0;
+	digest(session->dependency_versions,
+		session->dependency_version_count *
+			sizeof(session->dependency_versions[0]), value);
+	valid = valid &&
+		memcmp(value, session->dependency_digest, sizeof(value)) == 0;
+	digest(&session->board_identity, sizeof(session->board_identity), value);
+	valid = valid &&
+		memcmp(value, session->board_identity_digest, sizeof(value)) == 0;
+	memset(value, 0, sizeof(value));
+	return valid;
+}
+
+static bool pairwise_disjoint(const void *const pointers[],
+	const size_t sizes[], size_t count)
+{
+	for (size_t left = 0U; left < count; left++)
+		for (size_t right = left + 1U; right < count; right++)
+			if (sizes[left] != 0U && sizes[right] != 0U &&
+			    spans_overlap(pointers[left], sizes[left],
+				pointers[right], sizes[right]))
+				return false;
+	return true;
+}
+
+EFI_STATUS cdk2_system_fmp_session_initialize(
+	struct cdk2_system_fmp_session *session,
+	const struct cdk2_system_fmp_session_config *config)
+{
+	struct cdk2_system_fmp_session_config settings;
+	struct cdk2_system_fmp_transport endpoint;
+	struct cdk2_system_fmp_board_identity identity;
+	struct cdk2_system_fmp_handoff handoff = {0};
+	struct cdk2_system_fmp_info info;
+	enum cdk2_system_fmp_transport_status transport_status;
+	uint8_t before[CDK2_SYSTEM_FMP_DIGEST_SIZE];
+	uint8_t after[CDK2_SYSTEM_FMP_DIGEST_SIZE];
+	uint8_t table_before[CDK2_SYSTEM_FMP_DIGEST_SIZE];
+	uint8_t table_after[CDK2_SYSTEM_FMP_DIGEST_SIZE];
+	const void *table;
+	size_t table_size;
+	size_t dependencies_size;
+	const void *spans[6];
+	size_t sizes[6];
+
+	if (!span_valid(session, sizeof(*session)))
+		return EFI_INVALID_PARAMETER;
+	if (!bytes_zero(session, sizeof(*session)))
+		return session->initialized ? EFI_ALREADY_STARTED :
+			EFI_INVALID_PARAMETER;
+	if (!span_valid(config, sizeof(*config)) ||
+	    spans_overlap(session, sizeof(*session), config, sizeof(*config)))
+		return EFI_INVALID_PARAMETER;
+	settings = *config;
+	if (!span_valid(settings.coreboot, sizeof(*settings.coreboot)))
+		return EFI_INVALID_PARAMETER;
+	table = settings.coreboot->header;
+	table_size = settings.coreboot->table_size;
+	if (!span_valid(table, table_size) ||
+	    table_size > CDK2_COREBOOT_MAX_TABLE_BYTES ||
+	    !span_valid(settings.certificate_xdr,
+		settings.certificate_xdr_size) ||
+	    settings.certificate_xdr_size >
+		CDK2_SYSTEM_FMP_CERTIFICATE_MAX_SIZE ||
+	    settings.dependency_version_count >
+		CDK2_SYSTEM_FMP_DEPENDENCY_MAX_COUNT ||
+	    settings.transport_port.sha256 == NULL ||
+	    settings.transport_port.publish == NULL ||
+	    settings.transport_port.acquire == NULL ||
+	    settings.transport_port.barrier == NULL ||
+	    settings.transport_port.trigger_apm_io8 == NULL ||
+	    pointer_in_span(settings.transport_port.context, session,
+		sizeof(*session)))
+		return EFI_INVALID_PARAMETER;
+	dependencies_size = settings.dependency_version_count *
+		sizeof(settings.dependency_versions[0]);
+	if (dependencies_size != 0U &&
+	    !span_valid(settings.dependency_versions, dependencies_size))
+		return EFI_INVALID_PARAMETER;
+	spans[0] = session;
+	sizes[0] = sizeof(*session);
+	spans[1] = config;
+	sizes[1] = sizeof(*config);
+	spans[2] = settings.coreboot;
+	sizes[2] = sizeof(*settings.coreboot);
+	spans[3] = table;
+	sizes[3] = table_size;
+	spans[4] = settings.certificate_xdr;
+	sizes[4] = settings.certificate_xdr_size;
+	spans[5] = settings.dependency_versions;
+	sizes[5] = dependencies_size;
+	if (!pairwise_disjoint(spans, sizes, 6U))
+		return EFI_INVALID_PARAMETER;
+	digest(settings.coreboot, sizeof(*settings.coreboot), before);
+	digest(table, table_size, table_before);
+	if (EFI_ERROR(cdk2_system_fmp_transport_from_coreboot(settings.coreboot,
+		&endpoint)) ||
+	    EFI_ERROR(cdk2_system_fmp_board_identity_from_coreboot(
+		settings.coreboot, &identity)))
+		return EFI_COMPROMISED_DATA;
+	if (endpoint.revision == CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION &&
+	    EFI_ERROR(cdk2_system_fmp_handoff_from_coreboot(settings.coreboot, &handoff)))
+		return EFI_COMPROMISED_DATA;
+	digest(settings.coreboot, sizeof(*settings.coreboot), after);
+	digest(table, table_size, table_after);
+	if (memcmp(before, after, sizeof(before)) != 0 ||
+	    memcmp(table_before, table_after, sizeof(table_before)) != 0)
+		return EFI_COMPROMISED_DATA;
+	memset(session, 0, sizeof(*session));
+	session->active = true;
+	session->endpoint = endpoint;
+	session->board_identity = identity;
+	session->authenticated_handoff = handoff;
+	memcpy(session->certificate_xdr, settings.certificate_xdr,
+		settings.certificate_xdr_size);
+	session->certificate_xdr_size = settings.certificate_xdr_size;
+	if (dependencies_size != 0U)
+		memcpy(session->dependency_versions,
+			settings.dependency_versions, dependencies_size);
+	session->dependency_version_count = settings.dependency_version_count;
+	digest(session->certificate_xdr, session->certificate_xdr_size,
+		session->certificate_digest);
+	digest(session->dependency_versions, dependencies_size,
+		session->dependency_digest);
+	digest(&session->board_identity, sizeof(session->board_identity),
+		session->board_identity_digest);
+	digest(&session->endpoint, sizeof(session->endpoint), session->endpoint_digest);
+	digest(&session->authenticated_handoff,
+		sizeof(session->authenticated_handoff), session->handoff_digest);
+	transport_status = cdk2_system_fmp_client_init(&session->client,
+		&endpoint, &settings.transport_port);
+	if (transport_status != CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS)
+		goto fail;
+	session->initialized = true;
+	transport_status = cdk2_system_fmp_client_read_info(&session->client,
+		&info);
+	if (transport_status != CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS ||
+	    !info_valid(&endpoint, &info) ||
+	    (endpoint.revision == CB_CAPSULE_BROKER_ENDPOINT_RAM_REVISION &&
+	     !mm_authenticated_route(session))) {
+		bool response_invalid = transport_status ==
+			CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS;
+
+		if (cdk2_system_fmp_client_close(&session->client) !=
+		    CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS) {
+			session->active = false;
+			return response_invalid ? EFI_COMPROMISED_DATA :
+				transport_error(transport_status);
+		}
+		goto fail;
+	}
+	session->info = info;
+	session->sealed_info = info;
+	session->sealed_transport_port = settings.transport_port;
+	session->active = false;
+	session->ready = true;
+	if (!session_valid(session))
+		goto fail;
+	memset(before, 0, sizeof(before));
+	memset(after, 0, sizeof(after));
+	memset(table_before, 0, sizeof(table_before));
+	memset(table_after, 0, sizeof(table_after));
+	return EFI_SUCCESS;
+
+fail:
+	memset(session, 0, sizeof(*session));
+	return EFI_COMPROMISED_DATA;
+}
+
+EFI_STATUS cdk2_system_fmp_session_execute(
+	struct cdk2_system_fmp_session *session,
+	const struct cdk2_system_fmp_session_request *request,
+	struct cdk2_system_fmp_session_result *result)
+{
+	struct cdk2_system_fmp_session_request transaction;
+	struct cdk2_system_fmp_session_result outcome = {
+		.image_updatable = CDK2_FMP_IMAGE_UPDATABLE_INVALID,
+		.last_attempt_status = CDK2_FMP_LAST_ATTEMPT_UNSUCCESSFUL,
+		.transport_status = CDK2_SYSTEM_FMP_TRANSPORT_CLOSED,
+	};
+	struct cdk2_system_fmp_payload_request payload_request;
+	struct cdk2_system_fmp_board_binding_result board;
+	struct cdk2_system_fmp_outcome broker = {0};
+	struct cdk2_system_fmp_auth_view authenticated;
+	struct cdk2_system_fmp_untrusted_auth_view untrusted;
+	const uint8_t *payload_bytes;
+	size_t payload_size;
+	struct cdk2_system_fmp_payload_view payload = {0};
+	uint8_t before[CDK2_SYSTEM_FMP_DIGEST_SIZE];
+	uint8_t after[CDK2_SYSTEM_FMP_DIGEST_SIZE];
+	EFI_GUID image_type;
+	enum cdk2_system_fmp_transport_status transport_status;
+	EFI_STATUS status;
+
+	if (!span_valid(session, sizeof(*session)) ||
+	    !span_valid(request, sizeof(*request)) ||
+	    !span_valid(result, sizeof(*result)) ||
+	    spans_overlap(session, sizeof(*session), request, sizeof(*request)) ||
+	    spans_overlap(session, sizeof(*session), result, sizeof(*result)) ||
+	    spans_overlap(request, sizeof(*request), result, sizeof(*result)))
+		return EFI_INVALID_PARAMETER;
+	transaction = *request;
+	if (!span_valid(transaction.image_type, sizeof(*transaction.image_type)) ||
+	    !span_valid(transaction.authenticated_image,
+		transaction.authenticated_image_size) ||
+	    spans_overlap(session, sizeof(*session), transaction.image_type,
+		sizeof(*transaction.image_type)) ||
+	    spans_overlap(session, sizeof(*session), transaction.authenticated_image,
+		transaction.authenticated_image_size) ||
+	    spans_overlap(request, sizeof(*request), transaction.image_type,
+		sizeof(*transaction.image_type)) ||
+	    spans_overlap(request, sizeof(*request), transaction.authenticated_image,
+		transaction.authenticated_image_size) ||
+	    spans_overlap(result, sizeof(*result), transaction.image_type,
+		sizeof(*transaction.image_type)) ||
+	    spans_overlap(result, sizeof(*result), transaction.authenticated_image,
+		transaction.authenticated_image_size) ||
+	    spans_overlap(transaction.image_type, sizeof(*transaction.image_type),
+		transaction.authenticated_image,
+		transaction.authenticated_image_size))
+		return EFI_INVALID_PARAMETER;
+	image_type = *transaction.image_type;
+	*result = outcome;
+	if (session->active || session->set_attempted)
+		return EFI_ACCESS_DENIED;
+	if (!session_valid(session))
+		return EFI_COMPROMISED_DATA;
+	if (transaction.operation != CDK2_SYSTEM_FMP_SESSION_CHECK &&
+	    transaction.operation != CDK2_SYSTEM_FMP_SESSION_SET)
+		return EFI_UNSUPPORTED;
+	if (transaction.operation == CDK2_SYSTEM_FMP_SESSION_SET)
+		session->set_attempted = true;
+	if (memcmp(&image_type, &session->info.image_type, sizeof(image_type)) != 0)
+		return EFI_NOT_FOUND;
+
+	session->active = true;
+	digest(transaction.authenticated_image,
+		transaction.authenticated_image_size, before);
+	if (mm_authenticated_route(session)) {
+		/* Framing is untrusted; verification occurs on the original bytes in MM. */
+		status = cdk2_system_fmp_auth_parse_untrusted(transaction.authenticated_image,
+			transaction.authenticated_image_size, &untrusted);
+		if (EFI_ERROR(status))
+			goto done;
+		payload_bytes = untrusted.payload;
+		payload_size = untrusted.payload_size;
+	} else {
+		status = cdk2_system_fmp_authenticate(transaction.authenticated_image,
+			transaction.authenticated_image_size, session->certificate_xdr,
+			session->certificate_xdr_size, cdk2_system_fmp_pkcs7_verify, NULL,
+			&authenticated);
+		if (EFI_ERROR(status))
+			goto done;
+		payload_bytes = authenticated.payload;
+		payload_size = authenticated.payload_size;
+	}
+	if (!session_valid(session)) {
+		status = EFI_COMPROMISED_DATA;
+		goto done;
+	}
+	if (!span_contains(transaction.authenticated_image,
+		transaction.authenticated_image_size, payload_bytes,
+		payload_size)) {
+		status = EFI_COMPROMISED_DATA;
+		goto done;
+	}
+	payload_request = (struct cdk2_system_fmp_payload_request) {
+		.operation = transaction.operation == CDK2_SYSTEM_FMP_SESSION_CHECK ?
+			CDK2_SYSTEM_FMP_OPERATION_CHECK : CDK2_SYSTEM_FMP_OPERATION_SET,
+		.image_type = &image_type,
+		.expected_image_type = &session->info.image_type,
+		.image_index = transaction.image_index,
+		.lowest_supported_version = session->info.lowest_supported_version,
+		.dependency_versions = session->dependency_versions,
+		.dependency_version_count = session->dependency_version_count,
+		.payload = payload_bytes,
+		.payload_size = payload_size,
+	};
+	status = cdk2_system_fmp_payload_check(&payload_request, &payload);
+	outcome.image_updatable = payload.image_updatable;
+	outcome.last_attempt_status = payload.last_attempt_status;
+	outcome.attempted_version = payload.version;
+	if (EFI_ERROR(status) ||
+	    payload.image_updatable != CDK2_FMP_IMAGE_UPDATABLE_VALID)
+		goto done;
+	if (!session_valid(session)) {
+		status = EFI_COMPROMISED_DATA;
+		goto done;
+	}
+	if (payload.image_size != session->info.image_size ||
+	    !span_contains(payload_bytes, payload_size,
+		payload.image, payload.image_size)) {
+		status = EFI_COMPROMISED_DATA;
+		goto done;
+	}
+	status = cdk2_system_fmp_board_bind_identity(&session->board_identity,
+		payload.image, payload.image_size, &board);
+	if (EFI_ERROR(status))
+		goto done;
+	if (board.fact != CDK2_SYSTEM_FMP_BOARD_BOUND) {
+		status = EFI_SECURITY_VIOLATION;
+		goto done;
+	}
+	if (!session_valid(session)) {
+		status = EFI_COMPROMISED_DATA;
+		goto done;
+	}
+	digest(transaction.authenticated_image,
+		transaction.authenticated_image_size, after);
+	if (memcmp(before, after, sizeof(before)) != 0) {
+		status = EFI_COMPROMISED_DATA;
+		goto done;
+	}
+	outcome.transport_invoked = true;
+	transport_status = cdk2_system_fmp_client_execute(&session->client,
+		transaction.operation == CDK2_SYSTEM_FMP_SESSION_CHECK ?
+			CDK2_SYSTEM_FMP_CHECK : CDK2_SYSTEM_FMP_SET,
+		transaction.authenticated_image,
+		transaction.authenticated_image_size, payload.version, &broker);
+	outcome.transport_status = transport_status;
+	outcome.trigger_invoked = broker.trigger_invoked;
+	outcome.broker_response_authenticated = broker.response_authenticated;
+	if (broker.response_authenticated) {
+		outcome.attempted_version = broker.attempted_version;
+		outcome.last_attempt_status = broker.last_attempt_status;
+		outcome.image_updatable =
+			transport_status == CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS ?
+			CDK2_FMP_IMAGE_UPDATABLE_VALID :
+			CDK2_FMP_IMAGE_UPDATABLE_INVALID;
+	}
+	if (!session_valid(session)) {
+		status = EFI_COMPROMISED_DATA;
+		goto done;
+	}
+	digest(transaction.authenticated_image,
+		transaction.authenticated_image_size, after);
+	status = memcmp(before, after, sizeof(before)) == 0 ?
+		transport_error(transport_status) : EFI_COMPROMISED_DATA;
+
+done:
+	memset(before, 0, sizeof(before));
+	memset(after, 0, sizeof(after));
+	if (EFI_ERROR(status) && !outcome.broker_response_authenticated &&
+	    outcome.image_updatable == CDK2_FMP_IMAGE_UPDATABLE_VALID) {
+		outcome.image_updatable = CDK2_FMP_IMAGE_UPDATABLE_INVALID;
+		outcome.last_attempt_status = CDK2_FMP_LAST_ATTEMPT_UNSUCCESSFUL;
+	}
+	session->active = false;
+	*result = outcome;
+	return status;
+}
+
+EFI_STATUS cdk2_system_fmp_session_close(
+	struct cdk2_system_fmp_session *session)
+{
+	enum cdk2_system_fmp_transport_status status;
+
+	if (!span_valid(session, sizeof(*session)))
+		return EFI_INVALID_PARAMETER;
+	if (!session->initialized)
+		return EFI_NOT_STARTED;
+	if (session->active)
+		return EFI_ACCESS_DENIED;
+	status = cdk2_system_fmp_client_close(&session->client);
+	if (status == CDK2_SYSTEM_FMP_TRANSPORT_SUCCESS)
+		memset(session, 0, sizeof(*session));
+	return transport_error(status);
+}

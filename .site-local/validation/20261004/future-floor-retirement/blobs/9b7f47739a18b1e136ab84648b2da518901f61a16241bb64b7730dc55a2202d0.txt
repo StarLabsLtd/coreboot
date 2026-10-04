@@ -1,0 +1,161 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+#include <cdk2/system_fmp_handoff.h>
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "../../boot/coreboot.h"
+
+static uint64_t unpack64(struct cbuint64 value)
+{
+	return (uint64_t)value.lo | ((uint64_t)value.hi << 32);
+}
+
+static bool guid_present(const uint8_t guid[16])
+{
+	uint8_t bits = 0U;
+	size_t index;
+
+	for (index = 0U; index < 16U; index++)
+		bits |= guid[index];
+	return bits != 0U;
+}
+
+static bool range_valid(uint64_t offset, uint64_t size, uint64_t limit)
+{
+	return size != 0U && offset <= limit && size <= limit - offset;
+}
+
+static bool ranges_overlap(uint64_t left_offset, uint64_t left_size,
+	uint64_t right_offset, uint64_t right_size)
+{
+	return left_offset < right_offset + right_size &&
+		right_offset < left_offset + left_size;
+}
+
+static EFI_STATUS validate_regions(const struct cb_capsule_handoff *record,
+	struct cdk2_system_fmp_handoff *candidate)
+{
+	uint64_t smmstore_offset = unpack64(record->smmstore_offset);
+	uint64_t smmstore_size = unpack64(record->smmstore_size);
+	uint32_t bios_regions = 0U;
+	uint32_t index;
+
+	for (index = 0U; index < record->region_count; index++) {
+		const struct cb_capsule_update_region *source = &record->regions[index];
+		struct cdk2_system_fmp_region *region = &candidate->regions[index];
+		uint64_t image_offset = unpack64(source->image_offset);
+		uint64_t flash_offset = unpack64(source->flash_offset);
+		uint64_t size = unpack64(source->size);
+		uint32_t previous;
+
+		if (source->reserved != 0U ||
+		    (source->flags & ~CB_CAPSULE_REGION_VALID_FLAGS) != 0U ||
+		    !range_valid(image_offset, size, candidate->image_size) ||
+		    !range_valid(flash_offset, size, candidate->boot_media_size) ||
+		    (image_offset % candidate->block_size) != 0U ||
+		    (flash_offset % candidate->erase_size) != 0U ||
+		    (size % candidate->erase_size) != 0U ||
+		    ranges_overlap(flash_offset, size, smmstore_offset,
+			smmstore_size))
+			return EFI_COMPROMISED_DATA;
+		for (previous = 0U; previous < index; previous++) {
+			const struct cdk2_system_fmp_region *other =
+				&candidate->regions[previous];
+
+			if (ranges_overlap(image_offset, size, other->image_offset,
+				    other->size) ||
+			    ranges_overlap(flash_offset, size, other->flash_offset,
+				    other->size))
+				return EFI_COMPROMISED_DATA;
+		}
+		bios_regions += (source->flags & CB_CAPSULE_REGION_BIOS) != 0U;
+		*region = (struct cdk2_system_fmp_region){
+			.image_offset = image_offset,
+			.flash_offset = flash_offset,
+			.size = size,
+			.flags = source->flags,
+		};
+	}
+	return bios_regions == 1U ? EFI_SUCCESS : EFI_COMPROMISED_DATA;
+}
+
+EFI_STATUS cdk2_system_fmp_handoff_from_coreboot(
+	const struct cdk2_coreboot_handoff *coreboot,
+	struct cdk2_system_fmp_handoff *handoff)
+{
+	const struct cb_capsule_handoff *record;
+	const struct lb_efi_fw_info *firmware;
+	struct cdk2_system_fmp_handoff candidate = {0};
+	const void *found;
+	size_t expected_size;
+	EFI_STATUS status;
+
+	if (coreboot == NULL || handoff == NULL)
+		return EFI_INVALID_PARAMETER;
+	*handoff = (struct cdk2_system_fmp_handoff){0};
+	status = cdk2_coreboot_find_unique_record(coreboot, CB_TAG_FW_INFO,
+		sizeof(*firmware), &found);
+	if (EFI_ERROR(status))
+		return status;
+	firmware = found;
+	status = cdk2_coreboot_find_unique_record(coreboot,
+		CB_TAG_CAPSULE_HANDOFF, sizeof(*record), &found);
+	if (EFI_ERROR(status))
+		return status;
+	record = found;
+	if (firmware->size != sizeof(*firmware) ||
+	    record->revision != CB_CAPSULE_HANDOFF_REVISION ||
+	    record->header_size != sizeof(*record) ||
+	    0 || /* removed handoff flag gate */
+	    record->broker_type != CB_CAPSULE_BROKER_COREBOOT_UPDATE ||
+	    record->broker_capabilities !=
+		CB_CAPSULE_BROKER_REQUIRED_CAPABILITIES ||
+	    record->capsule_format != CB_CAPSULE_FORMAT_FMP_V3 ||
+	    record->authentication_format != CB_CAPSULE_AUTH_EFI_PKCS7 ||
+	    record->board_binding_format !=
+		CB_CAPSULE_BOARD_BINDING_CBFS_BUILD_INFO_V1 ||
+	    record->payload_format != CB_CAPSULE_PAYLOAD_MSS1_V1 ||
+	    record->capsule_flags != CB_CAPSULE_FLAGS_PERSIST_RESET ||
+	    record->reserved16 != 0U || record->reserved32[0] != 0U ||
+	    record->reserved32[1] != 0U || record->region_count == 0U ||
+	    record->region_count > CDK2_SYSTEM_FMP_MAX_REGIONS)
+		return EFI_COMPROMISED_DATA;
+	expected_size = sizeof(*record) + (size_t)record->region_count *
+		sizeof(record->regions[0]);
+	if (record->size != expected_size || !guid_present(firmware->guid) ||
+	    !guid_present(record->image_type_guid) ||
+	    memcmp(firmware->guid, record->image_type_guid, 16U) != 0 ||
+	    firmware->version != record->version ||
+	    firmware->lowest_supported_version !=
+		record->lowest_supported_version ||
+	    firmware->fw_size != unpack64(record->image_size) ||
+	    record->lowest_supported_version > record->version)
+		return EFI_COMPROMISED_DATA;
+	candidate.version = record->version;
+	candidate.lowest_supported_version = record->lowest_supported_version;
+	candidate.capsule_flags = record->capsule_flags;
+	candidate.block_size = record->block_size;
+	candidate.erase_size = record->erase_size;
+	candidate.region_count = record->region_count;
+	candidate.image_size = unpack64(record->image_size);
+	candidate.boot_media_size = unpack64(record->boot_media_size);
+	candidate.smmstore_offset = unpack64(record->smmstore_offset);
+	candidate.smmstore_size = unpack64(record->smmstore_size);
+	if (candidate.image_size == 0U || candidate.boot_media_size == 0U ||
+	    candidate.image_size > candidate.boot_media_size ||
+	    candidate.block_size == 0U || candidate.erase_size == 0U ||
+	    candidate.erase_size % candidate.block_size != 0U ||
+	    !range_valid(candidate.smmstore_offset, candidate.smmstore_size,
+		candidate.boot_media_size))
+		return EFI_COMPROMISED_DATA;
+	memcpy(&candidate.image_type, record->image_type_guid,
+		sizeof(candidate.image_type));
+	status = validate_regions(record, &candidate);
+	if (EFI_ERROR(status))
+		return status;
+	*handoff = candidate;
+	return EFI_SUCCESS;
+}

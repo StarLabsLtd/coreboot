@@ -1,0 +1,1 @@
+HOST real session/CMS/payload/board future-floor gates: PASS (modeled transport)

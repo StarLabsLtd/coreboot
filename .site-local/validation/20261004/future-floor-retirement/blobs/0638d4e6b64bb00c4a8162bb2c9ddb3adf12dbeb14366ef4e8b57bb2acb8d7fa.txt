@@ -1,0 +1,322 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <cdk2/system_fmp_provider.h>
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+const EFI_GUID cdk2_system_fmp_protocol_guid = {
+	0x86c77a67, 0x0b97, 0x4633,
+	{ 0xa1, 0x87, 0x49, 0x10, 0x4d, 0x06, 0x85, 0xc7 }
+};
+
+static CHAR16 image_name[] = {
+	'S', 'y', 's', 't', 'e', 'm', ' ', 'F',
+	'i', 'r', 'm', 'w', 'a', 'r', 'e', 0
+};
+static struct cdk2_system_fmp_provider *active_provider;
+
+static bool span_valid(const void *pointer, size_t size)
+{
+	return pointer != NULL && size != 0U &&
+		(uintptr_t)pointer <= UINTPTR_MAX - (size - 1U);
+}
+
+static bool spans_overlap(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	uintptr_t left_address = (uintptr_t)left;
+	uintptr_t right_address = (uintptr_t)right;
+
+	if (!span_valid(left, left_size) || !span_valid(right, right_size))
+		return false;
+	if (left_address <= right_address)
+		return left_size > right_address - left_address;
+	return right_size > left_address - right_address;
+}
+
+static struct cdk2_system_fmp_provider *owner(
+	struct cdk2_fmp_protocol *protocol)
+{
+	if (active_provider == NULL || protocol != &active_provider->protocol)
+		return NULL;
+	return active_provider;
+}
+
+static EFI_STATUS CDK2_MS_ABI get_image_info(
+	struct cdk2_fmp_protocol *protocol, UINTN *size,
+	struct cdk2_fmp_descriptor *descriptor, UINT32 *descriptor_version,
+	UINT8 *descriptor_count, UINTN *descriptor_size, UINT32 *package_version,
+	CHAR16 **package_name)
+{
+	struct cdk2_system_fmp_provider *provider;
+	const struct cdk2_system_fmp_info *info;
+	const void *outputs[7];
+	size_t output_sizes[7];
+	size_t output_count;
+
+	if (protocol == NULL || size == NULL || descriptor_version == NULL ||
+	    descriptor_count == NULL || descriptor_size == NULL ||
+	    package_version == NULL || package_name == NULL)
+		return EFI_INVALID_PARAMETER;
+	provider = owner(protocol);
+	if (provider == NULL)
+		return EFI_INVALID_PARAMETER;
+	outputs[0] = size;
+	output_sizes[0] = sizeof(*size);
+	outputs[1] = descriptor_version;
+	output_sizes[1] = sizeof(*descriptor_version);
+	outputs[2] = descriptor_count;
+	output_sizes[2] = sizeof(*descriptor_count);
+	outputs[3] = descriptor_size;
+	output_sizes[3] = sizeof(*descriptor_size);
+	outputs[4] = package_version;
+	output_sizes[4] = sizeof(*package_version);
+	outputs[5] = package_name;
+	output_sizes[5] = sizeof(*package_name);
+	output_count = 6U;
+	if (descriptor != NULL) {
+		outputs[output_count] = descriptor;
+		output_sizes[output_count++] = sizeof(*descriptor);
+	}
+	for (size_t output_index = 0; output_index < output_count; output_index++) {
+		if (!span_valid(outputs[output_index], output_sizes[output_index]) ||
+		    spans_overlap(provider, sizeof(*provider), outputs[output_index],
+			output_sizes[output_index]))
+			return EFI_INVALID_PARAMETER;
+		for (size_t other_output_index = output_index + 1;
+		     other_output_index < output_count; other_output_index++)
+			if (spans_overlap(outputs[output_index], output_sizes[output_index],
+				outputs[other_output_index], output_sizes[other_output_index]))
+				return EFI_INVALID_PARAMETER;
+	}
+	*descriptor_version = 3U;
+	*descriptor_count = 1U;
+	*descriptor_size = sizeof(*descriptor);
+	*package_version = MAX_UINT32;
+	*package_name = NULL;
+	if (descriptor == NULL || *size < sizeof(*descriptor)) {
+		*size = sizeof(*descriptor);
+		return EFI_BUFFER_TOO_SMALL;
+	}
+	if (!provider->session.ready)
+		return EFI_NOT_READY;
+	info = &provider->session.info;
+	*descriptor = (struct cdk2_fmp_descriptor) {
+		.image_index = CDK2_SYSTEM_FMP_IMAGE_INDEX,
+		.image_type_id = info->image_type,
+		.image_id = 1U,
+		.image_id_name = image_name,
+		.version = info->current_version,
+		.size = info->image_size,
+		.attributes_supported = CDK2_SYSTEM_FMP_IMAGE_UPDATABLE |
+			CDK2_SYSTEM_FMP_RESET_REQUIRED |
+			CDK2_SYSTEM_FMP_AUTHENTICATION_REQUIRED,
+		.attributes_setting = CDK2_SYSTEM_FMP_IMAGE_UPDATABLE |
+			CDK2_SYSTEM_FMP_RESET_REQUIRED |
+			CDK2_SYSTEM_FMP_AUTHENTICATION_REQUIRED,
+		.lowest_supported_version = info->lowest_supported_version,
+		.hardware_instance = info->hardware_instance,
+	};
+	if ((info->state_flags &
+	     CDK2_SYSTEM_FMP_INFO_STATE_LAST_ATTEMPT_VERSION_VALID) != 0U)
+		descriptor->last_attempt_version = info->last_attempt_version;
+	if ((info->state_flags &
+	     CDK2_SYSTEM_FMP_INFO_STATE_LAST_ATTEMPT_STATUS_VALID) != 0U)
+		descriptor->last_attempt_status = info->last_attempt_status;
+	*size = sizeof(*descriptor);
+	return EFI_SUCCESS;
+}
+
+static EFI_STATUS CDK2_MS_ABI get_image(struct cdk2_fmp_protocol *protocol,
+	UINT8 index, void *image, UINTN *size)
+{
+	struct cdk2_system_fmp_provider *provider;
+
+	(void)image;
+	if (protocol == NULL || size == NULL ||
+	    index != CDK2_SYSTEM_FMP_IMAGE_INDEX)
+		return EFI_INVALID_PARAMETER;
+	provider = owner(protocol);
+	if (provider == NULL || !span_valid(size, sizeof(*size)))
+		return EFI_INVALID_PARAMETER;
+	if (spans_overlap(provider, sizeof(*provider), size, sizeof(*size)))
+		return EFI_INVALID_PARAMETER;
+	/* The bounded broker deliberately exposes no raw flash read primitive. */
+	return EFI_UNSUPPORTED;
+}
+
+static EFI_STATUS execute(struct cdk2_fmp_protocol *protocol, UINT8 index,
+	const void *image, UINTN size,
+	enum cdk2_system_fmp_session_operation operation, UINT32 *updatable)
+{
+	struct cdk2_system_fmp_provider *provider;
+	struct cdk2_system_fmp_session_request request;
+	EFI_GUID image_type;
+	struct cdk2_system_fmp_session_result result = {
+		.image_updatable = CDK2_FMP_IMAGE_UPDATABLE_INVALID,
+	};
+	EFI_STATUS status;
+
+	if (protocol == NULL || !span_valid(image, size) ||
+	    index != CDK2_SYSTEM_FMP_IMAGE_INDEX || updatable == NULL)
+		return EFI_INVALID_PARAMETER;
+	provider = owner(protocol);
+	if (provider == NULL)
+		return EFI_INVALID_PARAMETER;
+	if (!span_valid(updatable, sizeof(*updatable)) ||
+	    spans_overlap(provider, sizeof(*provider), image, size) ||
+	    spans_overlap(provider, sizeof(*provider), updatable,
+		sizeof(*updatable)) ||
+	    spans_overlap(image, size, updatable, sizeof(*updatable)))
+		return EFI_INVALID_PARAMETER;
+	image_type = provider->session.info.image_type;
+	request = (struct cdk2_system_fmp_session_request) {
+		.operation = operation,
+		.image_type = &provider->session.info.image_type + (image_type.data1 & 0U),
+		.image_index = index,
+		.authenticated_image = image,
+		.authenticated_image_size = size,
+	};
+	status = cdk2_system_fmp_session_execute(&provider->session, &request,
+		&result);
+	*updatable = result.image_updatable;
+	return status;
+}
+
+static EFI_STATUS CDK2_MS_ABI check_image(struct cdk2_fmp_protocol *protocol,
+	UINT8 index, const void *image, UINTN size, UINT32 *updatable)
+{
+	struct cdk2_system_fmp_provider *provider = owner(protocol);
+	EFI_STATUS status;
+
+	if (provider == NULL)
+		return EFI_INVALID_PARAMETER;
+	if (provider->busy)
+		return EFI_ACCESS_DENIED;
+	provider->busy = TRUE;
+	status = execute(protocol, index, image, size,
+		CDK2_SYSTEM_FMP_SESSION_CHECK, updatable);
+	provider->busy = FALSE;
+	return status;
+}
+
+static EFI_STATUS CDK2_MS_ABI set_image(struct cdk2_fmp_protocol *protocol,
+	UINT8 index, const void *image, UINTN size, const void *vendor_code,
+	cdk2_fmp_progress_fn *progress, CHAR16 **abort_reason)
+{
+	struct cdk2_system_fmp_provider *provider;
+	UINT32 updatable;
+	EFI_STATUS status;
+
+	(void)vendor_code;
+	if (protocol == NULL || !span_valid(image, size) ||
+	    index != CDK2_SYSTEM_FMP_IMAGE_INDEX)
+		return EFI_INVALID_PARAMETER;
+	provider = owner(protocol);
+	if (provider == NULL ||
+	    spans_overlap(provider, sizeof(*provider), image, size) ||
+	    (progress != NULL &&
+	     (spans_overlap(provider, sizeof(*provider), progress, 1U) ||
+	      spans_overlap(image, size, progress, 1U))) ||
+	    (abort_reason != NULL &&
+	     (!span_valid(abort_reason, sizeof(*abort_reason)) ||
+	      spans_overlap(provider, sizeof(*provider), abort_reason,
+		 sizeof(*abort_reason)) ||
+	      spans_overlap(image, size, abort_reason, sizeof(*abort_reason)))))
+		return EFI_INVALID_PARAMETER;
+	if (provider->busy)
+		return EFI_ACCESS_DENIED;
+	provider->busy = TRUE;
+	if (abort_reason != NULL)
+		*abort_reason = NULL;
+	if (progress != NULL) {
+		status = progress(0U);
+		if (EFI_ERROR(status))
+			goto out;
+	}
+	status = execute(protocol, index, image, size,
+		CDK2_SYSTEM_FMP_SESSION_SET, &updatable);
+	if (!EFI_ERROR(status) &&
+	    updatable != CDK2_FMP_IMAGE_UPDATABLE_VALID)
+		status = EFI_SECURITY_VIOLATION;
+	if (!EFI_ERROR(status) && progress != NULL)
+		status = progress(100U);
+
+out:
+	provider->busy = FALSE;
+	return status;
+}
+
+static EFI_STATUS CDK2_MS_ABI get_package_info(
+	struct cdk2_fmp_protocol *protocol, UINT32 *version, CHAR16 **name,
+	UINT32 *name_size, UINT64 *supported, UINT64 *setting)
+{
+	(void)version;
+	(void)name;
+	(void)name_size;
+	(void)supported;
+	(void)setting;
+	if (owner(protocol) == NULL)
+		return EFI_INVALID_PARAMETER;
+	return EFI_UNSUPPORTED;
+}
+
+static EFI_STATUS CDK2_MS_ABI set_package_info(
+	struct cdk2_fmp_protocol *protocol, const void *image, UINTN size,
+	const void *vendor_code, UINT32 version, const CHAR16 *name)
+{
+	(void)image;
+	(void)size;
+	(void)vendor_code;
+	(void)version;
+	(void)name;
+	if (owner(protocol) == NULL)
+		return EFI_INVALID_PARAMETER;
+	return EFI_UNSUPPORTED;
+}
+
+EFI_STATUS cdk2_system_fmp_provider_initialize(
+	struct cdk2_system_fmp_provider *provider,
+	const struct cdk2_system_fmp_session_config *config)
+{
+	EFI_STATUS status;
+
+	if (!span_valid(provider, sizeof(*provider)) ||
+	    !span_valid(config, sizeof(*config)))
+		return EFI_INVALID_PARAMETER;
+	if (active_provider != NULL)
+		return EFI_ALREADY_STARTED;
+	status = cdk2_system_fmp_session_initialize(&provider->session, config);
+	if (EFI_ERROR(status))
+		return status;
+	provider->protocol.get_image_info = get_image_info;
+	provider->protocol.get_image = get_image;
+	provider->protocol.set_image = set_image;
+	provider->protocol.check_image = check_image;
+	provider->protocol.get_package_info = get_package_info;
+	provider->protocol.set_package_info = set_package_info;
+	provider->busy = FALSE;
+	active_provider = provider;
+	return EFI_SUCCESS;
+}
+
+EFI_STATUS cdk2_system_fmp_provider_close(
+	struct cdk2_system_fmp_provider *provider)
+{
+	EFI_STATUS status;
+
+	if (provider == NULL)
+		return EFI_INVALID_PARAMETER;
+	if (provider != active_provider)
+		return EFI_NOT_STARTED;
+	if (provider->busy)
+		return EFI_ACCESS_DENIED;
+	status = cdk2_system_fmp_session_close(&provider->session);
+	if (!EFI_ERROR(status))
+		provider->protocol = (struct cdk2_fmp_protocol){0};
+	if (!EFI_ERROR(status))
+		active_provider = NULL;
+	return status;
+}

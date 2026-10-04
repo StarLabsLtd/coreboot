@@ -1,0 +1,1 @@
+mm-cause-handoff-seal: /home/sean/Documents/.cdk2-worktrees/system-fmp-entry-private-style-after566/tests/system_fmp_mm_route_test.c:232: main: Assertion `execute(&allowed, CDK2_SYSTEM_FMP_SESSION_CHECK, &result) == EFI_COMPROMISED_DATA' failed.
