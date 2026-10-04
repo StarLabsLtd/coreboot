@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/arm-trusted-firmware fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/arm-trusted-firmware 19359dc064bcfbc32663a43a1e909c9776f11fa6:refs/archive/retired-vendor-19359dc064bcfbc32663a43a1e909c9776f11fa6 

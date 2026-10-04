@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always clone --template=/home/sean/coreboot-vendor-promotion.20261004-r1/empty-template --bare --single-branch --branch main --no-tags --no-local --no-hardlinks file:///home/sean/Documents/coreboot/.git/worktrees/authvar-presence-final-publication/modules/vboot /home/sean/Documents/cdk2-validation/retained-inputs/vboot-dd38-recovery.git 

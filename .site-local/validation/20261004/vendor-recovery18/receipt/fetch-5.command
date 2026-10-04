@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/libgfxinit fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/libgfxinit 2c446dbcde4e23fd1dd01ab77b42758c70169758:refs/archive/retired-vendor-2c446dbcde4e23fd1dd01ab77b42758c70169758 

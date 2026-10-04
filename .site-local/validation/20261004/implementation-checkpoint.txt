@@ -62,9 +62,13 @@ input inventory, checked configuration hashes and before/after heads, tool
 resolution and checker state; all passed. Author and independent final
 actual-result reviews passed. The reviewed recipe passes bytecode suppression through
 env-i and includes patch in the finite executable closure.
-The whole-default-after689.20261004-r1 is now running separately from the same
-frozen recipe, with standalone defconfig rather than the normal producer
-profile. No default PASS or latest-head guest/hardware proof is claimed.
+The whole-default-after689.20261004-r1 also completed from the same frozen
+recipe, with genuine standalone defconfig rather than the normal producer
+profile. All eight statuses are zero; actual regression wall time was 941.42
+seconds. Root, author and independent actual finite closure reviews passed.
+The native stage built and its ELF checker passed in both profiles. These are
+complete bounded HOST invocations, not latest-head guest/hardware acceptance
+or a universal compiled-output, system-header or runtime-library attestation.
 The original full mixed-device suite is retained for the joined regression,
 not duplicated in the targeted USB receipt. No latest-head guest or hardware
 acceptance is implied by these bounded results or by an active process.

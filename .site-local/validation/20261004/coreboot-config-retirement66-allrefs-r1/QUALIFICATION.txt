@@ -1,0 +1,8 @@
+SOURCE/config recovery packet only; no historical gate success claim.
+Exact retired parent count: 66; copied config count: 2.
+Only .config/.config.old and two collector recipe files copied. Parent diffs/signatures/refs and nested
+HEAD/ref/store/canonical reachability are generated reconstruction metadata.
+No source, vendor trees, Git objects, build outputs, ROM/media, keys or binaries copied.
+Parent refs, canonical vendor refs and isolated shallow vboot recovery store must remain.
+vboot dd38 preserves incomplete history only; no missing parent is reconstructed.
+No Git GC/ref pruning authorized.

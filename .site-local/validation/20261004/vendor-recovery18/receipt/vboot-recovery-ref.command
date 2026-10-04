@@ -1,0 +1,1 @@
+git --git-dir /home/sean/Documents/cdk2-validation/retained-inputs/vboot-dd38-recovery.git update-ref refs/archive/retired-vendor-dd38e912b39166975ed13e46602d8a5b2a6e85f4 dd38e912b39166975ed13e46602d8a5b2a6e85f4 0000000000000000000000000000000000000000 

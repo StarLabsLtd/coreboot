@@ -68,11 +68,17 @@ Third completed pass:
   Git. The first collector failure remains explicitly unqualified in evidence.
 - A proposed 66-parent coreboot retirement stopped before creating its packet:
   one private vendor branch tip was missing from the retained canonical store.
-  Subsequent inventory found 11 missing repository/tip pairs, including one
-  shallow vboot tip. Those parents remain present while bounded object recovery
-  is reviewed; no incomplete-history claim or deletion is authorized yet.
+  Subsequent full-reference inventory found 18 missing repository/object pairs, including one
+  shallow vboot tip. The reviewed local recovery operation passed all 23 statuses:
+  17 nonshallow targets were retained by exact archive refs, and the shallow tip
+  by an independent retained store without altering canonical vboot's history.
+  A successor collector completed for all 66 parents, copying two configurations
+  and two recipe files plus reconstruction metadata. Final packet reviews and
+  signed push precede any removal; the 66 parents are still present.
 
 Latest normal-profile HOST regression at source 58598b47ab331eabb271f2343f6b0d4d882d30d1
 completed with all ten recorded statuses zero (wall 1112.08 seconds). Author and
-independent actual closure reviews passed. The default-profile HOST regression is now
-running separately. These results do not assert latest guest or hardware proof.
+independent actual closure reviews passed. The separate default-profile HOST
+regression also completed with all eight recorded statuses zero (wall 941.42
+seconds); Root, author and independent finite closure reviews passed.
+These results do not assert latest guest or hardware proof.

@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/arm-trusted-firmware fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/smm-invocation-boot-epoch/modules/arm-trusted-firmware 9599954cafaf7f1a0d8240242349db972b512150:refs/archive/retired-vendor-9599954cafaf7f1a0d8240242349db972b512150 

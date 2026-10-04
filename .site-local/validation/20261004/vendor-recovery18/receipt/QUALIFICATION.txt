@@ -1,0 +1,3 @@
+Exact local recovery only; vboot tip dd38 is shallow; its missing parent341fc8 is NOT reconstructed.
+Canonical vboot remains nonshallow and unchanged in HEAD/status/shallow metadata.
+No network fetch, checkout, branch overwrite, source/config change or deletion.

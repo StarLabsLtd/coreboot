@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/3rdparty/mbedtls fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/authvar-smm-bootstrap/modules/3rdparty/mbedtls 0970a715f11559a5ad0969a78ceb51a9fc78dcb1:refs/archive/retired-vendor-0970a715f11559a5ad0969a78ceb51a9fc78dcb1 

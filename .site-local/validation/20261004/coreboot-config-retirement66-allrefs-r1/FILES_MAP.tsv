@@ -1,0 +1,4 @@
+/home/sean/coreboot-config-retirement-allrefs-collector.n6MCmo/collect.py	recipes/collect.py	plain
+/home/sean/coreboot-config-retirement-allrefs-collector.n6MCmo/README.txt	recipes/README.txt	plain
+/home/sean/Documents/.coreboot-worktrees/smm-invocation-entry-adapter/.config	configs/smm-invocation-entry-adapter/.config	plain
+/home/sean/Documents/.coreboot-worktrees/smm-invocation-entry-adapter/.config.old	configs/smm-invocation-entry-adapter/.config.old	plain

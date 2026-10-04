@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/intel-microcode fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/intel-microcode bdc92abe5c499c3fd7988b76a128d05c9120a520:refs/archive/retired-vendor-bdc92abe5c499c3fd7988b76a128d05c9120a520 

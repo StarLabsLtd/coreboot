@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/3rdparty/mbedtls fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dma-authority-integration/modules/3rdparty/mbedtls 77eacf4c93281fdb48014e38e6030af1fa16cef4:refs/archive/retired-vendor-77eacf4c93281fdb48014e38e6030af1fa16cef4 

@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/arm-trusted-firmware fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/authvar-smm-bootstrap/modules/arm-trusted-firmware d2a8287d34fa4571e6e68204f903ac8c2a43ed5d:refs/archive/retired-vendor-d2a8287d34fa4571e6e68204f903ac8c2a43ed5d 

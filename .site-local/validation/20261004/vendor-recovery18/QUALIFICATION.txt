@@ -1,0 +1,33 @@
+Root's actual local vendor recovery operation, 2026-10-04.
+
+Executed immutable FJaETV preserve76171797 / manifest202a19aa / READMEf68a4316.
+Literal execution, closure and aggregate status zero; all 23 status files zero.
+Seventeen exact nonshallow local fetches retain original commit objects under
+refs/archive/retired-vendor-<OID>. Before/after source and canonical HEAD,
+working-tree status and shallow metadata compare byte-identically.
+
+The eighteenth target is dd38e912b39166975ed13e46602d8a5b2a6e85f4. It is retained
+in an independent bare repository under Documents/cdk2-validation/retained-inputs,
+with the exact shallow boundary, main and archive refs, complete eight-file SHA
+ledger and successful connectivity check. It has no borrowing alternates or
+promisor configuration. Its missing parent341fc8 ancestry is not reconstructed;
+the canonical vboot repository remains nonshallow. Keep the retained store and
+all archive refs. No Git object pruning or history-completeness claim.
+
+Actual launcher environment: env -i, PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin,
+HOME=/home/sean, LANG=C, LC_ALL=C, GIT_CONFIG_NOSYSTEM=1, GIT_CONFIG_COUNT=2,
+GIT_CONFIG_KEY_0=gc.auto, GIT_CONFIG_VALUE_0=0,
+GIT_CONFIG_KEY_1=maintenance.auto, GIT_CONFIG_VALUE_1=false.
+Automatic Git maintenance was disabled; no checkout, source/config rewrite,
+firmware build, network fetch, hardware operation or worktree deletion occurred.
+
+Root, author and independent actual-result reviews passed. Root's first separate
+read-only post-check had a shell-quoting admission error before its OID loop;
+the corrected multiline post-check passed. This was not an execution failure
+of the preserved recovery recipe and no receipt was overwritten.
+
+This packet copies 81 literal receipt/recipe files with full plain-byte mappings.
+Only text receipts and reconstruction metadata are uploaded here, not Git pack
+objects. Configuration recovery and separate retirement authorization remain
+additional requirements; this packet alone does not authorize deletion or claim
+firmware, guest, hardware, whole-project or complete-cleanup acceptance.

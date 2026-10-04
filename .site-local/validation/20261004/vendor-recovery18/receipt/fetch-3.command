@@ -1,0 +1,1 @@
+git -c protocol.file.allow=always --git-dir /home/sean/Documents/coreboot/.git/modules/3rdparty/blobs fetch --no-tags --no-write-fetch-head /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/3rdparty/blobs b33da697a1e963f93c17699cc82c8eec289025d3:refs/archive/retired-vendor-b33da697a1e963f93c17699cc82c8eec289025d3 

@@ -1,0 +1,657 @@
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-final-publication/modules/vboot
+5c360ef458b0a013d8a6d47724bb0fffb5accbcf
+8f7e275ac32fb7e5591da7eb4a664295cbf8b5d398bbbcf06b55a4e2580486da  /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-final-publication/modules/vboot/shallow
+REPO /home/sean/Documents/coreboot/.git/modules/vboot
+5c360ef458b0a013d8a6d47724bb0fffb5accbcf
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+?? library/asn1parse.d
+?? library/bignum.d
+?? library/bignum_core.d
+?? library/bignum_mod.d
+?? library/bignum_mod_raw.d
+?? library/constant_time.d
+?? library/md.d
+?? library/oid.d
+?? library/pk.d
+?? library/pkparse.d
+?? library/platform_util.d
+?? library/rsa.d
+?? library/sha256.d
+?? library/sha512.d
+?? library/x509.d
+?? library/x509_crt.d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dma-authority-integration/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/arm-trusted-firmware
+b5eaba47efc5e4e3029086d5c25eee0e8dbb0129
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/arm-trusted-firmware
+b5eaba47efc5e4e3029086d5c25eee0e8dbb0129
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/3rdparty/blobs
+b12711f77f4480843b112f9357189b6922381e11
+ T README.md
+ T cpu/amd/family_10h-family_14h/microcode_amd.bin
+ T cpu/amd/family_15h/microcode_amd_fam15h.bin
+ T cpu/intel/LICENSE
+ T cpu/intel/microcode/microcode2bin.sh
+ T cpu/intel/microcode/update-microcodes.sh
+ T cpu/intel/model_1066x/microcode.bin
+ T cpu/intel/model_1067x/microcode.bin
+ T cpu/intel/model_106ax/microcode.bin
+ T cpu/intel/model_106cx/microcode.bin
+ T cpu/intel/model_106dx/microcode.bin
+ T cpu/intel/model_106ex/microcode.bin
+ T cpu/intel/model_2065x/microcode.bin
+ T cpu/intel/model_2066x/microcode.bin
+ T cpu/intel/model_206ax/microcode.bin
+ T cpu/intel/model_206cx/microcode.bin
+ T cpu/intel/model_206dx/microcode.bin
+ T cpu/intel/model_206ex/microcode.bin
+ T cpu/intel/model_206fx/microcode.bin
+ T cpu/intel/model_306ax/microcode.bin
+ T cpu/intel/model_306cx/microcode.bin
+ T cpu/intel/model_306dx/microcode.bin
+ T cpu/intel/model_306ex/microcode.bin
+ T cpu/intel/model_306fx/microcode.bin
+ T cpu/intel/model_4065x/microcode.bin
+ T cpu/intel/model_4066x/microcode.bin
+ T cpu/intel/model_4067x/microcode.bin
+ T cpu/intel/model_406ex/microcode.bin
+ T cpu/intel/model_5065x/microcode.bin
+ T cpu/intel/model_5066x/microcode.bin
+ T cpu/intel/model_506cx/microcode.bin
+ T cpu/intel/model_506ex/microcode.bin
+ T cpu/intel/model_506fx/microcode.bin
+ T cpu/intel/model_63x/microcode.bin
+ T cpu/intel/model_65x/microcode.bin
+ T cpu/intel/model_66x/microcode.bin
+ T cpu/intel/model_67x/microcode.bin
+ T cpu/intel/model_68x/microcode.bin
+ T cpu/intel/model_69x/microcode.bin
+ T cpu/intel/model_6ax/microcode.bin
+ T cpu/intel/model_6bx/microcode.bin
+ T cpu/intel/model_6dx/microcode.bin
+ T cpu/intel/model_6ex/microcode.bin
+ T cpu/intel/model_6fx/microcode.bin
+ T cpu/intel/model_706ax/microcode.bin
+ T cpu/intel/model_806ex/microcode.bin
+ T cpu/intel/model_906ex/microcode.bin
+ T cpu/intel/model_f0x/microcode.bin
+ T cpu/intel/model_f1x/microcode.bin
+ T cpu/intel/model_f2x/microcode.bin
+ T cpu/intel/model_f3x/microcode.bin
+ T cpu/intel/model_f4x/microcode.bin
+ T cpu/intel/model_f6x/microcode.bin
+ T cpu/intel/stm/README.md
+ T cpu/intel/stm/license.txt
+ T cpu/intel/stm/stm.bin
+ T cpu/qualcomm/ipq40xx/cdt-AP.DK01.1-C1.bin
+ T cpu/qualcomm/ipq40xx/cdt.mbn
+ T cpu/qualcomm/ipq40xx/ddr.mbn
+ T cpu/qualcomm/ipq40xx/rpm.mbn
+ T cpu/qualcomm/ipq40xx/sbl.elf
+ T cpu/qualcomm/ipq40xx/tz.mbn
+ T cpu/qualcomm/ipq40xx/tzbsp_no_xpu.mbn
+ T cpu/qualcomm/ipq8064/README
+ T cpu/qualcomm/ipq8064/sbls.bin
+ T cpu/qualcomm/ipq806x/README
+ T cpu/qualcomm/ipq806x/cdt.mbn
+ T cpu/qualcomm/ipq806x/ddr.mbn
+ T cpu/qualcomm/ipq806x/rpm.mbn
+ T cpu/qualcomm/ipq806x/tz.mbn
+ T cpu/qualcomm/ipq806x/uber-sbl.mbn
+ T cpu/samsung/exynos5250/bl1.bin
+ T cpu/samsung/exynos5250/update-bl1.sh
+ T cpu/samsung/exynos5420/bl1.bin
+ T cpu/via/nano/microcode.bin
+ T cpu/via/nano/microcode.h
+ T mainboard/amd/bilby/APCB_bilby.bin
+ T mainboard/amd/majolica/APCB_CZN_D4.bin
+ T mainboard/amd/majolica/APCB_CZN_D4_DefaultRecovery.bin
+ T mainboard/amd/mandolin/APCB_cereme.bin
+ T mainboard/amd/mandolin/APCB_mandolin.bin
+ T mainboard/erying/tgl/cpu806D0_platC2_ver00000054_2021-05-07_PRD_B0F9E245.bin
+ T mainboard/erying/tgl/cpu806D1_platC2_ver00000046_2023-02-27_PRD_08E6188A.bin
+ T mainboard/erying/tgl/fd.bin
+ T mainboard/erying/tgl/me.bin
+ T mainboard/facebook/fbg1701/descriptor.bin
+ T mainboard/facebook/fbg1701/license.txt
+ T mainboard/facebook/fbg1701/me.bin
+ T mainboard/google/butterfly/descriptor.bin
+ T mainboard/google/butterfly/me.bin
+ T mainboard/google/butterfly/snm_2130_coreboot.bin
+ T mainboard/google/guybrush/APCB_CZN_D4.bin
+ T mainboard/google/guybrush/Release.txt
+ T mainboard/google/guybrush/TypeId0x55_SplTable_Prod_CZN_Chrome.sbin
+ T mainboard/google/guybrush/dewatt_psp_verstage.signed.bin
+ T mainboard/google/guybrush/guybrush_psp_verstage.signed.bin
+ T mainboard/google/guybrush/monkey_island_shiraz.stkn
+ T mainboard/google/guybrush/nipperkin_psp_verstage.signed.bin
+ T mainboard/google/kahlee/VBIOS_015_049_000_017.bin
+ T mainboard/google/kahlee/VBIOS_015_049_000_018.bin
+ T mainboard/google/kahlee/VBIOS_Release_Notes.txt
+ T mainboard/google/kahlee/aleena/VBIOS_015_049_000_018.bin
+ T mainboard/google/kahlee/aleena/VBIOS_Release_Notes.txt
+ T "mainboard/google/kahlee/liara/ VBIOS BRT39865 release note.txt"
+ T mainboard/google/kahlee/liara/VBIOS_BRT39865.001.bin
+ T mainboard/google/kahlee/license.txt
+ T mainboard/google/link/descriptor.bin
+ T mainboard/google/link/me.bin
+ T mainboard/google/link/snm_2137.dat
+ T mainboard/google/parrot/descriptor.bin
+ T mainboard/google/parrot/me.bin
+ T mainboard/google/parrot/snm_2130_coreboot.bin
+ T mainboard/google/skyrim/APCB_MDN_D5.bin
+ T mainboard/google/skyrim/Release.txt
+ T mainboard/google/skyrim/TypeId0x55_SplTableBl_MDN_CHROME.sbin
+ T mainboard/google/skyrim/TypeId0x55_SplTableBl_MDN_CHROME_RO.sbin
+ T mainboard/google/skyrim/crystaldrift_psp_verstage.signed.bin
+ T mainboard/google/skyrim/frostflow_psp_verstage.signed.bin
+ T mainboard/google/skyrim/markarth_psp_verstage.signed.bin
+ T mainboard/google/skyrim/skyrim_psp_verstage.signed.bin
+ T mainboard/google/skyrim/skyrim_shiraz.stkn
+ T mainboard/google/skyrim/winterhold_psp_verstage.signed.bin
+ T mainboard/google/stout/descriptor.bin
+ T mainboard/google/stout/me.bin
+ T mainboard/google/stout/snm_2137.dat
+ T mainboard/google/utils/prepare_verstage_to_sign.sh
+ T mainboard/google/zork/PCO_psp_verstagebl_fw_signing.stkn
+ T mainboard/google/zork/berknip_psp_verstage.signed.bin
+ T mainboard/google/zork/dalboz_psp_verstage.signed.bin
+ T mainboard/google/zork/dirinboz_psp_verstage.signed.bin
+ T mainboard/google/zork/ezkinil_psp_verstage.signed.bin
+ T mainboard/google/zork/gumboz_psp_verstage.signed.bin
+ T mainboard/google/zork/morphius_psp_verstage.signed.bin
+ T mainboard/google/zork/shuboz_psp_verstage.signed.bin
+ T mainboard/google/zork/trembyle_psp_verstage.signed.bin
+ T mainboard/google/zork/vilboz_psp_verstage.signed.bin
+ T mainboard/google/zork/woomax_psp_verstage.signed.bin
+ T mainboard/intel/emeraldlake2/descriptor.bin
+ T mainboard/intel/emeraldlake2/me.bin
+ T mainboard/intel/emeraldlake2/snm_2120.dat
+ T mainboard/ocp/tiogapass/descriptor.bin
+ T mainboard/pcengines/apu2/AGESA.bin
+ T mainboard/samsung/lumpy/descriptor.bin
+ T mainboard/samsung/lumpy/me.bin
+ T mainboard/samsung/lumpy/snm_2130_coreboot.bin
+ T mainboard/samsung/stumpy/descriptor.bin
+ T mainboard/samsung/stumpy/me.bin
+ T mainboard/samsung/stumpy/snm_2124_coreboot.bin
+ T mainboard/starlabs/Logo.bmp
+ T mainboard/starlabs/MIT.md
+ T mainboard/starlabs/README.md
+ T mainboard/starlabs/adl/hz/ec.bin
+ T mainboard/starlabs/adl/hz/flashdescriptor.bin
+ T mainboard/starlabs/adl/hz/intel_me.bin
+ T mainboard/starlabs/adl/i5/README.md
+ T mainboard/starlabs/adl/i5/ec.bin
+ T mainboard/starlabs/adl/i5/flashdescriptor.bin
+ T mainboard/starlabs/adl/i5/intel_me.bin
+ T mainboard/starlabs/adl/y2/README.md
+ T mainboard/starlabs/adl/y2/ec.bin
+ T mainboard/starlabs/adl/y2/flashdescriptor.bin
+ T mainboard/starlabs/adl/y2/intel_me.bin
+ T mainboard/starlabs/cezanne/byte/ec.bin
+ T mainboard/starlabs/cezanne/starbook/README.md
+ T mainboard/starlabs/cezanne/starbook/ec.bin
+ T mainboard/starlabs/lite/License.txt
+ T mainboard/starlabs/lite/apl/cse_image.bin
+ T mainboard/starlabs/lite/apl/index.md
+ T mainboard/starlabs/lite/apl/pdt.bin
+ T mainboard/starlabs/lite/apl/pmcp.bin
+ T mainboard/starlabs/lite/glk/FSP/AMI/AmiFspBin/Debug/Fsp.fd
+ T mainboard/starlabs/lite/glk/FSP/AMI/AmiFspBin/Debug/Fsp_M.fd
+ T mainboard/starlabs/lite/glk/FSP/AMI/AmiFspBin/Debug/Fsp_S.fd
+ T mainboard/starlabs/lite/glk/FSP/AMI/AmiFspBin/Debug/Fsp_T.fd
+ T mainboard/starlabs/lite/glk/FSP/AMI/AmiFspBin/Release/Fsp.fd
+ T mainboard/starlabs/lite/glk/FSP/AMI/Fsp_M.fd
+ T mainboard/starlabs/lite/glk/FSP/AMI/Fsp_S.fd
+ T mainboard/starlabs/lite/glk/FSP/Debug/Fsp_M.fd
+ T mainboard/starlabs/lite/glk/FSP/Debug/Fsp_S.fd
+ T mainboard/starlabs/lite/glk/FSP/Release/Fsp_M.fd
+ T mainboard/starlabs/lite/glk/FSP/Release/Fsp_S.fd
+ T mainboard/starlabs/lite/glk/cse_image.bin
+ T mainboard/starlabs/lite/glk/index.md
+ T mainboard/starlabs/lite/glk/pdt.bin
+ T mainboard/starlabs/lite/glk/pmcp.bin
+ T mainboard/starlabs/lite/glkr/cse_image.bin
+ T mainboard/starlabs/lite/glkr/descriptor.bin
+ T mainboard/starlabs/lite/glkr/index.md
+ T mainboard/starlabs/lite/glkr/pdt.bin
+ T mainboard/starlabs/lite/glkr/pmcp.bin
+ T mainboard/starlabs/starbook/adl/README.md
+ T mainboard/starlabs/starbook/adl/ec.bin
+ T mainboard/starlabs/starbook/adl/flashdescriptor.bin
+ T mainboard/starlabs/starbook/adl/intel_me.bin
+ T mainboard/starlabs/starbook/adl_n/ec.bin
+ T mainboard/starlabs/starbook/adl_n/flashdescriptor.bin
+ T mainboard/starlabs/starbook/adl_n/intel_me.bin
+ T mainboard/starlabs/starbook/cml/README.md
+ T mainboard/starlabs/starbook/cml/ec.bin
+ T mainboard/starlabs/starbook/cml/flashdescriptor.bin
+ T mainboard/starlabs/starbook/cml/intel_me.bin
+ T mainboard/starlabs/starbook/kbl/flashdescriptor.bin
+ T mainboard/starlabs/starbook/kbl/intel_me.bin
+ T mainboard/starlabs/starbook/mtl/ec.bin
+ T mainboard/starlabs/starbook/mtl/flashdescriptor.bin
+ T mainboard/starlabs/starbook/mtl/intel_me.bin
+ T mainboard/starlabs/starbook/rpl/README.md
+ T mainboard/starlabs/starbook/rpl/ec.bin
+ T mainboard/starlabs/starbook/rpl/flashdescriptor.bin
+ T mainboard/starlabs/starbook/rpl/intel_me.bin
+ T mainboard/starlabs/starbook/rpl_u/ec.bin
+ T mainboard/starlabs/starbook/rpl_u/flashdescriptor.bin
+ T mainboard/starlabs/starbook/rpl_u/intel_me.bin
+ T mainboard/starlabs/starbook/tgl/README.md
+ T mainboard/starlabs/starbook/tgl/ec.bin
+ T mainboard/starlabs/starbook/tgl/flashdescriptor.bin
+ T mainboard/starlabs/starbook/tgl/intel_me.bin
+ T mainboard/starlabs/starfighter/mtl/ec.bin
+ T mainboard/starlabs/starfighter/mtl/flashdescriptor.bin
+ T mainboard/starlabs/starfighter/mtl/intel_me.bin
+ T mainboard/starlabs/starfighter/rpl/ec.bin
+ T mainboard/starlabs/starfighter/rpl/flashdescriptor.bin
+ T mainboard/starlabs/starfighter/rpl/intel_me.bin
+ T northbridge/amd/00630F01/VBIOS.bin
+ T northbridge/amd/00630F01/VBIOS_Release_Notes.txt
+ T northbridge/amd/00630F01/license.txt
+ T northbridge/amd/00660F01/VBIOS.bin
+ T northbridge/amd/00660F01/VBIOS_Release_Notes.txt
+ T northbridge/amd/00660F01/license.txt
+ T northbridge/amd/00730F01/VBIOS.bin
+ T northbridge/amd/00730F01/VBIOS_Release_Notes.txt
+ T northbridge/amd/00730F01/license.txt
+ T northbridge/intel/sandybridge/systemagent-r6.bin
+ T pi/amd/00630F01/FP3/AGESA.bin
+ T pi/amd/00630F01/FP3/AGESA_Release_Notes.txt
+ T pi/amd/00630F01/FP3/license.txt
+ T pi/amd/00660F01/FP4/AGESA.bin
+ T pi/amd/00660F01/FP4/AGESA_Release_Notes.txt
+ T pi/amd/00660F01/FP4/license.txt
+ T pi/amd/00670F00/FP4/AGESA.bin
+ T pi/amd/00670F00/FP4/AGESA_Release_Notes.txt
+ T pi/amd/00670F00/FP4/license.txt
+ T pi/amd/00670F00/FT4/AGESA.bin
+ T pi/amd/00670F00/FT4/AGESA_Release_Notes.txt
+ T pi/amd/00670F00/FT4/license.txt
+ T pi/amd/00730F01/FT3b/AGESA.bin
+ T pi/amd/00730F01/FT3b/AGESA_Release_Notes.txt
+ T pi/amd/00730F01/FT3b/license.txt
+ T soc/amd/stoneyridge/PSP/AmdPubKeyST.bin
+ T soc/amd/stoneyridge/PSP/PspAgesaS3Resume_prod_ST.csbin
+ T soc/amd/stoneyridge/PSP/PspBootLoader_prod_ST.sbin
+ T soc/amd/stoneyridge/PSP/PspNvramS3_ST.bin
+ T soc/amd/stoneyridge/PSP/PspNvramST.bin
+ T soc/amd/stoneyridge/PSP/PspRecoveryBootLoader_prod_ST.sbin
+ T soc/amd/stoneyridge/PSP/PspSecureDebugST.Key
+ T soc/amd/stoneyridge/PSP/PspSecureOs_prod_ST.csbin
+ T soc/amd/stoneyridge/PSP/PspTrustlets_TPMver137_prod_ST.cbin
+ T soc/amd/stoneyridge/PSP/PspTrustlets_prod_ST.cbin
+ T soc/amd/stoneyridge/PSP/ReleaseNote.txt
+ T soc/amd/stoneyridge/PSP/RtmPubSignedST.key
+ T soc/amd/stoneyridge/PSP/SmuFirmware2_prod_ST.csbin
+ T soc/amd/stoneyridge/PSP/SmuFirmware2_prod_ST.sbin
+ T soc/amd/stoneyridge/PSP/SmuFirmware2_prod_ST_FN.csbin
+ T soc/amd/stoneyridge/PSP/SmuFirmware2_prod_ST_FN.sbin
+ T soc/amd/stoneyridge/PSP/SmuFirmwareST.sbin
+ T soc/amd/stoneyridge/PSP/SmuFirmwareST_FN.sbin
+ T soc/amd/stoneyridge/PSP/SmuFirmware_ST.csbin
+ T soc/amd/stoneyridge/PSP/SmuFirmware_ST_FN.csbin
+ T soc/amd/stoneyridge/PSP/SmuReleaseNotes.txt
+ T soc/amd/stoneyridge/PSP/SmuReleaseNotesST.txt
+ T soc/amd/stoneyridge/PSP/SmuReleaseNotesST_FN.txt
+ T soc/amd/stoneyridge/PSP/SmuScsST.bin
+ T soc/amd/stoneyridge/PSP/TrustletKey_prod_ST.sbin
+ T soc/amd/stoneyridge/PSP/license.txt
+ T soc/amd/stoneyridge/VBIOS.bin
+ T soc/amd/stoneyridge/VBIOS_Release_Notes.txt
+ T soc/amd/stoneyridge/imc.bin
+ T soc/amd/stoneyridge/license.txt
+ T soc/amd/stoneyridge/vbios_license.txt
+ T soc/amd/stoneyridge/xhci.bin
+ T soc/cavium/cn81xx/LICENSE
+ T soc/cavium/cn81xx/README
+ T soc/cavium/cn81xx/VERSION
+ T soc/cavium/cn81xx/bl31.elf
+ T soc/intel/baytrail/M0C3067_0000031E.h
+ T soc/intel/baytrail/microcode.bin
+ T soc/intel/baytrail/microcode_blob.h
+ T soc/intel/broadwell/microcode-M7240651_0000001C.h
+ T soc/intel/broadwell/microcode-MC0306D3_FFFF0010.h
+ T soc/intel/broadwell/microcode-MC0306D4_0000001F.h
+ T soc/intel/broadwell/microcode-MF2306D2_FFFF0009.h
+ T soc/intel/broadwell/microcode.bin
+ T soc/intel/broadwell/microcode_blob.h
+ T soc/intel/raptorlake/06-b7-01
+ T soc/intel/raptorlake/LICENSE
+ T soc/mediatek/mt8183/README.md
+ T soc/mediatek/mt8183/dram.elf
+ T soc/mediatek/mt8183/dram.elf.md5
+ T soc/mediatek/mt8183/dram_release_notes.txt
+ T soc/mediatek/mt8183/license.txt
+ T soc/mediatek/mt8183/pcm_allinone_lp4_3200.bin
+ T soc/mediatek/mt8183/pcm_allinone_lp4_3733.bin
+ T soc/mediatek/mt8183/spm_release_notes.txt
+ T soc/mediatek/mt8183/sspm.bin
+ T soc/mediatek/mt8183/sspm_release_notes.txt
+ T soc/mediatek/mt8186/README.md
+ T soc/mediatek/mt8186/dram.elf
+ T soc/mediatek/mt8186/dram.elf.md5
+ T soc/mediatek/mt8186/dram_release_notes.txt
+ T soc/mediatek/mt8186/license.txt
+ T soc/mediatek/mt8186/spm_firmware.bin
+ T soc/mediatek/mt8186/spm_firmware.bin.md5
+ T soc/mediatek/mt8186/spm_release_notes.txt
+ T soc/mediatek/mt8186/sspm.bin
+ T soc/mediatek/mt8186/sspm.bin.md5
+ T soc/mediatek/mt8186/sspm_release_notes.txt
+ T soc/mediatek/mt8188/README.md
+ T soc/mediatek/mt8188/dpm.dm
+ T soc/mediatek/mt8188/dpm.dm.md5
+ T soc/mediatek/mt8188/dpm.pm
+ T soc/mediatek/mt8188/dpm.pm.md5
+ T soc/mediatek/mt8188/dpm_release_notes.txt
+ T soc/mediatek/mt8188/dram.elf
+ T soc/mediatek/mt8188/dram.elf.md5
+ T soc/mediatek/mt8188/dram_release_notes.txt
+ T soc/mediatek/mt8188/license.txt
+ T soc/mediatek/mt8188/mcupm.bin
+ T soc/mediatek/mt8188/mcupm.bin.md5
+ T soc/mediatek/mt8188/mcupm_release_notes.txt
+ T soc/mediatek/mt8188/spm_firmware.bin
+ T soc/mediatek/mt8188/spm_firmware.bin.md5
+ T soc/mediatek/mt8188/spm_release_notes.txt
+ T soc/mediatek/mt8188/sspm.bin
+ T soc/mediatek/mt8188/sspm.bin.md5
+ T soc/mediatek/mt8188/sspm_release_notes.txt
+ T soc/mediatek/mt8189/README.md
+ T soc/mediatek/mt8189/dpm.dm
+ T soc/mediatek/mt8189/dpm.dm.md5
+ T soc/mediatek/mt8189/dpm.pm
+ T soc/mediatek/mt8189/dpm.pm.md5
+ T soc/mediatek/mt8189/dpm_release_notes.txt
+ T soc/mediatek/mt8189/dram.elf
+ T soc/mediatek/mt8189/dram.elf.md5
+ T soc/mediatek/mt8189/dram_release_notes.txt
+ T soc/mediatek/mt8189/libbl31.a
+ T soc/mediatek/mt8189/libbl31.a.md5
+ T soc/mediatek/mt8189/libbl31_release_note.txt
+ T soc/mediatek/mt8189/license.txt
+ T soc/mediatek/mt8189/mcupm.bin
+ T soc/mediatek/mt8189/mcupm.bin.md5
+ T soc/mediatek/mt8189/mcupm_release_notes.txt
+ T soc/mediatek/mt8189/mtk_fsp_ramstage.elf
+ T soc/mediatek/mt8189/mtk_fsp_ramstage.elf.md5
+ T soc/mediatek/mt8189/mtk_fsp_ramstage_release_notes.txt
+ T soc/mediatek/mt8189/pi_img.img
+ T soc/mediatek/mt8189/pi_img.img.md5
+ T soc/mediatek/mt8189/pi_img_release_notes.txt
+ T soc/mediatek/mt8189/spm_firmware.bin
+ T soc/mediatek/mt8189/spm_firmware.bin.md5
+ T soc/mediatek/mt8189/spm_release_notes.txt
+ T soc/mediatek/mt8189/sspm.bin
+ T soc/mediatek/mt8189/sspm.bin.md5
+ T soc/mediatek/mt8189/sspm_release_notes.txt
+ T soc/mediatek/mt8192/README.md
+ T soc/mediatek/mt8192/dpm.dm
+ T soc/mediatek/mt8192/dpm.md5
+ T soc/mediatek/mt8192/dpm.pm
+ T soc/mediatek/mt8192/dpm_release_notes.txt
+ T soc/mediatek/mt8192/dram.elf
+ T soc/mediatek/mt8192/dram.elf.md5
+ T soc/mediatek/mt8192/dram_release_notes.txt
+ T soc/mediatek/mt8192/license.txt
+ T soc/mediatek/mt8192/mcupm.bin
+ T soc/mediatek/mt8192/mcupm.bin.md5
+ T soc/mediatek/mt8192/mcupm_release_notes.txt
+ T soc/mediatek/mt8192/spm_firmware.bin
+ T soc/mediatek/mt8192/spm_firmware.bin.md5
+ T soc/mediatek/mt8192/spm_release_notes.txt
+ T soc/mediatek/mt8192/sspm.bin
+ T soc/mediatek/mt8192/sspm.bin.md5
+ T soc/mediatek/mt8192/sspm_release_notes.txt
+ T soc/mediatek/mt8195/README.md
+ T soc/mediatek/mt8195/dpm.dm
+ T soc/mediatek/mt8195/dpm.dm.md5
+ T soc/mediatek/mt8195/dpm.pm
+ T soc/mediatek/mt8195/dpm.pm.md5
+ T soc/mediatek/mt8195/dpm_release_notes.txt
+ T soc/mediatek/mt8195/dram.elf
+ T soc/mediatek/mt8195/dram.elf.md5
+ T soc/mediatek/mt8195/dram_release_notes.txt
+ T soc/mediatek/mt8195/license.txt
+ T soc/mediatek/mt8195/mcupm.bin
+ T soc/mediatek/mt8195/mcupm.bin.md5
+ T soc/mediatek/mt8195/mcupm_release_notes.txt
+ T soc/mediatek/mt8195/spm_firmware.bin
+ T soc/mediatek/mt8195/spm_firmware.bin.md5
+ T soc/mediatek/mt8195/spm_release_notes.txt
+ T soc/mediatek/mt8195/sspm.bin
+ T soc/mediatek/mt8195/sspm.bin.md5
+ T soc/mediatek/mt8195/sspm_release_notes.txt
+ T soc/mediatek/mt8196/README.md
+ T soc/mediatek/mt8196/dpm.dm
+ T soc/mediatek/mt8196/dpm.dm.md5
+ T soc/mediatek/mt8196/dpm.pm
+ T soc/mediatek/mt8196/dpm.pm.md5
+ T soc/mediatek/mt8196/dpm_release_notes.txt
+ T soc/mediatek/mt8196/dram.elf
+ T soc/mediatek/mt8196/dram.elf.md5
+ T soc/mediatek/mt8196/dram_release_notes.txt
+ T soc/mediatek/mt8196/gpueb_fw.img
+ T soc/mediatek/mt8196/gpueb_fw.img.md5
+ T soc/mediatek/mt8196/gpueb_release_notes.txt
+ T soc/mediatek/mt8196/libbl31.a
+ T soc/mediatek/mt8196/libbl31.a.md5
+ T soc/mediatek/mt8196/libbl31_release_note.txt
+ T soc/mediatek/mt8196/license.txt
+ T soc/mediatek/mt8196/mcupm.bin
+ T soc/mediatek/mt8196/mcupm.bin.md5
+ T soc/mediatek/mt8196/mcupm_release_notes.txt
+ T soc/mediatek/mt8196/mtk_fsp_ramstage.elf
+ T soc/mediatek/mt8196/mtk_fsp_ramstage.elf.md5
+ T soc/mediatek/mt8196/mtk_fsp_ramstage_release_notes.txt
+ T soc/mediatek/mt8196/mtk_fsp_romstage.elf
+ T soc/mediatek/mt8196/mtk_fsp_romstage.elf.md5
+ T soc/mediatek/mt8196/mtk_fsp_romstage_release_notes.txt
+ T soc/mediatek/mt8196/pi_img.img
+ T soc/mediatek/mt8196/pi_img.img.md5
+ T soc/mediatek/mt8196/pi_img_release_notes.txt
+ T soc/mediatek/mt8196/spm_firmware.bin
+ T soc/mediatek/mt8196/spm_firmware.bin.md5
+ T soc/mediatek/mt8196/spm_release_notes.txt
+ T soc/mediatek/mt8196/sspm.bin
+ T soc/mediatek/mt8196/sspm.bin.md5
+ T soc/mediatek/mt8196/sspm_release_notes.txt
+ T southbridge/amd/avalon/PSP/AmdPubKey.bin
+ T southbridge/amd/avalon/PSP/PspBootLoader.Bypass.sbin
+ T southbridge/amd/avalon/PSP/PspEarlyUnlock.sbin
+ T southbridge/amd/avalon/PSP/PspNvram.bin
+ T southbridge/amd/avalon/PSP/PspRecovery.sbin
+ T southbridge/amd/avalon/PSP/PspReleaseNote.txt
+ T southbridge/amd/avalon/PSP/PspSecureDebug.Key
+ T southbridge/amd/avalon/PSP/PspSecureOs.sbin
+ T southbridge/amd/avalon/PSP/RtmPubSigned.key
+ T southbridge/amd/avalon/PSP/SmuFirmware.sbin
+ T southbridge/amd/avalon/PSP/SmuScs.bin
+ T southbridge/amd/avalon/PSP/Trustlet.tkn.cert
+ T southbridge/amd/avalon/PSP/license.txt
+ T southbridge/amd/avalon/PSP/trustlets.bin
+ T southbridge/amd/avalon/Release_AvalonXHC.txt
+ T southbridge/amd/avalon/Release_IMC_Mullins.txt
+ T southbridge/amd/avalon/imc.bin
+ T southbridge/amd/avalon/license.txt
+ T southbridge/amd/avalon/xhci.bin
+ T southbridge/amd/bolton/License.rtf
+ T southbridge/amd/bolton/Release_IMC_Hudson2.txt
+ T southbridge/amd/bolton/XHCI_Release_Notes.txt
+ T southbridge/amd/bolton/imc.bin
+ T southbridge/amd/bolton/xhci.bin
+ T southbridge/amd/hudson/License.rtf
+ T southbridge/amd/hudson/Release_Hudson2XHC.txt
+ T southbridge/amd/hudson/Release_IMC_Hudson2.txt
+ T southbridge/amd/hudson/imc.bin
+ T southbridge/amd/hudson/xhci.bin
+ T southbridge/amd/kern/PSP/AmdPubKeyCZ.bin
+ T southbridge/amd/kern/PSP/PspAgesaS3Resume_prod_CZ.csbin
+ T southbridge/amd/kern/PSP/PspBootLoader_prod_CZ.sbin
+ T southbridge/amd/kern/PSP/PspNvramCZ.bin
+ T southbridge/amd/kern/PSP/PspNvramS3_CZ.bin
+ T southbridge/amd/kern/PSP/PspRecoveryBootLoader_prod_CZ.sbin
+ T southbridge/amd/kern/PSP/PspSecureDebugCZ.Key
+ T southbridge/amd/kern/PSP/PspSecureOs_prod_CZ.csbin
+ T southbridge/amd/kern/PSP/PspTrustlets_prod_CZ.cbin
+ T southbridge/amd/kern/PSP/ReleaseNote.txt
+ T southbridge/amd/kern/PSP/RtmPubSignedCZ.key
+ T southbridge/amd/kern/PSP/SmuFirmware2_prod_CZ.sbin
+ T southbridge/amd/kern/PSP/SmuFirmwareCZ.sbin
+ T southbridge/amd/kern/PSP/SmuReleaseNotes.txt
+ T southbridge/amd/kern/PSP/SmuScsCZ.bin
+ T southbridge/amd/kern/PSP/TrustletKey_prod_CZ.sbin
+ T southbridge/amd/kern/PSP/license.txt
+ T southbridge/amd/kern/imc.bin
+ T southbridge/amd/kern/license.txt
+ T southbridge/amd/kern/xhci.bin
+ T southbridge/amd/yangtze/imc.bin
+ T southbridge/amd/yangtze/xhci.bin
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/3rdparty/blobs
+b12711f77f4480843b112f9357189b6922381e11
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/intel-microcode
+98f8d817ca3d560c48ae988bd805d1b53b48a631
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/intel-microcode
+98f8d817ca3d560c48ae988bd805d1b53b48a631
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/libgfxinit
+6e74c703132a8b4af4354a5158f286dc8f2407ab
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/libgfxinit
+6e74c703132a8b4af4354a5158f286dc8f2407ab
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/src/vendorcode/amd/opensil/phoenix_poc/opensil
+52b83c56a3a653c287f5839a5986eda22677f304
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/src/vendorcode/amd/opensil/phoenix_poc/opensil
+52b83c56a3a653c287f5839a5986eda22677f304
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/src/vendorcode/amd/opensil/turin_poc/opensil
+a65485ffa7bddec696576323c6fc839ea5bb081d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/src/vendorcode/amd/opensil/turin_poc/opensil
+a65485ffa7bddec696576323c6fc839ea5bb081d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/arm-trusted-firmware
+b5eaba47efc5e4e3029086d5c25eee0e8dbb0129
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-smm-bootstrap/modules/arm-trusted-firmware
+b5eaba47efc5e4e3029086d5c25eee0e8dbb0129
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+?? library/asn1parse.d
+?? library/bignum.d
+?? library/bignum_core.d
+?? library/bignum_mod.d
+?? library/bignum_mod_raw.d
+?? library/constant_time.d
+?? library/md.d
+?? library/oid.d
+?? library/pk.d
+?? library/pkparse.d
+?? library/platform_util.d
+?? library/rsa.d
+?? library/sha256.d
+?? library/sha512.d
+?? library/x509.d
+?? library/x509_crt.d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-smm-bootstrap/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/arm-trusted-firmware
+b5eaba47efc5e4e3029086d5c25eee0e8dbb0129
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/smm-invocation-boot-epoch/modules/arm-trusted-firmware
+b5eaba47efc5e4e3029086d5c25eee0e8dbb0129
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/3rdparty/intel-sec-tools
+0031ac73447baeb197fb2d80e5fba2470716e76d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/3rdparty/intel-sec-tools
+0031ac73447baeb197fb2d80e5fba2470716e76d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+?? library/asn1parse.d
+?? library/bignum.d
+?? library/bignum_core.d
+?? library/bignum_mod.d
+?? library/bignum_mod_raw.d
+?? library/constant_time.d
+?? library/md.d
+?? library/oid.d
+?? library/pk.d
+?? library/pkparse.d
+?? library/platform_util.d
+?? library/rsa.d
+?? library/sha256.d
+?? library/sha512.d
+?? library/x509.d
+?? library/x509_crt.d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dma-authority-integration/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+?? library/asn1parse.d
+?? library/bignum.d
+?? library/bignum_core.d
+?? library/bignum_mod.d
+?? library/bignum_mod_raw.d
+?? library/constant_time.d
+?? library/md.d
+?? library/oid.d
+?? library/pk.d
+?? library/pkparse.d
+?? library/platform_util.d
+?? library/rsa.d
+?? library/sha256.d
+?? library/sha512.d
+?? library/x509.d
+?? library/x509_crt.d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-smm-bootstrap/modules/3rdparty/mbedtls
+0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/src/vendorcode/amd/opensil/phoenix_poc/opensil
+52b83c56a3a653c287f5839a5986eda22677f304
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/src/vendorcode/amd/opensil/phoenix_poc/opensil
+52b83c56a3a653c287f5839a5986eda22677f304
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/src/vendorcode/amd/opensil/phoenix_poc/opensil
+52b83c56a3a653c287f5839a5986eda22677f304
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-smm-bootstrap/modules/src/vendorcode/amd/opensil/phoenix_poc/opensil
+52b83c56a3a653c287f5839a5986eda22677f304
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/src/vendorcode/amd/opensil/turin_poc/opensil
+a65485ffa7bddec696576323c6fc839ea5bb081d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-presence-lifecycle-close-dram-authority/modules/src/vendorcode/amd/opensil/turin_poc/opensil
+a65485ffa7bddec696576323c6fc839ea5bb081d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/modules/src/vendorcode/amd/opensil/turin_poc/opensil
+a65485ffa7bddec696576323c6fc839ea5bb081d
+NO_SHALLOW
+REPO /home/sean/Documents/coreboot/.git/worktrees/authvar-smm-bootstrap/modules/src/vendorcode/amd/opensil/turin_poc/opensil
+a65485ffa7bddec696576323c6fc839ea5bb081d
+NO_SHALLOW
