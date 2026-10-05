@@ -1,0 +1,57 @@
+2026-10-05: obsolete linear596 source worktree retired, eight inputs recoverable
+
+Exact source worktree:
+/home/sean/Documents/.cdk2-worktrees/linear-boot-native-api-types-after596
+Exact removed private administrator:
+/home/sean/Documents/cdk2/.git/worktrees/linear-boot-native-api-types-after596
+
+Root's cleanup19 action, session46524 raw zero, first moves exactly eight
+ignored regular files with gio trash, then removes this clean source worktree
+with NONFORCE git worktree remove. Genuine records remain at:
+/home/sean/current693-fwui-qemu.PMINOC/cleanup19-linear596.csbJdTza
+including ignored-before.sha256, ignored-recheck.log, source-head.txt,
+source-status.txt, signature.log, local-ref.txt, published-descendant.txt,
+worktrees-before.txt, worktrees-after.txt and outer.status.
+
+Independent post-operation audit 37db16 raw zero verifies every original is
+absent, all eight exact original-path Trash metadata mappings and recovered
+regular-file SHA256 values match ignored-before.sha256. Total eight files,
+671184208 bytes: three rebuildable Python313 caches (95568 bytes) and five
+duplicate media files (each 134217728 bytes). Exact worktree-relative paths:
+util/qemu/bin/__pycache__/assert-linear-run.cpython-313.pyc
+util/qemu/bin/__pycache__/fmp_state.cpython-313.pyc
+util/qemu/bin/__pycache__/run-linear-acceptance.cpython-313.pyc
+util/qemu/fixtures/backup-gpt-linux.raw
+util/qemu/fixtures/capsule-bad-signature.raw
+util/qemu/fixtures/capsule-valid.raw
+util/qemu/fixtures/fat16-fat32-label-linux.raw
+util/qemu/fixtures/nvme-final-c4bec.raw
+
+Trash files/info entries use the corresponding basenames, except the last
+uses nvme-final-c4bec.2.raw. All five recovered media sizes and full hashes
+also equal retained /home/sean/Documents/cdk2/util/qemu/fixtures counterparts.
+These duplicate media are not unique inputs; canonical fixture owners stay.
+
+Source commit 15c3bc1109ab39f06d1298895fdd95ae0dec6759 has signature G and
+remains at refs/heads/agent/linear-boot-native-api-types-after597. It is an
+ancestor of published signed PR708 e65c2d63a4eeaa7b14deac5626a8f347151bb92f,
+also signature G in the independent audit. Root verified that descendant
+against the actual remote before retirement. This is NOT a claim that the
+old source branch itself exists remotely. Source can be rematerialized from
+the retained signed revision; old physical-path recipes require that step.
+
+Pre-operation proof 5450f5 raw zero found zero incoming foreign Git markers,
+commondir/alternates or symlink aliases into this entire private administrator
+or source tree across the bounded forests (1639 foreign metadata paths), and
+zero accessible live process uses. No private objects/modules/vendor Git
+stores belonged to this source administrator; current executable consumers
+were absent. This pre-operation qualification is not a new post-removal scan.
+
+Post-audits 37db16 and 2e6b31 verify source/private-admin absence, retained
+source ancestry/reference, and the sole recorded registry change: 61 to 60
+registered CDK2 worktrees. The current registry is also 60 at this audit.
+Canonical CDK2 remains 58598b47ab331eabb271f2343f6b0d4d882d30d1 with clean
+tracked source status. Ready675, RTC677, coreboot producer7ee, final-ROM
+admission and evidence worktree owners remain present. No source/vendor Git
+mutation was performed by this reviewer. No garbage collection, Trash
+emptying, current input retirement or physical space-reclamation claim.
