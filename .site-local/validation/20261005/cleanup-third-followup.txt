@@ -1,0 +1,48 @@
+Additional finite cleanup, 2026-10-05
+
+Three closed historical copied-source cache leaves moved to recoverable trash
+(Root157c77 returned0): cdk2-owned-style-final-inventory.D1ylUJ/source,
+cdk2-owned-style-refresh-9191.0yJhIH/source and
+cdk2-owned-style-refresh-165269.ESjfdM/source, all under /home/sean.
+Their 1549/1554/1554 files respectively matched individually reachable raw
+CDK2/LVGL/BearSSL blobs before retirement, not one named source-tree snapshot.
+Unique parent logs, scripts, inventories and executables remain. Actual recovery
+review checked original absence and recovered member counts. No GC/ref pruning.
+
+Further generated-only batches moved to recoverable trash. These are current
+source/recipe reconstructibility classifications, not proofs of exact historical
+compiler flags or binary identity. Only finite maximum-depth-one regular .d and
+matched .o files, or separately reviewed unmatched regular ELF .o files, were
+selected. Sources, Git stores, configs/headers, logs, executables, libraries,
+generated source/assembly, raw public certificate assets and media remain.
+Observed Root gio results, all0:
+13643c: 8 owned-LVGL native compiled files.
+8b108f: 332 checkpatch-ledger-digest/cdk2-437-root-setup dependency/object files.
+8d6254: 6453 files across 18 reviewed checkpatch/protected-variable/authvar roots.
+a4acf1: 2 stale system-fmp-crypto outputs; old source recoverable from signed
+  d107c80dd9541ef90b699325903e914744c66711, raw blob
+  4dd4537861227b7d48d45aab12b4ab1823e51cfc. Current recipe uses retained cms.c.
+996ff2: 59 separately reviewed unmatched checkpatch437 objects.
+187586: 1401 files across variable-policy-state-abi (393), GUI splash (331+11),
+  GUI ready448 (333) and image-hash ready449 (333) roots.
+d8f69a: 914 files, dependency-union (22), variable-policy-append-size (525) and
+  pci-resource-hob-only single-source (367). Original command-inputs metadata
+  was already absent, not removed; full dependency tokens resolve and signed
+  Make/default compiler recipes, generated source and configs/headers remain.
+05886c: 498 separately reviewed unmatched objects in eight checkpatch roots.
+b41531: 379 separately reviewed unmatched objects in six protected-variable roots.
+cf5b98: 229 separately reviewed unmatched objects in four authvar-entry roots.
+
+The first six batches total8255 generated files and have independent actual
+recovery/count/original-absence review. The final four total2020 files also pass
+independent actual recovery/count/original-absence review (58516e returned0).
+Their excluded configs/headers remain; source HEADs and tracked files are
+unchanged. The three already-absent command-inputs remain absent, not new loss.
+No before/after identity ledger for excluded untracked libraries is claimed.
+The raw public DER/DBX assets used by objcopy remain; only compiled outputs move.
+Trash has not been emptied: this preserves recovery and does not free disk space.
+
+Cleanup remains bounded and incomplete. Unique build inputs/media/receipts and
+dependent worktrees stay until retention and dependency reviews justify removal.
+Home Assistant, Plex, VMs, unrelated repositories and dirty user coreboot remain
+outside this cleanup. No build, guest or hardware acceptance follows from it.
