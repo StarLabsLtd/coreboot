@@ -1,0 +1,6 @@
+ERROR:SPACING: space prohibited before that ':' (ctx:WxW)
+#2989: FILE: src/boot/coreboot_test.c:2989:
++		for (size_t index = 0; index < ARRAY_SIZE(cases) - (kind < 2 ? 3U : 0U); index++) {
+ 		                                                                  ^
+
+total: 1 errors, 0 warnings, 7586 lines checked

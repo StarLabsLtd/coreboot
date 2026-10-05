@@ -1,0 +1,12 @@
+#
+# No change to /home/sean/current693-fwui-qemu.PMINOC/cfr-ppi-host.K3XaGlLC/o0/.config
+#
+#
+# No change to /home/sean/current693-fwui-qemu.PMINOC/cfr-ppi-host.K3XaGlLC/o0/.config
+#
+#
+# No change to /home/sean/current693-fwui-qemu.PMINOC/cfr-ppi-host.K3XaGlLC/o0/.config
+#
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: PASS
