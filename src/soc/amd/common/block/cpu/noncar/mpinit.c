@@ -11,6 +11,7 @@
 #include <cpu/x86/smm.h>
 #include <device/device.h>
 #include <drivers/efi/capsules.h>
+#include <option.h>
 #include <types.h>
 
 void mp_init_cpus(struct bus *cpu_bus)
@@ -37,7 +38,9 @@ void mp_init_cpus(struct bus *cpu_bus)
 
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3)) {
 		efi_parse_capsules();
-		psp_rom_armor_init(get_boot_mode() == LB_BOOT_MODE_FLASH_UPDATE);
+		if (!CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION) ||
+		    get_uint_option("rom_armor", 1))
+			psp_rom_armor_init(get_boot_mode() == LB_BOOT_MODE_FLASH_UPDATE);
 	}
 	/* SMMINFO only needs to be set up when booting from S5 */
 	if (!acpi_is_wakeup_s3())
