@@ -15,6 +15,9 @@ struct smm_invocation_runtime_view { unsigned int checked; };
 static const struct smm_invocation_runtime_view runtime_view = { 1 };
 static struct payload_mm_authvar_presence_transaction_binding canonical;
 static struct bootmem_reservation_receipt_authority service_verifier;
+#if TEST_PROVIDER_CONFIRMED_SETUP
+static struct bootmem_reservation_receipt_authority presence_backing_verifier;
+#endif
 static struct bootmem_reservation_receipt service_receipt;
 static bool identity_available = true;
 static bool drift_during_consume;
@@ -91,6 +94,10 @@ enum cb_err payload_mm_authvar_presence_bootstrap_binding_get(
 void bootmem_receipt_test_after_claim_cas(
 	struct bootmem_reservation_receipt_authority *authority)
 {
+#if TEST_PROVIDER_CONFIRMED_SETUP
+	if (authority == &presence_backing_verifier)
+		return;
+#endif
 	assert(authority == &service_verifier);
 	if (drift_during_consume)
 		canonical.capability[0]++;

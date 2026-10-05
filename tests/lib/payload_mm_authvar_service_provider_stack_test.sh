@@ -7,6 +7,9 @@ case "$runtime_wave" in 0|1) ;; *) exit 1 ;; esac
 delivery_lane=${PROVIDER_STACK_BOOT_PRIVATE_DELIVERY:-0}
 case "$delivery_lane" in 0|1) ;; *) exit 1 ;; esac
 [ "$runtime_wave" -eq 0 ] || [ "$delivery_lane" -eq 0 ]
+confirmed_setup=${PROVIDER_STACK_CONFIRMED_SETUP:-0}
+case "$confirmed_setup" in 0|1) ;; *) exit 1 ;; esac
+[ "$confirmed_setup" -eq 0 ] || { [ "$runtime_wave" -eq 0 ] && [ "$delivery_lane" -eq 0 ]; }
 fixture_source="$root/tests/lib/payload_mm_authvar_service_provider_stack_test.c"
 mbedtls_source=${MBEDTLS_SOURCE:-$root/3rdparty/mbedtls}
 temporary=$(mktemp -d)
@@ -69,6 +72,9 @@ print pack("Vvv", 24 + length($cms), 0x200, 0xef1);
 print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, "payload";' \
 	"$temporary/signed.der" > "$temporary/auth2.bin"
 for authentication in auth2 ordinary; do
+	if [ "$confirmed_setup" -eq 1 ] && [ "$authentication" != ordinary ]; then
+		continue
+	fi
 	if [ "$delivery_lane" -eq 1 ] && [ "$authentication" = auth2 ]; then
 		continue
 	fi
@@ -77,6 +83,9 @@ for authentication in auth2 ordinary; do
 		continue
 	fi
 	profiles='0:65536 0:4096'
+	if [ "$confirmed_setup" -eq 1 ]; then
+		profiles='0:65536'
+	fi
 	if [ "$delivery_lane" -eq 1 ]; then
 		profiles='0:65536 0:4096 1:65536 1:4096'
 	fi
@@ -89,6 +98,7 @@ for authentication in auth2 ordinary; do
 			"#define CONFIG_SMMSTORE_BLOCK_SIZE $block_size" \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED 1' \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR 1' \
+			"#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY $confirmed_setup" \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1' \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER 1' \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_CMS_VERIFY 1' \
@@ -115,6 +125,9 @@ for authentication in auth2 ordinary; do
 				>> "$temporary/include/config.h"
 		fi
 		variants='baseline record-capacity header-capacity no-request-scrub early-release early-completion'
+		if [ "$confirmed_setup" -eq 1 ]; then
+			variants=baseline
+		fi
 		if [ "$delivery_lane" -eq 1 ]; then
 			variants=baseline
 			if [ "$private_buffer" -eq 1 ]; then
@@ -206,6 +219,11 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					continue
 				fi
 				set --
+				if [ "$confirmed_setup" -eq 1 ]; then
+					set -- "$root/src/lib/payload_mm_authvar_presence_authority.c" \
+						"$root/src/lib/payload_mm_authvar_presence.c" \
+						"$root/src/lib/payload_mm_authvar_presence_backing.c"
+				fi
 				if [ "$runtime_wave" -eq 1 ]; then
 					set -- \
 						"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.c" \
@@ -228,6 +246,7 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					-Wl,--wrap=memcpy \
 					-fsanitize=address,undefined -fno-sanitize-recover=all \
 					-fno-omit-frame-pointer -DBOOTMEM_RECEIPT_TEST -D__TEST__ -D__COREBOOT__ -D__SMM__ \
+					-DTEST_PROVIDER_CONFIRMED_SETUP="$confirmed_setup" \
 					-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"' \
 					-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 					-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
@@ -292,6 +311,14 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					"$root/src/lib/payload_mm_authvar_writer.c" \
 					-I"$mbedtls_source/library" -Wl,--wrap=mbedtls_rsa_parse_pubkey \
 					"$@" -pthread -o "$temporary/test"
+				if [ "$confirmed_setup" -eq 1 ]; then
+					for mode in normal confirmed confirmed-replay confirmed-wrong-cap \
+						confirmed-closed confirmed-runtime; do
+						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+							"$temporary/test" "$mode"
+					done
+					continue
+				fi
 				if [ "$delivery_lane" -eq 1 ]; then
 					modes=delivery
 					if [ "$private_buffer" -eq 1 ]; then

@@ -1,8 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#ifndef TEST_PROVIDER_CONFIRMED_SETUP
+#define TEST_PROVIDER_CONFIRMED_SETUP 0
+#endif
+
 #include <boot/payload_mm_authvar_media.h>
 #include <boot/payload_mm_authvar_certdb.h>
 #include <boot/payload_mm_authvar_record.h>
+#if TEST_PROVIDER_CONFIRMED_SETUP
+#include <boot/payload_mm_authvar_presence_authority.h>
+#include <boot/payload_mm_authvar_presence_backing.h>
+#include <bootmem.h>
+#endif
 #include <commonlib/helpers.h>
 #include <commonlib/payload_mm_authvar_fv.h>
 #include <fcntl.h>
@@ -40,6 +49,254 @@ static unsigned int delivery_checks;
 static unsigned int delivery_media;
 static unsigned int delivery_denied_stage;
 static uint8_t delivery_original[65536];
+
+#if TEST_PROVIDER_CONFIRMED_SETUP
+static uint8_t confirmed_capability[32];
+static const uint8_t confirmed_guids[2][16] = {
+	{ 0xc7, 0x0b, 0xa3, 0xf0, 0x08, 0xaf, 0x56, 0x45,
+	  0x99, 0xc4, 0x00, 0x10, 0x09, 0xc9, 0x3a, 0x44 },
+	{ 0x0c, 0xec, 0x76, 0xc0, 0x28, 0x70, 0x99, 0x43,
+	  0xa0, 0x72, 0x71, 0xee, 0x5c, 0x44, 0x8b, 0x9f },
+};
+static const uint8_t confirmed_names[2][34] = {
+	{ 'S', 0, 'e', 0, 'c', 0, 'u', 0, 'r', 0, 'e', 0, 'B', 0, 'o', 0,
+	  'o', 0, 't', 0, 'E', 0, 'n', 0, 'a', 0, 'b', 0, 'l', 0, 'e', 0, 0, 0 },
+	{ 'C', 0, 'u', 0, 's', 0, 't', 0, 'o', 0, 'm', 0, 'M', 0, 'o', 0,
+	  'd', 0, 'e', 0, 0, 0 },
+};
+
+/* Hardware placement/protection is modeled; receipt and authority owners are real. */
+static bool confirmed_storage(void *unused, const void *base, size_t size)
+{
+	(void)unused;
+	return smm_invocation_runtime_range_is_protected(&runtime_view, base, size) == CB_SUCCESS;
+}
+
+static bool confirmed_dma(void *unused, uint64_t base, uint64_t size)
+{
+	(void)unused;
+	return wave_admitted && base == 0x200000U && size == 4096U;
+}
+
+static bool confirmed_rendezvous(void *unused)
+{
+	(void)unused;
+	return wave_admitted;
+}
+
+static enum cb_err confirmed_provision(void *unused, uint64_t generation,
+	uint8_t capability[32])
+{
+	(void)unused;
+	assert(generation == 9U);
+	for (size_t index = 0; index < 32U; index++)
+		capability[index] = (uint8_t)(index + 1U);
+	memcpy(confirmed_capability, capability, sizeof(confirmed_capability));
+	return CB_SUCCESS;
+}
+
+static void confirmed_reset(void *unused)
+{
+	(void)unused;
+	abort();
+}
+
+static void __noreturn confirmed_fail_stop(void *unused)
+{
+	(void)unused;
+	abort();
+}
+
+static void confirmed_install(void)
+{
+	struct bootmem_reservation_receipt_authority signer = {0};
+	struct bootmem_aligned_reservation_handle handle = { .opaque = { 3, 8 } };
+	struct bootmem_reservation_receipt backing_receipt;
+	struct payload_mm_authvar_presence_policy policy = {
+		.revision = 2, .size = sizeof(policy),
+		.endpoint = {
+			.tag = LB_TAG_AUTHVAR_PRESENCE_ENDPOINT, .size = 64,
+			.revision = 1, .header_size = 64,
+			.flags = LB_AUTHVAR_PRESENCE_REQUIRED_FLAGS, .generation = 9,
+			.communication_base = 0x200000U, .communication_size = 80,
+			.message_size = 80, .transport = LB_AUTHVAR_PRESENCE_TRANSPORT_APM_IO8,
+			.trigger_width = 1, .trigger_address = 0xb2, .trigger_value = 0xe8,
+			.action_scope = LB_AUTHVAR_PRESENCE_ENTER_SETUP_MODE, .capability_size = 32,
+		},
+		.backing = {
+			.revision = 1, .size = sizeof(policy.backing), .base = 0x200000U,
+			.bytes = 4096U, .generation = 9, .tag = BM_MEM_RESERVED,
+		},
+		.provision = confirmed_provision, .dma_protected = confirmed_dma,
+		.cpu_rendezvous_active = confirmed_rendezvous,
+		.cold_reset = confirmed_reset, .fail_stop = confirmed_fail_stop,
+	};
+	uint8_t key[32], secret[32], raw[96] __aligned(8) = {0};
+	uint32_t value32;
+	uint64_t value64;
+
+	assert(mmap((void *)0x200000U, 4096U, PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0) == (void *)0x200000U);
+	for (size_t index = 0; index < sizeof(key); index++)
+		key[index] = (uint8_t)(0x80U + index);
+	memcpy(secret, key, sizeof(secret));
+	assert(bootmem_reservation_receipt_provision(&signer, &presence_backing_verifier,
+		secret, 1, 9, &handle) == CB_SUCCESS);
+	value32 = 1; memcpy(raw, &value32, 4);
+	value32 = 96; memcpy(raw + 4, &value32, 4);
+	value32 = 1; memcpy(raw + 8, &value32, 4);
+	value64 = 9; memcpy(raw + 16, &value64, 8);
+	value64 = 1; memcpy(raw + 24, &value64, 8);
+	value32 = 3; memcpy(raw + 32, &value32, 4);
+	value32 = 8; memcpy(raw + 36, &value32, 4);
+	value64 = 0x200000U; memcpy(raw + 40, &value64, 8);
+	value64 = 4096U; memcpy(raw + 48, &value64, 8);
+	value32 = 0x10002U; memcpy(raw + 56, &value32, 4);
+	value32 = 1; memcpy(raw + 60, &value32, 4);
+	assert(bootmem_reservation_receipt_mac(key, raw, 64, raw + 64) == CB_SUCCESS);
+	memcpy(&backing_receipt, raw, sizeof(raw));
+	bootmem_reservation_receipt_close(&signer);
+	assert(payload_mm_authvar_presence_backing_evidence_publish(&presence_backing_verifier,
+		&backing_receipt, &policy.backing) == CB_SUCCESS);
+	for (size_t index = 0; index < sizeof(backing_receipt); index++)
+		assert(((const uint8_t *)&backing_receipt)[index] == 0);
+	assert(payload_mm_authvar_presence_authority_install(&policy,
+		confirmed_storage, NULL) == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_backing_evidence_take(&policy.backing) == CB_ERR);
+}
+
+static void confirmed_send(uint64_t request_id, uint32_t action, uint32_t value,
+	uint64_t status, bool wrong_capability)
+{
+	struct payload_mm_authvar_confirmed_frame *frame = (void *)shared_mailbox;
+
+	private_scrubs = body_copies = 0;
+	expected_reply = status;
+	memset(shared_mailbox, 0, 65536U);
+	*frame = (struct payload_mm_authvar_confirmed_frame) {
+		.service = {
+			.revision = 4, .header_size = 184, .operation = 11, .flags = action,
+			.generation = 9, .request_id = request_id,
+			.status = UINT64_MAX, .completion = UINT32_MAX,
+		},
+		.value = value,
+	};
+	memcpy((uint8_t *)frame + 144, confirmed_capability, 32);
+	if (wrong_capability)
+		((uint8_t *)frame)[144] ^= 1;
+	assert(((uint8_t *)frame)[176] == value && !frame->result_flags);
+	assert(payload_mm_authvar_service_request_validate(&descriptor, frame, 65536U) == CB_SUCCESS);
+	assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
+	assert(frame->service.status == status && frame->service.completion == 0);
+	assert(frame->value == value && !frame->result_flags && frame->service.flags == action);
+	assert(private_scrubs == 2 && body_copies == 1);
+	for (size_t index = 144; index < 176; index++)
+		assert(((uint8_t *)frame)[index] == 0);
+	for (size_t index = 184; index < 65536; index++)
+		assert(((uint8_t *)frame)[index] == 0);
+}
+
+static void confirmed_variable(uint32_t key, uint64_t request_id, bool write, uint8_t value)
+{
+	const uint32_t name_size = key ? 22U : 34U;
+	const size_t data_offset = 144U + descriptor.maximum_name_size;
+
+	assert(key < 2);
+	private_scrubs = body_copies = 0;
+	expected_reply = write ? PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION :
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	memset(shared_mailbox, 0, 65536U);
+	*shared_mailbox = (struct payload_mm_authvar_service_frame) {
+		.revision = 3, .header_size = 144, .operation = write ? 3U : 1U,
+		.generation = 9, .request_id = request_id, .name_size = name_size,
+		.attributes = write ? 3U : 0U, .data_size = write ? 1U : 0U,
+		.data_capacity = write ? 0U : descriptor.maximum_data_size,
+		.status = UINT64_MAX, .completion = UINT32_MAX,
+	};
+	memcpy(shared_mailbox->vendor_guid, confirmed_guids[key], 16);
+	memcpy((uint8_t *)shared_mailbox + 144, confirmed_names[key], name_size);
+	if (write)
+		((uint8_t *)shared_mailbox)[data_offset] = value;
+	assert(payload_mm_authvar_service_request_validate(&descriptor, shared_mailbox, 65536U) ==
+		CB_SUCCESS);
+	assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
+	assert(shared_mailbox->status == expected_reply && shared_mailbox->completion == 0);
+	assert(private_scrubs == 2 && body_copies == 1);
+	if (!write)
+		assert(shared_mailbox->result_data_size == 1 &&
+			shared_mailbox->result_attributes == 3 &&
+			((uint8_t *)shared_mailbox)[data_offset] == value);
+}
+
+static void confirmed_scenario(const char *scenario)
+{
+	struct lb_authvar_service_endpoint unknown = descriptor;
+	struct payload_mm_authvar_confirmed_frame *frame = (void *)shared_mailbox;
+
+	unknown.flags |= 1U << 11;
+	assert(payload_mm_authvar_service_endpoint_validate(&unknown) == CB_ERR);
+	memset(shared_mailbox, 0, 65536U);
+	*frame = (struct payload_mm_authvar_confirmed_frame) {
+		.service = {
+			.revision = 4, .header_size = 184, .operation = 11, .flags = 1,
+			.generation = 9, .request_id = 1,
+			.status = UINT64_MAX, .completion = UINT32_MAX,
+		},
+	};
+	memcpy((uint8_t *)frame + 144, confirmed_capability, 32);
+	assert(payload_mm_authvar_service_request_validate(&descriptor, frame, 65536U) == CB_SUCCESS);
+	frame->service.flags = 4;
+	assert(payload_mm_authvar_service_execute() == CB_ERR_ARG);
+	frame->service.flags = 1;
+	frame->value = 2;
+	assert(payload_mm_authvar_service_execute() == CB_ERR_ARG);
+	frame->value = 0;
+	frame->service.reserved0 = 1;
+	assert(payload_mm_authvar_service_execute() == CB_ERR_ARG);
+	frame->service.reserved0 = 0;
+	frame->service.request_id = 0;
+	assert(payload_mm_authvar_service_execute() == CB_ERR_ARG);
+	assert(frame->service.status == UINT64_MAX && frame->service.completion == UINT32_MAX);
+	assert(!program_count && !body_copies);
+
+	if (!strcmp(scenario, "confirmed-closed")) {
+		assert(payload_mm_authvar_presence_authority_restrict(9) == CB_SUCCESS);
+		confirmed_send(1, 1, 0, PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+	} else if (!strcmp(scenario, "confirmed-wrong-cap")) {
+		confirmed_send(1, 1, 0, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, true);
+		confirmed_send(2, 1, 0, PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+	} else if (!strcmp(scenario, "confirmed-runtime")) {
+		for (uint32_t operation = 5; operation <= 6; operation++) {
+			memset(shared_mailbox, 0, 65536U);
+			*shared_mailbox = (struct payload_mm_authvar_service_frame) {
+				.revision = 3, .header_size = 144, .operation = operation,
+				.generation = 9, .request_id = operation,
+				.status = UINT64_MAX, .completion = UINT32_MAX,
+			};
+			expected_reply = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+			assert(payload_mm_authvar_service_execute() == CB_SUCCESS);
+			assert(shared_mailbox->status == expected_reply && !shared_mailbox->completion);
+		}
+		confirmed_send(7, 1, 0, PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+	} else {
+		confirmed_variable(0, 1, true, 0);
+		confirmed_variable(1, 2, true, 1);
+		confirmed_send(3, 1, 0, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		confirmed_variable(0, 4, false, 0);
+		confirmed_send(5, 1, 1, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		confirmed_variable(0, 6, false, 1);
+		confirmed_send(7, 2, 1, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		confirmed_variable(1, 8, false, 1);
+		confirmed_send(9, 2, 0, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		confirmed_variable(1, 10, false, 0);
+		if (!strcmp(scenario, "confirmed-replay")) {
+			confirmed_send(9, 2, 0, PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR, false);
+			confirmed_send(11, 2, 0, PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+		}
+	}
+	assert(munmap((void *)0x200000U, 4096U) == 0);
+}
+#endif
 
 /* The fixed platform binding is modeled here; the actual walker has its own gate. */
 enum cb_err platform_payload_mm_authvar_service_delivery_held(
@@ -282,6 +539,11 @@ int main(int argc, char **argv)
 	proof_drift = !strcmp(argv[1], "proof-drift");
 	capacity_edge = !strcmp(argv[1], "capacity-edge");
 	assert(proof_drift || capacity_edge || !strcmp(argv[1], "normal") ||
+#if TEST_PROVIDER_CONFIRMED_SETUP
+		!strcmp(argv[1], "confirmed") || !strcmp(argv[1], "confirmed-replay") ||
+		!strcmp(argv[1], "confirmed-wrong-cap") || !strcmp(argv[1], "confirmed-closed") ||
+		!strcmp(argv[1], "confirmed-runtime") ||
+#endif
 		!strcmp(argv[1], "mailbox-drift") || !strcmp(argv[1], "delivery") ||
 		!strcmp(argv[1], "delivery-begin-denied") ||
 		!strcmp(argv[1], "delivery-recheck-denied"));
@@ -323,12 +585,15 @@ int main(int argc, char **argv)
 	memset(&seed.seal_channel, 0, sizeof(seed.seal_channel));
 	assert(payload_mm_authvar_service_prepare(&service_verifier, &service_receipt) == CB_SUCCESS);
 	assert(payload_mm_authvar_smm_service_bootstrap_install(&seed) == CB_SUCCESS);
+#if TEST_PROVIDER_CONFIRMED_SETUP
+	if (!strncmp(argv[1], "confirmed", 9))
+		confirmed_install();
+#endif
 	assert(payload_mm_authvar_service_finalize() == CB_SUCCESS);
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	assert(descriptor.revision == 5);
 	assert(!!(descriptor.flags & LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP) ==
-		(CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) &&
-		 CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)));
+		(TEST_PROVIDER_CONFIRMED_SETUP && !strncmp(argv[1], "confirmed", 9)));
 	assert(!!(descriptor.flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL) ==
 		!CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER));
 	assert(descriptor.communication_base == 0x100000U && descriptor.communication_size == 65536U);
@@ -337,6 +602,13 @@ int main(int argc, char **argv)
 	assert(descriptor.maximum_data_size ==
 		(CONFIG_SMMSTORE_BLOCK_SIZE == 4096U ? 8132U : 61296U));
 	scrub_guard = true;
+#if TEST_PROVIDER_CONFIRMED_SETUP
+	if (!strncmp(argv[1], "confirmed", 9)) {
+		confirmed_scenario(argv[1]);
+		assert(munmap(mailbox, 65536U) == 0);
+		return 0;
+	}
+#endif
 	if (!strncmp(argv[1], "delivery", 8)) {
 		delivery_active = true;
 		delivery_denied_stage = !strcmp(argv[1], "delivery-begin-denied") ? 1U :
