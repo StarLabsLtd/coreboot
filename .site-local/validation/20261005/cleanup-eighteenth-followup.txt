@@ -1,0 +1,38 @@
+2026-10-05: two archived, closed QEMU run directories retired recoverably
+
+Exact originals:
+/home/sean/current693-fwui-qemu.PMINOC/ui-cancel703
+/home/sean/current693-fwui-qemu.PMINOC/ui-save-reload702
+
+Root 58c071 raw zero verifies exact real paths, regular counts and archived
+hashes, then moves only these two directories with gio trash. Independent
+e7b067 raw zero verifies original absence, exact Trash metadata mappings,
+all recovered relative member names and every regular byte against the
+signed archives. Total 338 regular files, 859846878 bytes:
+95 files / 294536439 bytes and 243 files / 565310439 bytes respectively.
+Six transient QMP/swtpm socket symlinks (two/four) remain in Trash; no other
+nonregular objects or unique regular members were omitted from the archives.
+
+Durable Git archives in the validation branch:
+current703-ui-cancel/current703-ui-cancel.tar.gz, 35551018 bytes,
+SHA256 7f354d4aae99742d28d16f85615bfe69480298f4fd2de8fe7f24adc7ff4de523,
+published signed c180593dc1400cd911059c534012ea7f1577b40c;
+current702-ui-save-reload/current702-ui-save-reload.tar.gz, 66037532 bytes,
+SHA256 5380c011ded9a97d12abb404ecc77651f625f32fff3399b01930ff4a57d2f05f,
+published signed cb7161a2adb876f3674c876cc00c87a309bcd8ac.
+Both remain byte-identical in the current published evidence history.
+
+Independent pre-operation qualification found no live process, current
+executable consumer, incoming alias, hardlinked regular file or Git owner
+depending on either original. The closed reload's prior-save references are
+inside the same archived run, not another current test's input. Historical
+path-based SHA checks require archive reconstruction before replay; this is
+not a replay of now-missing original paths or full historical reproduction
+from archive alone. Needed signed revisions/external inputs remain retained.
+
+build706, build703-repaired and build702-initialized remain present. The
+canonical NVMe fixture remains exact SHA054a451e...; source/config/media
+owners, latest run, Home Assistant, Plex and VMs remain untouched. Both
+closed directories are recoverable from Trash and signed Git archives.
+This tidies obsolete physical run trees, not disk space reclaimed; no Trash
+emptying, garbage collection or broad-directory deletion occurred.
