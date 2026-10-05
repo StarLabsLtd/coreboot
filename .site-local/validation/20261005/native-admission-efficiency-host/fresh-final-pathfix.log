@@ -1,0 +1,53 @@
+.......EFFE......
+======================================================================
+ERROR: test_final_snapshot_opposes_post_verification_output_mutation (__main__.FreshAdmissionTest.test_final_snapshot_opposes_post_verification_output_mutation) (mutation=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/native-admission-efficiency-after700/tests/fresh_normal_fwui_admission_test.py", line 397, in test_final_snapshot_opposes_post_verification_output_mutation
+    descriptor, _, _, paths = fresh.build_receipts(stage, source, producer, stage, helper)
+                              ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/native-admission-efficiency-after700/util/qemu/bin/fresh_normal_fwui.py", line 344, in build_receipts
+    raise ValueError("fresh emitted native MMD/object/archive/map inputs are not bound")
+ValueError: fresh emitted native MMD/object/archive/map inputs are not bound
+
+======================================================================
+ERROR: test_final_snapshot_opposes_post_verification_output_mutation (__main__.FreshAdmissionTest.test_final_snapshot_opposes_post_verification_output_mutation) (mutation='next-call')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/native-admission-efficiency-after700/tests/fresh_normal_fwui_admission_test.py", line 397, in test_final_snapshot_opposes_post_verification_output_mutation
+    descriptor, _, _, paths = fresh.build_receipts(stage, source, producer, stage, helper)
+                              ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sean/Documents/.cdk2-worktrees/native-admission-efficiency-after700/util/qemu/bin/fresh_normal_fwui.py", line 344, in build_receipts
+    raise ValueError("fresh emitted native MMD/object/archive/map inputs are not bound")
+ValueError: fresh emitted native MMD/object/archive/map inputs are not bound
+
+======================================================================
+FAIL: test_final_snapshot_opposes_post_verification_output_mutation (__main__.FreshAdmissionTest.test_final_snapshot_opposes_post_verification_output_mutation) (mutation='output-bytes')
+----------------------------------------------------------------------
+ValueError: fresh emitted native MMD/object/archive/map inputs are not bound
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/native-admission-efficiency-after700/tests/fresh_normal_fwui_admission_test.py", line 394, in test_final_snapshot_opposes_post_verification_output_mutation
+    with self.assertRaisesRegex(ValueError, "output bytes changed|output ledger changed"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "output bytes changed|output ledger changed" does not match "fresh emitted native MMD/object/archive/map inputs are not bound"
+
+======================================================================
+FAIL: test_final_snapshot_opposes_post_verification_output_mutation (__main__.FreshAdmissionTest.test_final_snapshot_opposes_post_verification_output_mutation) (mutation='ledger-bytes')
+----------------------------------------------------------------------
+ValueError: fresh emitted native MMD/object/archive/map inputs are not bound
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/native-admission-efficiency-after700/tests/fresh_normal_fwui_admission_test.py", line 394, in test_final_snapshot_opposes_post_verification_output_mutation
+    with self.assertRaisesRegex(ValueError, "output bytes changed|output ledger changed"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "output bytes changed|output ledger changed" does not match "fresh emitted native MMD/object/archive/map inputs are not bound"
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.181s
+
+FAILED (failures=2, errors=2)

@@ -1,0 +1,10 @@
+baseline /home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675/util/qemu/bin/fresh_normal_fwui.py 66bb9d276966630c661438d6b553ed8fd7706cf6a1e10f15db99c60a22a0ff31
+candidate /home/sean/Documents/.cdk2-worktrees/native-admission-efficiency-after700/util/qemu/bin/fresh_normal_fwui.py 5a26e94a82cd911c42ac6bae14a5af444224587815e4742c646e18bd4915fceb
+Diagnostic module composition ONLY; not signed candidate admission. Output: /home/sean/current693-fwui-qemu.PMINOC/admission-receipts-diagnostic.u6z1q65c
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549873, size 549873
+Found file config at 0x3e400, type raw, compressed 3543, size 12854
+baseline seconds 66.55925895200198 paths 105009 distinct 67932
+Found file fallback/payload at 0x46a40, type simple elf, compressed 549873, size 549873
+Found file config at 0x3e400, type raw, compressed 3543, size 12854
+candidate seconds 38.7742769050019 paths 67932 distinct 67932
+PASS actual full receipt/loaded-Core/config/direct-pair/reference replay; descriptor and closure equality

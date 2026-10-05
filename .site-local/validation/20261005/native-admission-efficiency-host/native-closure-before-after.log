@@ -1,0 +1,3 @@
+before seconds 52.28429795199918 distinct_paths 35723
+candidate seconds 28.471688136996818 distinct_paths 35723
+Actual700 closure set equality PASS; candidate code diagnostic, not signed admission
