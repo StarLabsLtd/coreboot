@@ -1,0 +1,45 @@
+Closed helper proposals and native collector retirement, 2026-10-05
+
+All exact original targets are directly under /home/sean. Independent source,
+closed-consumer and normalized incoming-alias checks preceded Root gio trash.
+No actual guest media, source fixture, config, private payload or Git store
+was included in these helper scopes.
+
+Action d1632c:0, independent actual recovery 9d0ba4:0:
+full-lint-joined-after679-draft.hD4Hgi: 3 files / 13439 bytes.
+whole-regression-after-rtc-draft.rvk9hK: 6 / 24224.
+whole-regression-style-successor-draft.9O2r4W: 4 / 19168.
+whole-regression-bytecode-retry-recipe.fQ2y9m: 4 / 19128.
+The first three contain inert unresolved-source guards; the fourth is an
+obsolete unexecuted recipe pinned to 62352715633271454b9c2edc10c055c12fb5deef.
+All 17 proposal bodies are recoverable Trash-only, without an all-file signed
+counterpart or historical preidentity claim. Current source and real earlier
+HOST evidence/media remain held outside these scopes.
+
+Action 48c844:0, independent actual recovery deb91e:0:
+uart-unique-host-recipe.eVwh74: 3 / 18506.
+uart-unique-host-style-recipe.1kJY6I: 3 / 20093.
+usb-policy-host-recipe.RD2Zt4: 3 / 14205.
+usb-policy-host-retry-recipe.IPfBU7: 3 / 16498.
+usb-policy-host-final-recipe.sOCVAR: 3 / 16614.
+All three style-UART files match literal signed a6cf4bb194b7cf07fc4ad9c40be45dc7401f05f2
+uart-r1-recipe counterparts. Other twelve obsolete helper bodies are
+Trash-recoverable only. Their closed historical collector references do not
+constitute a current executable consumer. Actual UART/USB source and inputs kept.
+
+Action 957bdd:0, independent actual recovery ae4b8b:0:
+native-model-evidence-collector.0i2490: 3 / 53963.
+The two unique historical checksum logs, 52438 bytes total, were independently
+fully read and copied byte-for-byte into native-model-collector-checks. Root
+signed dd816e0433f6b6a44b3f22469925c63725b04b06, signature G, verified all
+three packet blobs and the exact remote HEAD before retiring this collector.
+The remaining 1525-byte collect.sh already matches literal signed a6cf
+native-models-after648/collector.sh. Neither archival log is a new test run or
+universal source-closure proof. The separately retired child/base copies are
+recorded in cleanup-ninth-followup, not double-counted here.
+
+Total: 10 exact directories, 35 regular files, 215838 bytes moved to recoverable
+Trash, not space freed. CDK2 registry remains 71; retired parents remain 196.
+No GC/ref pruning, Trash emptying, historical compiled identity, whole-host
+cleanup or project completion claim. Unclassified historical guest/media and
+Git-dependency scopes remain held pending their own bounded review.
