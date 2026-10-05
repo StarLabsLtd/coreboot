@@ -1,0 +1,37 @@
+make: Entering directory '/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655'
+    HOSTCC     nvramtool/cli/nvramtool.o
+    HOSTCC     nvramtool/cli/opts.o
+    HOSTCC     nvramtool/cmos_lowlevel.o
+    HOSTCC     nvramtool/cmos_ops.o
+    HOSTCC     nvramtool/common.o
+    HOSTCC     nvramtool/compute_ip_checksum.o
+    HOSTCC     nvramtool/hexdump.o
+    HOSTCC     nvramtool/input_file.o
+    HOSTCC     nvramtool/layout.o
+    HOSTCC     nvramtool/accessors/layout-common.o
+    HOSTCC     nvramtool/accessors/layout-text.o
+    HOSTCC     nvramtool/accessors/layout-bin.o
+    HOSTCC     nvramtool/lbtable.o
+    HOSTCC     nvramtool/reg_expr.o
+    HOSTCC     nvramtool/cbfs.o
+    HOSTCC     nvramtool/accessors/cmos-mem.o
+    HOSTCC     cbfstool/fmaptool.o
+    HOSTCC     cbfstool/cbfs_sections.o
+    HOSTCC     cbfstool/fmap_from_fmd.o
+    HOSTCC     cbfstool/fmd.o
+    HOSTCC     cbfstool/fmap.o
+    HOSTCC     cbfstool/kv_pair.o
+    HOSTCC     cbfstool/valstr.o
+    HOSTCC     util/sconfig/lex.yy.o
+    HOSTCC     util/sconfig/sconfig.tab.o
+    HOSTCC     nvramtool/nvramtool (link)
+    HOSTCC     cbfstool/fmd_parser.o
+    HOSTCC     cbfstool/fmd_scanner.o
+    HOSTCC     util/sconfig/main.o
+    CC         romstage/arch/x86/assembly_entry.o
+cc1: error: /home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655/3rdparty/mbedtls/include: No such file or directory [-Werror=missing-include-dirs]
+cc1: error: /home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655/3rdparty/mbedtls/library: No such file or directory [-Werror=missing-include-dirs]
+cc1: all warnings being treated as errors
+make: *** [Makefile:431: /home/sean/current693-fwui-qemu.PMINOC/build/initial9/build/romstage/arch/x86/assembly_entry.o] Error 1
+make: *** Waiting for unfinished jobs....
+make: Leaving directory '/home/sean/Documents/.coreboot-worktrees/tpm-acceptance-producer-after655'

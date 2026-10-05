@@ -1,0 +1,14 @@
+[
+  "/usr/bin/python3",
+  "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/util/qemu/bin/run-deadline.py",
+  "--kill-after",
+  "3",
+  "180",
+  "--",
+  "bash",
+  "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/util/qemu/bin/run-one.sh",
+  "normal-ui-control-cancel",
+  "/home/sean/current693-fwui-qemu.PMINOC/build-retry/initial9/build/coreboot.rom",
+  "/home/sean/current693-fwui-qemu.PMINOC/ui-cancel/ui-cancel",
+  "180"
+]
