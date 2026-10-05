@@ -829,6 +829,47 @@ static bool page_guard(
 		!memcmp(snapshot, &presence.sealed, sizeof(*snapshot));
 }
 
+enum cb_err payload_mm_authvar_presence_confirmed_available(
+	uint64_t generation, bool *available)
+{
+	struct payload_mm_authvar_presence_policy snapshot;
+	uint32_t phase;
+
+	if (!available)
+		return CB_ERR;
+	*available = false;
+	if (!generation)
+		return CB_ERR;
+	phase = __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE);
+	if (phase == PRESENCE_EMPTY)
+		return bytes_zero(&presence, sizeof(presence)) &&
+			__atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) == PRESENCE_EMPTY ?
+			CB_SUCCESS : CB_ERR;
+	snapshot = presence.sealed;
+	if (snapshot.endpoint.generation != generation ||
+	    snapshot.backing.generation != generation)
+		return CB_ERR;
+	if (phase == PRESENCE_CLOSED)
+		return closed_snapshot_valid(&snapshot.endpoint, &snapshot.backing) ?
+			CB_SUCCESS : CB_ERR;
+	if (phase != PRESENCE_OPEN || !install_gate_sealed() ||
+	    presence.generation != generation || presence.sealed_generation != generation ||
+	    __atomic_load_n(&presence.lifecycle_generation, __ATOMIC_ACQUIRE) != generation ||
+	    !policy_equal() || bytes_zero(presence.capability, sizeof(presence.capability)) ||
+	    !capability_equal(presence.capability, presence.sealed_capability) ||
+	    payload_mm_authvar_presence_endpoint_validate(&snapshot.endpoint) != CB_SUCCESS ||
+	    !page_guard(&snapshot) ||
+	    __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) != PRESENCE_OPEN ||
+	    !install_gate_sealed() || presence.generation != generation ||
+	    presence.sealed_generation != generation ||
+	    __atomic_load_n(&presence.lifecycle_generation, __ATOMIC_ACQUIRE) != generation ||
+	    bytes_zero(presence.capability, sizeof(presence.capability)) ||
+	    !capability_equal(presence.capability, presence.sealed_capability))
+		return CB_ERR;
+	*available = true;
+	return CB_SUCCESS;
+}
+
 static __noreturn void cleanup_fail_stop(
 	payload_mm_authvar_presence_fail_stop_fn callback,
 	const void *failure_context, size_t failure_context_size)

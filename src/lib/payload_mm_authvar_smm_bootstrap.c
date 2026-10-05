@@ -11,6 +11,9 @@
 #include <boot/payload_mm_authvar_store.h>
 #if CONFIG(PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED)
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+#include <boot/payload_mm_authvar_presence_authority.h>
+#endif
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_image_policy_snapshot.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
@@ -805,6 +808,9 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 	struct lb_authvar_service_endpoint descriptor;
 	uint32_t expected = ENDPOINT_EMPTY;
 	uint32_t data_offset;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	bool confirmed_available;
+#endif
 
 	if (__atomic_load_n(&provider.service_phase, __ATOMIC_ACQUIRE) != SERVICE_INSTALLED ||
 	    !protected_storage(&provider, sizeof(provider)) || !spi_writes_restricted(NULL) ||
@@ -845,9 +851,13 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 	if ((descriptor.flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL) &&
 	    payload_mm_authvar_executor_state_predicate_pinned())
 		descriptor.flags |= LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED;
-	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) &&
-	    CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR))
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+	if (payload_mm_authvar_presence_confirmed_available(descriptor.generation,
+		&confirmed_available) != CB_SUCCESS)
+		goto failed;
+	if (confirmed_available)
 		descriptor.flags |= LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP;
+#endif
 	provider.endpoint = descriptor;
 	provider.sealed_endpoint = descriptor;
 	if (payload_mm_authvar_service_endpoint_validate(&provider.endpoint) != CB_SUCCESS ||

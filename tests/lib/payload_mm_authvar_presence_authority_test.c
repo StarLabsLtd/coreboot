@@ -1639,8 +1639,58 @@ static void confirmed_action_lifetime(void)
 	assert(executor_calls == 0U);
 }
 
+static void confirmed_availability(void)
+{
+	bool available = true;
+	size_t size;
+	uint8_t *state;
+
+	reset_fixture();
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_SUCCESS);
+	assert(!available);
+	assert(payload_mm_authvar_presence_confirmed_available(0, &available) == CB_ERR);
+	assert(!available);
+	assert(payload_mm_authvar_presence_confirmed_available(7U, NULL) == CB_ERR);
+	state = (void *)(uintptr_t)payload_mm_authvar_presence_authority_test_state(&size);
+	assert(size);
+	state[0] = 1U;
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_ERR);
+	assert(!available);
+
+	reset_fixture();
+	install();
+	finite_action_window = true;
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_SUCCESS);
+	assert(available && state_contains_capability());
+	assert(payload_mm_authvar_presence_confirmed_available(8U, &available) == CB_ERR);
+	assert(!available && state_contains_capability());
+	dma_ok = false;
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_ERR);
+	assert(!available);
+	dma_ok = true;
+	rendezvous_ok = false;
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_ERR);
+	assert(!available);
+	rendezvous_ok = true;
+	corrupt_on_dma = true;
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_ERR);
+	assert(!available);
+
+	reset_fixture();
+	install();
+	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_SUCCESS);
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_SUCCESS);
+	assert(!available && !state_contains_capability());
+	assert(payload_mm_authvar_presence_confirmed_available(8U, &available) == CB_ERR);
+	assert(!available);
+	state[0] ^= 1U;
+	assert(payload_mm_authvar_presence_confirmed_available(7U, &available) == CB_ERR);
+	assert(!available);
+}
+
 int main(void)
 {
+	confirmed_availability();
 	confirmed_action_lifetime();
 	install_validation();
 	hostile_requests();

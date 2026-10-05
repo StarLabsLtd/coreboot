@@ -39,6 +39,10 @@ enum cb_err payload_mm_authvar_presence_authority_install(
 	payload_mm_authvar_protected_storage storage_is_protected,
 	void *storage_context);
 
+/* True only for an installed, live finite-action authority of this generation. */
+enum cb_err payload_mm_authvar_presence_confirmed_available(
+	uint64_t generation, bool *available);
+
 /*
  * Restore only a terminal CLOSED authority after an S3 handler reload. The
  * endpoint, backing, proof callback, and optional proof context are protected
