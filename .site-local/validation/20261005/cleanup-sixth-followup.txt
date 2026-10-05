@@ -1,0 +1,28 @@
+Closed HOME helper retirement, 2026-10-05
+
+Root moved these four exact obsolete helper directories to recoverable Trash
+(bf9005:0), after full recursive source/consumer/alias review652a92/8b392d:
+/home/sean/seabios53-retirement-collector.lfE1V1
+/home/sean/loose147-seabios53-retirement-evidence-collector.9pNk1O
+/home/sean/default661-retained-inputs-successor.ZRd18j
+/home/sean/lvgl-seven-tip-preservation-retry-proposal.zgOwU5
+
+Their entire payload was nine regular recipe/README/list files, 57401 bytes.
+No Git metadata, symlink, config, source build, executable, media or unique test
+receipt was removed. Every file was already byte-identical to a literal blob
+at signed a6cf4bb194b7cf07fc4ad9c40be45dc7401f05f2, in the existing packets:
+20261004/seabios53-config-reconstruction/recipes
+20261004/loose147-and-seabios53-retirement/collector
+20261004/default661-local-retained-inputs/actual-retention
+20261005/lvgl-seven-tip-preservation
+
+Actual recovery audit b9005c passes: all original paths absent, exact four
+Trashinfo mappings/recoveries found, counts and sizes preserved, and all nine
+recovered files compare with those literal committed Git blobs. Completed
+historical default661 retention replay can reconstruct its helper from Git;
+its unique retained input archive and receipt remain untouched. No current
+gate or executable consumer depends on the removed physical helper paths.
+
+CDK2 registry remains71 and retired parent worktrees196. Current QEMU inputs,
+source authors, dependency stores, HA/Plex/VM data remain held. No Trash emptying,
+GC, ref pruning, reclaimed-disk-space or whole-host-completion claim.

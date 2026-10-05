@@ -1,0 +1,1 @@
+comparison-mutant: /home/sean/current693-fwui-qemu.PMINOC/linux-reset694/codec/linux-reset-store.pGIoDy/comparison-mutant.c:99: main: Assertion `!linux_reset_matches(initial, final, guid)' failed.
