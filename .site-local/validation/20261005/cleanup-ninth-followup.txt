@@ -1,0 +1,77 @@
+Closed historical HOME artifact retirement, 2026-10-05
+
+Root moved the following exact targets with gio trash after independent source,
+consumer, alias and retention review. Independent actual recovery checks proved
+original absence, exact Trashinfo mappings and the stated recovered contents.
+All paths below are relative to /home/sean; nested targets are counted separately
+without double-counting their descendants.
+
+loose-cdk2-files-retirement-collector.zIKWjY: 3 files / 34297 bytes.
+Action d97116:0, recovery e0e1e1. Manifest literal signed evidence; superseded
+README and Python bodies recoverable only in Trash.
+
+native-model-evidence-collector.0i2490/first-copy-with-baseline-subtree/xhci-author/base:
+392 files / 1968841 bytes. Action ca56e2:0, recovery 2175cb. All literal signed
+9033db5d2ca36823c0d8834bf686778b19721060 source; branch retained.
+native-model-evidence-collector.0i2490/first-copy-with-baseline-subtree:
+remaining 291 files / 1627521 bytes after separate base retirement.
+ui-linux-evidence-collector.kjywlK/partial-before-reboot: 7 / 3086328.
+Action 5ab1a8:0, recovery 2175cb. 288 and 6 literal signed receipts/configs;
+three redundant metadata files and the incomplete UI subset ledger Trash-only.
+Their containing collector roots and needed original evidence remain held.
+
+default-regression-after652.hdkK9T: 108 / 10402236.
+default-regression-after655.JP1abI: 108 / 10406068.
+joined-evidence-collector.wff7NY: 4 / 22568.
+Action 21eda0:0, recovery 625d90. All 36 flat actual receipts match literal
+signed evidence, including formerly missing public argv records preserved in
+26fb8ca1f7786ff6d7f8474af1d6c80393130573. Config/header/source binding retained;
+remaining build files are generated Kconfig inputs. All four joined helper/log
+files have literal old/new signed counterparts. Logs are not a test rerun.
+
+full-lint-after661-final.20261004-r1: 140 / 6525903.
+Action f2e393:0, recovery a859a4. 49 actual receipts match literal signed
+plain/decompressed counterparts; 91 generated/copied inputs separately
+qualified. Config/header/source binding and signed 6faf053c28d7b33de30daeaeae8408340685d006
+source retained. No exact historical compiled reproduction claim.
+
+runtime2-author-gates.HUUyQ6: 8 / 185649.
+runtime2-author-gates-retry.mIsvTK: 20 / 304769.
+xhci-root-independent.Yh4rSb: 19 / 6974.
+Action 5bcec4:0, recovery b71dcc/c2ff9b. 42 literal signed receipts/recipes/
+patch files; five copied/generated config inputs separately qualified.
+
+fresh-normal-guest-independent-review654.o7hehD: 106 / 247805.
+ready658-ui-independent-visual.ZQ2lIj: 8 / 93759.
+ready658-ui-visual-review.ALISoY: 2 / 39637.
+ready658-linux-independent-visual.15sZaj: 6 / 53948.
+Action dcd50e:0, recovery b71dcc/c2ff9b. All 122 literal signed evidence files,
+including derived screenshots. Original guest media and current frames kept.
+
+runtime2-author-gates-configfix.LZnLzl: 311 / 1536277.
+runtime-root-independent.6uKGVO: 14 / 3935.
+Paired action 0a626b:0, recovery 984efe. 115 plus 14 actual receipts match
+literal signed evidence. Other 196 generated compiler/config/argv files remain
+Trash-recoverable, including the strict generated header without a literal Git
+counterpart. The executable dependency was internal to this retired pair;
+signed ef4819bcba4a407922df89a30f2a9b99692820bc source and patch/config retained.
+
+full-lint-after661-recipe.l4JKYZ
+full-lint-after661-retry-recipe.36OIEL
+full-lint-after684-recipe.XDdBjL
+full-lint-after688-recipe.FIdWyr
+normal-regression-after685-recipe.MqEcxi
+whole-regression-after688-recipe.IVhiJJ
+whole-regression-after689-recipe.i9xraY
+Seven recipe directories: 23 / 102611. Action d6ad00:0, recovery dd16a7.
+Ten files match literal signed counterparts; thirteen superseded draft bodies
+are Trash-only. No future selected physical helper depends on them. Actual
+688/689 receipt roots, gold configs, media, source refs and stores remain held.
+
+Total: 24 exact directory targets, 1570 regular files, 36649126 bytes moved to
+recoverable Trash, not disk space freed. Literal evidence comparisons used
+a6cf4bb194b7cf07fc4ad9c40be45dc7401f05f2 unless separately identified above.
+Historical replay requires rematerializing signed source/recipes and retained
+inputs, not rerunning old physical-path checks after retirement. No whole-host
+cleanup, binary identity, GC, ref pruning, Trash emptying or project completion
+claim. CDK2 registry remains 71; retired parents remain 196.
