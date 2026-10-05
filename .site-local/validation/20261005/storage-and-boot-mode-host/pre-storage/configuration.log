@@ -1,0 +1,4 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'
+/bin/bash: line 2: kconfig-conf: command not found
+make: *** [Makefile:988: defconfig] Error 127
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'

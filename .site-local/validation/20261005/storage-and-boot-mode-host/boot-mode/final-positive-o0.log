@@ -1,0 +1,4 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/Makefile:25: *** CDK2_NATIVE_BUILD_DIR must be CDK2_BUILD_DIR/native; resolved configuration and native artifacts would diverge.  Stop.
+make: *** [Makefile:1151: native-coreboot-test] Error 2
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'

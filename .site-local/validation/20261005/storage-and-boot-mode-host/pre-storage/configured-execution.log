@@ -1,0 +1,6 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'
+#
+# configuration written to /home/sean/storage-policy-host.xCoPhY/build/.config
+#
+make: *** No rule to make target 'native-dxe-core-entry-mixed-test'.  Stop.
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677'

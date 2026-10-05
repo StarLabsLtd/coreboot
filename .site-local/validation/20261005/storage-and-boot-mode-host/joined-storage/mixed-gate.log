@@ -1,0 +1,82 @@
+make: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE mixed MBR+GPT entry test: PASS
+DXE mixed MBR+GPT entry test: PASS
+DXE LVGL-without-BDS compile matrix: PASS
+DXE display-failure BDS suppression: PASS
+DXE display-failure BDS suppression: PASS
+DXE display-failure BDS guard mutation: PASS
+rollback absence mutation: PASS
+rollback opens mutation: PASS
+rollback connection mutation: PASS
+DXE per-device partition ownership mutation: PASS
+DXE reconstructed bridge mutation: PASS
+DXE complete bus-register width mutation: PASS
+DXE extra bridge rejection mutation: PASS
+DXE storage-controller path span mutation: PASS
+DXE authoritative storage intent mutation: PASS
+DXE deterministic storage fallback mutation: PASS
+DXE deterministic per-device order mutation: PASS
+DXE exact loader fallback mutation: PASS
+DXE boot-policy loader-size revalidation mutation: PASS
+DXE boot-policy exact loader-path revalidation mutation: PASS
+DXE storage binding reuse mutation: PASS
+DXE same-backend candidate retry mutation: PASS
+DXE ATA Bus exact-connect status mutation: PASS
+DXE unowned ATA Bus absence mutation: PASS
+DXE ATA Bus residual ownership mutation: PASS
+DXE stale ATA Bus ownership mutation: PASS
+DXE ATA Bus single-stop ownership mutation: PASS
+Good "git" signature for sean@horizon with ED25519 key SHA256:3CdCEnBhLkSQzedGiy3Y7j9Et1NMgMhwJn/HfD3LTMs
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-000/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-001/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-010/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-011/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+DXE storage 011 signed baseline refusal: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-100/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-101/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-110/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+DXE storage 110 signed baseline refusal: PASS
+make[2]: Entering directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+#
+# configuration written to /tmp/cdk2-dxe-entry.ClwubO/storage-111/.config
+#
+make[2]: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
+DXE native storage policy candidate admission: PASS
+DXE native storage Kconfig policy matrix (8 profiles): PASS
+DXE mixed MBR+GPT entry mutation test: PASS
+make: Leaving directory '/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675'
