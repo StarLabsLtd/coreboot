@@ -1,0 +1,1 @@
+old-driver-test: tests/tcg2_driver_boot_variable_test.c:138: __wrap_cdk2_tcg2_measure_separator: Assertion `current_reads == 0 && next_reads == 0' failed.

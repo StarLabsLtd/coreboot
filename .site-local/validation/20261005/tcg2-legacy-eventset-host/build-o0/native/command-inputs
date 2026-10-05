@@ -1,0 +1,25 @@
+AR=ar
+CC=cc
+CDK2_AUTHVAR_PRESENCE_DXE_CFLAGS=-ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/tcg2-legacy-eventset-host.OmP0Fb/build-o0/include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include
+CDK2_NATIVE_CC=cc
+CDK2_NATIVE_CFLAGS=-ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fdata-sections -ffunction-sections -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
+CDK2_NATIVE_HOST_CC=cc
+CDK2_NATIVE_HOST_CFLAGS=-std=c11 -O0 -g -Wall -Wextra -Werror -fshort-wchar -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -fno-pie -no-pie
+CDK2_NATIVE_HOST_LDFLAGS=
+CDK2_NATIVE_INCLUDES=-I/home/sean/tcg2-legacy-eventset-host.OmP0Fb/build-o0/include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include
+CDK2_NATIVE_LD=ld
+CDK2_NATIVE_LINK_BASE_FLAGS=-static -no-pie -nostdlib -nostartfiles -nodefaultlibs -Wl,-z,max-page-size=0x1000 -Wl,-z,common-page-size=0x1000
+CDK2_NATIVE_LINK_FLAGS=-static -no-pie -nostdlib -nostartfiles -nodefaultlibs -Wl,-z,max-page-size=0x1000 -Wl,-z,common-page-size=0x1000 -Wl,-T,"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/cdk2.ld"
+CDK2_NATIVE_LINK_POST_MAP_FLAGS=-Wl,--gc-sections -Wl,--build-id=none
+CDK2_NATIVE_NM=nm
+CDK2_NATIVE_OBJCOPY=objcopy
+CDK2_NATIVE_OBJDUMP=objdump
+CDK2_NATIVE_PCI_BUS_INCLUDES=-I/home/sean/tcg2-legacy-eventset-host.OmP0Fb/build-o0/native/pci-bus-immutable-y-debug-n-diagnostic-n-spi-n/include -I/home/sean/tcg2-legacy-eventset-host.OmP0Fb/build-o0/include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include
+CDK2_NATIVE_READELF=readelf
+CDK2_NATIVE_SYSTEM_FMP_SESSION_TEST_LINK_FLAGS=-Wl,--gc-sections,--wrap=cdk2_system_fmp_authenticate
+CDK2_NATIVE_TCG2_HASH_CFLAGS=-ffreestanding -fno-builtin -fno-stack-protector -fpie -mcmodel=small -fvisibility=hidden -include /home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include/cdk2/native_visibility.h -fno-asynchronous-unwind-tables -fno-unwind-tables -fshort-wchar -m64 -mno-red-zone -mno-sse -mno-mmx -Os -Wall -Werror -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-ident -fcf-protection=none -maccumulate-outgoing-args -I/home/sean/tcg2-legacy-eventset-host.OmP0Fb/build-o0/include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include -I"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/tcg_hash/vendor/vboot" -I"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/tcg_hash/vendor/linux/include" -MMD -MP
+CDK2_PCI_BUS_OBJECT_CFLAGS=-DCDK2_PCI_IMMUTABLE
+CDK2_PROTECTED_IMAGE_POLICY_JOIN_FLAGS=-fsanitize=address,undefined -fno-sanitize-recover=all -ffunction-sections -fdata-sections -Wl,--gc-sections -I/home/sean/tcg2-legacy-eventset-host.OmP0Fb/build-o0/include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include -DBR_USE_UNIX_TIME=0 -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//3rdparty/bearssl/inc -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//3rdparty/bearssl/src -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/tcg_hash/vendor/vboot -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/tcg_hash/vendor/linux/include
+CDK2_SOFTWARE_HASH_INCLUDES=-I"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/tcg_hash/vendor/vboot" -I"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/tcg_hash/vendor/linux/include"
+CDK2_SYSTEM_FMP_CRYPTO_FLAGS=-DBR_USE_UNIX_TIME=0 -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//3rdparty/bearssl/inc -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//3rdparty/bearssl/src
+HOSTCC=cc

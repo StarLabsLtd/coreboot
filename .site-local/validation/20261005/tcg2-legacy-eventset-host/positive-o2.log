@@ -1,0 +1,14 @@
+/usr/bin/ld: /tmp/cc5zqJA7.o: in function `release_service':
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/../src/modules/tcg2/driver.c:563:(.text.release_service+0x8): undefined reference to `cdk2_tcg2_service_release'
+/usr/bin/ld: /tmp/cc5zqJA7.o: in function `exit_boot_services':
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/../src/modules/tcg2/driver.c:865:(.text.exit_boot_services+0xc3): undefined reference to `cdk2_tcg2_exit_boot_services'
+/usr/bin/ld: /home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/../src/modules/tcg2/driver.c:866:(.text.exit_boot_services+0xdb): undefined reference to `cdk2_tcg2_exit_boot_services'
+/usr/bin/ld: /tmp/cc5zqJA7.o: in function `exit_boot_services_failed':
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/../src/modules/tcg2/driver.c:877:(.text.exit_boot_services_failed+0xc3): undefined reference to `cdk2_tcg2_exit_boot_services'
+/usr/bin/ld: /home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/../src/modules/tcg2/driver.c:878:(.text.exit_boot_services_failed+0xd8): undefined reference to `cdk2_tcg2_exit_boot_services'
+/usr/bin/ld: /tmp/cc5zqJA7.o: in function `measure_image':
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/../src/modules/tcg2/driver.c:603:(.text.measure_image+0x22e): undefined reference to `cdk2_tcg2_classify_pe'
+/usr/bin/ld: /home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/../src/modules/tcg2/driver.c:645:(.text.measure_image+0xeac): undefined reference to `cdk2_tcg2_measure_image'
+collect2: error: ld returned 1 exit status
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/Makefile:5873: /home/sean/tcg2-legacy-eventset-host.OmP0Fb/build/native/cdk2-tcg2-driver-boot-test] Error 1
+make: *** [Makefile:1151: native-tcg2-entry-test] Error 2
