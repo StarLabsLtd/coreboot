@@ -1,0 +1,4 @@
+HOST source-binding mutant missing_saved_table: exact refusal PASS
+HOST source-binding mutant changed_retained_bmp: exact refusal PASS
+HOST source-binding mutant changed_producer_config: exact refusal PASS
+CDK2 setup acceptance hostile selftest: PASS

@@ -1,0 +1,29 @@
+Duplicate historical QEMU peer extraction retirement, 2026-10-05
+
+Root exact gio trash action 77c5e5:0 retired three original directories after
+independent full-content, current-consumer and normalized-alias review:
+/home/sean/qemu-447-peer-extract.eoyxYB: 84 regular files / 1032421501 bytes.
+/home/sean/qemu-437-peer-final-extract.Ar7k4B: 80 / 1031726959.
+/home/sean/qemu-437-peer-extract.r5lIbm: 88 / 1031733267.
+
+Independent actual recovery e3d42e/ab7a17:0 proved original absence, exactly
+one Trashinfo per original, recovered counts and no symlinks or Git stores.
+All 84 first-peer files compare byte-for-byte by relative path against the
+retained primary /home/sean/qemu-349-447-evidence.kkVDEH. All 80 final-peer
+files and 87 old-peer actual media/config/ROM/log/TPM files similarly compare
+against retained /home/sean/qemu-437-evidence.BUjrzb. Those 251 complete
+comparisons passed again after retirement; both primary roots remain untouched.
+
+The remaining old-peer SHA256SUMS, 10952 bytes, is a redundant generated
+inventory recoverable only in Trash. It includes eight old TPM state entries
+omitted from the final inventory; all eight actual state files remain byte-
+preserved in the retained primary. No all-252-file literal Git counterpart,
+source rebuild or historical compiled identity assertion is made. These are
+duplicate actual guest artifact copies, not alleged generated media.
+
+Total: 3 exact directory targets, 252 regular files, 3095881727 bytes moved
+to recoverable Trash, not disk space freed. Primary disks/ROMs/configs/logs/TPM
+state and active current QEMU artifacts remain held. CDK2 registry remains 71;
+retired parents remain 196. No GC/ref pruning, Trash emptying, whole-host
+cleanup or project completion claim. Other historical roots require separate
+input/media/dependency qualification before disposal.

@@ -1,0 +1,17 @@
+.........F.
+======================================================================
+FAIL: test_reused_core_allows_only_complete_known_observer_kconfig (__main__.ReceiptTest.test_reused_core_allows_only_complete_known_observer_kconfig)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/tests/normal_fwui_admission_test.py", line 98, in test_reused_core_allows_only_complete_known_observer_kconfig
+    self.assertEqual(runner.sha(repo / "Kconfig"), runner.KNOWN_OBSERVER_KCONFIG_SHA)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'cf6d99899ae9b956128757d06da7362a413dd4333227fcd13984389a281c2c8e' != '77cd3543b756c7f96adbe9cbad2585d6a52f5b960cc8ed33cbdc608c5136f0fa'
+- cf6d99899ae9b956128757d06da7362a413dd4333227fcd13984389a281c2c8e
++ 77cd3543b756c7f96adbe9cbad2585d6a52f5b960cc8ed33cbdc608c5136f0fa
+
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.218s
+
+FAILED (failures=1)
