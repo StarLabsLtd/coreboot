@@ -1,0 +1,45 @@
+Further closed HOME collector retirement, 2026-10-05
+
+Eight signed helper directories moved by gio960ada:0, actual recovery20e4f1:
+default656-loader-evidence-collector.KPBHT0
+default661-diagnostic-evidence-collector.1VcBLb
+host-regression-fixes-evidence-collector.ewSF82
+host664-functional-tpm-collector.wJBQYk
+host669-strict-tpm-dxe-collector.yem2Aq
+host679-lint-publication-collector.KXxyN3
+host683-lint-evidence-collector.4055rz
+full685-rtc-style-evidence-collector.aFuTm9
+Sixteen regular helper/README files80485bytes, all recovered bodies compare
+with literal signed a6cf4bb194b7cf07fc4ad9c40be45dc7401f05f2 counterparts.
+
+Nine signed helper directories moved by giobdb550:0, actual recovery8386ce:
+fresh654-evidence-collector.m9HD6G
+future-floor-retirement-collector.ytczfh
+harness-host-evidence-collector-after656.uZ0r6L
+lint-tpm-frontier-collector.WkfyW8
+normal658-evidence-collector.hNqsbf
+tpm-first-failure-collector.XarFDR
+rtc685-doc684-evidence-collector.D0Rdqt
+uart686-stable-evidence-collector.gyRBSp
+whole689-evidence-collector.Y8iRkl
+Eighteen regular files67665bytes, all recovered bodies compare with literal
+signed a6cf counterparts. Original referenced receipts/media/configs stay held.
+
+Six superseded generated helper proposals moved by gioc368f3:0:
+coreboot-retirement25-graph-retry-proposal.IbYPYn
+coreboot-retirement25-retry-proposal.HTGdfF
+coreboot-retirement66-proposal.ewdHU7
+coreboot-vendor-recovery-proposal-retry.pzkGf7
+coreboot-vendor-recovery-proposal.5H7rsX
+default661-retained-inputs-proposal.4KeaDZ
+Actual recovery082e23: exact original absence/Trashinfo mappings, fifteen
+regular files86982bytes, no symlinks. These unique procedural draft bodies are
+Trash-recoverable only, not claimed exact Git reconstruction. No unexecuted
+claim is made for historical helper code. Actual completed signed receipts,
+canonical/recovery stores, retained tar and input data remain untouched.
+
+All named original directories are directly under /home/sean. Full source,
+current executable-consumer and normalized incoming-alias checks preceded
+each bounded retirement. No Git/config/log/media/user-source payload inside.
+CDK2 registry remains71, retired parents196. No GC/ref pruning/Trash emptying,
+disk-space recovery, whole-host-cleanup or project-completion claim.
