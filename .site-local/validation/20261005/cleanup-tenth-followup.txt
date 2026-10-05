@@ -1,0 +1,35 @@
+Historical DEFAULT656 and closed helper retirement, 2026-10-05
+
+Root exact gio action 6ce06e:0 moved:
+/home/sean/default-regression-after656.yHBo5L
+Independent actual audit f25fa1:0 proved original absence, exact Trashinfo and
+1172 recovered regular files / 61665670 bytes, no symlinks/Git/private key.
+All 18 recovered flat actual receipts match literal signed a6cf4bb194b7cf07fc4ad9c40be45dc7401f05f2
+plain/full-gzip evidence. The distinct local archive retains exactly 59 inputs
+as described in default656-local-retained-inputs/README.txt. All 59 archive
+streams equal the recovered originals; member order and 59 relative hashes
+passed. Local tar SHA256 remains
+1f6f4c7d89c1d742a0b501cb0b3102a37bfa0f0f38d66b8b4015f067aac8df1a.
+The four published retention metadata files were independently compared with
+signed e346108696d21983ee3638d8897948d6a9a32f8e, signature G, in the recovery
+audit. Root's signed blob comparisons and verified push preceded retirement.
+Tar, public certificates/signatures and synthetic payload remain local-only.
+Other 1095 generated/copied/compiled files are source-rule-qualified and
+Trash-recoverable; no historical binary/flag byte identity claim is made.
+
+Root exact gio action 473e1c:0 also moved:
+/home/sean/default-regression-after658.eskK4y: 2 regular files / 8172 bytes,
+run.sh 5319 bytes and PREPARATION.txt 2853 bytes, obsolete unexecuted proposal.
+/home/sean/ui-linux-evidence-collector.kjywlK: 1 / 1616, remaining collect.sh
+after its incomplete child was separately retired in cleanup-ninth-followup.
+Independent recovery e871b1:0 proved original absence, exact Trashinfo and
+these recovered contents. These three generated helper bodies are Trash-only,
+not asserted to match signed Git counterparts. Completed actual 446-file UI
+evidence packet, original guest roots and media remain held outside this scope.
+
+Total: 3 exact directory targets, 1175 regular files, 61675458 bytes moved to
+recoverable Trash, not disk space freed. Historical source ledgers are not
+rerun against intentionally retired paths; retained relative hashes were
+legitimately checked against Trash recovery. CDK2 registry remains 71; retired
+parents remain 196. No GC/ref pruning, Trash emptying, whole-host-cleanup,
+exact historical compiled identity or project completion claim.
