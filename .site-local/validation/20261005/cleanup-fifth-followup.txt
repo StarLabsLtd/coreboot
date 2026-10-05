@@ -1,0 +1,44 @@
+Additional cache-only source worktree retirement, 2026-10-05
+
+Root moved fifteen finite generated Python caches to recoverable trash:
+eight files108521bytes (8fa09c:0) in full-regression-after524,
+full-protected-regression-after530 and phase-owned-lvgl-status-after614;
+seven files168371bytes (4799d7:0) in normal-ui-manifest-int-after969.
+All original parents were under /home/sean/Documents/.cdk2-worktrees.
+Every corresponding Python source was tracked and byte-identical to the
+retained signed source; no unique source/config/log/media was in removal scope.
+Actual recovery48bc8c verifies the first eight paths/counts/bytes; final seven
+recovery de3295 also passes exact paths/counts/bytes and original/admin absence.
+
+Root retired the regression pair with bounded --force only for initialized
+vendor submodules (fb0f20:0,994dd5:0); phase nonforce cdd983:0. Actual source/admin
+absence and retained refs/signatures passed48bc8c. Retained source refs:
+agent/full-default-regression-snapshot-after569 and
+agent/full-protected-regression-snapshot-after569 both resolve
+c1e16e4c58aa2ddfdcf0b4f94feaab20dc844ef5 (G).
+agent/native-phase-owned-lvgl-validation-after623 resolves
+cb71f948001ddfcc2b366d645b12a61e08d3ff1a (G).
+Full raw vendor refs/HEADs were canonically reachable; bounded complete HOME
+private Gitmarker/commondir/alternate/symlink scans found no incoming private
+store dependencies. The phase parent has no private object/module store.
+
+Normal manifest source parent nonforce removal ran53a256. Its following registry
+query failed because the shell's current directory had just been removed; the
+pipeline printed0, NOT an actual registry count. Canonical followup548860:0
+verified physical absence, retained signed ref and actual registry71.
+agent/normal-ui-manifest-int-after969 retains
+6e4405633cda8962f25fef84296b1f9251c55cd3 (G).
+This parent has refs/logs only, no private objects/modules, and no incoming alias.
+
+Historical phase623 and SAVED-only normal-UI recipes remain byte-preserved,
+with their media/configs/receipts untouched. Literal old source-path replay may
+require materializing the retained signed branch; retired ORIGINAL hash paths
+must not be replayed as cleanup verification. Current rtc/ready source and
+selected-gold fixture inputs do not depend on those retired physical sources.
+
+Total retired CDK2 parents is196; actual registry71. Canonical signed58598 is
+unchanged. The newly initialized ready LVGL85aa module borrows canonical LVGL
+objects and must stay held; producer mbedTLS0beb and its canonical owner stay
+held too. No GC/ref pruning/Trash emptying or physical space-freed claim.
+Source remains recoverable from retained Git; generated caches from Trash.
+This is bounded cleanup, not whole-host or project completion.
