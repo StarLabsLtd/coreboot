@@ -1,0 +1,40 @@
+Finite generated object/dependency retirement, 2026-10-05
+
+Scope was only regular *.o and *.d under these two exact historical roots:
+/home/sean/native-default-zero-hotkey-after628.CfqEvm
+/home/sean/normal-capsule-report-corrected-producer.xexfMA
+Explicit exclusion, still present and regular, 1176 bytes:
+/home/sean/native-default-zero-hotkey-after628.CfqEvm/native/pe-relocation-marker.o
+Saved capsule recipes directly require that marker, so it was not retired.
+
+Independent source/rule, MIME, closed-consumer and normalized incoming-alias
+checks released 3385 compiler objects plus 3072 dependency outputs: 6457
+regular files, 125654393 bytes. Root action 2a7217, reaped 8dd62a:0, first
+verified exact count/bytes, preserved HOME-relative paths while moving only
+the reviewed files into /home/sean/generated-objects-retirement.om0MtxqI,
+then moved that exact quarantine directory with gio trash.
+
+Independent actual recovery 4b55c1:0 found exactly one matching Trashinfo,
+quarantine original absent and all 6457 original targets absent. Every NUL
+entry in recovered targets.list0 maps to the bounded reviewed regular,
+non-symlink recovered path; total recovered originals 125654393 bytes, bad=0.
+The new generated recovery manifest is 657508 bytes. Total Trash contents:
+6458 regular files / 126311901 bytes, no symlinks or Git markers. The excluded
+PE marker is the only remaining *.o/*.d in the two original roots. No pre-move
+byte ledger or historical compiled byte-identity claim is made.
+
+Sources/configs/generated headers/command inputs/scripts and actual capsule
+keys, media, ROMs, reports and executable products remain outside this scope.
+Bounded fourteen config/header/command/script presence checks passed in
+989429:0. Source refs remain retained: CDK2 d8e49af2ab0c90c6f6542b29026bd80309a9e1da,
+coreboot d960d256 (capsule-signature-refusal-after386), and observer aa7801b3
+contained by signed b19fa7c677ccaee730ecdce268c27472d98357cd local/origin
+normal-capsule-report-observer-after-header-fix. Signed Make compiler and
+dependency rules were reviewed. Intermediate generated thin ramstage.a archives
+can require rebuilding after their referenced objects are removed; no complete
+historical build usability, exact flags or binary reproduction is asserted.
+
+Neither whole historical root was released for removal. Recoverable Trash is
+not disk space freed. CDK2 registry remains 71; retired parents remain 196.
+No GC/ref pruning, Trash emptying, whole-host cleanup or project completion
+claim. Current QEMU builds and dirty user coreboot inputs remain untouched.
