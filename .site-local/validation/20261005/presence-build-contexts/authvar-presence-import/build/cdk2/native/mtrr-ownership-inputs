@@ -1,0 +1,8 @@
+63d86ca9e6fd82cc8b996659948a855c87f57524606f142e88737e6df72f0a7c|code|c0000080|1|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/native/cdk2-coreboot-stage.elf
+bee0bf0ff5fcb01a8c77f19004fbeed04030a917004fdea745ddf0fc963e3779|data|-|0|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/native/cdk2-coreboot-stage.map
+75e598d823921b839d948a9f2e753020452850e7d124c1ef2e0be9302a2733ad|data|-|0|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/.config
+ac62ad84a5b36f9343cbdfb04c818ae116d57d60467c84b52ce34c0795319041|data|-|0|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/cdk2-native-sources.txt
+9925b7fbaddb8627ee4a11b032d9a80752a67a5842644833033a9544af23abd2|data|-|0|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/native/CpuDxe.ffs
+e564b2b959ccba482f27f19eb6b3a7ceff6ca7946ce1227b4de1afc2e1894cd9|data|-|0|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/native/PiSmmCpuDxeSmm.ffs
+a07f727fb4480f8deb4115a6d89350b219455368212b418c5dbda0045f1605d0|data|-|0|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/native/LocalApicTimerDxe.ffs
+8537c7bbe282cfd472bebacaa7d70f497702790c50638905127d720aa524822e|test|-|0|/home/sean/Documents/.cdk2-worktrees/authvar-presence-import/build/cdk2/native/cdk2-coreboot-test
