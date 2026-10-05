@@ -1,0 +1,24 @@
+2026-10-05: two generated compile-only codec executables retired
+
+Exact targets:
+/home/sean/disk-retained-codec-compile-final.wqeSTE/check-o0
+/home/sean/disk-retained-codec-compile-final.wqeSTE/check-o2
+
+Root a92073 raw zero moved these explicit regular non-symlink HOST ELF
+outputs with gio trash. Independent post-check 2fc975 verifies both exact
+Trash metadata entries, original absence, byte counts and pre-operation
+hashes. O0 is 551552 bytes, SHA256
+b731026faa394c4530adb8ebb461973114cf1f87b9c446ccdbb1b2a5172e9138;
+O2 is 481416 bytes, SHA256
+cdfba499c49a0918a9cafadb94ecf1870d2539d30abba886425b79b52632ba47.
+Total 1032968 bytes, recoverable in Trash; no reclaimed-space claim.
+
+The compile recipe, dependency/config/source receipts and logs remain.
+Signed source 4632bd4a274fac22940f0e90493c184692c0113d is retained at
+the exact local and origin agent/disk-retained-four-epoch-observer-after623
+refs. Actual retained recipe identifies these paths as compiler outputs,
+not unique source inputs; current bounded consumer checks found no other
+executable consumers. This is rebuildable source-only qualification, not
+historical compiler/binary-identity reproduction or whole-directory
+retirement. No source worktree, media, private Git owner, Home Assistant,
+Plex or VM was removed. Other records and current validation inputs remain.
