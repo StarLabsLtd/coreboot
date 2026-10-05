@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Preserve the actual test compiler arguments; final -O0 selects optimization.
+exec /usr/bin/cc "$@" -O0

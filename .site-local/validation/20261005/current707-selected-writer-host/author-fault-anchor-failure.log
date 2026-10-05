@@ -1,0 +1,50 @@
+..........FFFFF......
+======================================================================
+FAIL: test_actual_write_and_readback_failures_stop_without_success (__main__.SelectedBootTest.test_actual_write_and_readback_failures_stop_without_success) (key='HOST_READBACK_FAILURE', failure=11)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675/tests/linux_fwui_request_test.py", line 317, in test_actual_write_and_readback_failures_stop_without_success
+    self.assertEqual(process.returncode, 1, process.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : 
+
+======================================================================
+FAIL: test_actual_write_and_readback_failures_stop_without_success (__main__.SelectedBootTest.test_actual_write_and_readback_failures_stop_without_success) (key='HOST_READBACK_FAILURE', failure=13)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675/tests/linux_fwui_request_test.py", line 317, in test_actual_write_and_readback_failures_stop_without_success
+    self.assertEqual(process.returncode, 1, process.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : 
+
+======================================================================
+FAIL: test_actual_write_and_readback_failures_stop_without_success (__main__.SelectedBootTest.test_actual_write_and_readback_failures_stop_without_success) (key='HOST_READBACK_FAILURE', failure=15)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675/tests/linux_fwui_request_test.py", line 317, in test_actual_write_and_readback_failures_stop_without_success
+    self.assertEqual(process.returncode, 1, process.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : 
+
+======================================================================
+FAIL: test_actual_write_and_readback_failures_stop_without_success (__main__.SelectedBootTest.test_actual_write_and_readback_failures_stop_without_success) (key='HOST_READBACK_FAILURE', failure=17)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675/tests/linux_fwui_request_test.py", line 317, in test_actual_write_and_readback_failures_stop_without_success
+    self.assertEqual(process.returncode, 1, process.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : 
+
+======================================================================
+FAIL: test_actual_write_and_readback_failures_stop_without_success (__main__.SelectedBootTest.test_actual_write_and_readback_failures_stop_without_success) (key='HOST_READBACK_FAILURE', failure=19)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sean/Documents/.cdk2-worktrees/roadmap-checkpoint-after675/tests/linux_fwui_request_test.py", line 317, in test_actual_write_and_readback_failures_stop_without_success
+    self.assertEqual(process.returncode, 1, process.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : 
+
+----------------------------------------------------------------------
+Ran 17 tests in 1.988s
+
+FAILED (failures=5)

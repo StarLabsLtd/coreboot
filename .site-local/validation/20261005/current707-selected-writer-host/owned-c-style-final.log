@@ -1,0 +1,16 @@
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:19: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:21: CHECK: Prefer kernel type 'u64' over 'uint64_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:28: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:37: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:63: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:93: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:97: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:101: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:130: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:132: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:180: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:228: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:229: CHECK: Prefer kernel type 'u8' over 'uint8_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:230: CHECK: Prefer kernel type 'u64' over 'uint64_t'
+util/qemu/fixtures/linux-mini/firmware-setup-request.c:261: CHECK: Alignment should match open parenthesis
+total: 0 errors, 0 warnings, 15 checks, 280 lines checked
