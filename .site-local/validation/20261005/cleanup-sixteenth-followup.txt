@@ -1,0 +1,43 @@
+Nine obsolete checkouts retired — 2026-10-05
+
+Root officially removed these exact /home/sean/Documents/.cdk2-worktrees
+parents after independent inventory/incoming/media/ref review and Root's
+fresh own checks (543459 -> 33acca:0; removal 8be185:0):
+normal-fwui-native-caller-after9314 b63a864456d40324ef8a49756886010f5590d83e
+normal-fwui-source-config-afterb63 e63cb6bd274970486839d517c8d2bcdada4e0740
+normal-fwui-third-cold-after203 a71510a349765235ead52a7b636acae8b59e4aa0
+linux-origin-fwui-epoch-prefix-after4bb 190d596b0afeea4893592099e53b8acc6901f5e7
+linux-origin-fwui-qmp-topology-aftere4cf 4bb6c07b3091edceb86acbca3a793dcb8453a812
+linux-origin-fwui-reset-after633 e4cfb273b3185ae34a5685821206e28007642915
+normal-ui-known-kconfig-after592 9693fea4d89050b357c77c6c8bdfe24b95525cb4
+full-lint-after685-host 62352715633271454b9c2edc10c055c12fb5deef
+uart-unique-authority-after684 58598b47ab331eabb271f2343f6b0d4d882d30d1
+
+All source pins were signed G, clean and retained by local and origin refs.
+The first seven contained only 35 ignored Python caches and 14 pristine
+disk-file copies, not actual modified guest media. All fourteen compared
+fully to the retained canonical cdk2/util/qemu/fixtures NVMe/USB files.
+The last two had zero ignored files and four canonical linked vendor
+checkouts, unregistered officially before their parent removal: BearSSL
+bearssl5/bearssl7 and LVGL lvgl5/lvgl7. No private vendor object stores.
+
+Opposing preflight checked 1519 Git markers, 32 alternates, 13 selected
+private-admin roots/descendants and 11988 source symlinks: no foreign
+incoming ownership or source alias. Current keeper recipe consumers were
+absent. Historical archived paths require rematerializing retained signed
+revisions for replay; source was not discarded from Git.
+
+Root moved the 35 caches (681538 bytes) preserving HOME-relative paths
+through /home/sean/obsolete-nine-python-cache-retirement.9qLiNuV5 into
+recoverable Trash. The source parents and duplicate disks were officially
+removed, not trashed. No unique configuration, user changes, keys or actual
+guest receipts were present in these targets.
+
+Independent actual post-review confirms all nine source/admin paths and
+four linked vendor admins absent; exact signed pins still reachable by
+local/origin refs; canonical vendor owners clean at 8ef768/85aa60 and
+canonical disk full hashes unchanged. Exact Trash mapping and all 35 cache
+paths/bytes/hashes match the pre-removal inventory, with no symlinks.
+Registry 61 / retired CDK2 parents 207. No GC, ref pruning, Trash emptying,
+precise freed-space measurement or complete-host-cleanup claim. Active
+source, private-store/unique-input holds and unrelated HA/Plex/VM data stay.
