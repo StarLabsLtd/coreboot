@@ -185,6 +185,15 @@ config SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3
 	  specific design and should be enabled when you don't want to service
 	  PSP SMI requests (see CONFIG_SOC_AMD_COMMON_BLOCK_PSP_SMI).
 
+config SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION
+	bool "Allow ROM Armor to be controlled via option API"
+	depends on SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3
+	depends on !OPTION_BACKEND_NONE
+	help
+	  Read the "rom_armor" option at boot to decide whether to enforce ROM
+	  Armor. Protection defaults to enabled. Changes take effect after reboot.
+	  When disabled, flash access uses the FCH SPI controller, including in SMM.
+
 config SOC_AMD_PSP_ROM_ARMOR_64K_ERASE
 	bool
 	depends on SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3

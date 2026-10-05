@@ -71,13 +71,13 @@ static void boot_device_rw_init(void)
 const struct region_device *boot_device_rw(void)
 {
 	if (ENV_SMM) {
-		/* Could return SPI drivers here, but that would increase SMM size.
-		 * ROM Armor is enforced right after SMM has been set up, so it's
-		 * unlikely that something need R/W access to SPI flash before it
-		 * is enforced.
-		 */
-		if (!psp_get_hsti_state_rom_armor_enforced())
-			return NULL;
+		if (!psp_get_hsti_state_rom_armor_enforced()) {
+			if (!CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION))
+				return NULL;
+
+			boot_device_rw_init();
+			return sfg_init_done ? &spi_rw : NULL;
+		}
 
 		return &rom_armor_smm_rw;
 	} else if (ENV_RAMSTAGE) {
