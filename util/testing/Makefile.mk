@@ -497,6 +497,10 @@ test-payloads:
 test-cdk2-external-payload:
 	tests/lib/cdk2_external_payload_test.sh
 
+.PHONY: test-cdk2-final-rom-admission
+test-cdk2-final-rom-admission:
+	python3 -B tests/lib/cdk2_final_rom_admission_test.py
+
 .PHONY: test-cdk2-external-payload-artifact
 test-cdk2-external-payload-artifact: $(obj)/coreboot.rom
 	tests/lib/cdk2_external_payload_artifact_test.sh \

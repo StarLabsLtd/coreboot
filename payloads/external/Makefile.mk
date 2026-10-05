@@ -164,6 +164,15 @@ CDK2_SOURCE := payloads/external/cdk2/cdk2
 CDK2_PAYLOAD := $(call strip_quotes,$(CONFIG_PAYLOAD_FILE))
 CDK2_OUTPUT := $(patsubst %/native/,%,$(dir $(CDK2_PAYLOAD)))
 CDK2_CONFIG := $(CDK2_OUTPUT)/.config
+CDK2_RAW_SCANNER := $(CDK2_OUTPUT)/native/strict-direct-cbfs-raw-envelope
+CDK2_ADMISSION_MANIFEST := $(CDK2_OUTPUT)/strict-direct-cbfs-admission.tsv
+CDK2_ADMISSION_MAKE_ARGS := \
+	CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))" \
+	CDK2_CONFIG="$(abspath $(CDK2_CONFIG))" \
+	CDK2_DEFCONFIG="$(abspath $(CDK2_OUTPUT))/coreboot.defconfig" \
+	COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+	CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+	CDK2_NATIVE_HOST_CC="$(HOSTCC)"
 
 # Preserve both sides of the configuration boundary. The outer configuration
 # records platform policy while the nested configuration records CDK2's
@@ -200,6 +209,20 @@ $(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(objutil)/kconfig/conf
 		echo 'CDK2 integration requires the source-built strict direct route' >&2; \
 		exit 1; \
 	}
+
+# Check the final serialised payload and inventory after every late CBFS hook.
+# coreboot remains the package owner; CDK2 supplies its existing admission tools.
+finalised_rom:: | files_added
+	+$(MAKE) -C $(CDK2_SOURCE) $(CDK2_ADMISSION_MAKE_ARGS) \
+		CDK2_CONFIG_READY=0 config
+	+$(MAKE) -C $(CDK2_SOURCE) $(CDK2_ADMISSION_MAKE_ARGS) \
+		CDK2_CONFIG_READY=1 \
+		"$(abspath $(CDK2_RAW_SCANNER))"
+	@sh "$(CDK2_SOURCE)/util/strict-direct-cbfs-admission" \
+		"$(abspath $(DOTCONFIG))" "$(abspath $(CDK2_PAYLOAD))" \
+		"$(abspath $(obj)/coreboot.rom)" "$(abspath $(CBFSTOOL))" \
+		"$(call strip_quotes,$(CONFIG_CBFS_PREFIX))" \
+		"$(abspath $(CDK2_ADMISSION_MANIFEST))" "$(abspath $(CDK2_RAW_SCANNER))"
 
 endif
 
