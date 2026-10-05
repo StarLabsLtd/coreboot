@@ -1,0 +1,47 @@
+Closed historical build/worktree retirement, 2026-10-05
+
+Five generated build contexts moved to recoverable trash, Rootc2c58b returned0:
+owned-lvgl-config-after524/build/{cdk2,debug-macro-context} and
+bds-capsule-retirement-after-policy/build/{cdk2,bds-strict-O0,bds-strict-O2}.
+All five literal parents were under /home/sean/Documents/.cdk2-worktrees.
+Actual recovery review4a71dc checked 103+93+132+119+119=566 regular members
+and compared all thirty retained input bytes to signedde851ecd179f27af4e0ca1b867913326bc46ea6e.
+The unused uncommitted owned-lvgl-contexts duplicate packet also moved to trash;
+its twelve original inputs are retained by the consolidated signed packet.
+
+Two larger generated build roots moved to recoverable trash, Rootd46d44:0:
+authvar-presence-bootstrap/build and authvar-presence-import/build, under the
+same worktree parent. Actual recovery43a665 verified1188+1186=2374 members and
+all eighteen preserved inputs against signed6ab89c5fbe6594bd8cd2c68a142c3e69b72ae3ed.
+Two leftover generated hash-checked Python caches moved separately, Root090865:0;
+their3046/3043-byte recoveries and original absence were independently checked.
+Historical source and these generated caches are not claimed byte-identical
+rebuilds. All forty-eight selected config/seed/header/flag records stay in Git.
+
+After actual build/input retention and private-store/ref dependency review,
+Root removed four clean unused parent worktrees with --force solely because
+initialized vendor submodules remained: owned-LVGL/BDS fd5b11:0 and presence
+pair cefda3:0 (combined tool commands, not independent saved exit ledgers).
+Actual absence/admin removal, retained refs, signatures and ancestry were
+reviewed94adbf/03f5d9/622dcf. Their refs remain:
+agent/style-owned-lvgl-config-after524: d0321a4527f133dd8cf400344aaf6cc1fd391c80 (G)
+agent/bds-capsule-retirement-after-policy: 9b729e83b0359cbd2bcebe31216496cd7f066622 (G)
+agent/authvar-presence-bootstrap: 5e680f82ce3131d1249349b9c36f2f62b2ebb48f (N)
+agent/authvar-presence-import: ed7e7eb0cf7bafb958f01154e9bd0e7eb5e8d861 (N)
+Both historical N heads are exact ancestors of retained signed canonical
+58598b47ab331eabb271f2343f6b0d4d882d30d1;
+they are not misrepresented as signed historical commits.
+
+Bounded whole-HOME Gitmarker and separate symlink-marker scans found no foreign
+private-admin/module dependencies into these four candidates. All selected raw
+vendor refs/HEADs were canonically reachable (233+236 inspected rows); this is
+reachability, not complete before/after rawref-set identity. Protected451 and
+checkpatch437 owner stores remain, as do canonical vendor and mbedTLS stores.
+Six unrelated legacy dangling symlink markers remain held, not silently repaired.
+
+Total retired CDK2 parent worktrees is192, current registry75. Canonical CDK2
+remains signed58598, LVGL85aa and BearSSL8ef heads unchanged. No GC/ref pruning,
+trash emptying or physical disk-space reclamation is claimed. Source recovery
+uses retained Git refs; generated contexts/caches are additionally recoverable
+from Trash. HA, Plex, VMs and dirty user coreboot were not touched.
+This remains finite cleanup, not whole-project or whole-host completion.
