@@ -1,0 +1,6 @@
+...............................
+----------------------------------------------------------------------
+Ran 31 tests in 0.206s
+
+OK
+Actual pre-PR672 requester refusal/input preservation: PASS (HOST only)
