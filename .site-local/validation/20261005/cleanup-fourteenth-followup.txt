@@ -1,0 +1,31 @@
+Quiet LVGL borrower retirement — 2026-10-05
+
+Removed the exact obsolete worktree
+/home/sean/Documents/.cdk2-worktrees/quiet-lvgl-status-after-baseline
+and its private admin with official git worktree remove --force (84dc73:0).
+The signed branch agent/quiet-lvgl-status-after-baseline remains at
+be8a2d45f394de70b8161540569132a5577ee7b5. No ref pruning or GC.
+
+Tracked source and vendors were clean. Five ignored files were three
+rebuildable Python caches and two media fixtures. Both fixtures compared
+fully against the retained quiet-protected-ui-after519 owner: 134217728 and
+67108864 bytes. The owner, its fixtures, and its upstream vendor stores stay.
+
+Independent checks retained all 6 BearSSL and 112 LVGL raw-ref object IDs
+and types canonically, including under archive ref names. Ref names need
+not be identical. All available objects were also reachable and retained:
+BearSSL 2001 and LVGL 156372, with zero missing or extra private objects.
+Fresh scans covered 1545 Git markers and 210 alternates/commondir files:
+zero foreign aliases or incoming pointers into the entire private admin.
+No executable consumer or shallow/http-alternates/promisor store remained.
+Root independently checked canonical ref OID/type retention, complete media
+equality and incoming pointers (36197e -> cc4514:0). The earlier strict
+ref-name equality attempt (3a78ee:1) was not the accepted retention check.
+
+Independent post-removal review (2dc184:0): source and entire admin absent;
+signed branch and owner fixtures retained. Registry is 71 and retired CDK2
+parents 197: a new active admission-efficiency author worktree was added
+before this removal, offsetting the registry decrease. This parent was not
+trashed; source is retained in Git, media with its owner, caches rebuildable.
+This does not assert complete host cleanup, original binary reproduction,
+or measured space freed. Unrelated HA/Plex/VM data was untouched.
