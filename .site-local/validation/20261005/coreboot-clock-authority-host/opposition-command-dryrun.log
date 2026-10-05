@@ -1,0 +1,298 @@
+mkdir -p "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig"
+set -euo pipefail; \
+exec 8>"/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/.kconfig-prepare.lock"; flock 8; \
+temporary=$(mktemp -d "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/prepare.XXXXXX"); \
+trap 'rm -f "$temporary/source" "$temporary/Kconfig" \
+	"$temporary/identity" "$temporary/defconfig"; rmdir "$temporary"' EXIT; \
+trap 'exit 1' HUP INT TERM; \
+: > "$temporary/source"; \
+if test -n ""; then \
+	test -f "" || { \
+		printf '%s\n' 'COREBOOT_CONFIG does not exist: ' >&2; \
+		exit 1; \
+	}; \
+	cp "" "$temporary/source"; \
+	awk ' \
+		function fail(message) { print message > "/dev/stderr"; failed = 1; } \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			enabled = 1; next; \
+		} \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=n$/ || \
+		/^# CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED is not set$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			next; \
+		} \
+		/CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED/ { \
+			fail("malformed CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+		} \
+		END { \
+			if (failed) exit 1; \
+			print "config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"; \
+			print "\tbool"; \
+			print "\tdefault " (enabled ? "y" : "n"); \
+			print ""; \
+		}' "$temporary/source" > "$temporary/Kconfig"; \
+else \
+	: > "$temporary/Kconfig"; \
+fi; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" >> "$temporary/Kconfig"; \
+{ printf '%s\n' 'standalone'; \
+	sha256sum "$temporary/source" | cut -d ' ' -f 1; \
+} > "$temporary/identity"; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/defconfig" > "$temporary/defconfig"; \
+if ! cmp -s "$temporary/source" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp"; then \
+	mv "$temporary/source" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp"; fi; \
+if ! cmp -s "$temporary/Kconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/Kconfig"; then \
+	mv "$temporary/Kconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/Kconfig"; fi; \
+if ! cmp -s "$temporary/defconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/defconfig"; then \
+	mv "$temporary/defconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/defconfig"; fi; \
+if ! cmp -s "$temporary/identity" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-input.identity"; then \
+	mv "$temporary/identity" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-input.identity"; fi
+test -s "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-input.identity"
+mkdir -p "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/"
+cd "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" && \
+	if test -s "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; then \
+		KCONFIG_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" KCONFIG_AUTOCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/auto.conf" KCONFIG_AUTOHEADER="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/config" kconfig-conf --olddefconfig kconfig/Kconfig; \
+	else \
+		KCONFIG_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" KCONFIG_AUTOCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/auto.conf" KCONFIG_AUTOHEADER="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/config" kconfig-conf --defconfig=kconfig/defconfig kconfig/Kconfig; \
+	fi
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; then test -n "" && cmp -s "" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; then test -n "" && cmp -s "" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"
+mkdir -p "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/"
+set -e; tmp="$(mktemp "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h.tmp.XXXXXX")"; \
+	trap 'rm -f "$tmp"' EXIT HUP INT TERM; { \
+	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '#ifndef CDK2_CONFIG_H' '#define CDK2_CONFIG_H'; \
+	awk ' \
+		FILENAME == ARGV[1] { \
+			if ($1 == "config" && ($2 ~ /^CDK2_[A-Za-z0-9_]+$/ || \
+			    $2 == "PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED")) { \
+				config_name = "CONFIG_" $2; \
+				if (!(config_name in seen_config)) { \
+					config_order[++config_count] = config_name; \
+					seen_config[config_name] = 1; \
+				} \
+			} \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=y$/ { \
+			config_name = $1; \
+			sub(/=y$/, "", config_name); \
+			config_value[config_name] = "1"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=n$/ { \
+			config_name = $1; \
+			sub(/=n$/, "", config_name); \
+			config_value[config_name] = "0"; \
+			next; \
+		} \
+		/^# CONFIG_[A-Za-z0-9_]+ is not set$/ { \
+			config_value[$2] = "0"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=/ { \
+			config_name = $0; \
+			sub(/=.*/, "", config_name); \
+			config_value[config_name] = $0; \
+			sub(/^[^=]*=/, "", config_value[config_name]); \
+			next; \
+		} \
+		END { \
+			for (order_index = 1; order_index <= config_count; order_index++) { \
+				config_name = config_order[order_index]; \
+				if (!(config_name in config_value)) { \
+					config_value[config_name] = "0"; \
+				} \
+				print "#define " config_name " " config_value[config_name]; \
+				printed[config_name] = 1; \
+			} \
+			for (config_name in config_value) { \
+				if (!(config_name in printed)) { \
+					print "#define " config_name " " config_value[config_name]; \
+				} \
+			} \
+		} \
+	' "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; \
+	printf '%s\n' '#endif'; \
+} > "$tmp"; \
+if test -f "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h" && cmp -s "$tmp" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h"; then \
+	rm -f "$tmp"; \
+else mv "$tmp" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h"; fi; trap - EXIT HUP INT TERM
+if fd=''; \
+	test -n "$fd" && { \
+		case "$fd" in *[!0-9]*|'') exit 1;; esac; \
+		test -e "/proc/self/fd/$fd" && \
+			test "/proc/self/fd/$fd" -ef "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config-target.lock" && \
+			flock -n "$fd"; \
+	}; then \
+	make --no-print-directory CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677" CDK2_BUILD_DIR="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" CDK2_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf"  CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot"  CC="cc"      \
+		-f "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Makefile" config && \
+	make --no-print-directory CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677" CDK2_BUILD_DIR="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" CDK2_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf"  CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot"  CC="cc"      \
+		-f "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Makefile" CDK2_CONFIG_READY=1 native-coreboot-test; \
+else \
+	exec 9>"/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config-target.lock"; flock 9; \
+	CDK2_CONFIG_LOCK_FD=9 make --no-print-directory \
+		CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677" CDK2_BUILD_DIR="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" CDK2_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf"  CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot"  CC="cc"      -f "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Makefile" config && \
+	CDK2_CONFIG_LOCK_FD=9 make --no-print-directory CDK2_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/" CDK2_ROOT="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677" CDK2_BUILD_DIR="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" CDK2_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" CDK2_DEFCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/defconfig" CDK2_KCONFIG="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" CDK2_KCONFIG_TOOL="kconfig-conf"  CDK2_NATIVE_DIR="/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot"  CC="cc"      \
+		-f "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Makefile" CDK2_CONFIG_READY=1 \
+		native-coreboot-test; \
+fi
+mkdir -p "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig"
+set -euo pipefail; \
+exec 8>"/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/.kconfig-prepare.lock"; flock 8; \
+temporary=$(mktemp -d "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/prepare.XXXXXX"); \
+trap 'rm -f "$temporary/source" "$temporary/Kconfig" \
+	"$temporary/identity" "$temporary/defconfig"; rmdir "$temporary"' EXIT; \
+trap 'exit 1' HUP INT TERM; \
+: > "$temporary/source"; \
+if test -n ""; then \
+	test -f "" || { \
+		printf '%s\n' 'COREBOOT_CONFIG does not exist: ' >&2; \
+		exit 1; \
+	}; \
+	cp "" "$temporary/source"; \
+	awk ' \
+		function fail(message) { print message > "/dev/stderr"; failed = 1; } \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			enabled = 1; next; \
+		} \
+		/^CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=n$/ || \
+		/^# CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED is not set$/ { \
+			if (seen++) fail("duplicate CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+			next; \
+		} \
+		/CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED/ { \
+			fail("malformed CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"); \
+		} \
+		END { \
+			if (failed) exit 1; \
+			print "config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED"; \
+			print "\tbool"; \
+			print "\tdefault " (enabled ? "y" : "n"); \
+			print ""; \
+		}' "$temporary/source" > "$temporary/Kconfig"; \
+else \
+	: > "$temporary/Kconfig"; \
+fi; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" >> "$temporary/Kconfig"; \
+{ printf '%s\n' 'standalone'; \
+	sha256sum "$temporary/source" | cut -d ' ' -f 1; \
+} > "$temporary/identity"; \
+tr -d '\r' < "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/defconfig" > "$temporary/defconfig"; \
+if ! cmp -s "$temporary/source" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp"; then \
+	mv "$temporary/source" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp"; fi; \
+if ! cmp -s "$temporary/Kconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/Kconfig"; then \
+	mv "$temporary/Kconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/Kconfig"; fi; \
+if ! cmp -s "$temporary/defconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/defconfig"; then \
+	mv "$temporary/defconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/defconfig"; fi; \
+if ! cmp -s "$temporary/identity" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-input.identity"; then \
+	mv "$temporary/identity" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-input.identity"; fi
+test -s "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-input.identity"
+mkdir -p "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/"
+cd "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2" && \
+	if test -s "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; then \
+		KCONFIG_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" KCONFIG_AUTOCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/auto.conf" KCONFIG_AUTOHEADER="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/config" kconfig-conf --olddefconfig kconfig/Kconfig; \
+	else \
+		KCONFIG_CONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config" KCONFIG_AUTOCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/auto.conf" KCONFIG_AUTOHEADER="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/autoconf.h" KCONFIG_RUSTCCFG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/generated/rustc_cfg" KCONFIG_SPLITCONFIG="/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/config" kconfig-conf --defconfig=kconfig/defconfig kconfig/Kconfig; \
+	fi
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; then test -n "" && cmp -s "" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; then test -n "" && cmp -s "" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"
+mkdir -p "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/"
+set -e; tmp="$(mktemp "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h.tmp.XXXXXX")"; \
+	trap 'rm -f "$tmp"' EXIT HUP INT TERM; { \
+	printf '%s\n' '/* SPDX-License-Identifier: GPL-2.0-only */' '#ifndef CDK2_CONFIG_H' '#define CDK2_CONFIG_H'; \
+	awk ' \
+		FILENAME == ARGV[1] { \
+			if ($1 == "config" && ($2 ~ /^CDK2_[A-Za-z0-9_]+$/ || \
+			    $2 == "PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED")) { \
+				config_name = "CONFIG_" $2; \
+				if (!(config_name in seen_config)) { \
+					config_order[++config_count] = config_name; \
+					seen_config[config_name] = 1; \
+				} \
+			} \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=y$/ { \
+			config_name = $1; \
+			sub(/=y$/, "", config_name); \
+			config_value[config_name] = "1"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=n$/ { \
+			config_name = $1; \
+			sub(/=n$/, "", config_name); \
+			config_value[config_name] = "0"; \
+			next; \
+		} \
+		/^# CONFIG_[A-Za-z0-9_]+ is not set$/ { \
+			config_value[$2] = "0"; \
+			next; \
+		} \
+		/^CONFIG_[A-Za-z0-9_]+=/ { \
+			config_name = $0; \
+			sub(/=.*/, "", config_name); \
+			config_value[config_name] = $0; \
+			sub(/^[^=]*=/, "", config_value[config_name]); \
+			next; \
+		} \
+		END { \
+			for (order_index = 1; order_index <= config_count; order_index++) { \
+				config_name = config_order[order_index]; \
+				if (!(config_name in config_value)) { \
+					config_value[config_name] = "0"; \
+				} \
+				print "#define " config_name " " config_value[config_name]; \
+				printed[config_name] = 1; \
+			} \
+			for (config_name in config_value) { \
+				if (!(config_name in printed)) { \
+					print "#define " config_name " " config_value[config_name]; \
+				} \
+			} \
+		} \
+	' "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/Kconfig" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; \
+	printf '%s\n' '#endif'; \
+} > "$tmp"; \
+if test -f "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h" && cmp -s "$tmp" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h"; then \
+	rm -f "$tmp"; \
+else mv "$tmp" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include/cdk2/config.h"; fi; trap - EXIT HUP INT TERM
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"; then test -n "" && cmp -s "" "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" && grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/kconfig/coreboot-source.tmp" || { printf '%s\n' 'protected variables require the resolved coreboot service route source' >&2; exit 1; }; fi
+awk ' function fail(message) { print message > "/dev/stderr"; failed = 1 } function record(name, value) { if (seen[name]++) fail("duplicate " name " assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); values[name] = value; } /^CONFIG_CDK2_LINEAR_BOOT=[yn]$/ { record("CONFIG_CDK2_LINEAR_BOOT", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_BOOT is not set$/ { record("CONFIG_CDK2_LINEAR_BOOT", "n"); next; } /^CONFIG_CDK2_LINEAR_SETUP_HOTKEY=[yn]$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", substr($0, index($0, "=") + 1)); next; } /^# CONFIG_CDK2_LINEAR_SETUP_HOTKEY is not set$/ { record("CONFIG_CDK2_LINEAR_SETUP_HOTKEY", "n"); next; } /^CONFIG_CDK2_BOOT_TIMEOUT=(0|[1-9][0-9]?)$/ { line = substr($0, index($0, "=") + 1); if (line > 60) fail("CONFIG_CDK2_BOOT_TIMEOUT is outside range 0..60 in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); record("CONFIG_CDK2_BOOT_TIMEOUT", line); next; } /CONFIG_CDK2_LINEAR_BOOT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_BOOT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } /CONFIG_CDK2_BOOT_TIMEOUT/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_BOOT_TIMEOUT assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); } /CONFIG_CDK2_LINEAR_SETUP_HOTKEY/ { if ($0 !~ /^[[:space:]]*#/) fail("malformed CONFIG_CDK2_LINEAR_SETUP_HOTKEY assignment in /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"); next; } END { if (values["CONFIG_CDK2_LINEAR_BOOT"] == "y" && values["CONFIG_CDK2_BOOT_TIMEOUT"] != "0" && values["CONFIG_CDK2_LINEAR_SETUP_HOTKEY"] != "y") fail("CDK2 linear boot requires CDK2_BOOT_TIMEOUT=0 unless CDK2_LINEAR_SETUP_HOTKEY=y"); exit failed; }' "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/.config"
+cc -O2 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-pie \
+	-DCDK2_COREBOOT_BACKEND_TEST -DCDK2_DIAG_UNIT_TEST \
+	-ffunction-sections -fdata-sections \
+	-Wl,--gc-sections -MMD -MP \
+	-MF "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/native/coreboot-test.d" -MT "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/native/cdk2-coreboot-test" \
+	-I/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot \
+	-fsanitize=address,undefined -no-pie -o "/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/native/cdk2-coreboot-test" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/boot_private_buffer.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/image_policy_snapshot.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/payload_mm_authvar_service.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_dma_handoff.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_checksum.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_resource.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_hobs.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/modules/pci_host_bridge/model.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_handoff.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/boot_logo.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/early_splash.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/services.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/linear_boot.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/diagnostic.c" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/direct_image_table.c" \
+	/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/lib/pe_image_view.c \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_test.c"
+sh "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/deadline_cbmem_first_match_mutation_test.sh" \
+	"cc" "-O2 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-pie" \
+	"-I/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/include -I/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//include" "-fsanitize=address,undefined -no-pie"
+sh "/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//tests/coreboot_interrupt_ownership_test.sh" \
+	"/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677//src/boot/coreboot_handoff.c"
+"/home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/native/cdk2-coreboot-test"

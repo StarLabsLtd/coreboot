@@ -1,0 +1,17 @@
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_test.c: In function ‘test_clock_singleton_hobs’:
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_test.c:2720:50: error: ‘struct cb_local_apic_timer_info’ has no member named ‘tag’
+ 2720 |                                                 .tag = CB_TAG_LOCAL_APIC_TIMER_INFO,
+      |                                                  ^~~
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_test.c:2721:50: error: ‘struct cb_local_apic_timer_info’ has no member named ‘size’
+ 2721 |                                                 .size = sizes[record], .revision = cases[index].revision,
+      |                                                  ^~~~
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_test.c:2721:84: error: initialized field overwritten [-Werror=override-init]
+ 2721 |                                                 .size = sizes[record], .revision = cases[index].revision,
+      |                                                                                    ^~~~~
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_test.c:2721:84: note: (near initialization for ‘apic.revision’)
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_test.c:2719:80: error: missing braces around initializer [-Werror=missing-braces]
+ 2719 |                                         struct cb_local_apic_timer_info apic = {
+      |                                                                                ^
+cc1: all warnings being treated as errors
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/Makefile:6042: /home/sean/current693-fwui-qemu.PMINOC/coreboot-clock-host.egAs41KF/no-dma-o2/native/cdk2-coreboot-test] Error 1
+make: *** [Makefile:1151: native-coreboot-test] Error 2

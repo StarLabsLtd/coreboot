@@ -1,0 +1,36 @@
+Loaded-image and generated compiler-output retirement — 2026-10-05
+
+After signed public command-record retention at
+98b803025831fc064294f134fade6ea389580b6b, Root (55c72b:0) moved the exact
+obsolete loaded-image-pointers-after524/build tree through
+/home/sean/loaded-image-generated-retirement.9qC2hVLU to recoverable Trash,
+then officially removed that worktree and its entire private admin.
+Signed source 86afc2c32b5cbe69a6132f23cf41058cc40a7d56 remains locally and
+at origin on agent/style-loaded-image-pointers-after524.
+
+Independent recovery review (f06388/4c6c69:0) found exactly 137 regular
+files / 6754307 bytes, no symlinks or Git metadata, exact Trash mapping and
+original/admin absence. Command record, config, config.h, Kconfig and
+defconfig all compare against retained literal signed inputs. Generated
+products include 30 PIE HOST binaries and 13 dependency files; no original
+binary reproduction or fresh test execution is claimed. All 6 BearSSL raw
+refs/types and all 2001 available/reachable objects are retained canonically;
+incoming pointers, source aliases and executable consumers were zero.
+
+Root (fd2c80:0) also recoverably trashed these exact compiler-only roots:
+/home/sean/local-floor-observer-compile.DfE76g — 6 files / 39800 bytes
+/home/sean/capsule-report-observer-compile.1FIHAa — 4 files / 20792 bytes
+/home/sean/capsule-report-observer-compile.H85lFp — 6 files / 36240 bytes
+Independent recovery (9f7edf:0) confirmed one exact Trash mapping each,
+original absence, all 16 regular ELF REL .o files / 96832 bytes and no other
+inputs. These are generated variants of retained signed
+tests/system_fmp_core_ram_stage_app.c, matching main 58598 Git bytes.
+No keys, media, mutated source, config, logs, Git, executable products,
+incoming aliases or current executable consumers were present in them.
+No original compiler flags or historical object identity is claimed.
+
+Combined: four recoverable Trash directories, 153 regular files / 6851139
+bytes; one officially retired source parent. Registry 70 / retired CDK2
+parents 198. The source parent itself was not trashed. No GC, ref pruning,
+Trash emptying, measured space-freed or complete-host-cleanup claim.
+Unrelated HA/Plex/VM data was untouched.

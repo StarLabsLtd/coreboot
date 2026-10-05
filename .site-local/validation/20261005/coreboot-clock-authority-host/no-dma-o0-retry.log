@@ -1,0 +1,10 @@
+deadline CBMEM first-match-return mutation: PASS
+coreboot interrupt ownership: PASS
+cdk2 coreboot test: clock HOB lost exact GUID/payload/extent
+cdk2 coreboot test: clock HOB lost exact GUID/payload/extent
+cdk2 coreboot test: clock HOB lost exact GUID/payload/extent
+cdk2 coreboot test: clock HOB lost exact GUID/payload/extent
+cdk2 coreboot test: clock HOB lost exact GUID/payload/extent
+cdk2 coreboot test: clock HOB lost exact GUID/payload/extent
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/Makefile:2677: native-coreboot-test] Error 1
+make: *** [Makefile:1151: native-coreboot-test] Error 2
