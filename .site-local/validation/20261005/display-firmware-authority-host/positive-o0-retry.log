@@ -1,0 +1,6 @@
+/usr/bin/ld: /tmp/ccTpNuZT.o: in function `cdk2_coreboot_append_authvar_mailbox_hob':
+/tmp/cdk2-deadline-cbmem.CBRRvG/coreboot_handoff.c:2993:(.text.cdk2_coreboot_append_authvar_mailbox_hob+0x29a): undefined reference to `cdk2_authvar_service_endpoint_validate'
+collect2: error: ld returned 1 exit status
+ERROR: deadline first-match mutant did not compile
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/Makefile:2797: native-deadline-cbmem-mutation-test] Error 1
+make: *** [Makefile:1151: native-coreboot-test] Error 2

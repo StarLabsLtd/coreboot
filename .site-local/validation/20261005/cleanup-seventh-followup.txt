@@ -1,0 +1,34 @@
+Further obsolete HOME helpers and drafts, 2026-10-05
+
+Root moved these exact three directories with gio05ac10:0:
+/home/sean/legacy-generated-retirement-collector.YKwsAo
+/home/sean/legacy-generated-retirement-retry-collector.NpbXOk
+/home/sean/loose-cdk2-files-retirement-retry-collector.Kst9uj
+and this exact fourth directory with gio4525d8:0:
+/home/sean/default661-metadata-archive-proposal.cMhjvu
+
+Actual recovery179138/cb3ce0 passes: four original directories absent, exact
+Trashinfo mappings/recoveries, nine regular helper/README/manifest files58363
+bytes, all recovered bytes compare with literal signed a6cf4bb194b7cf07fc4ad9c40be45dc7401f05f2
+counterparts. Closed legacy510-522, loose147 and default661 retention helpers
+are reconstructible from the existing signed packets. Unique source receipts,
+configs, media, local retained tar and their inputs remain untouched.
+
+Root separately moved four unexecuted obsolete generated proposals with
+gio7ac18e:0 after full eight-file body/scope/consumer/alias review:
+/home/sean/coreboot-config-retirement-collector.l4J9JP
+/home/sean/coreboot-config-retirement-collector-retry.f99BWB
+/home/sean/coreboot-config-retirement-collector-final.AKAY8f
+/home/sean/lvgl-seven-tip-preservation-proposal.pTuroY
+These drafts contain eight regular README/Python files58421 bytes, no Git,
+symlink, actual config/log/media/test/user-source payload. Coreboot drafts were
+superseded by completed signed retirement receipts. The first LVGL draft was
+held unexecuted for an alternates bug; its corrected successor actually ran.
+These unique discarded draft bodies are recoverable ONLY from Trash, not
+claimed byte-preserved in Git. No live or retained replay caller imports them.
+Actual recovery137549 passes original absence, exact four Trashinfo mappings,
+eight regular files and58421 bytes without symlinks. This is count/size/recovery
+qualification, not a pre-move byte-identity or signed-body reconstruction claim.
+
+Registry71 and retired CDK2 parents196 are unchanged. No GC/ref pruning,
+Trash emptying, space-freed, whole-host cleanup or full-project signoff claim.

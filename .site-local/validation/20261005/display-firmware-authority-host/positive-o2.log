@@ -1,0 +1,5 @@
+/usr/bin/ld: /tmp/cch4CgDx.o: in function `cdk2_coreboot_append_authvar_mailbox_hob':
+/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/coreboot_handoff.c:2993:(.text.cdk2_coreboot_build_platform_hobs+0xfb7): undefined reference to `cdk2_authvar_service_endpoint_validate'
+collect2: error: ld returned 1 exit status
+make[1]: *** [/home/sean/Documents/.cdk2-worktrees/rtc-board-facts-after677/src/boot/Makefile:6038: /home/sean/display-firmware-authority-host.dbUpVQ/build/native/cdk2-coreboot-test] Error 1
+make: *** [Makefile:1151: native-coreboot-test] Error 2
