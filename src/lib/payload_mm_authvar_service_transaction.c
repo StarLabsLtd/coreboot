@@ -2,6 +2,7 @@
 
 #include <boot/payload_mm_authvar_executor.h>
 #include <boot/payload_mm_authvar_policy.h>
+#include <boot/payload_mm_authvar_presence_authority.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <string.h>
 
@@ -101,6 +102,20 @@ enum cb_err payload_mm_authvar_service_transaction(
 		    write_result.status != status || write_result.reserved)
 			goto out;
 		break;
+	case PAYLOAD_MM_AUTHVAR_SERVICE_CONFIRMED_SETUP:
+	{
+		struct payload_mm_authvar_confirmed_frame *confirmed = response;
+		const struct payload_mm_authvar_confirmed_frame *snapshot = request;
+
+		confirmed->value = snapshot->value;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+		status = payload_mm_authvar_presence_confirmed_action(snapshot,
+			&confirmed->result_flags);
+#else
+		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+#endif
+		break;
+	}
 	case PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT:
 	case PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME:
 		write.name = NULL;

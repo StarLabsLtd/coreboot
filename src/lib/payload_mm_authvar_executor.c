@@ -4060,6 +4060,10 @@ release_busy:
 #endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
+static uint64_t policy_transaction(
+	const struct payload_mm_authvar_policy_request *request,
+	struct payload_mm_authvar_policy_result *completion, bool trusted_presence);
+
 struct coordinator_invocation {
 	const struct payload_mm_authvar_policy_request *original_request;
 	struct payload_mm_authvar_policy_request admitted_request;
@@ -4516,19 +4520,12 @@ out:
 
 uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required)
 {
-	static const uint8_t global_guid[16] = {
-		0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
-		0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
-	};
-	static const uint8_t pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
 	struct payload_mm_authvar_policy_request request = {
 		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
 		.attributes = PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
 			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
 			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS |
 			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH,
-		.name = pk_name,
-		.name_size = sizeof(pk_name),
 	};
 	struct {
 		uint32_t revision;
@@ -4542,7 +4539,8 @@ uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required)
 	u8 modes;
 	u64 status;
 
-	memcpy(request.vendor_guid, global_guid, sizeof(global_guid));
+	if (!payload_mm_authvar_mode_request(PAYLOAD_MM_AUTHVAR_MODE_KEY_PK, &request))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	invocation = (struct coordinator_invocation) {
 		.original_request = &request,
 		.admitted_request = request,
@@ -4570,6 +4568,53 @@ uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required)
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	*reset_required = true;
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+uint64_t payload_mm_authvar_executor_confirmed_action(uint32_t action,
+	uint32_t value, bool *reset_required)
+{
+	struct payload_mm_authvar_policy_request request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+	};
+	struct payload_mm_authvar_policy_result result;
+	uint8_t preference = value;
+	uint64_t status;
+	uint32_t key;
+
+	if (!reset_required || value > 1U)
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	*reset_required = false;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+	if (!payload_mm_authvar_presence_action_authorized(action, value))
+		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
+#else
+	return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+#endif
+	if (executor.ready_to_boot || executor.at_runtime)
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+	if (action == PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK) {
+		if (value)
+			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		status = payload_mm_authvar_executor_enter_setup_mode(reset_required);
+		/* A successful live platform-mode transition needs no forced reset.
+		 * An uncertain durable failure must not continue in stale state. */
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+			*reset_required = false;
+		return status;
+	}
+	if (action == PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE)
+		key = PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE;
+	else if (action == PAYLOAD_MM_AUTHVAR_CONFIRMED_CUSTOM_MODE)
+		key = PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE;
+	else
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (!payload_mm_authvar_mode_request(key, &request))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	request.data = &preference;
+	request.data_size = sizeof(preference);
+	return policy_transaction(&request, &result, true);
 }
 #endif
 
@@ -5206,9 +5251,9 @@ complete_without_arena:
 	return status;
 }
 
-uint64_t payload_mm_authvar_policy_transaction(
+static uint64_t policy_transaction(
 	const struct payload_mm_authvar_policy_request *request,
-	struct payload_mm_authvar_policy_result *completion)
+	struct payload_mm_authvar_policy_result *completion, bool trusted_presence)
 {
 	struct executor_session *state;
 	const struct payload_mm_authvar_store_entry *replaced;
@@ -5239,6 +5284,8 @@ uint64_t payload_mm_authvar_policy_transaction(
 	u8 source_modes;
 #endif
 	uint32_t store_base;
+
+	(void)trusted_presence;
 
 	if (provider_reentry())
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
@@ -5380,8 +5427,7 @@ uint64_t payload_mm_authvar_policy_transaction(
 		.request = &state->request,
 		.index = &state->index,
 		.at_runtime = state->at_runtime,
-		/* No production physical-presence source is published yet. */
-		.trusted_physical_presence = false,
+		.trusted_physical_presence = trusted_presence,
 	};
 	status = payload_mm_authvar_set_preflight(&set_snapshot, &set_plan);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
@@ -5579,6 +5625,13 @@ complete:
 	__atomic_store_n(&completion->completion, PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE,
 		__ATOMIC_RELEASE);
 	return status;
+}
+
+uint64_t payload_mm_authvar_policy_transaction(
+	const struct payload_mm_authvar_policy_request *request,
+	struct payload_mm_authvar_policy_result *completion)
+{
+	return policy_transaction(request, completion, false);
 }
 
 #if CONFIG(PAYLOAD_MM_FMP_OWNER_AUTHVAR)

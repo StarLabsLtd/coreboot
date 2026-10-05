@@ -119,7 +119,8 @@ enum cb_err payload_mm_authvar_service_endpoint_validate(
 	    endpoint->revision != LB_AUTHVAR_SERVICE_ENDPOINT_REVISION ||
 	    endpoint->header_size != sizeof(*endpoint) ||
 	    (endpoint->flags & ~(LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL |
-		LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED)) !=
+		LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED |
+		LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP)) !=
 		LB_AUTHVAR_ENDPOINT_REQUIRED_FLAGS ||
 	    ((endpoint->flags & LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED) &&
 	     !(endpoint->flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL)) ||
@@ -159,6 +160,29 @@ static bool pending_result_valid(
 		frame->completion == PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
 }
 
+static bool confirmed_request_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_confirmed_frame *request, size_t size)
+{
+	const struct payload_mm_authvar_service_frame *frame = &request->service;
+
+	return (endpoint->flags & LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP) &&
+		size >= sizeof(*request) && frame->header_size == sizeof(*request) &&
+		frame->operation == PAYLOAD_MM_AUTHVAR_SERVICE_CONFIRMED_SETUP &&
+		frame->flags >= PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE &&
+		frame->flags <= PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK &&
+		frame->generation == endpoint->generation && frame->request_id &&
+		frame->request_id != UINT64_MAX &&
+		!frame->attributes && !frame->name_size && !frame->data_size &&
+		!frame->name_capacity && !frame->data_capacity && !frame->reserved0 &&
+		bytes_zero(frame->vendor_guid, sizeof(frame->vendor_guid)) &&
+		pending_result_valid(frame) && request->value <= 1U &&
+		(frame->flags != PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK || !request->value) &&
+		!request->result_flags &&
+		!bytes_zero(request->capability, sizeof(request->capability)) &&
+		bytes_zero((const uint8_t *)request + sizeof(*request), size - sizeof(*request));
+}
+
 enum cb_err payload_mm_authvar_service_request_validate(
 	const struct lb_authvar_service_endpoint *endpoint, const void *message,
 	size_t message_size)
@@ -166,6 +190,13 @@ enum cb_err payload_mm_authvar_service_request_validate(
 	const struct payload_mm_authvar_service_frame *frame = message;
 	bool guid_zero;
 	size_t data_offset;
+
+	if (payload_mm_authvar_service_endpoint_validate(endpoint) != CB_SUCCESS ||
+	    !message || message_size != endpoint->message_size)
+		return CB_ERR;
+	if (frame->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_REVISION)
+		return confirmed_request_valid(endpoint, message, message_size) ?
+			CB_SUCCESS : CB_ERR;
 
 	if (payload_mm_authvar_service_endpoint_validate(endpoint) != CB_SUCCESS ||
 	    !message || message_size != endpoint->message_size ||
@@ -576,12 +607,51 @@ static bool snapshot_response_valid(
 	}
 }
 
+static bool confirmed_response_valid(
+	const struct payload_mm_authvar_confirmed_frame *request,
+	const struct payload_mm_authvar_confirmed_frame *response, size_t size,
+	uint32_t completion)
+{
+	const struct payload_mm_authvar_service_frame *frame = &response->service;
+
+	if (!request_identity_equal(&request->service, frame) ||
+	    frame->completion != completion || !result_empty(frame) ||
+	    frame->reserved[0] || frame->reserved[1] ||
+	    !bytes_zero(response->capability, sizeof(response->capability)) ||
+	    request->value != response->value ||
+	    response->result_flags & ~PAYLOAD_MM_AUTHVAR_CONFIRMED_RESET_REQUIRED ||
+	    (response->result_flags && frame->flags != PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK) ||
+	    !bytes_zero((const uint8_t *)response + sizeof(*response), size - sizeof(*response)))
+		return false;
+	switch (frame->status) {
+	case PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS:
+	case PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER:
+	case PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR:
+	case PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES:
+	case PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND:
+	case PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED:
+	case PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static enum cb_err response_validate(
 	const struct lb_authvar_service_endpoint *endpoint, const void *request,
 	const void *response, size_t message_size, uint32_t completion)
 {
 	const struct payload_mm_authvar_service_frame *before = request;
 	const struct payload_mm_authvar_service_frame *after = response;
+
+	if (payload_mm_authvar_service_request_validate(endpoint, request, message_size) != CB_SUCCESS ||
+	    !response || message_size != endpoint->message_size)
+		return CB_ERR;
+	if (before->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_REVISION)
+		return confirmed_response_valid(request, response, message_size, completion) ?
+			CB_SUCCESS : CB_ERR;
 
 	if (payload_mm_authvar_service_request_validate(endpoint, request,
 		message_size) != CB_SUCCESS || !response ||

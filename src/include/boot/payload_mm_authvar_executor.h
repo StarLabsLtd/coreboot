@@ -87,6 +87,9 @@ uint64_t payload_mm_authvar_executor_recover(void);
  * including when the returned status reports a later failure.
  */
 uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required);
+/* Requires the existing presence authority's active finite-action scope. */
+uint64_t payload_mm_authvar_executor_confirmed_action(uint32_t action,
+	uint32_t value, bool *reset_required);
 #endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)

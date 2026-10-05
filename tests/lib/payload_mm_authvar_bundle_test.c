@@ -248,7 +248,7 @@ static void test_mode_oracle(void)
 {
 	const struct payload_mm_authvar_store_entry *enable;
 
-	/* Nonboolean persisted values project disabled, never truthy. */
+	/* Persisted preferences do not rewrite the owner's published live mode. */
 	base(true, true, true);
 	enable = payload_mm_authvar_store_find(&store_index, enable_guid,
 		enable_name, sizeof(enable_name));
@@ -257,7 +257,26 @@ static void test_mode_oracle(void)
 	snapshot.facts.secure_boot = false;
 	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
 	snapshot.facts.secure_boot = true;
-	expect(make_plan() == PAYLOAD_MM_VERIFY_CHANGED);
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect(plan.volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	store[enable->data_offset] = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect(plan.volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	decision.mutation = (struct payload_mm_authvar_policy_mutation) {
+		.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+	};
+	decision.data = NULL;
+	decision.data_size = 0U;
+	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect(plan.volatile_modes == (PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	expect(plan.mutations[1].role == PAYLOAD_MM_AUTHVAR_BUNDLE_SECURE_BOOT_ENABLE &&
+		plan.mutations[1].mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_DELETE);
+	base(true, true, true);
+	snapshot.facts.secure_boot = false;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect(!(plan.volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT));
 
 	base(false, true, false);
 	decision.intents = PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE;
@@ -745,6 +764,12 @@ static void test_outcomes_and_failures(void)
 
 	base(true, true, true);
 	store[entries[2].data_offset] = 0U;
+	expect(make_plan() == PAYLOAD_MM_VERIFY_OK);
+	expect_target(1U);
+	expect(plan.volatile_modes == (PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	entries[2].attributes |= PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS;
+	put32(store + entries[2].record_offset + 4U, entries[2].attributes);
 	expect(make_plan() == PAYLOAD_MM_VERIFY_CHANGED);
 	base(true, true, false);
 	expect(make_plan() == PAYLOAD_MM_VERIFY_CHANGED);

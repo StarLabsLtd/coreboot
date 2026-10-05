@@ -326,6 +326,9 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_finalize() == CB_SUCCESS);
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	assert(descriptor.revision == 5);
+	assert(!!(descriptor.flags & LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP) ==
+		(CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) &&
+		 CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)));
 	assert(!!(descriptor.flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL) ==
 		!CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER));
 	assert(descriptor.communication_base == 0x100000U && descriptor.communication_size == 65536U);

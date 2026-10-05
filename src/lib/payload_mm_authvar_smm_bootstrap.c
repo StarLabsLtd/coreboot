@@ -845,6 +845,9 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 	if ((descriptor.flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL) &&
 	    payload_mm_authvar_executor_state_predicate_pinned())
 		descriptor.flags |= LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED;
+	if (CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) &&
+	    CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR))
+		descriptor.flags |= LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP;
 	provider.endpoint = descriptor;
 	provider.sealed_endpoint = descriptor;
 	if (payload_mm_authvar_service_endpoint_validate(&provider.endpoint) != CB_SUCCESS ||

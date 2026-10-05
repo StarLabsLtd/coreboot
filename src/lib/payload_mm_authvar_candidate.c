@@ -659,8 +659,7 @@ static bool projection_matches(
 	    source_vendor_keys != !!*source_vendor_data ||
 	    (!binding->at_runtime &&
 	     ((source_setup && source_secure) ||
-	      (!source_setup && (!source_enable ||
-	       source_secure != source_enable_enabled)))) ||
+	      (!source_setup && !source_enable))) ||
 	    setup == !!pk || !vendor || vendor->attributes != nv_bs_time ||
 	    vendor->data_size != 1U ||
 	    !vendor_data || *vendor_data > 1U || vendor_keys != !!*vendor_data)
@@ -767,8 +766,14 @@ bool payload_mm_authvar_candidate_projection_valid(
 		return false;
 	if (binding->at_runtime)
 		return !enable_changed && secure == source_secure;
-	return source_secure == (!!source_pk && source_enable_enabled) &&
-		secure == (!!candidate_pk && candidate_enable_enabled);
+	/* The sealed source mode need not match a changed next-boot preference. */
+	if (!source_pk && source_secure)
+		return false;
+	if (!!source_pk == !!candidate_pk)
+		return !enable_changed && secure == source_secure;
+	if (!candidate_pk)
+		return !secure;
+	return secure && candidate_enable_enabled;
 }
 
 static bool result_disjoint_from_inputs(

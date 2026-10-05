@@ -7,6 +7,8 @@
 #include <bootmem.h>
 #include <string.h>
 
+#include "payload_mm_authvar_internal.h"
+
 #if !ENV_SMM && !ENV_TEST
 #error "Payload-MM authenticated-variable presence authority is SMM-only"
 #endif
@@ -36,6 +38,10 @@ static struct {
 	uint64_t lifecycle_generation;
 	uint64_t closed_generation;
 	uint64_t sealed_closed_generation;
+	uint64_t last_action_request;
+	uint64_t sealed_last_action_request;
+	uint32_t active_action;
+	uint32_t active_value;
 	uint32_t phase;
 	uint32_t install_attempted;
 } presence;
@@ -122,6 +128,10 @@ static void capability_scrub(void)
 static void restriction_scrub(void)
 {
 	capability_scrub();
+	presence.last_action_request = 0;
+	presence.sealed_last_action_request = 0;
+	presence.active_action = 0;
+	presence.active_value = 0;
 	scrub(presence.context, sizeof(presence.context));
 	scrub(presence.sealed_context, sizeof(presence.sealed_context));
 	presence.generation = 0;
@@ -1027,6 +1037,83 @@ enum cb_err payload_mm_authvar_presence_authority_dispatch(void)
 	dispatch_finish(&policy, response_live, false);
 	scrub(&policy, sizeof(policy));
 	return CB_ERR;
+}
+
+bool payload_mm_authvar_presence_action_authorized(uint32_t action, uint32_t value)
+{
+	return __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) == PRESENCE_EXECUTING &&
+		presence.active_action == action && presence.active_value == value &&
+		presence.last_action_request &&
+		presence.last_action_request == presence.sealed_last_action_request &&
+		presence.generation == presence.sealed_generation && policy_equal() &&
+		page_guard(&presence.sealed);
+}
+
+uint64_t payload_mm_authvar_presence_confirmed_action(
+	const struct payload_mm_authvar_confirmed_frame *request, uint32_t *result_flags)
+{
+	struct payload_mm_authvar_confirmed_frame snapshot;
+	struct payload_mm_authvar_presence_policy policy;
+	bool reset_required = false;
+	uint32_t expected = PRESENCE_OPEN;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+
+	if (!request || !result_flags ||
+	    !payload_mm_authvar_smram_buffer(request, sizeof(*request)) ||
+	    !payload_mm_authvar_smram_buffer(result_flags, sizeof(*result_flags)) ||
+	    !ranges_disjoint(request, sizeof(*request), &presence, sizeof(presence)) ||
+	    !ranges_disjoint(result_flags, sizeof(*result_flags), &presence, sizeof(presence)) ||
+	    !ranges_disjoint(request, sizeof(*request), result_flags, sizeof(*result_flags)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	snapshot = *request;
+	*result_flags = 0;
+	if (snapshot.service.flags < PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE ||
+	    snapshot.service.flags > PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK ||
+	    snapshot.value > 1U ||
+	    (snapshot.service.flags == PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK && snapshot.value)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		goto out;
+	}
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected, PRESENCE_EXECUTING,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		goto out;
+	policy = presence.sealed;
+	if (!policy_equal() || !page_guard(&policy) ||
+	    snapshot.service.generation != presence.sealed_generation ||
+	    !capability_equal(snapshot.capability, presence.sealed_capability) ||
+	    presence.last_action_request != presence.sealed_last_action_request ||
+	    !snapshot.service.request_id || snapshot.service.request_id == UINT64_MAX ||
+	    snapshot.service.request_id <= presence.last_action_request)
+		goto close;
+	/* Other v3 calls share the client's sequence, so gaps are valid; replay is not. */
+	presence.last_action_request = snapshot.service.request_id;
+	presence.sealed_last_action_request = snapshot.service.request_id;
+	presence.active_action = snapshot.service.flags;
+	presence.active_value = snapshot.value;
+	status = payload_mm_authvar_executor_confirmed_action(snapshot.service.flags,
+		snapshot.value, &reset_required);
+	if (reset_required)
+		*result_flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_RESET_REQUIRED;
+	if (memcmp(request, &snapshot, sizeof(snapshot)) || !policy_equal() ||
+	    !page_guard(&policy))
+		goto close;
+	presence.active_action = 0;
+	presence.active_value = 0;
+	expected = PRESENCE_EXECUTING;
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected, PRESENCE_OPEN,
+		false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+		goto close;
+	scrub(&policy, sizeof(policy));
+	goto out;
+close:
+	presence.active_action = 0;
+	presence.active_value = 0;
+	dispatch_finish(&policy, false, false);
+	scrub(&policy, sizeof(policy));
+	status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+out:
+	scrub(&snapshot, sizeof(snapshot));
+	return status;
 }
 
 enum cb_err payload_mm_authvar_presence_smi_dispatch(uint16_t port,

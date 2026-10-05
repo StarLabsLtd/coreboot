@@ -5142,10 +5142,65 @@ static void coordinator_presence_authority_noop(void)
 	coordinator_fixture_build(&fixture);
 	coordinator_make_user_source(&fixture, true);
 	install();
-	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
-		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && reset_required);
 	assert(payload_mm_authvar_presence_authority_install(&policy,
 		presence_protected_storage, NULL) == CB_SUCCESS);
+	{
+		struct payload_mm_authvar_confirmed_frame confirmed = {
+			.service = {
+				.revision = 4U, .header_size = 184U,
+				.operation = PAYLOAD_MM_AUTHVAR_SERVICE_CONFIRMED_SETUP,
+				.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE,
+				.generation = 7U, .request_id = 9U,
+			},
+		};
+		struct payload_mm_authvar_policy_request ordinary = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+			.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		};
+		struct payload_mm_authvar_policy_result result;
+		struct payload_mm_authvar_store_entry entries[64];
+		struct payload_mm_authvar_store_index index;
+		uint8_t preference = 0U;
+		uint8_t modes;
+		uint32_t result_flags;
+
+		memcpy(confirmed.capability, presence_capability, sizeof(confirmed.capability));
+		assert(payload_mm_authvar_mode_request(PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
+			&ordinary));
+		ordinary.data = &preference;
+		ordinary.data_size = sizeof(preference);
+		assert(payload_mm_authvar_policy_transaction(&ordinary, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		(void)native_find(coordinator_enable_guid, coordinator_enable_name,
+			sizeof(coordinator_enable_name), &index, entries, ARRAY_SIZE(entries));
+		assert(payload_mm_authvar_coordinator_source_modes(&index, false, true,
+			PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT | PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS,
+			&modes));
+		assert(modes == (PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+		assert(payload_mm_authvar_coordinator_source_modes(&index, false, false, 0U,
+			&modes) && modes == PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS);
+		confirmed.service.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_CUSTOM_MODE;
+		confirmed.service.request_id++;
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		confirmed.value = 1U;
+		confirmed.service.request_id++;
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		confirmed.service.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK;
+		confirmed.value = 0U;
+		confirmed.service.request_id++;
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		assert(!native_find(coordinator_global_guid, coordinator_pk_name,
+			sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries)));
+	}
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && reset_required);
 	presence_mailbox = (struct payload_mm_authvar_presence_message) {
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_REVISION,
 		.size = sizeof(presence_mailbox),

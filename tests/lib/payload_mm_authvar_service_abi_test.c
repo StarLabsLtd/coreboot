@@ -183,7 +183,11 @@ static void hostile_requests(void)
 	changed = endpoint;
 	changed.flags |= LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL;
 	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_SUCCESS);
-	changed.flags |= 1U << 9;
+	changed.flags |= LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_SUCCESS);
+	changed.flags |= LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP;
+	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_SUCCESS);
+	changed.flags |= 1U << 11;
 	assert(payload_mm_authvar_service_endpoint_validate(&changed) == CB_ERR);
 	changed = endpoint;
 	changed.flags ^= LB_AUTHVAR_ENDPOINT_NO_RAW_SMMSTORE;
@@ -1122,8 +1126,75 @@ static void classification_wire_contract(void)
 		response_buffer, sizeof(response_buffer)) == CB_ERR);
 }
 
+static void confirmed_wire_contract(void)
+{
+	struct payload_mm_authvar_confirmed_frame *request;
+	struct payload_mm_authvar_confirmed_frame *response;
+
+	_Static_assert(sizeof(*request) == 184U, "finite action header size");
+	_Static_assert(offsetof(struct payload_mm_authvar_confirmed_frame, capability) == 144U,
+		"finite action capability offset");
+	_Static_assert(offsetof(struct payload_mm_authvar_confirmed_frame, value) == 176U,
+		"finite action value offset");
+	_Static_assert(offsetof(struct payload_mm_authvar_confirmed_frame, result_flags) == 180U,
+		"finite action result offset");
+	request = (void *)new_request(PAYLOAD_MM_AUTHVAR_SERVICE_CONFIRMED_SETUP);
+	request->service.revision = 4U;
+	request->service.header_size = 184U;
+	request->service.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE;
+	request->capability[0] = 1U;
+	request->value = 1U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	endpoint.flags |= LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_SUCCESS);
+	request->service.flags = 0U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->service.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE;
+	request->value = 2U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->value = 1U;
+	request->service.request_id = 0U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->service.request_id = 9U;
+	request->service.reserved0 = 1U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->service.reserved0 = 0U;
+	request->capability[0] = 0U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->capability[0] = 1U;
+	response = (void *)new_response(&request->service, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->value = request->value;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response->capability[0] = 1U;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response->capability[0] = 0U;
+	response->result_flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_RESET_REQUIRED;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	request->service.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK;
+	request->value = 0U;
+	response = (void *)new_response(&request->service, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->result_flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_RESET_REQUIRED;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	endpoint.flags &= ~LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP;
+	new_request(PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT);
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_SUCCESS);
+}
+
 int main(void)
 {
+	confirmed_wire_contract();
 	snapshot_wire_contract();
 	classification_wire_contract();
 	endpoint_revision_three();

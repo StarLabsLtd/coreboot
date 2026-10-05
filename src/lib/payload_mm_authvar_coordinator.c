@@ -128,7 +128,9 @@ bool payload_mm_authvar_coordinator_source_modes(
 		return false;
 	if (vendor_value)
 		modes |= PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
-	if (at_runtime) {
+	/* Enable is a next-boot preference. Once published, SecureBoot changes
+	 * only through a platform-mode transition, not a preference write. */
+	if (at_runtime || sealed_modes_valid) {
 		if (!sealed_modes_valid ||
 		    !!(sealed_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) != !pk ||
 		    !!(sealed_modes & PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) !=
@@ -138,8 +140,6 @@ bool payload_mm_authvar_coordinator_source_modes(
 	} else {
 		if (pk && enable_value)
 			modes |= PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
-		if (sealed_modes_valid && sealed_modes != modes)
-			return false;
 	}
 	*source_modes = modes;
 	return true;
@@ -441,11 +441,6 @@ uint64_t payload_mm_authvar_presence_prepare(
 	struct payload_mm_authvar_coordinator_result *result,
 	bool *invariant_failure)
 {
-	static const uint8_t global_guid[16] = {
-		0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
-		0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
-	};
-	static const uint8_t pk_name[] = { 'P', 0, 'K', 0, 0, 0 };
 	struct payload_mm_authvar_coordinator_result draft = { 0 };
 	struct payload_mm_authvar_policy_request request = {
 		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
@@ -453,8 +448,6 @@ uint64_t payload_mm_authvar_presence_prepare(
 			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
 			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS |
 			PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH,
-		.name = pk_name,
-		.name_size = sizeof(pk_name),
 	};
 	struct payload_mm_authvar_authority_decision decision = {
 		.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION,
@@ -500,7 +493,8 @@ uint64_t payload_mm_authvar_presence_prepare(
 		*result = draft;
 		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 	}
-	memcpy(request.vendor_guid, global_guid, sizeof(global_guid));
+	if (!payload_mm_authvar_mode_request(PAYLOAD_MM_AUTHVAR_MODE_KEY_PK, &request))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	snapshot = (struct payload_mm_authvar_bundle_snapshot) {
 		.request = &request,
 		.decision = &decision,

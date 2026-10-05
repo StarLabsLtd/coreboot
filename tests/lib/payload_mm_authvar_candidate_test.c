@@ -389,8 +389,66 @@ static void test_projection_oracle(void)
 		assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
 			&binding, binding.source_volatile_modes));
 	}
+	/* Keep source validation causal even when its preference differs from live mode. */
+	put32(store, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store), &limits) == CB_SUCCESS);
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	put32(store, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS);
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store), &limits) == CB_SUCCESS);
+	put32(candidate, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	put32(candidate, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS);
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	/* A saved Disable does not change sealed SecureBoot before a PK transition. */
+	store[enable->data_offset] = 0U;
+	memcpy(candidate, store, sizeof(candidate));
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	candidate[enable->data_offset] = one;
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	binding.at_runtime = 1U;
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	binding.at_runtime = 0U;
+	candidate[enable->data_offset] = 0U;
+	pk = payload_mm_authvar_store_find(&index, global_guid, pk_name, sizeof(pk_name));
+	assert(pk);
+	candidate[pk->record_offset + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP | PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP | binding.source_volatile_modes));
 	store[enable->data_offset] = one;
 	store[custom->data_offset] = one;
+	memcpy(candidate, store, sizeof(candidate));
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	/* A saved Enable likewise cannot turn on the live mode by itself. */
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT | binding.source_volatile_modes));
 	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
 		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
 	memcpy(candidate, store, sizeof(candidate));
