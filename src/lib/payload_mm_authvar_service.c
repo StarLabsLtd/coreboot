@@ -160,6 +160,43 @@ static bool pending_result_valid(
 		frame->completion == PAYLOAD_MM_AUTHVAR_SERVICE_PENDING;
 }
 
+static bool confirmed_key_request_valid(
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_confirmed_key_frame *request, size_t size)
+{
+	const struct payload_mm_authvar_confirmed_frame *confirmed = &request->confirmed;
+	const struct payload_mm_authvar_service_frame *frame = &confirmed->service;
+	uint32_t attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS | PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+
+	if (size < sizeof(*request) || frame->data_size < 40U ||
+	    frame->data_size > endpoint->maximum_data_size ||
+	    frame->data_size > size - sizeof(*request) ||
+	    request->key_id < PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_PK ||
+	    request->key_id > PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_DBT ||
+	    request->mutation < PAYLOAD_MM_AUTHVAR_CONFIRMED_REPLACE ||
+	    request->mutation > PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE ||
+	    (request->mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_APPEND &&
+	     request->key_id == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_PK) ||
+	    (request->mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE && frame->data_size != 40U))
+		return false;
+	if (request->mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_APPEND)
+		attributes |= PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+	return (endpoint->flags & LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP) &&
+		frame->header_size == sizeof(*request) &&
+		frame->operation == PAYLOAD_MM_AUTHVAR_SERVICE_CONFIRMED_SETUP &&
+		frame->flags == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION &&
+		frame->generation == endpoint->generation && frame->request_id &&
+		frame->request_id != UINT64_MAX && frame->attributes == attributes &&
+		!frame->name_size && !frame->name_capacity && !frame->data_capacity &&
+		!frame->reserved0 && bytes_zero(frame->vendor_guid, sizeof(frame->vendor_guid)) &&
+		pending_result_valid(frame) && !confirmed->value && !confirmed->result_flags &&
+		!bytes_zero(confirmed->capability, sizeof(confirmed->capability)) &&
+		bytes_zero((const uint8_t *)request + sizeof(*request) + frame->data_size,
+			size - sizeof(*request) - frame->data_size);
+}
+
 static bool confirmed_request_valid(
 	const struct lb_authvar_service_endpoint *endpoint,
 	const struct payload_mm_authvar_confirmed_frame *request, size_t size)
@@ -196,6 +233,9 @@ enum cb_err payload_mm_authvar_service_request_validate(
 		return CB_ERR;
 	if (frame->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_REVISION)
 		return confirmed_request_valid(endpoint, message, message_size) ?
+			CB_SUCCESS : CB_ERR;
+	if (frame->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION)
+		return confirmed_key_request_valid(endpoint, message, message_size) ?
 			CB_SUCCESS : CB_ERR;
 
 	if (payload_mm_authvar_service_endpoint_validate(endpoint) != CB_SUCCESS ||
@@ -639,6 +679,18 @@ static bool confirmed_response_valid(
 	}
 }
 
+static bool confirmed_key_response_valid(
+	const struct payload_mm_authvar_confirmed_key_frame *request,
+	const struct payload_mm_authvar_confirmed_key_frame *response, size_t size,
+	uint32_t completion)
+{
+	return confirmed_response_valid(&request->confirmed, &response->confirmed,
+		sizeof(response->confirmed), completion) &&
+		!response->confirmed.result_flags &&
+		request->key_id == response->key_id && request->mutation == response->mutation &&
+		bytes_zero((const uint8_t *)response + sizeof(*response), size - sizeof(*response));
+}
+
 static enum cb_err response_validate(
 	const struct lb_authvar_service_endpoint *endpoint, const void *request,
 	const void *response, size_t message_size, uint32_t completion)
@@ -651,6 +703,9 @@ static enum cb_err response_validate(
 		return CB_ERR;
 	if (before->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_REVISION)
 		return confirmed_response_valid(request, response, message_size, completion) ?
+			CB_SUCCESS : CB_ERR;
+	if (before->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION)
+		return confirmed_key_response_valid(request, response, message_size, completion) ?
 			CB_SUCCESS : CB_ERR;
 
 	if (payload_mm_authvar_service_request_validate(endpoint, request,

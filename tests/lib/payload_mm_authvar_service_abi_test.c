@@ -1192,9 +1192,84 @@ static void confirmed_wire_contract(void)
 		sizeof(request_buffer)) == CB_SUCCESS);
 }
 
+static void confirmed_key_wire_contract(void)
+{
+	struct payload_mm_authvar_confirmed_key_frame *request, *response;
+
+	_Static_assert(sizeof(*request) == 192U, "key action literal header size");
+	_Static_assert(offsetof(struct payload_mm_authvar_confirmed_key_frame, key_id) == 184U,
+		"key action literal key offset");
+	_Static_assert(offsetof(struct payload_mm_authvar_confirmed_key_frame, mutation) == 188U,
+		"key action literal mutation offset");
+	for (uint32_t key = 1U; key <= 5U; key++)
+		for (uint32_t mutation = 1U; mutation <= 3U; mutation++) {
+			request = (void *)new_request(11U);
+			request->confirmed.service.revision = 5U;
+			request->confirmed.service.header_size = 192U;
+			request->confirmed.service.flags = 4U;
+			request->confirmed.service.attributes = mutation == 2U ? 0x67U : 0x27U;
+			request->confirmed.service.data_size = 40U;
+			request->confirmed.capability[0] = 1U;
+			request->key_id = key;
+			request->mutation = mutation;
+			endpoint.flags |= LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP;
+			assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+				sizeof(request_buffer)) == (key == 1U && mutation == 2U ? CB_ERR : CB_SUCCESS));
+		}
+	/* The final loop leaves a legal dbt delete frame. */
+	request_buffer[232U] = 1U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request_buffer[232U] = 0U;
+	request->confirmed.service.reserved0 = 1U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->confirmed.service.reserved0 = 0U;
+	request->confirmed.value = 1U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->confirmed.value = 0U;
+	request->key_id = 6U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->key_id = 5U;
+	request->mutation = 0U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->mutation = 3U;
+	request->confirmed.service.data_size = 41U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->confirmed.service.data_size = 40U;
+	response = (void *)new_response(&request->confirmed.service, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	response->key_id = 5U;
+	response->mutation = 3U;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_SUCCESS);
+	response_buffer[192U] = 1U;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response_buffer[192U] = 0U;
+	response->key_id = 4U;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response->key_id = 5U;
+	response->confirmed.capability[0] = 1U;
+	assert(payload_mm_authvar_service_response_validate(&endpoint, request_buffer,
+		response_buffer, sizeof(response_buffer)) == CB_ERR);
+	response->confirmed.capability[0] = 0U;
+	endpoint.flags &= ~LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+	request->confirmed.service.revision = 3U;
+	assert(payload_mm_authvar_service_request_validate(&endpoint, request_buffer,
+		sizeof(request_buffer)) == CB_ERR);
+}
+
 int main(void)
 {
 	confirmed_wire_contract();
+	confirmed_key_wire_contract();
 	snapshot_wire_contract();
 	classification_wire_contract();
 	endpoint_revision_three();

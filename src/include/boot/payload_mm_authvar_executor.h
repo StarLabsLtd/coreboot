@@ -23,6 +23,10 @@ struct payload_mm_authvar_executor_limits {
 };
 
 struct lb_authvar_service_endpoint;
+struct payload_mm_authvar_confirmed_key_frame;
+
+uint64_t payload_mm_authvar_executor_confirmed_key(
+	const struct payload_mm_authvar_confirmed_key_frame *request);
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 /* Optional descriptive capability of the genuinely installed protected owner. */

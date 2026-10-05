@@ -108,6 +108,19 @@ enum cb_err payload_mm_authvar_service_transaction(
 		const struct payload_mm_authvar_confirmed_frame *snapshot = request;
 
 		confirmed->value = snapshot->value;
+		if (header.revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION) {
+			struct payload_mm_authvar_confirmed_key_frame *key_response = response;
+			const struct payload_mm_authvar_confirmed_key_frame *key_request = request;
+
+			key_response->key_id = key_request->key_id;
+			key_response->mutation = key_request->mutation;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+			status = payload_mm_authvar_presence_confirmed_key(key_request, size);
+#else
+			status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+#endif
+			break;
+		}
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
 		status = payload_mm_authvar_presence_confirmed_action(snapshot,
 			&confirmed->result_flags);

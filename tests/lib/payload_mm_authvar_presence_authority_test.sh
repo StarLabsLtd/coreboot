@@ -26,6 +26,7 @@ run_test()
 		"$root/tests/lib/payload_mm_authvar_presence_authority_test.c" \
 		"$root/src/lib/payload_mm_authvar_presence.c" \
 		"$root/src/lib/payload_mm_authvar_presence_authority.c" \
+		"$root/src/lib/payload_mm_authvar_route.c" \
 		-o "$temporary/$name"
 	ASAN_OPTIONS=detect_leaks=1 "$temporary/$name"
 }
@@ -92,6 +93,7 @@ mutation()
 			-I"$root/src/arch/x86/include" \
 			"$root/tests/lib/payload_mm_authvar_presence_authority_test.c" \
 			"$root/src/lib/payload_mm_authvar_presence.c" "$mutant" \
+			"$root/src/lib/payload_mm_authvar_route.c" \
 			-o "$binary"
 		if ASAN_OPTIONS=detect_leaks=1 "$binary" >/dev/null 2>&1; then
 			printf 'mutation survived: %s O%s\n' "$name" "$optimization" >&2

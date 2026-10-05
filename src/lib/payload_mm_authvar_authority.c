@@ -3,6 +3,9 @@
 #include <boot/payload_mm_authvar_authority.h>
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_signature_db.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+#include <boot/payload_mm_authvar_presence_authority.h>
+#endif
 
 #include <commonlib/helpers.h>
 #include <string.h>
@@ -303,12 +306,22 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 			route_status == PAYLOAD_MM_AUTHVAR_ROUTE_INVALID ?
 			PAYLOAD_MM_VERIFY_MALFORMED : PAYLOAD_MM_VERIFY_REJECTED;
 	append = request->attributes & PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
+	if (snapshot->confirmed_key) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+		if (!snapshot->facts.trusted_physical_presence ||
+		    route.authorities[0] != PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS ||
+		    !payload_mm_authvar_presence_key_authorized(snapshot->confirmed_key, request))
+			return PAYLOAD_MM_VERIFY_REJECTED;
+#else
+		return PAYLOAD_MM_VERIFY_REJECTED;
+#endif
+	}
 	if (existing && existing->attributes !=
 	    (request->attributes & ~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND))
 		return PAYLOAD_MM_VERIFY_REJECTED;
 	if (append && route.target == PAYLOAD_MM_AUTHVAR_TARGET_PK)
 		return PAYLOAD_MM_VERIFY_REJECTED;
-	if (old_timestamp && !append &&
+	if (old_timestamp && !append && !snapshot->confirmed_key &&
 	    timestamp_compare(auth2.timestamp, old_timestamp) <= 0)
 		return PAYLOAD_MM_VERIFY_REJECTED;
 	deleting = existing && !append && !auth2.payload.size;

@@ -84,6 +84,15 @@ void payload_mm_authvar_presence_authority_close(void);
 /* Exact fixed-mailbox dispatch and optional platform APM route. */
 enum cb_err payload_mm_authvar_presence_authority_dispatch(void);
 struct payload_mm_authvar_confirmed_frame;
+struct payload_mm_authvar_confirmed_key_frame;
+struct payload_mm_authvar_policy_request;
+
+uint64_t payload_mm_authvar_presence_confirmed_key(
+	const struct payload_mm_authvar_confirmed_key_frame *request, size_t message_size);
+/* Zero refuses; success returns the live admitted full protected message span. */
+size_t payload_mm_authvar_presence_key_authorized(
+	const struct payload_mm_authvar_confirmed_key_frame *request,
+	const struct payload_mm_authvar_policy_request *copied);
 /* Protected v4 snapshot only; consumes one finite action authorization. */
 uint64_t payload_mm_authvar_presence_confirmed_action(
 	const struct payload_mm_authvar_confirmed_frame *request, uint32_t *result_flags);

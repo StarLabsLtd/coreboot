@@ -71,6 +71,76 @@ print pack("vC6VvC2", 2026, 10, 1, 0, 0, 1, 0, 0, 0, 0, 0);
 print pack("Vvv", 24 + length($cms), 0x200, 0xef1);
 print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, "payload";' \
 	"$temporary/signed.der" > "$temporary/auth2.bin"
+if [ "$confirmed_setup" -eq 1 ]; then
+	# Distinct, genuine X.509 entries; the provider must parse the complete AUTH2 frame.
+	openssl req -new -x509 -key "$temporary/signer.key" -days 2 -sha384 \
+		-subj /CN=payload-mm-provider-second -addext basicConstraints=critical,CA:FALSE \
+		-addext keyUsage=critical,digitalSignature -out "$temporary/second.pem" \
+		>/dev/null 2>&1
+	openssl x509 -in "$temporary/second.pem" -outform DER -out "$temporary/second.der"
+	openssl req -new -x509 -newkey rsa:1024 -nodes -days 2 -sha256 \
+		-subj /CN=payload-mm-provider-weak -addext basicConstraints=critical,CA:FALSE \
+		-addext keyUsage=critical,digitalSignature -keyout "$temporary/weak.key" \
+		-out "$temporary/weak.pem" >/dev/null 2>&1
+	openssl x509 -in "$temporary/weak.pem" -outform DER -out "$temporary/weak.der"
+	openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+		-days 2 -sha256 -subj /CN=payload-mm-provider-ec \
+		-addext basicConstraints=critical,CA:FALSE -addext keyUsage=critical,digitalSignature \
+		-keyout "$temporary/ec.key" -out "$temporary/ec.pem" >/dev/null 2>&1
+	openssl x509 -in "$temporary/ec.pem" -outform DER -out "$temporary/ec.der"
+	for entry in a b weak ec truncated; do
+		case "$entry" in
+		a|truncated) certificate="$temporary/signer.der" ;;
+		b) certificate="$temporary/second.der" ;;
+		*) certificate="$temporary/$entry.der" ;;
+		esac
+		perl -e 'open my $in, "<", $ARGV[0] or die $!; binmode $in;
+local $/; my $der = <$in>;
+substr($der, -1, 1, "") if $ARGV[1] eq "truncated";
+print pack("H*", "a159c0a5e494a74a87b5ab155c2bf072");
+print pack("VVV", 44 + length($der), 0, 16 + length($der));
+print pack("H*", "0123456789abcdef0123456789abcdef"), $der;' \
+			"$certificate" "$entry" > "$temporary/key-$entry.esl"
+	done
+	for key in 1 2 3 4 5; do
+		for label in replace-a replace-b replace-old append-b rsa1024 p256 truncated; do
+			entry=a day=2 attributes=39
+			case "$label" in
+			replace-b) entry=b ;;
+			replace-old) day=1 ;;
+			append-b) entry=b attributes=103 ;;
+			rsa1024|p256|truncated)
+				[ "$key" -eq 1 ] || continue
+				case "$label" in
+				rsa1024) entry=weak ;;
+				p256) entry=ec ;;
+				*) entry=truncated ;;
+				esac
+				;;
+			esac
+			perl -e 'my @names = ("PK", "KEK", "db", "dbx", "dbt");
+my ($key, $attr, $day, $file) = @ARGV;
+open my $in, "<", $file or die $!; binmode $in; local $/; my $esl = <$in>;
+print pack("v*", unpack("C*", $names[$key - 1]));
+print pack("H*", $key <= 2 ? "61dfe48bca93d211aa0d00e098032b8c" :
+"cbb219d73a3d9645a3bcdad00e67656f");
+print pack("V", $attr), pack("vC6VvC2", 2026, 10, $day, 0, 0, 1, 0, 0, 0, 0, 0), $esl;' \
+				"$key" "$attributes" "$day" "$temporary/key-$entry.esl" \
+				> "$temporary/key-content.bin"
+			openssl cms -sign -binary -in "$temporary/key-content.bin" \
+				-signer "$temporary/signer.pem" -inkey "$temporary/signer.key" \
+				-md sha256 -outform DER -out "$temporary/key-signed.der"
+			perl -e 'my ($day, $cms_file, $esl_file) = @ARGV;
+open my $in, "<", $cms_file or die $!; binmode $in; local $/; my $cms = <$in>;
+open my $payload, "<", $esl_file or die $!; binmode $payload; my $esl = <$payload>;
+print pack("vC6VvC2", 2026, 10, $day, 0, 0, 1, 0, 0, 0, 0, 0);
+print pack("Vvv", 24 + length($cms), 0x200, 0xef1);
+print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, $esl;' \
+				"$day" "$temporary/key-signed.der" "$temporary/key-$entry.esl" \
+				> "$temporary/key-$key-$label.auth2"
+		done
+	done
+fi
 for authentication in auth2 ordinary; do
 	if [ "$confirmed_setup" -eq 1 ] && [ "$authentication" != ordinary ]; then
 		continue
@@ -316,6 +386,25 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 						confirmed-closed confirmed-runtime; do
 						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
 							"$temporary/test" "$mode"
+					done
+					for mode in confirmed-keys confirmed-keys-replay confirmed-keys-wrong-cap \
+						confirmed-keys-closed confirmed-keys-runtime \
+						confirmed-keys-der-refusals \
+						confirmed-keys-payload-drift confirmed-keys-tail-drift; do
+						log="$temporary/keys-O${optimization}-${mode}.log"
+						result=0
+						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+							"$temporary/test" "$mode" "$temporary" > "$log" 2>&1 || result=$?
+						expected_status=0
+						case "$mode" in *-drift) expected_status=79 ;; esac
+						if [ "$result" -ne "$expected_status" ]; then
+							cat "$log" >&2
+							exit 1
+						fi
+						if grep -E 'provider stack line|provider reply:|runtime error:|Sanitizer' \
+							"$log"; then
+							exit 1
+						fi
 					done
 					continue
 				fi

@@ -5,6 +5,10 @@
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_record.h>
 #include <boot/payload_mm_authvar_service.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+#include <boot/payload_mm_authvar_presence_authority.h>
+#include <boot/payload_mm_authvar_route.h>
+#endif
 #include <commonlib/helpers.h>
 #include <string.h>
 
@@ -396,8 +400,30 @@ static bool mutations_fit_and_match(
 		if (entry && entry->attributes != item->mutation.attributes)
 			return false;
 		if (entry && timestamp_compare(item->mutation.timestamp,
-					       index->store + entry->record_offset + 16U) < 0)
+					       index->store + entry->record_offset + 16U) < 0) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+			const struct payload_mm_authvar_policy_request *request = bundle->confirmed_request;
+			struct payload_mm_authvar_auth2_view auth2;
+
+			if (!bundle->confirmed_key || !request ||
+			    !payload_mm_authvar_presence_key_authorized(bundle->confirmed_key, request) ||
+			    bundle->confirmed_key->mutation != PAYLOAD_MM_AUTHVAR_CONFIRMED_REPLACE ||
+			    item->role != PAYLOAD_MM_AUTHVAR_BUNDLE_TARGET ||
+			    item->mutation.attributes != request->attributes ||
+			    !key_equal(item->vendor_guid, item->name, item->name_size,
+				request->vendor_guid, request->name, request->name_size) ||
+			    (uint32_t)payload_mm_authvar_route_key_target(item->vendor_guid,
+				item->name, item->name_size - 2U) != bundle->confirmed_key->key_id ||
+			    payload_mm_authvar_auth2_parse(request->data, request->data_size, &auth2) !=
+				PAYLOAD_MM_AUTHVAR_FORMAT_OK ||
+			    memcmp(item->mutation.timestamp, auth2.timestamp, sizeof(auth2.timestamp)) ||
+			    item->data_size != auth2.payload.size ||
+			    memcmp(item->data, auth2.payload.data, item->data_size))
+				return false;
+#else
 			return false;
+#endif
+		}
 		if (item->name_size > policy->maximum_name_size ||
 		    item->data_size > policy->maximum_data_size ||
 		    !payload_mm_authvar_record_layout(item->name_size,
@@ -799,6 +825,29 @@ static bool result_disjoint_from_inputs(
 	    !range_valid(candidate, index->store_size) ||
 	    !range_valid(scan_entries, *scan_entry_bytes))
 		return false;
+	if (bundle->confirmed_key || bundle->confirmed_request) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+		const struct payload_mm_authvar_confirmed_key_frame *frame = bundle->confirmed_key;
+		const struct payload_mm_authvar_policy_request *request = bundle->confirmed_request;
+		size_t message_size;
+
+		if (!frame || !request ||
+		    !(message_size = payload_mm_authvar_presence_key_authorized(frame, request)) ||
+		    bundle->confirmed_key != frame || bundle->confirmed_request != request)
+			return false;
+		const void *inputs[] = { frame, request, request->name, request->data };
+		const size_t sizes[] = { message_size, sizeof(*request),
+			request->name_size, request->data_size };
+
+		for (size_t i = 0; i < ARRAY_SIZE(inputs); i++)
+			if (ranges_overlap(result, sizeof(*result), inputs[i], sizes[i]) ||
+			    ranges_overlap(candidate, index->store_size, inputs[i], sizes[i]) ||
+			    ranges_overlap(scan_entries, *scan_entry_bytes, inputs[i], sizes[i]))
+				return false;
+#else
+		return false;
+#endif
+	}
 	if (ranges_overlap(result, sizeof(*result), index, sizeof(*index)) ||
 	    ranges_overlap(result, sizeof(*result), bundle, sizeof(*bundle)) ||
 	    ranges_overlap(result, sizeof(*result), policy, sizeof(*policy)) ||

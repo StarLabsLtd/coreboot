@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <boot/payload_mm_authvar_presence_authority.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_policy.h>
 #include <bootmem.h>
 #include <pthread.h>
 #include <signal.h>
@@ -85,6 +86,7 @@ static struct callback_context callback_context;
 
 static bool state_contains_capability(void);
 static void corrupt_snapshot_source(void);
+static uint8_t *authority_generation_tail(void);
 
 static pthread_mutex_t restrict_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t restrict_cond = PTHREAD_COND_INITIALIZER;
@@ -146,6 +148,44 @@ uint64_t payload_mm_authvar_executor_confirmed_action(uint32_t action,
 	executor_calls++;
 	*reset_required = executor_reset_required;
 	return executor_status;
+}
+
+uint64_t payload_mm_authvar_executor_confirmed_key(
+	const struct payload_mm_authvar_confirmed_key_frame *request)
+{
+	static const uint8_t name[] = { 'P', 0, 'K', 0, 0, 0 };
+	uint8_t copy[40];
+	struct payload_mm_authvar_policy_request copied = {
+		.operation = 3, .attributes = 0x27, .name = name,
+		.name_size = sizeof(name), .data = copy, .data_size = sizeof(copy),
+		.vendor_guid = { 0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+			0xaa, 0x0d, 0, 0xe0, 0x98, 0x03, 0x2b, 0x8c },
+	};
+	uint8_t *original = (uint8_t *)(uintptr_t)request;
+	uint8_t *extent = authority_generation_tail() + 7U * sizeof(uint64_t) +
+		2U * sizeof(uint32_t) + sizeof(void *);
+	size_t admitted, changed;
+
+	memcpy(copy, original + 192, sizeof(copy));
+	admitted = payload_mm_authvar_presence_key_authorized(request, &copied);
+	assert(admitted == 240);
+	original[192] ^= 1;
+	assert(!payload_mm_authvar_presence_key_authorized(request, &copied));
+	original[192] ^= 1;
+	original[239] = 1;
+	assert(!payload_mm_authvar_presence_key_authorized(request, &copied));
+	original[239] = 0;
+	/* One mutable extent cannot hide the protected tail during an inner query. */
+	changed = 232;
+	memcpy(extent, &changed, sizeof(changed));
+	assert(!payload_mm_authvar_presence_key_authorized(request, &copied));
+	memcpy(extent, &admitted, sizeof(admitted));
+	memcpy(extent + sizeof(size_t), &changed, sizeof(changed));
+	assert(!payload_mm_authvar_presence_key_authorized(request, &copied));
+	memcpy(extent + sizeof(size_t), &admitted, sizeof(admitted));
+	assert(payload_mm_authvar_presence_key_authorized(request, &copied) == admitted);
+	/* This isolated authority fixture has no variable transaction executor. */
+	return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 }
 
 static bool protected_storage_except_mailbox_page(void *context,
@@ -551,7 +591,8 @@ static void corrupt_generation(void)
 
 static uint8_t *authority_generation_tail(void)
 {
-	const size_t tail_size = 7U * sizeof(uint64_t) + 4U * sizeof(uint32_t);
+	const size_t tail_size = 7U * sizeof(uint64_t) + 4U * sizeof(uint32_t) +
+		sizeof(void *) + 2U * sizeof(size_t) + sizeof(struct payload_mm_authvar_confirmed_key_frame);
 	uint8_t *state;
 	size_t size;
 
@@ -582,7 +623,9 @@ static uint32_t tail_phase(void)
 {
 	uint32_t value;
 
-	memcpy(&value, authority_generation_tail() + 7U * sizeof(uint64_t) + 2U * sizeof(uint32_t),
+	memcpy(&value, authority_generation_tail() + 7U * sizeof(uint64_t) +
+		2U * sizeof(uint32_t) + sizeof(void *) + 2U * sizeof(size_t) +
+		sizeof(struct payload_mm_authvar_confirmed_key_frame),
 		sizeof(value));
 	return value;
 }
@@ -592,7 +635,9 @@ static void clear_install_gate(void)
 	const uint32_t value = 0;
 	uint8_t *tail = authority_generation_tail();
 
-	memcpy(tail + 7U * sizeof(uint64_t) + 3U * sizeof(uint32_t), &value,
+	memcpy(tail + 7U * sizeof(uint64_t) + 3U * sizeof(uint32_t) + sizeof(void *) +
+		2U * sizeof(size_t) +
+		sizeof(struct payload_mm_authvar_confirmed_key_frame), &value,
 		sizeof(value));
 }
 
@@ -1582,6 +1627,36 @@ static void closed_semantic_snapshot(void)
 	assert(payload_mm_authvar_presence_authority_restrict(7U) == CB_ERR);
 }
 
+static void confirmed_key_lifetime(void)
+{
+	struct {
+		struct payload_mm_authvar_confirmed_key_frame frame;
+		uint8_t payload[40];
+		uint8_t unused[8];
+	} request = { .frame = {
+		.confirmed.service = { .revision = 5, .header_size = 192,
+			.operation = 11, .flags = 4, .attributes = 0x27, .generation = 7,
+			.request_id = 9, .data_size = 40, .completion = UINT32_MAX,
+			.status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING },
+		.key_id = 1, .mutation = 3,
+	} };
+	struct payload_mm_authvar_policy_request no_active_copy = {0};
+	reset_fixture();
+	install();
+	finite_action_window = true;
+	memcpy(request.frame.confirmed.capability, provisioned, sizeof(provisioned));
+	assert(!payload_mm_authvar_presence_key_authorized(&request.frame, &no_active_copy));
+	assert(payload_mm_authvar_presence_confirmed_key(&request.frame, sizeof(request)) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
+	assert(state_contains_capability());
+	assert(!payload_mm_authvar_presence_key_authorized(&request.frame, &no_active_copy));
+	assert(test_bytes_zero(authority_generation_tail() + 7U * sizeof(uint64_t) +
+		2U * sizeof(uint32_t), sizeof(void *) + 2U * sizeof(size_t) + 192U));
+	assert(payload_mm_authvar_presence_confirmed_key(&request.frame, sizeof(request)) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert(!state_contains_capability());
+}
+
 static void confirmed_action_lifetime(void)
 {
 	struct payload_mm_authvar_confirmed_frame request = {0};
@@ -1692,6 +1767,7 @@ int main(void)
 {
 	confirmed_availability();
 	confirmed_action_lifetime();
+	confirmed_key_lifetime();
 	install_validation();
 	hostile_requests();
 	lifecycle_restrict();

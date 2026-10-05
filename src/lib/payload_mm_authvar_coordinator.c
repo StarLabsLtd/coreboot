@@ -3,6 +3,10 @@
 #include <boot/payload_mm_authvar_bundle.h>
 #include <boot/payload_mm_authvar_candidate.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_format.h>
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+#include <boot/payload_mm_authvar_presence_authority.h>
+#endif
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
@@ -16,6 +20,46 @@
 static bool range_valid(const void *pointer, size_t size)
 {
 	return pointer && size && (uintptr_t)pointer <= UINTPTR_MAX - (size - 1U);
+}
+
+bool payload_mm_authvar_confirmed_key_request(uint32_t key, uint32_t mutation,
+	const void *data, size_t size, struct payload_mm_authvar_policy_request *request)
+{
+	static const uint16_t names[][4] = {
+		{ 'P', 'K', 0, 0 }, { 'K', 'E', 'K', 0 }, { 'd', 'b', 0, 0 },
+		{ 'd', 'b', 'x', 0 }, { 'd', 'b', 't', 0 },
+	};
+	static const uint8_t global_guid[16] = {
+		0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+		0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
+	};
+	static const uint8_t image_guid[16] = {
+		0xcb, 0xb2, 0x19, 0xd7, 0x3a, 0x3d, 0x96, 0x45,
+		0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f,
+	};
+
+	if (!request || !data || size < 40U ||
+	    key < PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_PK ||
+	    key > PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_DBT ||
+	    mutation < PAYLOAD_MM_AUTHVAR_CONFIRMED_REPLACE ||
+	    mutation > PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE ||
+	    (mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_APPEND &&
+	     key == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_PK) ||
+	    (mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE && size != 40U))
+		return false;
+	*request = (struct payload_mm_authvar_policy_request) {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		.attributes = 0x27U | (mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_APPEND ? 0x40U : 0U),
+		.name = names[key - 1U],
+		.name_size = (key == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_PK ||
+			key == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_DB) ? 6U : 8U,
+		.data = data,
+		.data_size = size,
+	};
+	memcpy(request->vendor_guid,
+		key <= PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_KEK ? global_guid : image_guid,
+		sizeof(request->vendor_guid));
+	return true;
 }
 
 static bool ranges_overlap(const void *left, size_t left_size,
@@ -240,6 +284,7 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 	struct payload_mm_authvar_set_plan set_plan;
 	enum payload_mm_verify_status status;
 	bool in_custom_mode;
+	bool confirmed_delete = false;
 	u8 derived_modes;
 	u64 efi_status;
 
@@ -270,6 +315,17 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		invariant_failure))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	memset(result, 0, sizeof(*result));
+	if (coordinator->confirmed_key) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+		if (!payload_mm_authvar_presence_key_authorized(coordinator->confirmed_key,
+			coordinator->request))
+			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+		confirmed_delete = coordinator->confirmed_key->mutation ==
+			PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE;
+#else
+		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+#endif
+	}
 	set_snapshot = (struct payload_mm_authvar_set_snapshot) {
 		.request = coordinator->request,
 		.index = index,
@@ -277,11 +333,13 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		.trusted_physical_presence =
 			coordinator->trusted_physical_presence,
 	};
-	efi_status = payload_mm_authvar_set_preflight(&set_snapshot, &set_plan);
-	if (efi_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
-		return efi_status;
-	if (set_plan.kind != PAYLOAD_MM_AUTHVAR_SET_AUTH2)
-		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	if (!confirmed_delete) {
+		efi_status = payload_mm_authvar_set_preflight(&set_snapshot, &set_plan);
+		if (efi_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+			return efi_status;
+		if (set_plan.kind != PAYLOAD_MM_AUTHVAR_SET_AUTH2)
+			return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	}
 	if (!payload_mm_authvar_coordinator_source_modes(index,
 		binding->at_runtime, true, binding->source_volatile_modes,
 		&derived_modes) || derived_modes != binding->source_volatile_modes ||
@@ -290,6 +348,7 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
 	authority = (struct payload_mm_authvar_authority_snapshot) {
+		.confirmed_key = coordinator->confirmed_key,
 		.request = coordinator->request,
 		.index = index,
 		.owner = coordinator->owner,
@@ -307,7 +366,57 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		.append_workspace = append_workspace,
 		.append_workspace_size = append_workspace_size,
 	};
-	status = payload_mm_authvar_authority_decide(&authority, &decision);
+	if (confirmed_delete) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+		static const uint8_t delete_auth2[40] = {
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 2, 0xf1, 0x0e,
+			0x9d, 0xd2, 0xaf, 0x4a, 0xdf, 0x68, 0xee, 0x49,
+			0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7,
+		};
+		const struct payload_mm_authvar_store_entry *existing;
+		enum payload_mm_authvar_target target;
+
+		if (binding->at_runtime || !coordinator->trusted_physical_presence ||
+		    (!(derived_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) && !in_custom_mode) ||
+		    !payload_mm_authvar_presence_key_authorized(coordinator->confirmed_key,
+			coordinator->request) || coordinator->request->attributes != 0x27U ||
+		    coordinator->request->data_size != sizeof(delete_auth2) ||
+		    memcmp(coordinator->request->data, delete_auth2, sizeof(delete_auth2)))
+			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+		set_plan = (struct payload_mm_authvar_set_plan) {
+			.kind = PAYLOAD_MM_AUTHVAR_SET_AUTH2,
+			.post_auth_status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS,
+		};
+		target = payload_mm_authvar_route_key_target(coordinator->request->vendor_guid,
+			coordinator->request->name, coordinator->request->name_size - 2U);
+		existing = payload_mm_authvar_store_find(index, coordinator->request->vendor_guid,
+			coordinator->request->name, coordinator->request->name_size);
+		if (!existing) {
+			draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_NOOP;
+			draft.volatile_modes = derived_modes;
+			*result = draft;
+			return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		}
+		if (existing->attributes != 0x27U)
+			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+		decision = (struct payload_mm_authvar_authority_decision) {
+			.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION,
+			.mutation.kind = PAYLOAD_MM_AUTHVAR_MUTATION_DELETE,
+			.target = target,
+			.accepted_authority = PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS,
+			.intents = (derived_modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) ? 0U :
+				PAYLOAD_MM_AUTHVAR_INTENT_MARK_VENDOR_KEYS,
+		};
+		if (target == PAYLOAD_MM_AUTHVAR_TARGET_PK)
+			decision.intents |= PAYLOAD_MM_AUTHVAR_INTENT_ENTER_SETUP_MODE;
+		status = PAYLOAD_MM_VERIFY_OK;
+#else
+		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+#endif
+	} else {
+		status = payload_mm_authvar_authority_decide(&authority, &decision);
+	}
 	efi_status = verify_status(status, invariant_failure);
 	if (efi_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return efi_status;
@@ -401,6 +510,18 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 	if (bundle.outcome != PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION) {
 		*invariant_failure = true;
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	}
+	if (coordinator->confirmed_key) {
+#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
+		if (decision.accepted_authority != PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS ||
+		    !payload_mm_authvar_presence_key_authorized(coordinator->confirmed_key,
+			coordinator->request))
+			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+		bundle.confirmed_key = coordinator->confirmed_key;
+		bundle.confirmed_request = coordinator->request;
+#else
+		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+#endif
 	}
 	efi_status = payload_mm_authvar_candidate_build(index, &bundle, policy,
 		binding, candidate, candidate_capacity, scan_entries,
