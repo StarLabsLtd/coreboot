@@ -25,7 +25,7 @@ void dgpu_detect(void)
 		// NOTE: i pulled this GPU enable sequence from thin air
 		// it sometimes works but is buggy and the GPU disappears in some cases so disabling it by default.
 		// also unrelated to this enable sequence the nouveau driver only works on 6.8-6.9 kernels
-		if (get_uint_option("dgpu_enable", 0)) {
+		if (get_uint_option_checked("dgpu_enable", 0, OPTION_BOOL)) {
 			printk(BIOS_DEBUG, "Enabling discrete GPU\n");
 			gpio_set(GPIO_1R8VIDEO_AON_ON, 1);	// Enable GPU power rail
 			while (!gpio_get(GPIO_DGFX_PWRGD))	// Wait for power good signal from GPU
