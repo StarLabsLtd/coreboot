@@ -326,7 +326,7 @@ __weak bool qclib_check_dload_mode(void)
 
 static bool qclib_debug_log_level(void)
 {
-	return get_uint_option("qclib_debug_level", 1);
+	return get_uint_option_checked("qclib_debug_level", 1, OPTION_BOOL);
 }
 
 static bool qc_soc_debug_enabled(void)
