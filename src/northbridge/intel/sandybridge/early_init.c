@@ -87,7 +87,8 @@ static void sandybridge_setup_graphics(void)
 	printk(BIOS_DEBUG, "Initializing Graphics...\n");
 
 	/* Fall back to CONFIG_IGD_DEFAULT_UMA_INDEX for IGD memory */
-	gfxsize = get_uint_option("gfx_uma_size", CONFIG_IGD_DEFAULT_UMA_INDEX);
+	gfxsize = get_uint_option_checked("gfx_uma_size", CONFIG_IGD_DEFAULT_UMA_INDEX,
+					  OPTION_RANGE(0, 0xf));
 
 	/* Program IGD memory allocation by setting GGC[7:3] */
 	reg16 = pci_read_config16(HOST_BRIDGE, GGC);

@@ -35,7 +35,7 @@ static void sata_read_resources(struct device *dev)
 
 	/* Assign fixed resources for IDE legacy mode */
 
-	u8 sata_mode = get_uint_option("sata_mode", 0);
+	u8 sata_mode = get_uint_option_checked("sata_mode", 0, OPTION_RANGE(0, 2));
 	if (sata_mode != 2)
 		return;
 
@@ -71,7 +71,7 @@ static void sata_read_resources(struct device *dev)
 static void sata_set_resources(struct device *dev)
 {
 	/* work around bug in pci_dev_set_resources(), it bails out on FIXED */
-	u8 sata_mode = get_uint_option("sata_mode", 0);
+	u8 sata_mode = get_uint_option_checked("sata_mode", 0, OPTION_RANGE(0, 2));
 	if (sata_mode == 2) {
 		unsigned int i;
 		for (i = PCI_BASE_ADDRESS_0; i <= PCI_BASE_ADDRESS_3; i += 4) {
@@ -99,7 +99,7 @@ static void sata_init(struct device *dev)
 	}
 
 	/* Default to AHCI */
-	u8 sata_mode = get_uint_option("sata_mode", 0);
+	u8 sata_mode = get_uint_option_checked("sata_mode", 0, OPTION_RANGE(0, 2));
 
 	/* SATA configuration */
 
@@ -241,7 +241,7 @@ static void sata_enable(struct device *dev)
 	if (!config)
 		return;
 
-	u8 sata_mode = get_uint_option("sata_mode", 0);
+	u8 sata_mode = get_uint_option_checked("sata_mode", 0, OPTION_RANGE(0, 2));
 
 	/*
 	 * Set SATA controller mode early so the resource allocator can
