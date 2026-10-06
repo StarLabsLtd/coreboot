@@ -12,7 +12,7 @@ static const uint32_t microphone_disable_verbs[] = {
 
 void starlabs_hda_program_dmic_runtime_verbs(uint8_t *base)
 {
-	if (get_uint_option("microphone", 1) == 0)
+	if (get_uint_option_checked("microphone", 1, OPTION_BOOL) == 0)
 		azalia_program_verb_table(base, microphone_disable_verbs,
 					  ARRAY_SIZE(microphone_disable_verbs));
 }
