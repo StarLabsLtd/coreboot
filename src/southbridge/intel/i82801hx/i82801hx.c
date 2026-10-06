@@ -296,7 +296,8 @@ static void lpc_power_options(struct device *dev)
 	 *
 	 * If the option is not existent (Laptops), use MAINBOARD_POWER_ON.
 	 */
-	const unsigned int pwr_on = get_uint_option("power_on_after_fail", MAINBOARD_POWER_ON);
+	const unsigned int pwr_on = get_uint_option_checked(
+		"power_on_after_fail", MAINBOARD_POWER_ON, OPTION_RANGE(0, 2));
 
 	reg8 = pci_read_config8(dev, D31F0_GEN_PMCON_3);
 	reg8 &= 0xfe;
@@ -331,7 +332,7 @@ static void lpc_power_options(struct device *dev)
 	outb(reg8, 0x61);
 
 	reg8 = inb(0x74); /* Read from 0x74 as 0x70 is write only. */
-	const unsigned int nmi_option = get_uint_option("nmi", NMI_OFF);
+	const unsigned int nmi_option = get_uint_option_checked("nmi", NMI_OFF, OPTION_BOOL);
 	if (nmi_option) {
 		printk(BIOS_INFO, "NMI sources enabled.\n");
 		reg8 &= ~(1 << 7); /* Set NMI. */
