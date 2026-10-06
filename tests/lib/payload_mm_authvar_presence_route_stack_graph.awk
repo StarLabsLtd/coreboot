@@ -34,17 +34,17 @@ BEGIN {
 	allowed_external["Indirect Call Placeholder"] = 1
 	allowed_external["smm_invocation_platform_fail_stop"] = 1
 	allowed_external["platform_payload_mm_authvar_presence_arm"] = 1
-	register_sites("protected_range_bootstrap", "375:14")
-	register_sites("arm_fail_stop_snapshot", "343:2")
-	register_sites("arm_fail_stop", "309:2")
-	register_sites("protected_range_exact.part.0", "357:14")
-	register_sites("wrapped_dma_protected", "681:14")
-	register_sites("wrapped_abort", "636:11")
-	register_sites("wrapped_complete", "800:11")
-	register_sites("wrapped_claim", "721:11")
-	register_sites("wrapped_commit", "575:11")
-	register_sites("wrapped_prepare", "531:11")
-	register_sites("wrapped_protected_storage.part.0", "904:14")
+	register_sites("protected_range_bootstrap", "379:14")
+	register_sites("arm_fail_stop_snapshot", "347:2")
+	register_sites("arm_fail_stop", "313:2")
+	register_sites("protected_range_exact.part.0", "361:14")
+	register_sites("wrapped_dma_protected", "685:14")
+	register_sites("wrapped_abort", "640:11")
+	register_sites("wrapped_complete", "804:11")
+	register_sites("wrapped_claim", "725:11")
+	register_sites("wrapped_commit", "579:11")
+	register_sites("wrapped_prepare", "535:11")
+	register_sites("wrapped_protected_storage.part.0", "908:14")
 	register_sites("callback_protected", "91:21")
 	register_sites("dispatch_fail_stop", "457:2")
 	register_sites("closure_fail_stop", "157:3")
@@ -62,13 +62,13 @@ BEGIN {
 	register_sites("route_dma_protected", "530:14")
 	register_sites("route_decide", "491:3,492:3")
 	register_sites("route_prepare", "459:11")
-	register_sites("restore_or_fail_stop", "1211:6,1216:6")
+	register_sites("restore_or_fail_stop", "1298:6,1303:6")
 	register_sites("smm_invocation_evidence_claim",
-		"1400:11,1415:6,1422:6,1428:6")
+		"1535:11,1550:6,1557:6,1563:6")
 	register_sites("smm_invocation_evidence_publish",
-		"1509:6,1526:6,1529:6")
+		"1644:6,1661:6,1664:6")
 	register_sites("smm_invocation_evidence_publish_and_request_close",
-		"1648:6,1659:6,1668:6")
+		"1776:6,1787:6,1796:6")
 	register_direct("payload_mm_authvar_presence_route_session_dispatch_locked",
 		"smm_apmc_command_consume", "1231:6")
 	register_direct("payload_mm_authvar_presence_route_session_dispatch_locked",
@@ -81,7 +81,7 @@ BEGIN {
 	register_direct("payload_mm_authvar_presence_route_session_provision",
 		"payload_mm_authvar_presence_arm_transaction_provision", "1123:11")
 	register_direct("payload_mm_authvar_presence_arm_transaction_provision",
-		"payload_mm_authvar_presence_transaction_provision", "1398:6")
+		"payload_mm_authvar_presence_transaction_provision", "1469:6")
 }
 
 function register_sites(caller, positions,    count, items, item)
