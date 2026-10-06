@@ -61,6 +61,35 @@ int get_console_loglevel(void)
 }
 #endif
 
+#define ACPI_GLOBAL_LOCK_PENDING (1U << 0)
+#define ACPI_GLOBAL_LOCK_OWNED (1U << 1)
+
+bool smm_acpi_global_lock_acquire(void)
+{
+	uint32_t *lock = smm_runtime.acpi_global_lock;
+
+	if (!lock)
+		return false;
+
+	uint32_t value = __atomic_load_n(lock, __ATOMIC_RELAXED);
+
+	if (value & ACPI_GLOBAL_LOCK_OWNED)
+		return false;
+
+	/* Do not set Pending: SMM must not wait for the interrupted OS. */
+	return __atomic_compare_exchange_n(lock, &value,
+		value | ACPI_GLOBAL_LOCK_OWNED, false, __ATOMIC_ACQUIRE,
+		__ATOMIC_RELAXED);
+}
+
+bool smm_acpi_global_lock_release(void)
+{
+	uint32_t value = __atomic_fetch_and(smm_runtime.acpi_global_lock,
+		~(ACPI_GLOBAL_LOCK_PENDING | ACPI_GLOBAL_LOCK_OWNED), __ATOMIC_RELEASE);
+
+	return value & ACPI_GLOBAL_LOCK_PENDING;
+}
+
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 {
 	*base = smm_runtime.smmstore_com_buffer_base;

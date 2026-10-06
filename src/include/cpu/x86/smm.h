@@ -90,6 +90,7 @@ struct smm_runtime {
 	u32 save_state_size;
 	u32 num_cpus;
 	u32 gnvs_ptr;
+	uint32_t *acpi_global_lock;
 	u32 cbmemc_size;
 	void *cbmemc;
 #if CONFIG(SMM_PCI_RESOURCE_STORE)
@@ -249,6 +250,11 @@ bool smm_pci_resource_store_fill_resources(struct smm_pci_resource_info *slots, 
 					   const struct device **devices, size_t num_devices);
 
 void smm_pci_resource_store_init(struct smm_runtime *smm_runtime);
+
+/* Try without waiting for an OS transaction interrupted by SMI. */
+bool smm_acpi_global_lock_acquire(void);
+/* True means the caller must signal BIOS_RLS to wake an OS waiter. */
+bool smm_acpi_global_lock_release(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
