@@ -284,6 +284,9 @@ int gpio_sbi_set_tx(gpio_t pad, int value);
  */
 const struct gpio_lock_config *soc_gpio_lock_config(size_t *num);
 
+/* Finish SoC-specific lockdown after attempting the pad locks. */
+int soc_gpio_lock_finalize(void);
+
 /*
  * Returns the pmc_gpe to gpio_gpe mapping table
  *
