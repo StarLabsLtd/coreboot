@@ -274,6 +274,9 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count);
  */
 const struct gpio_lock_config *soc_gpio_lock_config(size_t *num);
 
+/* Finish SoC-specific lockdown after attempting the pad locks. */
+int soc_gpio_lock_finalize(void);
+
 /*
  * Returns the pmc_gpe to gpio_gpe mapping table
  *
