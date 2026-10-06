@@ -56,7 +56,7 @@ AZALIA_ARRAY_SIZES;
 
 void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 {
-	unsigned int ac97 = get_uint_option("audio_panel_type", 0) & 0x1;
+	unsigned int ac97 = get_uint_option_checked("audio_panel_type", 0, OPTION_BOOL) & 0x1;
 
 	/*
 	 * The verbs above are for a HD Audio front panel.

@@ -24,7 +24,7 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	memupd->FspmConfig.EccSupport = 1;
 	memupd->FspmConfig.UserBd = BOARD_TYPE_MOBILE;
 
-	const uint8_t vtd = get_uint_option("vtd", 1);
+	const uint8_t vtd = get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	memupd->FspmTestConfig.VtdDisable = !vtd;
 
 	variant_romstage_params(memupd);

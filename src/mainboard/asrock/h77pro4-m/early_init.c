@@ -30,7 +30,9 @@ enum cpu_fan_tach_src {
  */
 static u8 get_cpufanin_gpio_config(void)
 {
-	switch (get_uint_option("cpu_fan_tach_src", CPU_FAN_HEADER_1)) {
+	switch (get_uint_option_checked("cpu_fan_tach_src", CPU_FAN_HEADER_1,
+					OPTION_RANGE(CPU_FAN_HEADER_NONE,
+						     CPU_FAN_HEADER_BOTH))) {
 	case CPU_FAN_HEADER_NONE:
 		return 0xff;
 	case CPU_FAN_HEADER_1:

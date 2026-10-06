@@ -52,13 +52,21 @@ void hwm_setup(void)
 	unsigned int cpufan_speed = 0, sysfan_speed = 0;
 	unsigned int cpufan_temperature = 0, sysfan_temperature = 0;
 
-	cpufan_control = get_uint_option("cpufan_cruise_control", FAN_CRUISE_CONTROL_DISABLED);
-	cpufan_speed = get_uint_option("cpufan_speed", FAN_SPEED_5625);
-	//cpufan_temperature = get_uint_option("cpufan_temperature", FAN_TEMPERATURE_30DEGC);
+	cpufan_control = get_uint_option_checked(
+		"cpufan_cruise_control", FAN_CRUISE_CONTROL_DISABLED,
+		OPTION_RANGE(FAN_CRUISE_CONTROL_DISABLED, FAN_CRUISE_CONTROL_SPEED));
+	cpufan_speed = get_uint_option_checked("cpufan_speed", FAN_SPEED_5625,
+					       OPTION_RANGE(0, ARRAY_SIZE(fan_speeds) - 1));
+	//cpufan_temperature = get_uint_option_checked("cpufan_temperature", FAN_TEMPERATURE_30DEGC,
+	//	OPTION_RANGE(0, ARRAY_SIZE(temperatures) - 1));
 
-	sysfan_control = get_uint_option("sysfan_cruise_control", FAN_CRUISE_CONTROL_DISABLED);
-	sysfan_speed = get_uint_option("sysfan_speed", FAN_SPEED_5625);
-	//sysfan_temperature = get_uint_option("sysfan_temperature", FAN_TEMPERATURE_30DEGC);
+	sysfan_control = get_uint_option_checked(
+		"sysfan_cruise_control", FAN_CRUISE_CONTROL_DISABLED,
+		OPTION_RANGE(FAN_CRUISE_CONTROL_DISABLED, FAN_CRUISE_CONTROL_SPEED));
+	sysfan_speed = get_uint_option_checked("sysfan_speed", FAN_SPEED_5625,
+					       OPTION_RANGE(0, ARRAY_SIZE(fan_speeds) - 1));
+	//sysfan_temperature = get_uint_option_checked("sysfan_temperature", FAN_TEMPERATURE_30DEGC,
+	//	OPTION_RANGE(0, ARRAY_SIZE(temperatures) - 1));
 
 	// pnp_write_hwm5_index(HWM_BASE, 0x31, 0x20); // AVCC high limit
 	// pnp_write_hwm5_index(HWM_BASE, 0x34, 0x06); // VIN2 low limit
