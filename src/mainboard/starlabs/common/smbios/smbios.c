@@ -94,8 +94,9 @@ const char *smbios_mainboard_serial_number(void)
 		char prefix[SERIAL_NUMBER_MAX_LENGTH];
 		const size_t prefix_len = copy_serial_number_prefix(prefix, sizeof(prefix));
 		const int suffix_width = serial_number_suffix_width(prefix, prefix_len);
-		const unsigned int suffix = get_uint_option(SERIAL_NUMBER_OPTION,
-							    serial_number_fallback());
+		const unsigned int suffix =
+			get_uint_option_checked(SERIAL_NUMBER_OPTION, serial_number_fallback(),
+						OPTION_RANGE(0, UINT32_MAX));
 
 		snprintf(serial_number, sizeof(serial_number), "%s%0*u", prefix, suffix_width,
 			 suffix);
