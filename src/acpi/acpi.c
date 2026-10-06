@@ -985,6 +985,14 @@ unsigned long acpi_16550_mmio32_write_dbg2_uart(acpi_rsdp_t *rsdp, unsigned long
 				    name);
 }
 
+acpi_facs_t *acpi_get_facs(void)
+{
+	/* Small CBMEM allocations are only 32-byte aligned; FACS needs 64. */
+	void *buffer = cbmem_add(CBMEM_ID_ACPI_FACS, sizeof(acpi_facs_t) + 63);
+
+	return buffer ? (void *)ALIGN_UP((uintptr_t)buffer, 64) : NULL;
+}
+
 static void acpi_create_facs(void *header)
 {
 	acpi_facs_t *facs = header;
@@ -1689,10 +1697,16 @@ static unsigned long write_acpi_tables(const unsigned long start)
 
 	if (ENV_X86) {
 		printk(BIOS_DEBUG, "ACPI:    * FACS\n");
-		current = ALIGN_UP(current, 64);
-		facs = (acpi_facs_t *)current;
-		current += sizeof(acpi_facs_t);
-		current = acpi_align_current(current);
+		if (CONFIG(ACPI_SMM_GLOBAL_LOCK)) {
+			facs = acpi_get_facs();
+			if (!facs)
+				die("Could not allocate FACS");
+		} else {
+			current = ALIGN_UP(current, 64);
+			facs = (acpi_facs_t *)current;
+			current += sizeof(acpi_facs_t);
+			current = acpi_align_current(current);
+		}
 		acpi_create_facs(facs);
 	}
 
