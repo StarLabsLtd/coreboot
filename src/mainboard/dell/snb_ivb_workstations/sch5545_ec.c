@@ -419,7 +419,7 @@ void sch5545_ec_hwm_init(void *unused)
 
 	ec_read_write_reg(EC_HWM_LDN, 0x02fc, &val_2fc, WRITE_OP);
 
-	unsigned int fan_speed_full = get_uint_option("fan_full_speed", 0);
+	unsigned int fan_speed_full = get_uint_option_checked("fan_full_speed", 0, OPTION_BOOL);
 	if (fan_speed_full) {
 		printk(BIOS_INFO, "Will set up fans to run at full speed\n");
 		ec_read_write_reg(EC_HWM_LDN, 0x0080, &val, READ_OP);

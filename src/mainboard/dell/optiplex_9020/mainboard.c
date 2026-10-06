@@ -379,7 +379,8 @@ static void sch5555_ec_hwm_init(void *arg)
 	sch5555_mbox_write(1, 0x2fc, saved_2fc);
 
 	// Apply full speed fan config if requested or if the chassis type is unknown
-	if (chassis_type == CHASSIS_TYPE_UNKNOWN || get_uint_option("fan_full_speed", 0)) {
+	if (chassis_type == CHASSIS_TYPE_UNKNOWN ||
+	    get_uint_option_checked("fan_full_speed", 0, OPTION_BOOL)) {
 		printk(BIOS_DEBUG, "Setting full fan speed\n");
 		sch5555_mbox_write(1, 0x80, 0x60 | sch5555_mbox_read(1, 0x80));
 		sch5555_mbox_write(1, 0x81, 0x60 | sch5555_mbox_read(1, 0x81));
