@@ -5,7 +5,11 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 temporary=$(mktemp -d "$root/../.adapter-provider-profile.XXXXXX")
 temporary=$(CDPATH= cd -- "$temporary" && pwd -P)
-trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+if [ -z "${ADAPTER_PROVIDER_KEEP_PROFILE:-}" ]; then
+	trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+else
+	printf 'adapter-provider profile directory: %s\n' "$temporary" >&2
+fi
 vboot_source="$root/3rdparty/vboot"
 if [ ! -f "$vboot_source/firmware/include/vb2_sha.h" ]; then
 	vboot_source="$root/../../coreboot/3rdparty/vboot"
@@ -202,6 +206,8 @@ compare_base()
 	scratch_make -C "$baseline" UPDATED_SUBMODULES=1 obj="$base_build" \
 		DOTCONFIG="$base_config" KBUILD_KCONFIG="$profile_kconfig" -j4 \
 		"$base_build/smm/smm" >/dev/null
+	printf '%s: linked SMM comparison: %s vs %s\n' "$name" \
+		"$temporary/$name/smm/smm" "$base_build/smm/smm" >&2
 	cmp "$temporary/$name/smm/smm" "$base_build/smm/smm"
 	for object in smm/cpu/x86/smm/smm_module_handler.o \
 		smm/soc/intel/common/block/smm/invocation_adapter.o; do
@@ -209,9 +215,12 @@ compare_base()
 		base_object="$base_build/$object"
 		if [ -f "$current" ] || [ -f "$base_object" ]; then
 			test -f "$current" && test -f "$base_object"
-			objcopy --strip-debug "$current" "$temporary/current.o"
-			objcopy --strip-debug "$base_object" "$temporary/base.o"
-			cmp "$temporary/current.o" "$temporary/base.o"
+			comparison="$temporary/$name.${object##*/}"
+			printf '%s: object comparison: %s vs %s\n' "$name" \
+				"$current" "$base_object" >&2
+			objcopy --strip-debug "$current" "$comparison.current.stripped.o"
+			objcopy --strip-debug "$base_object" "$comparison.base.stripped.o"
+			cmp "$comparison.current.stripped.o" "$comparison.base.stripped.o"
 		fi
 	done
 }
