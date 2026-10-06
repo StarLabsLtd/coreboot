@@ -15,7 +15,7 @@ static void asm1061_enable(struct device *const dev)
 	       dev_path(dev), dev->vendor, dev->device);
 	dev->disable_pcie_aspm = 1;
 
-	u8 sata_mode = get_uint_option("sata_mode", 0);
+	u8 sata_mode = get_uint_option_checked("sata_mode", 0, OPTION_RANGE(0, 2));
 	pci_or_config8(dev, ASM1061_CTRL_REG, ASM1061_PCI_CFG_UNLOCK);
 	if (sata_mode == 0) {
 		printk(BIOS_INFO, "Setting AHCI mode for %s [%04x/%04x]\n",

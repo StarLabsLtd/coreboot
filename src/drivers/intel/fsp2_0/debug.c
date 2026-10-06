@@ -182,10 +182,14 @@ void fsp_debug_after_notify(efi_return_status_t status)
 
 enum fsp_log_level fsp_get_pcd_debug_log_level(void)
 {
-	return get_uint_option("fsp_pcd_debug_level", fsp_map_console_log_level());
+	return get_uint_option_checked("fsp_pcd_debug_level", fsp_map_console_log_level(),
+				       OPTION_RANGE(FSP_LOG_LEVEL_DISABLE,
+						    FSP_LOG_LEVEL_ERR_WARN_INFO));
 }
 
 enum fsp_log_level fsp_get_mrc_debug_log_level(void)
 {
-	return get_uint_option("fsp_mrc_debug_level", fsp_map_console_log_level());
+	return get_uint_option_checked("fsp_mrc_debug_level", fsp_map_console_log_level(),
+				       OPTION_RANGE(FSP_LOG_LEVEL_DISABLE,
+						    FSP_LOG_LEVEL_VERBOSE));
 }
