@@ -99,14 +99,17 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 	/* HPET BDF already handled in coreboot code, so tell FSP to ignore UPDs */
 	m_cfg->PchHpetBdfValid = 0;
 
-	m_cfg->HyperThreading = get_uint_option("hyper_threading", CONFIG(FSP_HYPERTHREADING));
+	m_cfg->HyperThreading = get_uint_option_checked(
+		"hyper_threading", CONFIG(FSP_HYPERTHREADING), OPTION_BOOL);
 }
 
 static void soc_primary_gfx_config_params(FSP_M_CONFIG *m_cfg,
 				const struct soc_intel_skylake_config *config)
 {
-	bool igd_enabled = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD))
-			&& is_devfn_enabled(SA_DEVFN_IGD);
+	bool igd_enabled = get_uint_option_checked("igd_enabled",
+						   !CONFIG(SOC_INTEL_DISABLE_IGD),
+						   OPTION_BOOL) &&
+			   is_devfn_enabled(SA_DEVFN_IGD);
 
 	/* Probe for no IGD and disable InternalGfx to prevent a crash in FSP-M. */
 	if (igd_enabled && pci_read_config16(SA_DEV_IGD, PCI_VENDOR_ID) == 0xffff) {
@@ -127,8 +130,12 @@ static void soc_primary_gfx_config_params(FSP_M_CONFIG *m_cfg,
 	if (igd_enabled) {
 		/* Set IGD stolen size to 64MB. */
 		m_cfg->InternalGfx = 1;
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc", IGD_SM_64MB);
-		m_cfg->ApertureSize = get_uint_option("igd_aperture_size", IGD_AP_SZ_256MB);
+		m_cfg->IgdDvmt50PreAlloc =
+			get_uint_option_checked("igd_dvmt_prealloc", IGD_SM_64MB,
+						OPTION_RANGE(IGD_SM_32MB, IGD_SM_128MB));
+		m_cfg->ApertureSize =
+			get_uint_option_checked("igd_aperture_size", IGD_AP_SZ_256MB,
+						OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));
 	} else {
 		m_cfg->InternalGfx = 0;
 		m_cfg->IgdDvmt50PreAlloc = 0;
