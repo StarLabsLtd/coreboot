@@ -291,7 +291,9 @@ u8 h8_illumination_default(void)
 /* User-set illumination option */
 static u8 h8_illumination_option(void)
 {
-	return get_uint_option("backlight", h8_illumination_default()) & 0x3;
+	return get_uint_option_checked("backlight", h8_illumination_default(),
+				       OPTION_RANGE(0, 3)) &
+	       0x3;
 }
 
 bool h8_thinklight_active(void)
@@ -372,12 +374,12 @@ static void h8_enable(struct device *dev)
 	beepmask1 = conf->beepmask1;
 
 	if (h8_has_power_management_beeps()) {
-		if (get_uint_option("power_management_beeps", 1) == 0) {
+		if (get_uint_option_checked("power_management_beeps", 1, OPTION_BOOL) == 0) {
 			beepmask0 = 0x00;
 			beepmask1 = 0x00;
 		}
 
-		if (get_uint_option("low_battery_beep", 1))
+		if (get_uint_option_checked("low_battery_beep", 1, OPTION_BOOL))
 			beepmask0 |= 2;
 		else
 			beepmask0 &= ~2;
@@ -409,14 +411,15 @@ static void h8_enable(struct device *dev)
 
 	ec_write(H8_FAN_CONTROL, H8_FAN_CONTROL_AUTO);
 
-	h8_usb_always_on_enable(get_uint_option("usb_always_on", 0));
+	h8_usb_always_on_enable(get_uint_option_checked("usb_always_on", UAO_OFF,
+							OPTION_RANGE(UAO_OFF, UAO_AC_ONLY)));
 
-	h8_wlan_enable(get_uint_option("wlan", 1));
+	h8_wlan_enable(get_uint_option_checked("wlan", 1, OPTION_BOOL));
 
 	h8_trackpoint_enable(1);
 	h8_usb_power_enable(1);
 
-	unsigned int volume = get_uint_option("volume", ~0);
+	unsigned int volume = get_uint_option_checked("volume", ~0, OPTION_RANGE(0, UINT8_MAX));
 	if (volume <= 0xff && !acpi_is_wakeup_s3())
 		ec_write(H8_VOLUME_CONTROL, volume);
 
@@ -428,16 +431,20 @@ static void h8_enable(struct device *dev)
 	h8_wwan_enable(val);
 
 	if (h8_has_uwb())
-		h8_uwb_enable(get_uint_option("uwb", 1));
+		h8_uwb_enable(get_uint_option_checked("uwb", 1, OPTION_BOOL));
 
-	h8_fn_ctrl_swap(get_uint_option("fn_ctrl_swap", CONFIG(H8_FN_CTRL_SWAP)));
+	h8_fn_ctrl_swap(
+		get_uint_option_checked("fn_ctrl_swap", CONFIG(H8_FN_CTRL_SWAP), OPTION_BOOL));
 
-	h8_sticky_fn(get_uint_option("sticky_fn", 0));
+	h8_sticky_fn(get_uint_option_checked("sticky_fn", 0, OPTION_BOOL));
 
 	if (CONFIG(H8_HAS_PRIMARY_FN_KEYS))
-		h8_f1_to_f12_as_primary(get_uint_option("f1_to_f12_as_primary", 1));
+		h8_f1_to_f12_as_primary(
+			get_uint_option_checked("f1_to_f12_as_primary", 1, OPTION_BOOL));
 
-	h8_charge_priority(get_uint_option("first_battery", PRIMARY_BATTERY));
+	h8_charge_priority(
+		get_uint_option_checked("first_battery", PRIMARY_BATTERY,
+					OPTION_RANGE(SECONDARY_BATTERY, PRIMARY_BATTERY)));
 
 	h8_set_audio_mute(0);
 	h8_mb_init();
