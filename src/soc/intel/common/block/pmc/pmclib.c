@@ -783,8 +783,9 @@ void pmc_clear_pmcon_sts(void)
 
 void pmc_set_power_failure_state(const bool target_on)
 {
-	const unsigned int state = get_uint_option("power_on_after_fail",
-					 CONFIG_MAINBOARD_POWER_FAILURE_STATE);
+	const unsigned int state = get_uint_option_checked("power_on_after_fail",
+							   CONFIG_MAINBOARD_POWER_FAILURE_STATE,
+							   OPTION_RANGE(0, 2));
 
 	/*
 	 * On the shutdown path (target_on == false), we only need to
