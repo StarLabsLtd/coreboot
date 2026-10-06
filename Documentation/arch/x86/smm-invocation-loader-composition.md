@@ -6,7 +6,7 @@ publishes the loader instance, rechecks both sources, constructs the evidence
 seed, provisions evidence, and rechecks all three objects before publishing the
 composition `READY` with release ordering.
 
-The permanent handler cannot consume provisional evidence. Coreboot completes
+The permanent handler cannot consume provisional evidence. coreboot completes
 `smm_load_module()` before `install_permanent_handler()` permits SMM relocation;
 `trigger_smm_relocation()` therefore occurs only after successful composition.
 If loading fails, the MP setup path disables SMM instead of installing the

@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Coreboot's freestanding stdlib header omits these host process helpers. */
+/* coreboot's freestanding stdlib header omits these host process helpers. */
 extern void exit(int status) __noreturn;
 extern unsigned long strtoul(const char *text, char **end, int base);
 

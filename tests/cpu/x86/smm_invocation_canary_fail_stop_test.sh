@@ -9,6 +9,15 @@ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 handler="$root/src/cpu/x86/smm/smm_module_handler.c"
 kconfig="$root/src/cpu/x86/Kconfig"
 
+mkdir -p "$temporary/include"
+# HOST-modeled options, using the genuine configuration macro.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/include/config.h" <<'EOF'
+CONFIG_SMM_INVOCATION_STACK_CANARY_FAIL_STOP=1
+CONFIG_DEBUG_SMI=0
+EOF
+
 provider_is_first_statement()
 {
 	awk '
@@ -45,7 +54,7 @@ run_runtime()
 	extract_fragment "$source" "$temporary/canary-fragment.h"
 	for optimization in 0 2; do
 		${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -O"$optimization" \
-			-DCONFIG_SMM_INVOCATION_STACK_CANARY_FAIL_STOP=1 \
+			-include "$root/src/include/kconfig.h" -I"$temporary/include" \
 			-I"$root/src/commonlib/bsd/include" \
 			-I"$temporary" \
 			"$root/tests/cpu/x86/smm_invocation_canary_fail_stop_runtime_test.c" \
@@ -54,14 +63,14 @@ run_runtime()
 	done
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -O1 \
 		-fsanitize=address,undefined -fno-omit-frame-pointer \
-		-DCONFIG_SMM_INVOCATION_STACK_CANARY_FAIL_STOP=1 \
+		-include "$root/src/include/kconfig.h" -I"$temporary/include" \
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$temporary" \
 		"$root/tests/cpu/x86/smm_invocation_canary_fail_stop_runtime_test.c" \
 		-o "$temporary/$name-sanitized"
 	ASAN_OPTIONS=detect_leaks=0 "$temporary/$name-sanitized" || return 1
 	if ${CC:-cc} -m32 -std=gnu11 -Wall -Wextra -Werror -O2 \
-		-DCONFIG_SMM_INVOCATION_STACK_CANARY_FAIL_STOP=1 \
+		-include "$root/src/include/kconfig.h" -I"$temporary/include" \
 		-I"$root/src/commonlib/bsd/include" \
 		-I"$temporary" \
 		"$root/tests/cpu/x86/smm_invocation_canary_fail_stop_runtime_test.c" \
@@ -84,9 +93,11 @@ grep -q '^[[:space:]]*depends on SMM_INVOCATION_FAIL_STOP_PLATFORM$' \
 ! rg -q '^[[:space:]]*(select|imply)[[:space:]]+SMM_INVOCATION_STACK_CANARY_FAIL_STOP([[:space:]]|$)' \
 	"$root/src"
 
-# The provider header and call remain confined to the guarded handler binding.
+# The post-handler canary block has exactly one terminal provider call.
 test "$(rg -n 'smm_invocation_fail_stop.h' "$handler" | wc -l)" -eq 1
-test "$(rg -n 'smm_invocation_platform_fail_stop\(\);' "$handler" | wc -l)" -eq 1
+extract_fragment "$handler" "$temporary/canary-fragment.h"
+test "$(rg -n 'smm_invocation_platform_fail_stop\(\);' \
+	"$temporary/canary-fragment.h" | wc -l)" -eq 1
 provider_is_first_statement "$handler"
 run_runtime "$handler" base
 
@@ -110,26 +121,41 @@ if run_runtime "$temporary/bypass.c" bypass >/dev/null 2>&1; then
 	printf '%s\n' 'canary mismatch-bypass mutant survived' >&2
 	exit 1
 fi
+extract_fragment "$handler" "$temporary/base-canary-fragment.h"
 awk '
 	{ print }
-	/^#if CONFIG\(SMM_INVOCATION_STACK_CANARY_FAIL_STOP\)$/ { count++ }
-	count == 2 && /^#if CONFIG\(SMM_INVOCATION_STACK_CANARY_FAIL_STOP\)$/ {
+	/^\tif \(actual_canary != expected_canary\) \{/ { mismatch = 1 }
+	mismatch && /^#if CONFIG\(SMM_INVOCATION_STACK_CANARY_FAIL_STOP\)$/ {
 		print "\t\tprintk(BIOS_DEBUG, \"premature\\n\");"
-		count++
+		mismatch = 0
 	}
 ' "$handler" > "$temporary/pre-provider-call.c"
+extract_fragment "$temporary/pre-provider-call.c" \
+	"$temporary/pre-provider-call-fragment.h"
+if cmp -s "$temporary/base-canary-fragment.h" \
+	"$temporary/pre-provider-call-fragment.h"; then
+	printf '%s\n' 'pre-provider call mutant changed no canary fragment' >&2
+	exit 1
+fi
 if provider_is_first_statement "$temporary/pre-provider-call.c"; then
 	printf '%s\n' 'pre-provider call mutant survived' >&2
 	exit 1
 fi
 awk '
 	{ print }
-	/^#if CONFIG\(SMM_INVOCATION_STACK_CANARY_FAIL_STOP\)$/ { count++ }
-	count == 2 && /^#if CONFIG\(SMM_INVOCATION_STACK_CANARY_FAIL_STOP\)$/ {
+	/^\tif \(actual_canary != expected_canary\) \{/ { mismatch = 1 }
+	mismatch && /^#if CONFIG\(SMM_INVOCATION_STACK_CANARY_FAIL_STOP\)$/ {
 		print "\t\treturn;"
-		count++
+		mismatch = 0
 	}
 ' "$handler" > "$temporary/pre-provider-return.c"
+extract_fragment "$temporary/pre-provider-return.c" \
+	"$temporary/pre-provider-return-fragment.h"
+if cmp -s "$temporary/base-canary-fragment.h" \
+	"$temporary/pre-provider-return-fragment.h"; then
+	printf '%s\n' 'pre-provider return mutant changed no canary fragment' >&2
+	exit 1
+fi
 if provider_is_first_statement "$temporary/pre-provider-return.c"; then
 	printf '%s\n' 'pre-provider return mutant survived' >&2
 	exit 1

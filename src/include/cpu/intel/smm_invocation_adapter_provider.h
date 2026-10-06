@@ -4,7 +4,6 @@
 #define CPU_INTEL_SMM_INVOCATION_ADAPTER_PROVIDER_H
 
 #include <cpu/x86/smm_invocation_evidence.h>
-#include <rules.h>
 
 #if ENV_SMM || ENV_TEST
 /*

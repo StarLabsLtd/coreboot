@@ -104,9 +104,12 @@ test "$ied_size" = 0x400000
 test "$cache_size" = 0x200000
 test "$opal_size" = 0x1000
 
-cat > "$tmp/include/config.h" <<EOF
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
-#define CONFIG_MAX_CPUS $cpu_count
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$tmp/include/config.h" <<EOF
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
+CONFIG_MAX_CPUS=$cpu_count
 EOF
 
 for tseg_size in 0x800000U 0x1000000U; do

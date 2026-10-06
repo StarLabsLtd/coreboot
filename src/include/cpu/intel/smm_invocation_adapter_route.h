@@ -4,7 +4,6 @@
 #define CPU_INTEL_SMM_INVOCATION_ADAPTER_ROUTE_H
 
 #include <boot/payload_mm_authvar_presence_route_session.h>
-#include <rules.h>
 
 #if ENV_SMM || ENV_TEST
 /*

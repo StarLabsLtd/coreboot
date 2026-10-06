@@ -11,7 +11,7 @@
 #error "Q35 native component loader instance is ramstage-only"
 #endif
 
-_Static_assert(CONFIG_MAX_CPUS == 1 && !CONFIG_HAVE_ACPI_RESUME,
+_Static_assert(CONFIG_MAX_CPUS == 1 && !CONFIG(HAVE_ACPI_RESUME),
 	"Q35 native component requires one CPU and a non-S3 loader");
 
 #define CPUID_RDRAND (1U << 30)

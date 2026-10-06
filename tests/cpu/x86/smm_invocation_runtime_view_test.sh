@@ -151,17 +151,17 @@ header="$root/src/include/cpu/x86/smm_invocation_runtime.h"
 	"$root/src"
 
 stage_flags="-std=gnu11 -Werror -D__COREBOOT__ -I$temporary/include \
--include $root/src/include/kconfig.h -I$root/src/include \
+-include $root/src/include/kconfig.h -include $root/src/include/rules.h \
+-I$root/src/include \
 -I$root/src -I$root/src/commonlib/include \
 -I$root/src/commonlib/bsd/include -I$root/src/arch/x86/include"
 
 # A consumer cannot inspect or size the opaque handle.
 printf '%s\n' \
-	'#define __SMM__ 1' \
 	'#include <cpu/x86/smm_invocation_runtime.h>' \
 	'int reject(void) { return sizeof(struct smm_invocation_runtime_view); }' \
 	> "$temporary/opaque-probe.c"
-if ${CC:-cc} $stage_flags -c "$temporary/opaque-probe.c" \
+if ${CC:-cc} $stage_flags -D__SMM__ -c "$temporary/opaque-probe.c" \
 	-o "$temporary/opaque-probe.o" >/dev/null 2>&1; then
 	printf '%s\n' 'runtime view lost opacity' >&2
 	exit 1
@@ -174,7 +174,7 @@ sed 's/^struct smm_invocation_runtime_view;$/struct smm_invocation_runtime_view 
 	"$temporary/mutant/cpu/x86/smm_invocation_runtime.h"
 grep -q 'save_state_top' \
 	"$temporary/mutant/cpu/x86/smm_invocation_runtime.h"
-${CC:-cc} -I"$temporary/mutant" $stage_flags -c \
+${CC:-cc} -I"$temporary/mutant" $stage_flags -D__SMM__ -c \
 	"$temporary/opaque-probe.c" -o "$temporary/opaque-mutant.o"
 
 # The declarations exist in SMM/test only and are absent in ramstage.
@@ -220,11 +220,20 @@ extract_loader()
 	grep -q 'save_state_top' "$temporary/runtime-view-loader-clear-fragment.h"
 }
 
+# Keep the extracted loader's HOST limit separate from the runtime-view profile.
+mkdir -p "$temporary/loader-config/include"
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/loader-config/include/config.h" <<'EOF'
+CONFIG_MAX_CPUS=64U
+EOF
+
 compile_loader()
 {
 	output=$1
 	${CC:-cc} -std=gnu11 -Wall -Wextra -Werror -Wconversion -Wshadow \
-		-O2 -I"$temporary" \
+		-O2 -I"$temporary" -I"$temporary/loader-config/include" \
+		-include "$root/src/include/kconfig.h" \
 		"$root/tests/cpu/x86/smm_invocation_runtime_view_loader_test.c" \
 		-o "$output"
 }

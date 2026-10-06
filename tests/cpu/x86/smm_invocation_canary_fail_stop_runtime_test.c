@@ -28,8 +28,6 @@ void printk(int level, const char *format, ...)
 }
 
 #define BIOS_DEBUG 0
-#define CONFIG(option) CONFIG_##option
-#define CONFIG_DEBUG_SMI 0
 
 static void check_canary(uintptr_t actual_canary, uintptr_t expected_canary)
 {

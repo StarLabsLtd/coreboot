@@ -16,6 +16,16 @@ trap cleanup EXIT HUP INT TERM
 mkdir -p "$temporary/include"
 make -C "$root" build-tests/lib/bootmem-aligned-reservation-test >/dev/null
 config="$root/build/tests/tests/lib/bootmem-aligned-reservation-test"
+# HOST override of the generated base profile; preserve its include ordering.
+{
+	printf '%s\n\n' '/* SPDX-License-Identifier: GPL-2.0-only */'
+	while IFS='=' read -r config_key config_value; do
+		printf '#undef %s\n#define %s %s\n' \
+			"$config_key" "$config_key" "$config_value"
+	done <<'EOF'
+CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT=1
+EOF
+} > "$temporary/receipt-config.h"
 printf '#include "%s/config.h"\n' "$config" > "$temporary/include/config.h"
 printf '%s\n' '#undef CONFIG_SMM_INVOCATION_RUNTIME_BINDING' \
 	'#define CONFIG_SMM_INVOCATION_RUNTIME_BINDING 1' \
@@ -34,7 +44,7 @@ for private in 0 1; do
 			-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ -D__TEST_SRCOBJ__ \
 			-DBOOTMEM_RECEIPT_TEST -include "$temporary/include/private.h" \
 			-include "$root/src/include/kconfig.h" \
-			-include "$root/tests/lib/bootmem_reservation_receipt_config.h" \
+			-include "$temporary/receipt-config.h" \
 			-include "$root/src/include/rules.h" \
 			-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 			-I"$temporary/include" -I"$config" -I"$root/tests/include/mocks" \

@@ -9,16 +9,19 @@ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 source_file="$root/src/soc/intel/meteorlake/authvar_presence_boot_classifier.c"
 
 mkdir -p "$temporary/include"
-cat > "$temporary/include/config.h" <<'EOF'
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
-#define CONFIG_ACPI_INTEL_HARDWARE_SLEEP_VALUES 1
-#define CONFIG_ACPI_AMD_HARDWARE_SLEEP_VALUES 0
-#define CONFIG_CONSOLE_OVERRIDE_LOGLEVEL 0
-#define CONFIG_BOOTBLOCK_CONSOLE 0
-#define CONFIG_DEBUG_FUNC 0
-#define CONFIG_RTC 0
-#define CONFIG_HAVE_SMI_HANDLER 0
-#define CONFIG_HAVE_ACPI_RESUME 0
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/include/config.h" <<'EOF'
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
+CONFIG_ACPI_INTEL_HARDWARE_SLEEP_VALUES=1
+CONFIG_ACPI_AMD_HARDWARE_SLEEP_VALUES=0
+CONFIG_CONSOLE_OVERRIDE_LOGLEVEL=0
+CONFIG_BOOTBLOCK_CONSOLE=0
+CONFIG_DEBUG_FUNC=0
+CONFIG_RTC=0
+CONFIG_HAVE_SMI_HANDLER=0
+CONFIG_HAVE_ACPI_RESUME=0
 EOF
 
 build()
