@@ -148,7 +148,8 @@ static void i945_setup_bars(void)
 	pci_write_config32(HOST_BRIDGE, X60BAR, DEFAULT_X60BAR | 1);
 
 	/* vram size from CMOS option */
-	gfxsize = get_uint_option("gfx_uma_size", 3);	/* 3 for 16MB */
+	gfxsize =
+		get_uint_option_checked("gfx_uma_size", 3, OPTION_RANGE(0, 6)); /* 3 for 16MB */
 	/* make sure no invalid setting is used */
 	if (gfxsize > 6)
 		gfxsize = 3;
