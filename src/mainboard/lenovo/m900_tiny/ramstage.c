@@ -50,22 +50,22 @@ static void devtree_update(void)
 	struct device *ssd_dev = DEV_PTR(pcie_rp17);
 	struct device *ps2_dev = dev_find_slot_pnp(0x2e, NCT6687D_KBC);
 
-	if (get_uint_option("wifi_slot_enable", 1) == 0) {
+	if (get_uint_option_checked("wifi_slot_enable", 1, OPTION_BOOL) == 0) {
 		cfg->usb2_ports[8].enable = 0;
 		wifi_dev->enabled = 0;
 	}
 
-	if (get_uint_option("ssd_slot_enable", 1) == 0) {
+	if (get_uint_option_checked("ssd_slot_enable", 1, OPTION_BOOL) == 0) {
 		cfg->SataPortsEnable[4] = 0;
 		ssd_dev->enabled = 0;
 	}
 
-	if (get_uint_option("hdd_slot_enable", 1) == 0) {
+	if (get_uint_option_checked("hdd_slot_enable", 1, OPTION_BOOL) == 0) {
 		cfg->SataPortsEnable[0] = 0;
 		cfg->SataPortsEnable[1] = 0;
 	}
 
-	if (get_uint_option("ps2_enable", 1) == 0)
+	if (get_uint_option_checked("ps2_enable", 1, OPTION_BOOL) == 0)
 		ps2_dev->enabled = 0;
 }
 
