@@ -82,7 +82,7 @@ u16 igd_compute_ggc(void)
 	 * Read user option.  Default 4 -> GMS=5 -> 32 MB, matching the
 	 * GM45 convention.  Clamp to 0-6 so GMS stays within 1-7.
 	 */
-	u8 gfxsize = get_uint_option("gfx_uma_size", 4);
+	u8 gfxsize = get_uint_option_checked("gfx_uma_size", 4, OPTION_RANGE(0, 6));
 	if (gfxsize > 6) {
 		printk(BIOS_WARNING, "IGD: gfx_uma_size %u out of range, "
 		       "using default (32 MB)\n", gfxsize);

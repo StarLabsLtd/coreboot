@@ -40,7 +40,7 @@ static void sata_init(struct device *dev)
 	}
 
 	/* Default to AHCI */
-	u8 sata_mode = get_uint_option("sata_mode", 0);
+	u8 sata_mode = get_uint_option_checked("sata_mode", 0, OPTION_BOOL);
 
 	/* SATA configuration */
 
@@ -172,7 +172,7 @@ static void sata_enable(struct device *dev)
 	if (!config)
 		return;
 
-	u8 sata_mode = get_uint_option("sata_mode", 0);
+	u8 sata_mode = get_uint_option_checked("sata_mode", 0, OPTION_BOOL);
 
 	/*
 	 * Set SATA controller mode early so the resource allocator can
