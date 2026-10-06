@@ -3,6 +3,9 @@
 #ifndef EC_STARLABS_MERLIN_VARIANT_FIELDS_H
 #define EC_STARLABS_MERLIN_VARIANT_FIELDS_H
 
+/* This variant implements the Merlin battery register map at ACPI EC ports. */
+#define STARLABS_EC_BATTERY_MAP_MERLIN 1
+
 static const struct fieldlist starlabs_ec_fields[] = {
 	FIELDLIST_OFFSET(0x00),        FIELDLIST_NAMESTR("ECMV", 8),
 	FIELDLIST_NAMESTR("ECSV", 8),  FIELDLIST_OFFSET(0x04),

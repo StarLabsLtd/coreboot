@@ -28,6 +28,11 @@ void lb_add_console(uint16_t consoletype, void *data);
 
 enum cb_err fill_lb_pcie(struct lb_pcie *pcie);
 
+/* Optional configured EC map; absence must not cause payload probing. */
+enum cb_err fill_lb_ec_battery(struct lb_ec_battery_descriptor *descriptor);
+enum cb_err lb_add_ec_battery_descriptor(struct lb_header *header,
+				       const struct lb_ec_battery_descriptor *descriptor);
+
 /* Adds an authoritative payload-resource PCI root-bridge handoff. */
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
 uint16_t payload_resource_read_command(const struct device *device);

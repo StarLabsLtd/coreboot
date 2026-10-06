@@ -106,6 +106,7 @@ enum {
 	LB_TAG_AUTHVAR_PRESENCE_LIFECYCLE_CLOSE_ENDPOINT = 0x0057,
 	LB_TAG_PAYLOAD_BOOT_PRIVATE_BUFFER = 0x0058,
 	LB_TAG_CAPSULE_DELIVERY_POLICY	= 0x0059,
+	LB_TAG_EC_BATTERY_DESCRIPTOR	= 0x005a,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -191,6 +192,23 @@ struct lb_pcie {
 	uint32_t tag;
 	uint32_t size;
 	lb_uint64_t ctrl_base;		/* Base address of PCIe controller */
+};
+
+#define LB_EC_BATTERY_DESCRIPTOR_REVISION 1
+#define LB_EC_BATTERY_PROFILE_MERLIN 1
+#define LB_EC_BATTERY_TRANSPORT_ACPI_IO8 1
+
+/* Configured EC register map and transport, not proof of a responding battery. */
+struct lb_ec_battery_descriptor {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint16_t profile;
+	uint16_t transport;
+	uint16_t data_port;
+	uint16_t status_port;
+	uint32_t reserved;
 };
 
 #define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION 3

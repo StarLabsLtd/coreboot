@@ -8,11 +8,30 @@
 #include <cbfs.h>
 #include <cbmem.h>
 #include <commonlib/helpers.h>
+#include <commonlib/bsd/ipchksum.h>
 #include <commonlib/region.h>
 #include <fmap_config.h>
 #include <fw_config.h>
 #include <stdbool.h>
 #include <version.h>
+
+#ifndef EC_BATTERY_TEST_EXPECT_PRESENT
+#define EC_BATTERY_TEST_EXPECT_PRESENT 0
+#endif
+
+static const uint8_t ec_battery_wire[24] = {
+	0x5a, 0, 0, 0, 24, 0, 0, 0, 1, 0, 24, 0,
+	1, 0, 1, 0, 0x62, 0, 0x66, 0, 0, 0, 0, 0,
+};
+
+_Static_assert(sizeof(struct lb_ec_battery_descriptor) == 24, "EC wire size");
+_Static_assert(offsetof(struct lb_ec_battery_descriptor, revision) == 8, "EC revision");
+_Static_assert(offsetof(struct lb_ec_battery_descriptor, header_size) == 10, "EC header");
+_Static_assert(offsetof(struct lb_ec_battery_descriptor, profile) == 12, "EC profile");
+_Static_assert(offsetof(struct lb_ec_battery_descriptor, transport) == 14, "EC transport");
+_Static_assert(offsetof(struct lb_ec_battery_descriptor, data_port) == 16, "EC data port");
+_Static_assert(offsetof(struct lb_ec_battery_descriptor, status_port) == 18, "EC status port");
+_Static_assert(offsetof(struct lb_ec_battery_descriptor, reserved) == 20, "EC reserved");
 
 
 /* Copy of lb_table_init() implementation for testing purposes */
@@ -99,6 +118,61 @@ static void test_boot_private_record(void **state)
 	lb_add_payload_boot_private_buffer(header, 0x112000000ULL);
 	assert_int_equal(header->table_entries, 1);
 	assert_memory_equal(lb_first_record(header), wire, sizeof(wire));
+}
+
+static void test_ec_battery_record(void **state)
+{
+	static const struct {
+		size_t offset;
+		uint8_t value;
+	} invalid[] = {
+		{ 0, 0x59 }, { 4, 23 }, { 4, 25 }, { 8, 0 }, { 8, 2 },
+		{ 10, 23 }, { 10, 25 }, { 12, 0 }, { 12, 2 }, { 14, 0 },
+		{ 14, 2 }, { 16, 0 }, { 18, 0 }, { 18, 0x62 }, { 20, 1 },
+		{ 23, 0xff },
+	};
+	struct lb_header *header = *state;
+	struct lb_ec_battery_descriptor descriptor;
+	uint8_t before[sizeof(tables_buffer)];
+
+	memcpy(&descriptor, ec_battery_wire, sizeof(descriptor));
+	memcpy(before, tables_buffer, sizeof(before));
+	assert_int_equal(lb_add_ec_battery_descriptor(NULL, &descriptor), CB_ERR_ARG);
+	assert_int_equal(lb_add_ec_battery_descriptor(header, NULL), CB_ERR_ARG);
+	assert_memory_equal(tables_buffer, before, sizeof(before));
+	for (size_t i = 0; i < ARRAY_SIZE(invalid) + 2; i++) {
+		memcpy(&descriptor, ec_battery_wire, sizeof(descriptor));
+		if (i < ARRAY_SIZE(invalid))
+			((uint8_t *)&descriptor)[invalid[i].offset] = invalid[i].value;
+		else if (i == ARRAY_SIZE(invalid))
+			descriptor.data_port = UINT16_MAX;
+		else
+			descriptor.status_port = UINT16_MAX;
+		assert_int_equal(lb_add_ec_battery_descriptor(header, &descriptor), CB_ERR_ARG);
+		assert_memory_equal(tables_buffer, before, sizeof(before));
+	}
+	memcpy(&descriptor, ec_battery_wire, sizeof(descriptor));
+	assert_int_equal(lb_add_ec_battery_descriptor(header, &descriptor), CB_SUCCESS);
+	assert_int_equal(header->table_entries, 1);
+	assert_memory_equal(lb_first_record(header), ec_battery_wire, sizeof(ec_battery_wire));
+}
+
+static void test_ec_battery_owner(void **state)
+{
+	struct lb_ec_battery_descriptor descriptor;
+	struct lb_ec_battery_descriptor before;
+
+	(void)state;
+	memset(&descriptor, 0xa5, sizeof(descriptor));
+	before = descriptor;
+	if (EC_BATTERY_TEST_EXPECT_PRESENT) {
+		assert_int_equal(fill_lb_ec_battery(NULL), CB_ERR_ARG);
+		assert_int_equal(fill_lb_ec_battery(&descriptor), CB_SUCCESS);
+		assert_memory_equal(&descriptor, ec_battery_wire, sizeof(descriptor));
+	} else {
+		assert_int_equal(fill_lb_ec_battery(&descriptor), CB_ERR_NOT_IMPLEMENTED);
+		assert_memory_equal(&descriptor, &before, sizeof(descriptor));
+	}
 }
 
 static bool presence_required;
@@ -470,6 +544,7 @@ static void test_write_tables(void **state)
 	int32_t *mmc_status = cbmem_find(CBMEM_ID_MMC_STATUS);
 	size_t i = 0;
 	unsigned int presence_records = 0;
+	unsigned int ec_battery_records = 0;
 	u32 last_tag = LB_TAG_UNUSED;
 
 	reset_presence(true);
@@ -487,6 +562,11 @@ static void test_write_tables(void **state)
 	assert_int_equal(sizeof(*header), header->header_bytes);
 	/* At least one entry should be present. */
 	assert_int_not_equal(0, header->table_entries);
+	assert_true(header->table_bytes <=
+		    cbmem_entry_size(cbmem_entry_find(CBMEM_ID_CBTABLE)) - sizeof(*header));
+	assert_int_equal(ipchksum(header, sizeof(*header)), 0);
+	assert_int_equal(header->table_checksum,
+			 ipchksum(lb_first_record(header), header->table_bytes));
 
 	LB_RECORD_FOR_EACH(record, i, header)
 	{
@@ -644,11 +724,17 @@ static void test_write_tables(void **state)
 			assert_memory_equal(record, &presence_endpoint,
 					    sizeof(presence_endpoint));
 			break;
+		case LB_TAG_EC_BATTERY_DESCRIPTOR:
+			ec_battery_records++;
+			assert_int_equal(record->size, sizeof(ec_battery_wire));
+			assert_memory_equal(record, ec_battery_wire, sizeof(ec_battery_wire));
+			break;
 		default:
 			fail_msg("Unexpected tag found in record. Tag ID: 0x%x", record->tag);
 		}
 	}
 	assert_int_equal(presence_records, 1);
+	assert_int_equal(ec_battery_records, EC_BATTERY_TEST_EXPECT_PRESENT);
 	assert_int_equal(last_tag, LB_TAG_AUTHVAR_PRESENCE_ENDPOINT);
 	assert_int_equal(presence_take_calls, 1);
 }
@@ -659,6 +745,8 @@ int main(void)
 		cmocka_unit_test(test_lb_add_gpios),
 		cmocka_unit_test_setup(test_lb_new_record, setup_test_header),
 		cmocka_unit_test_setup(test_boot_private_record, setup_test_header),
+		cmocka_unit_test_setup(test_ec_battery_record, setup_test_header),
+		cmocka_unit_test(test_ec_battery_owner),
 		cmocka_unit_test_setup(test_presence_publication_record,
 					setup_test_header),
 		cmocka_unit_test_setup(test_lb_add_console, setup_test_header),
