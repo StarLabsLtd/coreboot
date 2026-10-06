@@ -67,7 +67,8 @@ static void npcd378_init(struct device *dev)
 
 		npcd378_hwm_write_start(res->base);
 
-		unsigned int fan_lvl = get_uint_option("psu_fan_lvl", 3);
+		unsigned int fan_lvl =
+			get_uint_option_checked("psu_fan_lvl", 3, OPTION_RANGE(0, 7));
 		if (fan_lvl > 7)
 			fan_lvl = 3;
 
