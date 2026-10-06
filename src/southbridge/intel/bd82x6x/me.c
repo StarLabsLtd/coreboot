@@ -358,8 +358,8 @@ static void intel_me_init(struct device *dev)
 	/* Do initial setup and determine the BIOS path */
 	printk(BIOS_NOTICE, "ME: BIOS path: %s\n", me_get_bios_path_string(path));
 
-	u8 me_state = get_uint_option("me_state", 0);
-	u8 me_state_prev = get_uint_option("me_state_prev", 0);
+	u8 me_state = get_uint_option_checked("me_state", 0, OPTION_BOOL);
+	u8 me_state_prev = get_uint_option_checked("me_state_prev", 0, OPTION_RANGE(0, 3));
 
 	printk(BIOS_DEBUG, "ME: me_state=%u, me_state_prev=%u\n", me_state, me_state_prev);
 
