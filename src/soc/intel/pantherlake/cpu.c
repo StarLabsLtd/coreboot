@@ -142,7 +142,8 @@ void soc_core_init(struct device *cpu)
 	/* Set core type in struct cpu_info */
 	set_dev_core_type();
 
-	if (get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported())
+	if (get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL) &&
+	    is_tme_supported())
 		set_tme_core_activate();
 
 	if (CONFIG(DROP_CPU_FEATURE_PROGRAM_IN_FSP)) {

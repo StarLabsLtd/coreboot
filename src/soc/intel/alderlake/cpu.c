@@ -141,7 +141,8 @@ void soc_core_init(struct device *cpu)
 	/* Enable Turbo */
 	enable_turbo();
 
-	if (get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported())
+	if (get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL) &&
+	    is_tme_supported())
 		set_tme_core_activate();
 }
 

@@ -28,10 +28,13 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	FSP_M_TEST_CONFIG *tconfig = &mupd->FspmTestConfig;
 	unsigned int i;
 
-	m_cfg->HyperThreading = get_uint_option("hyper_threading", CONFIG(FSP_HYPERTHREADING));
+	m_cfg->HyperThreading = get_uint_option_checked(
+		"hyper_threading", CONFIG(FSP_HYPERTHREADING), OPTION_BOOL);
 
-	bool igd_enabled = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD))
-			&& is_devfn_enabled(SA_DEVFN_IGD);
+	bool igd_enabled = get_uint_option_checked("igd_enabled",
+						   !CONFIG(SOC_INTEL_DISABLE_IGD),
+						   OPTION_BOOL) &&
+			   is_devfn_enabled(SA_DEVFN_IGD);
 
 	/* Probe for no IGD and disable InternalGfx and panel power to prevent a crash in FSP-M. */
 	if (igd_enabled && pci_read_config16(SA_DEV_IGD, PCI_VENDOR_ID) == 0xffff) {
@@ -42,8 +45,12 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	if (igd_enabled) {
 		/* Set IGD stolen size to 64MB. */
 		m_cfg->InternalGfx = 1;
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc", IGD_SM_64MB);
-		m_cfg->ApertureSize = get_uint_option("igd_aperture_size", IGD_AP_SZ_256MB);
+		m_cfg->IgdDvmt50PreAlloc =
+			get_uint_option_checked("igd_dvmt_prealloc", IGD_SM_64MB,
+						OPTION_RANGE(IGD_SM_32MB, IGD_SM_128MB));
+		m_cfg->ApertureSize =
+			get_uint_option_checked("igd_aperture_size", IGD_AP_SZ_256MB,
+						OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));
 	} else {
 		m_cfg->InternalGfx = 0;
 		m_cfg->IgdDvmt50PreAlloc = 0;
@@ -131,7 +138,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	m_cfg->PlatformDebugConsent = CONFIG_SOC_INTEL_COMMON_DEBUG_CONSENT;
 
 	/* Configure VT-d */
-	tconfig->VtdDisable = !get_uint_option("vtd", 1);
+	tconfig->VtdDisable = !get_uint_option_checked("vtd", 1, OPTION_BOOL);
 
 	/* Set HECI1 PCI BAR address */
 	m_cfg->Heci1BarAddress = HECI1_BASE_ADDRESS;
