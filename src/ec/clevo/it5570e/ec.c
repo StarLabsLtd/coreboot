@@ -60,25 +60,32 @@ static void ec_init(struct device *dev)
 
 	pnp_configure_smfi();
 
-	ec_set_ac_fan_always_on(
-		get_uint_option("ac_fan_always_on", CONFIG(EC_CLEVO_IT5570E_AC_FAN_ALWAYS_ON)));
+	ec_set_ac_fan_always_on(get_uint_option_checked(
+		"ac_fan_always_on", CONFIG(EC_CLEVO_IT5570E_AC_FAN_ALWAYS_ON), OPTION_BOOL));
 
-	ec_set_kbled_timeout(
-		get_uint_option("kbled_timeout", CONFIG_EC_CLEVO_IT5570E_KBLED_TIMEOUT));
+	ec_set_kbled_timeout(get_uint_option_checked("kbled_timeout",
+						     CONFIG_EC_CLEVO_IT5570E_KBLED_TIMEOUT,
+						     OPTION_RANGE(0, UINT16_MAX)));
 
-	ec_set_fn_win_swap(
-		get_uint_option("fn_win_swap", CONFIG(EC_CLEVO_IT5570E_FN_WIN_SWAP)));
+	ec_set_fn_win_swap(get_uint_option_checked(
+		"fn_win_swap", CONFIG(EC_CLEVO_IT5570E_FN_WIN_SWAP), OPTION_BOOL));
 
-	ec_set_flexicharger(
-		get_uint_option("flexicharger", CONFIG(EC_CLEVO_IT5570E_FLEXICHARGER)),
-		get_uint_option("flexicharger_start", CONFIG_EC_CLEVO_IT5570E_FLEXICHG_START),
-		get_uint_option("flexicharger_stop",  CONFIG_EC_CLEVO_IT5570E_FLEXICHG_STOP));
+	ec_set_flexicharger(get_uint_option_checked("flexicharger",
+						    CONFIG(EC_CLEVO_IT5570E_FLEXICHARGER),
+						    OPTION_BOOL),
+			    get_uint_option_checked("flexicharger_start",
+						    CONFIG_EC_CLEVO_IT5570E_FLEXICHG_START,
+						    OPTION_RANGE(0, 100)),
+			    get_uint_option_checked("flexicharger_stop",
+						    CONFIG_EC_CLEVO_IT5570E_FLEXICHG_STOP,
+						    OPTION_RANGE(0, 100)));
 
-	ec_set_camera_boot_state(
-		get_uint_option("camera_boot_state", CONFIG_EC_CLEVO_IT5570E_CAM_BOOT_STATE));
+	ec_set_camera_boot_state(get_uint_option_checked(
+		"camera_boot_state", CONFIG_EC_CLEVO_IT5570E_CAM_BOOT_STATE,
+		OPTION_RANGE(CAMERA_STATE_DISABLE, CAMERA_STATE_KEEP)));
 
-	ec_set_tp_toggle_mode(
-		get_uint_option("tp_toggle_mode", CONFIG_EC_CLEVO_IT5570E_TP_TOGGLE_MODE));
+	ec_set_tp_toggle_mode(get_uint_option_checked(
+		"tp_toggle_mode", CONFIG_EC_CLEVO_IT5570E_TP_TOGGLE_MODE, OPTION_BOOL));
 
 	/*
 	 * The vendor abuses the field PL2B (originally named PL1T) to set PL2 via PECI on

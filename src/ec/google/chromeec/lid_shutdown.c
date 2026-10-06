@@ -11,7 +11,8 @@ static void chromeec_lid_shutdown(void *unused)
 {
 	const struct lb_framebuffer *fb;
 
-	if (!get_uint_option("lid_shutdown", CONFIG(EC_GOOGLE_CHROMEEC_LID_SHUTDOWN)))
+	if (!get_uint_option_checked("lid_shutdown", CONFIG(EC_GOOGLE_CHROMEEC_LID_SHUTDOWN),
+				     OPTION_BOOL))
 		return;
 
 	/* Lid open: continue boot. */

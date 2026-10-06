@@ -118,9 +118,12 @@ static void mec5035_init(struct device *dev)
 
 	pc_keyboard_init(NO_AUX_DEVICE);
 
-	mec5035_control_radio(RADIO_WLAN, get_uint_option("wlan", RADIO_ON));
-	mec5035_control_radio(RADIO_WWAN, get_uint_option("wwan", RADIO_ON));
-	mec5035_control_radio(RADIO_BT, get_uint_option("bluetooth", RADIO_ON));
+	mec5035_control_radio(RADIO_WLAN,
+			      get_uint_option_checked("wlan", RADIO_ON, OPTION_BOOL));
+	mec5035_control_radio(RADIO_WWAN,
+			      get_uint_option_checked("wwan", RADIO_ON, OPTION_BOOL));
+	mec5035_control_radio(RADIO_BT,
+			      get_uint_option_checked("bluetooth", RADIO_ON, OPTION_BOOL));
 }
 
 static struct device_operations ops = {
