@@ -224,6 +224,7 @@ void *gpio_dwx_address(const gpio_t pad);
 struct gpio_lock_config {
 	gpio_t			pad;
 	enum gpio_lock_action	lock_action;
+	uint32_t		expected_mode;
 };
 
 /*
