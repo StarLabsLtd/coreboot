@@ -133,25 +133,35 @@ static void starbook_update_dxio_power_management(void)
 	dxio_descriptor *wifi = &starbook_dxio_descriptors[STARBOOK_DXIO_WIFI];
 	dxio_descriptor *ssd = &starbook_dxio_descriptors[STARBOOK_DXIO_M2_STORAGE];
 
-	if (get_uint_option("wifi", 1) == 0) {
+	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0) {
 		wifi->engine_type = UNUSED_ENGINE;
 		wifi->port_present = false;
 	}
 
-	wifi->clk_req = get_uint_option("pciexp_wifi_clk_pm", 1) ? CLK_REQ6 : CLK_ENABLE;
+	wifi->clk_req = get_uint_option_checked("pciexp_wifi_clk_pm", 1, OPTION_BOOL) ?
+				CLK_REQ6 :
+				CLK_ENABLE;
 	if (ssd->engine_type == PCIE_ENGINE)
-		ssd->clk_req = get_uint_option("pciexp_ssd_clk_pm", 1) ? CLK_REQ1 : CLK_ENABLE;
+		ssd->clk_req = get_uint_option_checked("pciexp_ssd_clk_pm", 1, OPTION_BOOL) ?
+				       CLK_REQ1 :
+				       CLK_ENABLE;
 
-	starbook_set_dxio_aspm(wifi, get_uint_option("pciexp_wifi_aspm",
-						     STARLABS_CFR_ASPM_L1));
+	starbook_set_dxio_aspm(wifi,
+			       get_uint_option_checked("pciexp_wifi_aspm", STARLABS_CFR_ASPM_L1,
+						       OPTION_RANGE(STARLABS_CFR_ASPM_DISABLE,
+								    STARLABS_CFR_ASPM_AUTO)));
 	if (ssd->engine_type == PCIE_ENGINE)
-		starbook_set_dxio_aspm(ssd, get_uint_option("pciexp_ssd_aspm",
-							    STARLABS_CFR_ASPM_L1));
+		starbook_set_dxio_aspm(
+			ssd, get_uint_option_checked("pciexp_ssd_aspm", STARLABS_CFR_ASPM_L1,
+						     OPTION_RANGE(STARLABS_CFR_ASPM_DISABLE,
+								  STARLABS_CFR_ASPM_AUTO)));
 
 	starbook_set_dxio_l1ss(wifi, STARLABS_CFR_L1SS_DISABLED);
 	if (ssd->engine_type == PCIE_ENGINE)
-		starbook_set_dxio_l1ss(ssd, get_uint_option("pciexp_ssd_l1ss",
-							   STARLABS_CFR_L1SS_L1_2));
+		starbook_set_dxio_l1ss(
+			ssd, get_uint_option_checked("pciexp_ssd_l1ss", STARLABS_CFR_L1SS_L1_2,
+						     OPTION_RANGE(STARLABS_CFR_L1SS_DISABLED,
+								  STARLABS_CFR_L1SS_L1_2)));
 }
 
 static void starbook_select_m2_storage_dxio(void)

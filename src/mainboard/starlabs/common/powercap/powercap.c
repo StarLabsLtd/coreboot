@@ -9,8 +9,8 @@
 
 static enum cmos_power_profile get_power_profile(enum cmos_power_profile fallback)
 {
-	const unsigned int power_profile = get_uint_option("power_profile", fallback);
-	return power_profile < NUM_POWER_PROFILES ? power_profile : fallback;
+	return get_uint_option_checked("power_profile", fallback,
+				       OPTION_RANGE(0, NUM_POWER_PROFILES - 1));
 }
 
 static uint16_t round_up_to_5(uint16_t value)
@@ -195,25 +195,31 @@ void update_power_limits(config_t *cfg)
 		break;
 	case PP_CUSTOM:
 		if (have_bounds) {
-			custom_pl1 = clamp_u32(bounds.min_pl1,
-				get_uint_option("pl1_override", bounds.default_pl1),
-				bounds.max_pl1);
+			custom_pl1 = get_uint_option_checked("pl1_override", bounds.default_pl1,
+							     OPTION_RANGE(bounds.min_pl1,
+									  bounds.max_pl1));
 			if (CONFIG(STARLABS_LEGACY_PL4)) {
-				custom_pl4 = clamp_u32(bounds.min_pl4,
-					get_uint_option("pl4_override", bounds.default_pl4),
-					bounds.max_pl4);
+				custom_pl4 = get_uint_option_checked(
+					"pl4_override", bounds.default_pl4,
+					OPTION_RANGE(bounds.min_pl4, bounds.max_pl4));
 			} else {
 				custom_pl4 = bounds.default_pl4;
 			}
-			custom_pl2 = clamp_u32(bounds.min_pl2,
-				get_uint_option("pl2_override", bounds.default_pl2),
-				bounds.max_pl2);
+			custom_pl2 = get_uint_option_checked("pl2_override", bounds.default_pl2,
+							     OPTION_RANGE(bounds.min_pl2,
+									  bounds.max_pl2));
 			custom_pl2 = MIN(custom_pl2, custom_pl4);
 			custom_pl2 = MAX(custom_pl2, custom_pl1);
-			custom_tcc_temp = get_uint_option("tcc_temp", 0);
+			custom_tcc_temp = get_uint_option_checked(
+				"tcc_temp", 0,
+				OPTION_RANGE(bounds.min_tcc_temp, bounds.max_tcc_temp));
 			if (!custom_tcc_temp)
-				custom_tcc_temp = tcc_offset_to_temp(tj_max,
-					get_uint_option("tcc_offset", performance_tcc_offset));
+				custom_tcc_temp = tcc_offset_to_temp(
+					tj_max,
+					get_uint_option_checked(
+						"tcc_offset", performance_tcc_offset,
+						OPTION_RANGE(performance_tcc_offset,
+							     performance_tcc_offset + 20)));
 			custom_tcc_temp = clamp_u32(bounds.min_tcc_temp, custom_tcc_temp,
 				bounds.max_tcc_temp);
 			cfg->tcc_offset = tcc_temp_to_offset(tj_max, custom_tcc_temp);
