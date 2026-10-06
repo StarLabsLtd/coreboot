@@ -63,7 +63,8 @@ static void mainboard_fill_ssdt(const struct device *dev)
 		return;
 
 	/* Get touchpad type option from CFR; enable both if not specified */
-	unsigned int touchpad_type = get_uint_option("touchpad_type", TP_TYPE_AUTO);
+	unsigned int touchpad_type = get_uint_option_checked(
+		"touchpad_type", TP_TYPE_AUTO, OPTION_RANGE(TP_TYPE_AUTO, TP_TYPE_CYPRESS));
 
 	acpigen_write_scope("\\_SB.PCI0.I2C0");
 	/* 0 = Enable both, 1 = Elan, 2 = Cypress */
@@ -72,11 +73,11 @@ static void mainboard_fill_ssdt(const struct device *dev)
 	acpigen_pop_len(); /* Scope */
 
 	/* Ambient light sensor (I2C1) only when CFR option is enabled */
-	if (get_uint_option("ambient_light", 0))
+	if (get_uint_option_checked("ambient_light", 0, OPTION_BOOL))
 		peppy_ssdt_add_als();
 
 	/* SIM USB (PRT6) only when LTE/NGFF CFR option is enabled */
-	if (get_uint_option("lte_ngff", 0)) {
+	if (get_uint_option_checked("lte_ngff", 0, OPTION_BOOL)) {
 		struct acpi_pld pld = {0};
 		struct acpi_pld_group group = {0};
 
@@ -96,7 +97,8 @@ static int mainboard_smbios_data(struct device *dev, int *handle,
 {
 	int len = 0;
 
-	if (!CONFIG(BOARD_GOOGLE_PEPPY) || get_uint_option("ambient_light", 0)) {
+	if (!CONFIG(BOARD_GOOGLE_PEPPY) ||
+	    get_uint_option_checked("ambient_light", 0, OPTION_BOOL)) {
 		len += smbios_write_type41(
 			current, handle,
 			BOARD_LIGHTSENSOR_NAME,		/* name */
@@ -149,7 +151,7 @@ static void mainboard_chip_init(void *chip_info)
 	/* PCIe RP2 (1c.1) for NGFF/LTE - present in overridetree, gated by CFR option */
 	dev = pcidev_on_root(PCH_PCIE_DEV_SLOT, 1);
 	if (dev)
-		dev->enabled = get_uint_option("lte_ngff", 0);
+		dev->enabled = get_uint_option_checked("lte_ngff", 0, OPTION_BOOL);
 }
 
 struct chip_operations mainboard_ops = {

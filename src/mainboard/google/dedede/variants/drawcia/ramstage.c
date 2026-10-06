@@ -53,7 +53,8 @@ void variant_devtree_update(void)
 		update_lte_device_drawcia();
 
 	/* Update touchscreen device */
-	switch (get_uint_option("touchscreen", TS_TYPE_AUTO_SELECT)) {
+	switch (get_uint_option_checked("touchscreen", TS_TYPE_AUTO_SELECT,
+					OPTION_RANGE(0, 5))) {
 	case TS_TYPE_ELAN0001:
 		ts_gtch7503->enabled = 0;
 		ts_gdix0000->enabled = 0;
