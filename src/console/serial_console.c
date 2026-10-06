@@ -17,11 +17,11 @@ bool console_serial_enabled(void)
 	if (!cached) {
 		/*
 		 * Normalize to a boolean. With USE_UEFI_VARIABLE_STORE,
-		 * get_uint_option() is stubbed in separate verstage and
+		 * get_uint_option_checked() is stubbed in separate verstage and
 		 * postcar and returns the CONSOLE_SERIAL fallback there.
 		 */
-		enabled = !!get_uint_option("serial_console",
-					    CONFIG(CONSOLE_SERIAL));
+		enabled = !!get_uint_option_checked("serial_console", CONFIG(CONSOLE_SERIAL),
+						    OPTION_BOOL);
 		cached = true;
 	}
 

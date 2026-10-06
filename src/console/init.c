@@ -27,7 +27,8 @@ static void init_log_level(void)
 	console_loglevel = get_console_loglevel();
 
 	if (!FIRST_CONSOLE)
-		console_loglevel = get_uint_option("debug_level", console_loglevel);
+		console_loglevel = get_uint_option_checked("debug_level", console_loglevel,
+							   OPTION_RANGE(BIOS_EMERG, BIOS_SPEW));
 }
 
 int console_log_level(int msg_level)
