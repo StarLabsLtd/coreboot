@@ -31,6 +31,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_fmp_executor_stubs.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_service.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
@@ -197,6 +198,7 @@ done
 	"$root/src/lib/payload_mm_authvar_media.c" \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
 	"$root/src/lib/payload_mm_authvar_coordinator.c" \
+	"$root/src/lib/payload_mm_authvar_service.c" \
 	"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 	"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 	"$root/src/lib/payload_mm_authvar_view.c" \

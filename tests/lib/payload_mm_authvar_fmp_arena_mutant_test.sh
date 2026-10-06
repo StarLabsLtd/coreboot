@@ -37,6 +37,7 @@ compile_and_kill()
 		"$root/tests/lib/payload_mm_authvar_executor_test.c" \
 		"$root/tests/lib/payload_mm_authvar_fmp_executor_stubs.c" "$mutant" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_service.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
