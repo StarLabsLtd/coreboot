@@ -19,7 +19,7 @@
 
 bool soc_vtd_enabled(void)
 {
-	const unsigned int vtd = get_uint_option("vtd", 1);
+	const unsigned int vtd = get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	if (!vtd)
 		return false;
 	struct device *const root_dev = pcidev_path_on_root(SA_DEVFN_ROOT);

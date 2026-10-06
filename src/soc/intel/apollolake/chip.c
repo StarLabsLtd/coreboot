@@ -740,7 +740,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	silconfig->C1e = cfg->enhanced_cstates;
 
 	/* Set VTD feature according to devicetree */
-	silconfig->VtdEnable = get_uint_option("vtd", cfg->enable_vtd);
+	silconfig->VtdEnable = get_uint_option_checked("vtd", cfg->enable_vtd, OPTION_BOOL);
 
 	silconfig->PeiGraphicsPeimInit = CONFIG(RUN_FSP_GOP) && is_devfn_enabled(SA_DEVFN_IGD);
 
@@ -760,7 +760,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	silconfig->SataPwrOptEnable = !(cfg->sata_pwr_optimize_disable);
 
 	/* 8254 Timer */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	silconfig->Timer8254ClkSetting = !use_8254;
 
 	/* FSP should let coreboot set subsystem IDs, which are read/write-once */

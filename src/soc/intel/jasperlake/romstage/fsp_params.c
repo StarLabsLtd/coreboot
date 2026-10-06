@@ -20,12 +20,20 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 {
 	unsigned int i;
 
-	m_cfg->InternalGfx = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD)) && is_devfn_enabled(SA_DEVFN_IGD);
+	m_cfg->InternalGfx = get_uint_option_checked("igd_enabled",
+						     !CONFIG(SOC_INTEL_DISABLE_IGD),
+						     OPTION_BOOL) &&
+			     is_devfn_enabled(SA_DEVFN_IGD);
 
 	if (m_cfg->InternalGfx) {
 		/* IGD is enabled, set IGD stolen size to 60MB. */
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc", IGD_SM_60MB);
-		m_cfg->ApertureSize = get_uint_option("igd_aperture_size", IGD_AP_SZ_256MB);
+		m_cfg->IgdDvmt50PreAlloc = get_uint_option_checked(
+			"igd_dvmt_prealloc", IGD_SM_60MB,
+			OPTION_ENUM(IGD_SM_32MB, IGD_SM_60MB, IGD_SM_64MB, IGD_SM_96MB,
+				    IGD_SM_128MB, IGD_SM_160MB));
+		m_cfg->ApertureSize =
+			get_uint_option_checked("igd_aperture_size", IGD_AP_SZ_256MB,
+						OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));
 	} else {
 		/* IGD is disabled, skip IGD init in FSP. */
 		m_cfg->IgdDvmt50PreAlloc = 0;
@@ -106,7 +114,7 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->PlatformDebugConsent = CONFIG_SOC_INTEL_COMMON_DEBUG_CONSENT;
 
 	/* VT-d config */
-	m_cfg->VtdDisable = !get_uint_option("vtd", 1);
+	m_cfg->VtdDisable = !get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	m_cfg->VtdIopEnable = 0x1;
 
 	if (m_cfg->InternalGfx) {
