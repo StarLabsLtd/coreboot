@@ -19,7 +19,7 @@ static void mainboard_init(struct device *dev)
 static void mainboard_fill_ssdt(const struct device *dev)
 {
 	/* Get camera enable option from CFR */
-	unsigned int camera_enabled = get_uint_option("ipu_camera", 1);
+	unsigned int camera_enabled = get_uint_option_checked("ipu_camera", 1, OPTION_BOOL);
 
 	acpigen_write_scope("\\_SB.PCI0");
 	acpigen_write_name_integer("CSTA", camera_enabled ? 0xF : 0x0);

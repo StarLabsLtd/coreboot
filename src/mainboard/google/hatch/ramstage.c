@@ -39,7 +39,8 @@ static void update_touchpad_wake_config(void)
 		return;
 
 	/* Check CFR option for touchpad wake */
-	unsigned int touchpad_wake_enabled = get_uint_option("touchpad_wake", 0);
+	unsigned int touchpad_wake_enabled =
+		get_uint_option_checked("touchpad_wake", 0, OPTION_BOOL);
 
 	printk(BIOS_DEBUG, "Touchpad wake: %s\n", touchpad_wake_enabled?"enabled":"disabled");
 
