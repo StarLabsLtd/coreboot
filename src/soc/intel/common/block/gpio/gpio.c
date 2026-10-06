@@ -124,7 +124,7 @@ static inline uint32_t gpio_bitmask_within_group(
 	return 1U << gpio_within_group(comm, relative_pad);
 }
 
-static const struct pad_community *gpio_get_community(gpio_t pad)
+static const struct pad_community *gpio_find_community(gpio_t pad)
 {
 	size_t gpio_communities;
 	size_t i;
@@ -134,9 +134,18 @@ static const struct pad_community *gpio_get_community(gpio_t pad)
 		if (pad >= comm->first_pad && pad <= comm->last_pad)
 			return comm;
 	}
-	printk(BIOS_ERR, "%s pad %d not found\n", __func__, pad);
-	die("Invalid GPIO pad number\n");
 	return NULL;
+}
+
+static const struct pad_community *gpio_get_community(gpio_t pad)
+{
+	const struct pad_community *comm = gpio_find_community(pad);
+
+	if (!comm) {
+		printk(BIOS_ERR, "%s pad %d not found\n", __func__, pad);
+		die("Invalid GPIO pad number\n");
+	}
+	return comm;
 }
 
 static void gpio_configure_owner(const struct pad_config *cfg,
@@ -402,8 +411,12 @@ static void gpio_configure_pad(const struct pad_config *cfg)
 	gpi_enable_smi(cfg, comm, group, pin);
 	gpi_enable_nmi(cfg, comm, group, pin);
 	gpi_enable_gpe(cfg, comm, group, pin);
-	if (cfg->lock_action)
-		gpio_lock_pad(cfg->pad, cfg->lock_action);
+	if (cfg->lock_action && gpio_lock_pad(cfg->pad, cfg->lock_action) &&
+	    !ENV_ROMSTAGE_OR_BEFORE && !vboot_recovery_mode_enabled()) {
+		printk(BIOS_ERR, "Failed to lock GPIO pad %d\n", cfg->pad);
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("GPIO pad locking failed\n");
+	}
 }
 
 void gpio_configure_pads(const struct pad_config *cfg, size_t num_pads)
@@ -554,11 +567,26 @@ int gpio_tx_get(gpio_t gpio_num)
 	return !!(reg & PAD_CFG0_TX_STATE);
 }
 
+static int gpio_pad_config_mode_verify(const struct gpio_lock_config *pad_info,
+					       const struct pad_community *comm)
+{
+	if (pad_info->expected_mode &&
+	    (pcr_read32(comm->port, pad_config_offset(comm, pad_info->pad)) &
+	     PAD_CFG0_MODE_MASK) != pad_info->expected_mode) {
+		printk(BIOS_ERR, "%s: Error: pad %d has unexpected native function!\n",
+				__func__, pad_info->pad);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int
 gpio_pad_config_lock_verify(const struct gpio_lock_config *pad_info,
 	uint8_t pid, uint16_t offset, const uint32_t bit_mask)
 {
-	int ret = 0;
+	const struct pad_community *comm = gpio_find_community(pad_info->pad);
+	int ret = gpio_pad_config_mode_verify(pad_info, comm);
 
 	if ((pad_info->lock_action & GPIO_LOCK_CONFIG) == GPIO_LOCK_CONFIG &&
 	    !(pcr_read32(pid, offset) & bit_mask)) {
@@ -577,12 +605,13 @@ gpio_pad_config_lock_verify(const struct gpio_lock_config *pad_info,
 	return ret;
 }
 
-static void
+static int
 gpio_pad_config_lock_using_sbi(const struct gpio_lock_config *pad_info,
 	uint8_t pid, uint16_t offset, const uint32_t bit_mask)
 {
 	int status;
-	uint8_t response;
+	int ret = 0;
+	uint8_t response = 0;
 	uint32_t data;
 	struct pcr_sbi_msg msg = {
 		.pid = pid,
@@ -597,7 +626,7 @@ gpio_pad_config_lock_using_sbi(const struct gpio_lock_config *pad_info,
 	if (!(pad_info->lock_action & GPIO_LOCK_FULL)) {
 		printk(BIOS_ERR, "%s: Error: no lock_action specified for pad %d!\n",
 				__func__, pad_info->pad);
-		return;
+		return -1;
 	}
 
 	if ((pad_info->lock_action & GPIO_LOCK_CONFIG) == GPIO_LOCK_CONFIG) {
@@ -605,9 +634,12 @@ gpio_pad_config_lock_using_sbi(const struct gpio_lock_config *pad_info,
 			printk(BIOS_INFO, "%s: Locking pad %d configuration\n",
 						__func__, pad_info->pad);
 		data = pcr_read32(pid, offset) | bit_mask;
+		response = 0;
 		status = pcr_execute_sideband_msg(PCH_DEV_P2SB, &msg, &data, &response);
-		if (status || response)
+		if (status || response) {
 			printk(BIOS_ERR, "Failed to lock GPIO PAD, response = %d\n", response);
+			ret = -1;
+		}
 	}
 
 	if ((pad_info->lock_action & GPIO_LOCK_TX) == GPIO_LOCK_TX) {
@@ -617,11 +649,16 @@ gpio_pad_config_lock_using_sbi(const struct gpio_lock_config *pad_info,
 		offset += sizeof(uint32_t);
 		data = pcr_read32(pid, offset) | bit_mask;
 		msg.offset = offset;
+		response = 0;
 		status = pcr_execute_sideband_msg(PCH_DEV_P2SB, &msg, &data, &response);
-		if (status || response)
+		if (status || response) {
 			printk(BIOS_ERR, "Failed to lock GPIO PAD Tx state, response = %d\n",
 					response);
+			ret = -1;
+		}
 	}
+
+	return ret;
 }
 
 static void
@@ -649,9 +686,16 @@ gpio_pad_config_lock_using_pcr(const struct gpio_lock_config *pad_info,
  */
 static int gpio_pad_config_lock(const struct gpio_lock_config *pad_info)
 {
-	const struct pad_community *comm = gpio_get_community(pad_info->pad);
+	const struct pad_community *comm;
 	uint16_t offset;
 	size_t rel_pad;
+
+	comm = gpio_find_community(pad_info->pad);
+	if (!comm) {
+		printk(BIOS_ERR, "%s: Error: no community for pad %d!\n",
+				__func__, pad_info->pad);
+		return -1;
+	}
 
 	rel_pad = relative_pad_in_comm(comm, pad_info->pad);
 	offset = comm->pad_cfg_lock_offset;
@@ -664,6 +708,8 @@ static int gpio_pad_config_lock(const struct gpio_lock_config *pad_info)
 	/* PADCFGLOCK and PADCFGLOCKTX registers for each community are contiguous */
 	offset += gpio_group_index_scaled(comm, rel_pad, 2 * sizeof(uint32_t));
 	const uint32_t bit_mask = gpio_bitmask_within_group(comm, rel_pad);
+	if (gpio_pad_config_mode_verify(pad_info, comm))
+		return -1;
 
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_PCR)) {
 		if (CONFIG(DEBUG_GPIO))
@@ -672,7 +718,8 @@ static int gpio_pad_config_lock(const struct gpio_lock_config *pad_info)
 	} else if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI)) {
 		if (CONFIG(DEBUG_GPIO))
 			printk(BIOS_INFO, "Locking pad configuration using SBI\n");
-		gpio_pad_config_lock_using_sbi(pad_info, comm->port, offset, bit_mask);
+		if (gpio_pad_config_lock_using_sbi(pad_info, comm->port, offset, bit_mask))
+			return -1;
 	} else {
 		printk(BIOS_ERR, "%s: Error: No pad configuration lock method is selected!\n",
 						__func__);
@@ -706,16 +753,33 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
 		return -1;
 	}
 
-	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI)) && !p2sb_unhide())
-		die("Unable to change P2SB visibility\n");
+	for (size_t x = 0; x < count; x++) {
+		if (!gpio_find_community(pad_list[x].pad)) {
+			printk(BIOS_ERR, "Invalid GPIO lock pad %d\n", pad_list[x].pad);
+			return -1;
+		}
+		if (!pad_list[x].lock_action ||
+		    pad_list[x].lock_action & ~GPIO_LOCK_FULL) {
+			printk(BIOS_ERR, "%s: Error: invalid lock_action for pad %d!\n",
+					__func__, pad_list[x].pad);
+			return -1;
+		}
+	}
+
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI) && !p2sb_unhide()) {
+		printk(BIOS_ERR, "Cannot unhide P2SB for GPIO locking\n");
+		return -1;
+	}
 
 	for (int x = 0; x < count; x++) {
 		if (gpio_pad_config_lock(&pad_list[x]))
 			ret = -1;
 	}
 
-	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI)) && !p2sb_hide())
-		die("Unable to change P2SB visibility\n");
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI) && !p2sb_hide()) {
+		printk(BIOS_ERR, "Cannot hide P2SB after GPIO locking\n");
+		ret = -1;
+	}
 
 	return ret;
 }
@@ -724,6 +788,12 @@ static int gpio_non_smm_lock_pad(const struct gpio_lock_config *pad_info)
 {
 	if (!pad_info) {
 		printk(BIOS_ERR, "%s: Error: pad_info is null!\n", __func__);
+		return -1;
+	}
+
+	if (!pad_info->lock_action || pad_info->lock_action & ~GPIO_LOCK_FULL) {
+		printk(BIOS_ERR, "%s: Error: invalid lock_action for pad %d!\n",
+				__func__, pad_info->pad);
 		return -1;
 	}
 
