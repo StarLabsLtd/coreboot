@@ -295,8 +295,10 @@ void set_power_limits(u8 power_limit_1_time)
 
 	power_limit_1_val = power_limit_time_sec_to_msr[power_limit_1_time];
 
-	const unsigned int pl1_override_w = get_uint_option("tdp_pl1_override", 0);
-	const unsigned int pl2_override_w = get_uint_option("tdp_pl2_override", 0);
+	const unsigned int pl1_override_w =
+		get_uint_option_checked("tdp_pl1_override", 0, OPTION_RANGE(15, 25));
+	const unsigned int pl2_override_w =
+		get_uint_option_checked("tdp_pl2_override", 0, OPTION_RANGE(15, 30));
 
 	/* Set long term power limit to TDP if not overridden */
 	limit.lo = 0;
@@ -315,7 +317,7 @@ void set_power_limits(u8 power_limit_1_time)
 	printk(BIOS_DEBUG, "CPU PL2 = %u Watts\n", pl2 / power_unit);
 	limit.hi |= pl2 & PKG_POWER_LIMIT_MASK;
 	limit.hi |= PKG_POWER_LIMIT_EN;
-	if (get_uint_option("cpu_power_limit_lock", 0)) {
+	if (get_uint_option_checked("cpu_power_limit_lock", 0, OPTION_BOOL)) {
 		limit.hi |= PKG_POWER_LIMIT_LOCK;
 		printk(BIOS_DEBUG, "Locking package power limits\n");
 	}
