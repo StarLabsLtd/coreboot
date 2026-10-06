@@ -17,7 +17,7 @@ static void update_card_reader_acpi(void *unused)
 {
 	(void)unused;
 
-	if (get_uint_option("card_reader", 0) == 0) {
+	if (get_uint_option_checked("card_reader", 0, OPTION_BOOL) == 0) {
 		DEV_PTR(hub_card_reader)->enabled = 0;
 		DEV_PTR(usb2_port4)->enabled = 0;
 		return;

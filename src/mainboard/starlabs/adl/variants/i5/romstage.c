@@ -107,7 +107,6 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	memcfg_init(mupd, &mem_config, &lpddr5_spd_info, half_populated);
 
-
-	const uint8_t vtd = get_uint_option("vtd", 1);
+	const uint8_t vtd = get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	mupd->FspmConfig.VtdDisable = !vtd;
 };
