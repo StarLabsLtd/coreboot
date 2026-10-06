@@ -699,8 +699,8 @@ bool cse_check_host_cold_reset(void);
  */
 static inline bool soc_disable_heci1_at_pre_boot(void)
 {
-	return get_uint_option("disable_heci1_at_pre_boot",
-			       CONFIG(DISABLE_HECI1_AT_PRE_BOOT)) != 0;
+	return get_uint_option_checked("disable_heci1_at_pre_boot",
+				       CONFIG(DISABLE_HECI1_AT_PRE_BOOT), OPTION_BOOL) != 0;
 }
 
 #endif // SOC_INTEL_COMMON_CSE_H
