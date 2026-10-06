@@ -37,8 +37,10 @@ enum starlabs_hda_subsystem_id_mode {
 static inline bool starlabs_hda_use_legacy_subsystem_id(void)
 {
 	return CONFIG_STARLABS_HDA_LEGACY_SUBSYSTEM_ID &&
-		get_uint_option("hda_subsystem_id", STARLABS_HDA_SUBSYSTEM_ID_CURRENT) ==
-			STARLABS_HDA_SUBSYSTEM_ID_LEGACY;
+	       get_uint_option_checked("hda_subsystem_id", STARLABS_HDA_SUBSYSTEM_ID_CURRENT,
+				       OPTION_RANGE(STARLABS_HDA_SUBSYSTEM_ID_CURRENT,
+						    STARLABS_HDA_SUBSYSTEM_ID_LEGACY)) ==
+		       STARLABS_HDA_SUBSYSTEM_ID_LEGACY;
 }
 
 static inline uint32_t starlabs_hda_selected_pci_subsystem_id(uint16_t policy)

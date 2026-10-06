@@ -29,16 +29,15 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 
 	memcfg_init(mupd, &mem_config, &ddr4_spd_info, half_populated);
 
-
-	const uint8_t vtd = get_uint_option("vtd", 1);
+	const uint8_t vtd = get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	mupd->FspmConfig.VtdDisable = !vtd;
 
 	/* Enable/Disable WiFi (RP05) based on CMOS settings */
-	if (get_uint_option("wifi", 1) == 0)
+	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0)
 		mupd->FspmConfig.PcieRpEnableMask &= ~(1 << 4);
 
 	/* Enable/Disable Thunderbolt based on CMOS settings */
-	if (get_uint_option("thunderbolt", 1) == 0) {
+	if (get_uint_option_checked("thunderbolt", 1, OPTION_BOOL) == 0) {
 		mupd->FspmConfig.VtdItbtEnable = 0;
 		mupd->FspmConfig.VtdBaseAddress[3] = 0;
 		mupd->FspmConfig.TcssDma0En = 0;

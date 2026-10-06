@@ -19,7 +19,7 @@ static const struct cnl_mb_cfg memcfg = {
 
 void mainboard_memory_init_params(FSPM_UPD *memupd)
 {
-	const uint8_t vtd = get_uint_option("vtd", 1);
+	const uint8_t vtd = get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	memupd->FspmTestConfig.VtdDisable = !vtd;
 
 	cannonlake_memcfg_init(&memupd->FspmConfig, &memcfg);

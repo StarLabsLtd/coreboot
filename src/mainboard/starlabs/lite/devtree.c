@@ -20,13 +20,14 @@ void mb_devtree_update(void)
 	update_power_limits(cfg);
 
 	/* Enable/Disable WiFi based on CMOS settings */
-	if (get_uint_option("wifi", 1) == 0)
+	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0)
 		wifi_dev->enabled = 0;
 
 	/* Enable/Disable Webcam based on CMOS settings */
-	cfg->usb2_port[CONFIG_WEBCAM_USB_PORT].enable = get_uint_option("webcam", 1);
+	cfg->usb2_port[CONFIG_WEBCAM_USB_PORT].enable =
+		get_uint_option_checked("webcam", 1, OPTION_BOOL);
 
 	/* Enable/Disable Card Reader based on CMOS settings */
-	if (get_uint_option("card_reader", 1) == 0)
+	if (get_uint_option_checked("card_reader", 1, OPTION_BOOL) == 0)
 		cfg->usb2_port[CONFIG_CARD_READER_USB_PORT].enable = 0;
 }
