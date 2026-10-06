@@ -4663,12 +4663,13 @@ uint64_t payload_mm_authvar_executor_confirmed_action(uint32_t action,
 			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
 	};
 	struct payload_mm_authvar_policy_result result;
-	uint8_t preference = value;
+	uint8_t preference;
 	uint64_t status;
 	uint32_t key;
 
 	if (!reset_required || value > 1U)
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	preference = (uint8_t)value;
 	*reset_required = false;
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
 	if (!payload_mm_authvar_presence_action_authorized(action, value))
