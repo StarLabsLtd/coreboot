@@ -53,7 +53,8 @@ void bootblock_mainboard_init(void)
 	 */
 	u8 pciepcs1 = RCBA32(RPC) & 0x3;
 	/*
-	unsigned int pciex16_bandwidth = get_uint_option("pciex16_3_bandwidth", PCIEX16_3_X2);
+	unsigned int pciex16_bandwidth = get_uint_option_checked("pciex16_3_bandwidth",
+		PCIEX16_3_X2, OPTION_RANGE(PCIEX16_3_X2, PCIEX16_3_X4));
 	u8 new_pciepcs1 = (pciex16_bandwidth == PCIEX16_3_X4) ? 3 : 1;
 
 	if (pciepcs1 != new_pciepcs1) {
@@ -63,13 +64,13 @@ void bootblock_mainboard_init(void)
 			full_reset();
 		} else {
 		*/
-			/* Strap update failed.
+	/* Strap update failed.
 			 * If halting, blink PCH GPIO8 for power LED so that this condition
 			 * can be indicated by DRAM_LED lit and power LED blinking.
 			 * If not, need a way to let user know to restore
 			 * the flash descriptor with flashrom. System may be unstable.
 			 */
-			/*printk(BIOS_ERR, "PCH soft strap update failed!\n");
+	/*printk(BIOS_ERR, "PCH soft strap update failed!\n");
 		}
 	}
 	*/

@@ -50,11 +50,17 @@ static void hwm_setup(void)
 	unsigned int cpufan_speed = 0, sysfan_speed = 0;
 	unsigned int cpufan_temperature = 0, sysfan_temperature = 0;
 
-	cpufan_control = get_uint_option("cpufan_cruise_control", FAN_CRUISE_CONTROL_DISABLED);
-	cpufan_speed = get_uint_option("cpufan_speed", FAN_SPEED_5625);
+	cpufan_control = get_uint_option_checked(
+		"cpufan_cruise_control", FAN_CRUISE_CONTROL_DISABLED,
+		OPTION_RANGE(FAN_CRUISE_CONTROL_DISABLED, FAN_CRUISE_CONTROL_SPEED));
+	cpufan_speed = get_uint_option_checked("cpufan_speed", FAN_SPEED_5625,
+					       OPTION_RANGE(0, ARRAY_SIZE(fan_speeds) - 1));
 
-	sysfan_control = get_uint_option("sysfan_cruise_control", FAN_CRUISE_CONTROL_DISABLED);
-	sysfan_speed = get_uint_option("sysfan_speed", FAN_SPEED_5625);
+	sysfan_control = get_uint_option_checked(
+		"sysfan_cruise_control", FAN_CRUISE_CONTROL_DISABLED,
+		OPTION_RANGE(FAN_CRUISE_CONTROL_DISABLED, FAN_CRUISE_CONTROL_SPEED));
+	sysfan_speed = get_uint_option_checked("sysfan_speed", FAN_SPEED_5625,
+					       OPTION_RANGE(0, ARRAY_SIZE(fan_speeds) - 1));
 
 	nuvoton_hwm_select_bank(hwm_base, 0);
 	pnp_write_hwm5_index(hwm_base, 0x59, 0x20); /* Diode Selection */
@@ -136,7 +142,8 @@ static void mainboard_init(void *chip_info)
 		char cmos_option_name[] = "ethernetx";
 		snprintf(cmos_option_name, sizeof(cmos_option_name),
 			 "ethernet%01d", i);
-		unsigned int ethernet_disable = get_uint_option(cmos_option_name, 0);
+		unsigned int ethernet_disable =
+			get_uint_option_checked(cmos_option_name, 0, OPTION_BOOL);
 		if (!ethernet_disable)
 			continue;
 		printk(BIOS_DEBUG, "Disabling Ethernet NIC #%d\n", i);
