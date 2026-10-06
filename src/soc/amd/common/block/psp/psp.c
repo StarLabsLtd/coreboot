@@ -101,6 +101,17 @@ enum cb_err psp_get_hsti_state(uint32_t *state)
 	return CB_SUCCESS;
 }
 
+#if ENV_RAMSTAGE
+static bool rom_armor_query_ready;
+
+static void enable_rom_armor_query(void *unused)
+{
+	rom_armor_query_ready = true;
+}
+
+BOOT_STATE_INIT_ENTRY(BS_DEV_INIT_CHIPS, BS_ON_EXIT, enable_rom_armor_query, NULL);
+#endif
+
 /*
  * Returns true if ROM Armor is enforced, that is after PSP command
  * MBOX_BIOS_CMD_ARMOR_ENTER_SMM_MODE has been executed, false otherwise.
@@ -114,6 +125,12 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 
 	if (!CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
 		return false;
+
+#if ENV_RAMSTAGE
+	/* Early CBFS reads precede PSP MMIO setup and ROM Armor initialization. */
+	if (!rom_armor_query_ready)
+		return false;
+#endif
 
 	static bool enforced;
 	if (enforced)
