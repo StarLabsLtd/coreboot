@@ -140,6 +140,31 @@ print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, $esl;' \
 				> "$temporary/key-$key-$label.auth2"
 		done
 	done
+	openssl rsa -in "$temporary/signer.key" -noout -modulus \
+		> "$temporary/pbk-modulus.txt" 2>/dev/null
+	for label in pbk-a pbk-b pbk-short pbk-long pbk-type; do
+		perl -e 'my ($label, $path) = @ARGV;
+open my $in, "<", $path or die $!; local $/; my $text = <$in>;
+$text =~ /\AModulus=([0-9a-fA-F]{512})\s*\z/ or die "RSA2048 modulus width";
+my $modulus = pack("H*", $1);
+die "RSA2048 modulus size" unless length($modulus) == 256;
+$modulus = substr($modulus, 0, 255) if $label eq "pbk-short";
+$modulus .= chr(0) if $label eq "pbk-long";
+print pack("H*", $label eq "pbk-type" ? "00" x 16 :
+"e866573c9c26344eaa14ed776e85b3b6");
+print pack("VVV", 44 + length($modulus), 0, 16 + length($modulus));
+print pack("H*", $label eq "pbk-b" ? "fedcba9876543210fedcba9876543210" :
+"0123456789abcdef0123456789abcdef"), $modulus;' \
+			"$label" "$temporary/pbk-modulus.txt" > "$temporary/key-$label.esl"
+		for key in 1 2; do
+			perl -e 'open my $in, "<", $ARGV[0] or die $!; binmode $in;
+local $/; my $esl = <$in>;
+print pack("vC6VvC2", 2026, 10, 2, 0, 0, 1, 0, 0, 0, 0, 0);
+print pack("Vvv", 24, 0x200, 0xef1);
+print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $esl;' \
+				"$temporary/key-$label.esl" > "$temporary/key-$key-$label.auth2"
+		done
+	done
 	# Selective removal keeps the surviving ESL bytes, including duplicate records.
 	for key in 2 3 4 5; do
 		for label in selective-seed selective-first selective-list; do
@@ -408,7 +433,7 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					done
 					for mode in confirmed-keys confirmed-keys-replay confirmed-keys-wrong-cap \
 						confirmed-keys-closed confirmed-keys-runtime \
-						confirmed-keys-der-refusals confirmed-keys-selective \
+						confirmed-keys-der-refusals confirmed-keys-selective confirmed-keys-pbk \
 						confirmed-keys-payload-drift confirmed-keys-tail-drift; do
 						log="$temporary/keys-O${optimization}-${mode}.log"
 						result=0

@@ -454,7 +454,8 @@ static void key_ordinary(uint64_t request_id, const uint8_t guid[16],
 	assert(shared_mailbox->status == status && shared_mailbox->completion == 0);
 	assert(private_scrubs == 2 && body_copies == 1);
 	if (write) {
-		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+		assert(status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION ||
+			status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
 		assert(program_count == programs);
 		assert(!memcmp(confirmed_flash_before, flash_bytes, sizeof(flash_bytes)));
 	} else if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
@@ -534,7 +535,78 @@ static void confirmed_keys(const char *scenario, const char *directory)
 	key_ordinary(request_id++, vendor_guid, vendor_name, sizeof(vendor_name), false,
 		&vendor_value, 1, 0x23, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
 	size = key_fixture(directory, "replace-a", 1, data, sizeof(data));
-	if (!strcmp(scenario, "confirmed-keys-closed")) {
+	if (!strcmp(scenario, "confirmed-keys-pbk")) {
+		static const char *const invalid[] = {"pbk-short", "pbk-long", "pbk-type"};
+		const uint8_t raw_type[16] = {
+			0xe8, 0x66, 0x57, 0x3c, 0x9c, 0x26, 0x34, 0x4e,
+			0xaa, 0x14, 0xed, 0x77, 0x6e, 0x85, 0xb3, 0xb6,
+		};
+		const uint8_t owner_a[16] = {
+			0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+			0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+		};
+		const uint8_t owner_b[16] = {
+			0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+			0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+		};
+		uint8_t raw_first[300], raw_second[300], raw_combined[600];
+		unsigned int programs;
+
+		count = snprintf(path, sizeof(path), "%s/key-pbk-a.esl", directory);
+		assert(count > 0 && (size_t)count < sizeof(path));
+		assert(read_fixture(path, raw_first, sizeof(raw_first)) == sizeof(raw_first));
+		count = snprintf(path, sizeof(path), "%s/key-pbk-b.esl", directory);
+		assert(count > 0 && (size_t)count < sizeof(path));
+		assert(read_fixture(path, raw_second, sizeof(raw_second)) == sizeof(raw_second));
+		assert(!memcmp(raw_first, raw_type, sizeof(raw_type)) &&
+			!memcmp(raw_second, raw_type, sizeof(raw_type)));
+		assert(!memcmp(raw_first + 28, owner_a, sizeof(owner_a)) &&
+			!memcmp(raw_second + 28, owner_b, sizeof(owner_b)) &&
+			!memcmp(raw_first + 44, raw_second + 44, 256));
+		memcpy(raw_combined, raw_first, sizeof(raw_first));
+		memcpy(raw_combined + sizeof(raw_first), raw_second, sizeof(raw_second));
+		/* Raw RSA is supported for KEK, but the PK profile still requires X.509. */
+		size = key_fixture(directory, "pbk-a", 1, data, sizeof(data));
+		assert(size == 340 && !memcmp(data + 40, raw_first, sizeof(raw_first)));
+		key_send(request_id++, 1, 1, data, size,
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+		key_get(request_id++, 1, NULL, 0);
+		size = key_fixture(directory, "replace-a", 1, data, sizeof(data));
+		key_send(request_id++, 1, 1, data, size, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		key_get(request_id++, 1, first, first_size);
+		key_mode(request_id++, "SetupMode", 0);
+		size = key_fixture(directory, "pbk-a", 2, data, sizeof(data));
+		assert(size == 340 && !memcmp(data + 40, raw_first, sizeof(raw_first)));
+		/* Empty CMS cannot obtain the ordinary User-mode authentication grant. */
+		key_ordinary(request_id++, key_guids[0], key_names[1], 8, true,
+			data, size, 0x27, PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		key_get(request_id++, 2, NULL, 0);
+		programs = program_count;
+		key_send(request_id++, 2, 1, data, size, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		assert(program_count > programs);
+		key_get(request_id++, 2, raw_first, sizeof(raw_first));
+		key_timestamp(2, data);
+		programs = program_count;
+		size = key_fixture(directory, "pbk-b", 2, data, sizeof(data));
+		assert(size == 340 && !memcmp(data + 40, raw_second, sizeof(raw_second)));
+		key_send(request_id++, 2, 2, data, size, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		assert(program_count > programs);
+		key_get(request_id++, 2, raw_combined, sizeof(raw_combined));
+		key_timestamp(2, data);
+		for (size_t index = 0; index < ARRAY_SIZE(invalid); index++) {
+			size = key_fixture(directory, invalid[index], 2, data, sizeof(data));
+			assert(size == (index == 0 ? 339U : index == 1 ? 341U : 340U));
+			key_send(request_id++, 2, 1, data, size,
+				PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+			key_get(request_id++, 2, raw_combined, sizeof(raw_combined));
+		}
+		size = key_fixture(directory, "pbk-a", 2, data, sizeof(data));
+		key_send(request_id++, 2, 1, data, size, PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+		key_get(request_id++, 2, raw_first, sizeof(raw_first));
+		key_timestamp(2, data);
+		key_mode(request_id++, "VendorKeys", 0);
+		key_get(request_id++, 1, first, first_size);
+	} else if (!strcmp(scenario, "confirmed-keys-closed")) {
 		assert(payload_mm_authvar_presence_authority_restrict(9) == CB_SUCCESS);
 		key_send(request_id++, 1, 1, data, size,
 			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
@@ -959,6 +1031,7 @@ int main(int argc, char **argv)
 		!strcmp(argv[1], "confirmed-keys-runtime") ||
 		!strcmp(argv[1], "confirmed-keys-der-refusals") ||
 		!strcmp(argv[1], "confirmed-keys-selective") ||
+		!strcmp(argv[1], "confirmed-keys-pbk") ||
 		!strcmp(argv[1], "confirmed-keys-payload-drift") ||
 		!strcmp(argv[1], "confirmed-keys-tail-drift") ||
 #endif
