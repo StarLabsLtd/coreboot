@@ -17,6 +17,6 @@ void cfr_card_reader_update(struct sm_object *new_obj)
 
 void cfr_touchscreen_update(struct sm_object *new_obj)
 {
-	if (get_uint_option("accelerometer", 1) == 0)
+	if (get_uint_option_checked("accelerometer", 1, OPTION_BOOL) == 0)
 		new_obj->sm_bool.flags |= CFR_OPTFLAG_SUPPRESS;
 }
