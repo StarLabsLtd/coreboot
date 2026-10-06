@@ -16,8 +16,8 @@ void ec_configure_kbled_booteffect(void)
 		return;
 	}
 
-	bool enable = get_uint_option("kbled_booteffect",
-				      CONFIG(EC_CLEVO_IT5570E_KBLED_BOOTEFFECT));
+	bool enable = get_uint_option_checked(
+		"kbled_booteffect", CONFIG(EC_CLEVO_IT5570E_KBLED_BOOTEFFECT), OPTION_BOOL);
 
 	printk(BIOS_DEBUG, "EC: set booteffect enable=%i\n", enable);
 	ec_d2i2ec_write(XRAM_BOOTEFFECT_DISABLE, !enable);
