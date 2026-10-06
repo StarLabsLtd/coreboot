@@ -50,10 +50,11 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 	memcfg_init(memupd, mem_config, &dimm_module_spd_info, half_populated);
 
 	const unsigned int def_prim_display = CONFIG(ONBOARD_VGA_IS_PRIMARY) ? 0 : 3;
-	mcfg->PrimaryDisplay = get_uint_option("primary_display", def_prim_display);
-	mcfg->VmxEnable = get_uint_option("vmx", mcfg->VmxEnable);
-	mcfg->VtdDisable = !get_uint_option("vtd", !mcfg->VtdDisable);
-	mcfg->Ibecc = get_uint_option("ibecc", false);
+	mcfg->PrimaryDisplay = get_uint_option_checked("primary_display", def_prim_display,
+						       OPTION_RANGE(0, 3));
+	mcfg->VmxEnable = get_uint_option_checked("vmx", mcfg->VmxEnable, OPTION_BOOL);
+	mcfg->VtdDisable = !get_uint_option_checked("vtd", !mcfg->VtdDisable, OPTION_BOOL);
+	mcfg->Ibecc = get_uint_option_checked("ibecc", false, OPTION_BOOL);
 	mcfg->IbeccOperationMode = mcfg->Ibecc ? 2 : 0;
 
 	/* Apply profile-specific settings */
