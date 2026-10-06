@@ -2,6 +2,7 @@
 
 #define __SIMPLE_DEVICE__
 
+#include <console/console.h>
 #include <device/pci_ops.h>
 #include <device/device.h>
 #include <device/pci.h>
@@ -107,10 +108,15 @@ static void p2sb_lock_endpoints(void)
 			reg8 | P2SB_E0_MASKLOCK);
 }
 
-void p2sb_disable_sideband_access(void)
+int p2sb_disable_sideband_access(void)
 {
 	uint32_t ep_mask[P2SB_EP_MASK_MAX_REG];
 	int i;
+
+	if (pci_read_config16(PCH_DEV_P2SB, PCI_VENDOR_ID) != PCI_VID_INTEL) {
+		printk(BIOS_ERR, "P2SB: device unavailable for endpoint lockdown\n");
+		return -1;
+	}
 
 	memset(ep_mask, 0, sizeof(ep_mask));
 
@@ -121,6 +127,23 @@ void p2sb_disable_sideband_access(void)
 		p2sb_configure_endpoints(i, ep_mask[i]);
 
 	p2sb_lock_endpoints();
+
+	for (i = 0; i < P2SB_EP_MASK_MAX_REG; i++) {
+		uint32_t mask = pci_read_config32(PCH_DEV_P2SB, PCH_P2SB_EPMASK(i));
+
+		if ((mask & ep_mask[i]) != ep_mask[i]) {
+			printk(BIOS_ERR, "P2SB: EPMASK%d verification failed\n", i);
+			return -1;
+		}
+	}
+
+	if (pci_read_config16(PCH_DEV_P2SB, PCI_VENDOR_ID) != PCI_VID_INTEL ||
+	    !(pci_read_config8(PCH_DEV_P2SB, PCH_P2SB_E0 + 2) & P2SB_E0_MASKLOCK)) {
+		printk(BIOS_ERR, "P2SB: endpoint mask lock verification failed\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 static void read_resources(struct device *dev)
