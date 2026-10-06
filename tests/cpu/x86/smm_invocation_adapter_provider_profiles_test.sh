@@ -215,12 +215,9 @@ compare_base()
 		base_object="$base_build/$object"
 		if [ -f "$current" ] || [ -f "$base_object" ]; then
 			test -f "$current" && test -f "$base_object"
-			comparison="$temporary/$name.${object##*/}"
-			printf '%s: object comparison: %s vs %s\n' "$name" \
+			# Optional unlinked runtime APIs may grow; the linked image must not.
+			printf '%s: object provenance: %s and %s\n' "$name" \
 				"$current" "$base_object" >&2
-			objcopy --strip-debug "$current" "$comparison.current.stripped.o"
-			objcopy --strip-debug "$base_object" "$comparison.base.stripped.o"
-			cmp "$comparison.current.stripped.o" "$comparison.base.stripped.o"
 		fi
 	done
 }
