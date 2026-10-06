@@ -57,7 +57,9 @@ void nuvoton_common_init(struct device *dev)
 		 */
 		role = PS2_PORT_ROLE_KEYBOARD;
 		if (CONFIG(HAVE_SHARED_PS2_PORT)) {
-			role = get_uint_option("ps2_port_role", PS2_PORT_ROLE_KEYBOARD);
+			role = get_uint_option_checked("ps2_port_role", PS2_PORT_ROLE_KEYBOARD,
+						       OPTION_RANGE(PS2_PORT_ROLE_KEYBOARD,
+								    PS2_PORT_ROLE_AUTO));
 			if (role > PS2_PORT_ROLE_AUTO)
 				break; /* Invalid setting; abort */
 		}
@@ -100,8 +102,9 @@ void nuvoton_common_init(struct device *dev)
 		 * expectation (ie. 0=off, 1=on, 2=keep), this code must be adapted.
 		 */
 		if (CONFIG(HAVE_POWER_STATE_AFTER_FAILURE)) {
-			unsigned int power_status = get_uint_option("power_on_after_fail",
-				CONFIG_MAINBOARD_POWER_FAILURE_STATE);
+			unsigned int power_status = get_uint_option_checked(
+				"power_on_after_fail", CONFIG_MAINBOARD_POWER_FAILURE_STATE,
+				OPTION_RANGE(0, 2));
 
 			switch (power_status) {
 			case MAINBOARD_POWER_KEEP:
