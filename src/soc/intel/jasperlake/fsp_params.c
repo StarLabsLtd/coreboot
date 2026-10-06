@@ -83,7 +83,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->EndOfPostMessage = EOP_DISABLE;
 
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	params->Enable8254ClockGating = !use_8254;
 	params->Enable8254ClockGatingOnS3 = !use_8254;
 
