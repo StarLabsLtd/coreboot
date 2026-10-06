@@ -160,3 +160,12 @@ config ACPI_BDAT
 	depends on PLATFORM_USES_FSP2_0
 	help
 	  Selected by platforms that support and implement BIOS Data ACPI Table (BDAT).
+
+config ACPI_SMM_GLOBAL_LOCK
+	bool
+	depends on HAVE_ACPI_TABLES && HAVE_SMI_HANDLER
+	help
+	  Provide nonblocking SMM access to the ACPI Global Lock. Keep the
+	  FACS in CBMEM so its address is available when loading the SMM
+	  handler, including on S3 resume. Callers must signal BIOS_RLS
+	  when releasing the lock if an OS waiter is pending.
