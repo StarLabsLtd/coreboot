@@ -613,7 +613,8 @@ static void fill_fsps_8254_params(FSP_S_CONFIG *s_cfg,
 		const struct soc_intel_meteorlake_config *config)
 {
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	s_cfg->Enable8254ClockGating = !use_8254;
 	s_cfg->Enable8254ClockGatingOnS3 = !use_8254;
 }

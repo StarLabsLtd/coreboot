@@ -123,10 +123,15 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 		[DDI_PORT_3] = {&m_cfg->DdiPort3Ddc, &m_cfg->DdiPort3Hpd},
 		[DDI_PORT_4] = {&m_cfg->DdiPort4Ddc, &m_cfg->DdiPort4Hpd},
 	};
-	m_cfg->InternalGfx = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD)) && is_devfn_enabled(PCI_DEVFN_IGD);
+	m_cfg->InternalGfx = get_uint_option_checked("igd_enabled",
+						     !CONFIG(SOC_INTEL_DISABLE_IGD),
+						     OPTION_BOOL) &&
+			     is_devfn_enabled(PCI_DEVFN_IGD);
 	if (m_cfg->InternalGfx) {
 		/* IGD is enabled, set IGD stolen size to 128MB. */
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc", IGD_SM_128MB);
+		m_cfg->IgdDvmt50PreAlloc =
+			get_uint_option_checked("igd_dvmt_prealloc", IGD_SM_128MB,
+						OPTION_RANGE(IGD_SM_32MB, IGD_SM_160MB));
 		/* DP port config */
 		m_cfg->DdiPortAConfig = config->ddi_port_A_config;
 		m_cfg->DdiPortBConfig = config->ddi_port_B_config;
@@ -193,12 +198,15 @@ static void fill_fspm_cpu_params(FSP_M_CONFIG *m_cfg,
 		m_cfg->CpuRatio = (rdmsr(MSR_FLEX_RATIO).lo >> 8) & 0xff;
 
 	m_cfg->PrmrrSize = get_valid_prmrr_size();
-	m_cfg->HyperThreading = get_uint_option("hyper_threading", CONFIG(FSP_HYPERTHREADING));
+	m_cfg->HyperThreading = get_uint_option_checked(
+		"hyper_threading", CONFIG(FSP_HYPERTHREADING), OPTION_BOOL);
 }
 
 static void fill_tme_params(FSP_M_CONFIG *m_cfg)
 {
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	m_cfg->TmeEnable =
+		get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL) &&
+		is_tme_supported();
 	if (!m_cfg->TmeEnable || acpi_is_wakeup_s3())
 		return;
 	m_cfg->GenerateNewTmeKey = CONFIG(TME_KEY_REGENERATION_ON_WARM_BOOT) &&
@@ -362,7 +370,7 @@ static void fill_fspm_usb4_params(FSP_M_CONFIG *m_cfg,
 static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_meteorlake_config *config)
 {
-	m_cfg->VtdDisable = !get_uint_option("vtd", 1);
+	m_cfg->VtdDisable = !get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	m_cfg->VtdBaseAddress[0] = GFXVT_BASE_ADDRESS;
 	m_cfg->VtdBaseAddress[1] = VTVC0_BASE_ADDRESS;
 
@@ -386,7 +394,7 @@ static void fill_fspm_ibecc_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_meteorlake_config *config)
 {
 	/* In-Band ECC configuration */
-	if (get_uint_option("ibecc_enable", config->ibecc.enable)) {
+	if (get_uint_option_checked("ibecc_enable", config->ibecc.enable, OPTION_BOOL)) {
 		m_cfg->Ibecc = true;
 		m_cfg->IbeccParity = config->ibecc.parity_en;
 		m_cfg->IbeccOperationMode = config->ibecc.mode;
