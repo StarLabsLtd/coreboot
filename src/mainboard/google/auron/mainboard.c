@@ -16,7 +16,8 @@ static void mainboard_fill_ssdt(const struct device *dev)
 {
 	if (CONFIG(BOARD_GOOGLE_LULU)) {
 		/* Get touchscreen enable option from CFR */
-		unsigned int touchscreen_enabled = get_uint_option("touchscreen", 1);
+		unsigned int touchscreen_enabled =
+			get_uint_option_checked("touchscreen", 1, OPTION_BOOL);
 
 		acpigen_write_scope("\\_SB.PCI0.I2C1");
 		acpigen_write_store_int_to_namestr(touchscreen_enabled ? 1 : 0, "S2EN");
