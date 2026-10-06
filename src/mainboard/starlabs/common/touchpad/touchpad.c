@@ -337,7 +337,11 @@ static int starlabs_touchpad_verify_haptics(const struct starlabs_touchpad_op_ct
 	int ret = -1;
 	int attempt;
 
-	const int retries = ENV_SMM ? 2 : STARLABS_TOUCHPAD_VERIFY_RETRIES;
+	int retries = ENV_SMM ? 2 : STARLABS_TOUCHPAD_VERIFY_RETRIES;
+
+	/* PixArt acknowledges haptics writes before its readback changes. */
+	if (!ENV_SMM && CONFIG(STARLABS_TOUCHPAD_PIXART))
+		retries = STARLABS_TOUCHPAD_HAPTICS_VERIFY_RETRIES;
 
 	for (attempt = 0; attempt < retries; attempt++) {
 		ret = starlabs_touchpad_get_haptics(ctx->bus, ctx->cmd_reg,
