@@ -41,7 +41,14 @@ enum cb_err apm_control(u8 cmd)
 	apmc_log(__func__, cmd);
 
 	/* Now raise the SMI. */
-	call_smm(cmd, 0, NULL);
+	u32 ret = call_smm(cmd, 0, NULL);
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) &&
+	    cmd == APM_CNT_FINALIZE && ret) {
+		printk(BIOS_ERR, "APMC command 0x%02x failed.\n", cmd);
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("SMM finalization failed\n");
+		return CB_ERR;
+	}
 
 	printk(BIOS_DEBUG, "APMC done.\n");
 	return CB_SUCCESS;
