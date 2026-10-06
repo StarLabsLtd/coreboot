@@ -592,6 +592,45 @@ static void confirmed_keys(const char *scenario, const char *directory)
 			}
 			key_send(request_id++, 1, 1, data, size,
 				PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION, false);
+		} else if (!strcmp(scenario, "confirmed-keys-selective")) {
+			/* Deleting non-PK keys must retain PK in User mode. */
+			key_mode(request_id++, "SetupMode", 0);
+			for (uint32_t key = 2; key <= 5; key++) {
+				unsigned int programs = program_count;
+
+				size = key_fixture(directory, "selective-seed", key, data, sizeof(data));
+				assert(size > 40 && !memcmp(data + 40, first, 16));
+				key_send(request_id++, key, 1, data, size,
+					PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+				assert(program_count > programs);
+				key_get(request_id++, key, data + 40, size - 40);
+				key_timestamp(key, data);
+				programs = program_count;
+				size = key_fixture(directory, "selective-first", key, data, sizeof(data));
+				assert(size == 40 + first_size + second_size &&
+					!memcmp(data + 40, combined, first_size + second_size));
+				key_send(request_id++, key, 1, data, size,
+					PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+				assert(program_count > programs);
+				key_get(request_id++, key, combined, first_size + second_size);
+				key_timestamp(key, data);
+				programs = program_count;
+				size = key_fixture(directory, "selective-list", key, data, sizeof(data));
+				assert(size == 40 + second_size && !memcmp(data + 40, second, second_size));
+				key_send(request_id++, key, 1, data, size,
+					PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+				assert(program_count > programs);
+				key_get(request_id++, key, second, second_size);
+				key_timestamp(key, data);
+				programs = program_count;
+				key_send(request_id++, key, 3, key_delete, sizeof(key_delete),
+					PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS, false);
+				assert(program_count > programs);
+				key_get(request_id++, key, NULL, 0);
+				key_mode(request_id++, "SetupMode", 0);
+				key_mode(request_id++, "VendorKeys", 0);
+			}
+			key_get(request_id++, 1, first, first_size);
 		} else {
 			assert(!strcmp(scenario, "confirmed-keys"));
 			for (uint32_t key = 1; key <= 5; key++) {
@@ -919,6 +958,7 @@ int main(int argc, char **argv)
 		!strcmp(argv[1], "confirmed-keys-closed") ||
 		!strcmp(argv[1], "confirmed-keys-runtime") ||
 		!strcmp(argv[1], "confirmed-keys-der-refusals") ||
+		!strcmp(argv[1], "confirmed-keys-selective") ||
 		!strcmp(argv[1], "confirmed-keys-payload-drift") ||
 		!strcmp(argv[1], "confirmed-keys-tail-drift") ||
 #endif

@@ -140,6 +140,25 @@ print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, $esl;' \
 				> "$temporary/key-$key-$label.auth2"
 		done
 	done
+	# Selective removal keeps the surviving ESL bytes, including duplicate records.
+	for key in 2 3 4 5; do
+		for label in selective-seed selective-first selective-list; do
+			perl -e 'my ($label, $first_file, $second_file) = @ARGV;
+open my $in, "<", $first_file or die $!; binmode $in; local $/; my $a = <$in>;
+open my $other, "<", $second_file or die $!; binmode $other; my $b = <$other>;
+my $esl = $label eq "selective-list" ? $b : $a . $b;
+if ($label eq "selective-seed") {
+  my $record = substr($a, 28);
+  substr($a, 16, 4, pack("V", length($a) + length($record)));
+  $esl = $a . $record . $b;
+}
+print pack("vC6VvC2", 2026, 10, 2, 0, 0, 1, 0, 0, 0, 0, 0);
+print pack("Vvv", 24, 0x200, 0xef1);
+print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $esl;' \
+				"$label" "$temporary/key-a.esl" "$temporary/key-b.esl" \
+				> "$temporary/key-$key-$label.auth2"
+		done
+	done
 fi
 for authentication in auth2 ordinary; do
 	if [ "$confirmed_setup" -eq 1 ] && [ "$authentication" != ordinary ]; then
@@ -389,7 +408,7 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					done
 					for mode in confirmed-keys confirmed-keys-replay confirmed-keys-wrong-cap \
 						confirmed-keys-closed confirmed-keys-runtime \
-						confirmed-keys-der-refusals \
+						confirmed-keys-der-refusals confirmed-keys-selective \
 						confirmed-keys-payload-drift confirmed-keys-tail-drift; do
 						log="$temporary/keys-O${optimization}-${mode}.log"
 						result=0
