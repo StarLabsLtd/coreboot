@@ -46,8 +46,9 @@ static void w83667hg_a_init(struct device *dev)
 		break;
 	case W83667HG_A_ACPI:
 		/* Set power state after power fail */
-		power_status = get_uint_option("power_on_after_fail",
-				CONFIG_MAINBOARD_POWER_FAILURE_STATE);
+		power_status = get_uint_option_checked("power_on_after_fail",
+						       CONFIG_MAINBOARD_POWER_FAILURE_STATE,
+						       OPTION_RANGE(0, 2));
 		pnp_enter_conf_mode(dev);
 		pnp_set_logical_device(dev);
 		byte = pnp_read_config(dev, 0xe4);
