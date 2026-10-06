@@ -195,7 +195,7 @@ static void oc_mailbox_undervolt(void)
 {
 	uint32_t status = 0;
 
-	if (!get_uint_option("oc_undervolt_apply", false))
+	if (!get_uint_option_checked("oc_undervolt_apply", false, OPTION_BOOL))
 		return;
 
 	printk(BIOS_INFO, "OC mailbox: applying voltage offsets\n");
@@ -205,7 +205,8 @@ static void oc_mailbox_undervolt(void)
 	 * is in a consistent state, and that previous settings are cleared.
 	 */
 	for (enum oc_mailbox_plane i = 0; i <= last_plane; i++) {
-		const unsigned int undervolt_mv = get_uint_option(plane_opt_names[i], 0);
+		const unsigned int undervolt_mv = get_uint_option_checked(
+			plane_opt_names[i], 0, OPTION_RANGE(0, OC_MBOX_MAX_VOLTAGE_OFFSET_MV));
 		if (set_plane_undervolt(i, undervolt_mv))
 			status |= 1 << i;
 	}
