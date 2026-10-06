@@ -237,7 +237,7 @@ void soc_fill_p2sb_ssdt(const struct device *dev)
 	 * IOST interface to the OS.
 	 * Use cbfstool command to add this option to the image.
 	 */
-	if (!get_uint_option("iost_enable", 0))
+	if (!get_uint_option_checked("iost_enable", 0, OPTION_BOOL))
 		return;
 
 	printk(BIOS_INFO, "IOST is enabled\n");
