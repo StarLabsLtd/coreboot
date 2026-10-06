@@ -848,9 +848,11 @@ enum cb_err payload_mm_authvar_service_finalize(void)
 	/* Private BOOT delivery is one-shot; only the general route can repeat op9. */
 	if (!CONFIG(PAYLOAD_BOOT_PRIVATE_BUFFER))
 		descriptor.flags |= LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL;
+#if CONFIG(PAYLOAD_MM_AUTHVAR_STATE_PREDICATE_PINNED)
 	if ((descriptor.flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL) &&
 	    payload_mm_authvar_executor_state_predicate_pinned())
 		descriptor.flags |= LB_AUTHVAR_ENDPOINT_STATE_PREDICATE_PINNED;
+#endif
 #if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) && CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 	if (payload_mm_authvar_presence_confirmed_available(descriptor.generation,
 		&confirmed_available) != CB_SUCCESS)
