@@ -5,7 +5,15 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT INT TERM
+cleanup()
+{
+	if [ "${KEEP_MTL_LAYOUT_TMP:-0}" = 1 ]; then
+		printf 'MTL SMM layout artifacts: %s\n' "$tmp" >&2
+	else
+		rm -rf "$tmp"
+	fi
+}
+trap cleanup EXIT INT TERM
 mkdir -p "$tmp/include"
 
 cp "$root/src/Kconfig" "$tmp/Kconfig"
@@ -44,6 +52,7 @@ CONFIG_BOARD_STARLABS_STARBOOK_MTL=y
 CONFIG_ANY_TOOLCHAIN=y
 CONFIG_TEST_MTL_AUTHVAR_SMM_COMPOSITION=y
 # CONFIG_SMMSTORE is not set
+# CONFIG_BOOTMEDIA_SMM_BWP_RUNTIME_OPTION is not set
 EOF
 
 make -s -C "$root" KBUILD_KCONFIG="$tmp/Kconfig" \
@@ -51,6 +60,12 @@ make -s -C "$root" KBUILD_KCONFIG="$tmp/Kconfig" \
 grep -Fqx 'CONFIG_PAYLOAD_MM_AUTHVAR_SMM_BOOTSTRAP=y' "$tmp/.config"
 grep -Fqx 'CONFIG_STARLABS_STARBOOK_MTL_AUTHVAR_SMM_CAPACITY=y' "$tmp/.config"
 grep -Fqx 'CONFIG_SMM_TSEG_SIZE=0x1000000' "$tmp/.config"
+grep -Fqx '# CONFIG_BOOTMEDIA_SMM_BWP_RUNTIME_OPTION is not set' "$tmp/.config"
+for option in BOOTMEDIA_SMM_BWP SOC_INTEL_COMMON_BLOCK_SMM_SPI_WINDOW \
+	PAYLOAD_MM_AUTHVAR_SMMSTORE_BACKEND PAYLOAD_MM_AUTHVAR_MEDIA_PORT \
+	SMMSTORE_READ_REGION SPI_FLASH_SMM SPI_FLASH_VOLATILE_LEASE; do
+	grep -Fqx "CONFIG_$option=y" "$tmp/.config"
+done
 ! grep -Fqx 'CONFIG_SMMSTORE=y' "$tmp/.config"
 make -s -C "$root" KBUILD_KCONFIG="$tmp/Kconfig" \
 	DOTCONFIG="$tmp/.config" obj="$tmp/out" \
@@ -83,7 +98,7 @@ stub_size=$1
 stub_alignment=$2
 
 # Force review when the linked production inputs to the exact layout drift.
-test "$handler_size" = 0x0ee48
+test "$handler_size" = 0xaf720
 test "$handler_alignment" = 0x20
 test "$stub_size" = 0x001c0
 test "$stub_alignment" = 0x4

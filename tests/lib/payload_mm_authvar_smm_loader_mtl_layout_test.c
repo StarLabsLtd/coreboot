@@ -14,10 +14,10 @@
 #define SMM_SEGMENT_SIZE 0x10000U
 /* Resolved MTL board.fmd SMMSTORE@0x30000 size and its exact arena result. */
 #define MTL_SMMSTORE_SIZE 0x80000U
-#define MTL_REQUIRED_ARENA_SIZE 3935168U
-#define MTL_DEFAULT_AVAILABLE_ARENA_SIZE 0x1d7da0U
-#define MTL_AUTHVAR_AVAILABLE_ARENA_SIZE 0x9d7da0U
-#define MTL_DEFAULT_ARENA_DEFICIT 0x1e8e20U
+#define MTL_REQUIRED_ARENA_SIZE 3935104U
+#define MTL_DEFAULT_AVAILABLE_ARENA_SIZE 0x1374e0U
+#define MTL_AUTHVAR_AVAILABLE_ARENA_SIZE 0x9374e0U
+#define MTL_DEFAULT_ARENA_DEFICIT 0x2896a0U
 
 #define CHECK(condition) do { \
 	if (!(condition)) \
@@ -25,6 +25,17 @@
 } while (0)
 
 static const uint64_t smram_base = 0x7e000000ULL;
+static unsigned int scrubs;
+
+void payload_mm_authvar_smm_loader_scrub_test_hook(const void *buffer, size_t size)
+{
+	const unsigned char *bytes = buffer;
+
+	CHECK(size == sizeof(struct payload_mm_authvar_smm_arena_seed));
+	for (size_t index = 0; index < size; index++)
+		CHECK(bytes[index] == 0);
+	scrubs++;
+}
 
 static void add_range(struct payload_mm_authvar_range *ranges, size_t *count,
 	uint64_t base, uint64_t size)
@@ -80,6 +91,7 @@ int main(void)
 	CHECK(count == ARRAY_SIZE(occupied));
 	CHECK(payload_mm_authvar_smm_arena_reserve(&receipt, smram_base,
 		handler_smram_size, occupied, count, &seed) == CB_SUCCESS);
+	CHECK(scrubs == 1);
 	if (MTL_TSEG_SIZE == 0x800000U) {
 		CHECK(receipt.arena.size == MTL_DEFAULT_AVAILABLE_ARENA_SIZE);
 		CHECK(MTL_REQUIRED_ARENA_SIZE - receipt.arena.size ==
