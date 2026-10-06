@@ -27,7 +27,7 @@ void mainboard_lpc_decode(void)
 {
 	int lpt_en = 0;
 
-	if (get_uint_option("lpt", 0))
+	if (get_uint_option_checked("lpt", 0, OPTION_BOOL))
 		lpt_en = LPT_LPC_EN; /* enable LPT */
 
 	// decode range
