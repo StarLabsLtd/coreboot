@@ -9,7 +9,7 @@
 #define OPTION_NAME_I2C "i2c_i3c_select"
 static inline bool mb_cfg_i2c_enabled(void)
 {
-	return get_uint_option(OPTION_NAME_I2C, CONFIG(I2C_ENABLE));
+	return get_uint_option_checked(OPTION_NAME_I2C, CONFIG(I2C_ENABLE), OPTION_BOOL);
 }
 
 /* UART */
@@ -17,17 +17,20 @@ static inline bool mb_cfg_i2c_enabled(void)
 #define OPTION_NAME_UART "uart_four_wire_mode"
 static inline bool mb_cfg_uart1_disabled(void)
 {
-	return get_uint_option(OPTION_NAME_UART, CONFIG(UART_0_2_4_FOUR_WIRE));
+	return get_uint_option_checked(OPTION_NAME_UART, CONFIG(UART_0_2_4_FOUR_WIRE),
+				       OPTION_BOOL);
 }
 
 static inline bool mb_cfg_uart3_disabled(void)
 {
-	return get_uint_option(OPTION_NAME_UART, CONFIG(UART_0_2_4_FOUR_WIRE));
+	return get_uint_option_checked(OPTION_NAME_UART, CONFIG(UART_0_2_4_FOUR_WIRE),
+				       OPTION_BOOL);
 }
 
 static inline bool mb_cfg_uart024_4_wire(void)
 {
-	return get_uint_option(OPTION_NAME_UART, CONFIG(UART_0_2_4_FOUR_WIRE));
+	return get_uint_option_checked(OPTION_NAME_UART, CONFIG(UART_0_2_4_FOUR_WIRE),
+				       OPTION_BOOL);
 }
 
 /* PCIe */
@@ -37,8 +40,8 @@ static inline bool mb_cfg_pcie_slot0_force_pwr(void)
 {
 	if (!CONFIG(ENABLE_EVAL_CARD))
 		return false;
-	return get_uint_option(OPTION_NAME_PCIE_SLOT0_FORCE_PWR,
-		CONFIG(ENABLE_FORCE_POWER_GPP0));
+	return get_uint_option_checked(OPTION_NAME_PCIE_SLOT0_FORCE_PWR,
+				       CONFIG(ENABLE_FORCE_POWER_GPP0), OPTION_BOOL);
 }
 
 #define OPTION_NAME_PCIE_BIF "pcie_ssd0_slot1_bifurcation"
@@ -54,13 +57,16 @@ static inline int mb_cfg_pcie_bifurcation(void)
 	else
 		bif = EC_PCIE_MUX_M2_WLAN_2X2X;
 
-	return get_uint_option(OPTION_NAME_PCIE_BIF, bif);
+	return get_uint_option_checked(OPTION_NAME_PCIE_BIF, bif,
+				       OPTION_RANGE(EC_PCIE_MUX_NVMEX4,
+						    EC_PCIE_MUX_M2_WLAN_2X2X));
 }
 
 #define OPTION_NAME_SLOT_PCIE_ENABLE "pcie_slot0_enable"
 static inline bool mb_cfg_pcie_slot0_enable(void)
 {
-	return get_uint_option(OPTION_NAME_SLOT_PCIE_ENABLE, CONFIG(ENABLE_EVAL_CARD));
+	return get_uint_option_checked(OPTION_NAME_SLOT_PCIE_ENABLE, CONFIG(ENABLE_EVAL_CARD),
+				       OPTION_BOOL);
 }
 
 #define OPTION_NAME_SLOT0_PCIE_BIF "pcie_slot0_bifurcation"
@@ -68,14 +74,16 @@ static inline bool mb_cfg_pcie_slot0_bif_x8(void)
 {
 	if (!mb_cfg_pcie_slot0_enable())
 		return false;
-	return !get_uint_option(OPTION_NAME_SLOT0_PCIE_BIF, CONFIG(PCIE_SLOT0_1X8) ? 0 : 1);
+	return !get_uint_option_checked(OPTION_NAME_SLOT0_PCIE_BIF,
+					CONFIG(PCIE_SLOT0_1X8) ? 0 : 1, OPTION_BOOL);
 }
 
 static inline bool mb_cfg_pcie_slot0_bif_x4x4(void)
 {
 	if (!mb_cfg_pcie_slot0_enable())
 		return false;
-	return get_uint_option(OPTION_NAME_SLOT0_PCIE_BIF, CONFIG(PCIE_SLOT0_2X4));
+	return get_uint_option_checked(OPTION_NAME_SLOT0_PCIE_BIF, CONFIG(PCIE_SLOT0_2X4),
+				       OPTION_BOOL);
 }
 
 /* xGBE */
@@ -85,7 +93,8 @@ static inline bool mb_cfg_xgbe_leds(void)
 {
 	if (!CONFIG(XGBE_EN))
 		return false;
-	return get_uint_option(OPTION_NAME_XGBE_LEDS, CONFIG(XGBE_LED_TURN_ON));
+	return get_uint_option_checked(OPTION_NAME_XGBE_LEDS, CONFIG(XGBE_LED_TURN_ON),
+				       OPTION_BOOL);
 }
 
 static inline bool mb_cfg_uart2_disabled(void)
@@ -103,7 +112,8 @@ static inline bool mb_cfg_xgbe_p0_link_speed_leds(void)
 {
 	if (!CONFIG(XGBE_EN))
 		return false;
-	return get_uint_option(OPTION_NAME_XGBE_P0_LINK_LEDS, CONFIG(TURN_ON_PORT_0_LINK_SPEED_LED));
+	return get_uint_option_checked(OPTION_NAME_XGBE_P0_LINK_LEDS,
+				       CONFIG(TURN_ON_PORT_0_LINK_SPEED_LED), OPTION_BOOL);
 }
 
 #define OPTION_NAME_XGBE_P0_STATUS_LEDS "xgbe_p0_link_status_leds_enable"
@@ -111,7 +121,8 @@ static inline bool mb_cfg_xgbe_p0_link_status_leds(void)
 {
 	if (!CONFIG(XGBE_EN))
 		return false;
-	return get_uint_option(OPTION_NAME_XGBE_P0_STATUS_LEDS, CONFIG(TURN_ON_PORT_0_LINK_STATUS_LED));
+	return get_uint_option_checked(OPTION_NAME_XGBE_P0_STATUS_LEDS,
+				       CONFIG(TURN_ON_PORT_0_LINK_STATUS_LED), OPTION_BOOL);
 }
 
 #define OPTION_NAME_XGBE_P0_BLINK_RATE "xgbe_p0_link_leds_blink_rate"
@@ -119,7 +130,8 @@ static inline int mb_cfg_xgbe_p0_led_blink_rate(void)
 {
 	if (!CONFIG(XGBE_EN))
 		return false;
-	return get_uint_option(OPTION_NAME_XGBE_P0_BLINK_RATE, CONFIG_PORT_0_TX_RX_LED_BLINK_RATE);
+	return get_uint_option_checked(OPTION_NAME_XGBE_P0_BLINK_RATE,
+				       CONFIG_PORT_0_TX_RX_LED_BLINK_RATE, OPTION_RANGE(0, 3));
 }
 
 #define OPTION_NAME_XGBE_P1_LINK_LEDS "xgbe_p1_link_speed_leds_enable"
@@ -127,7 +139,8 @@ static inline bool mb_cfg_xgbe_p1_link_speed_leds(void)
 {
 	if (!CONFIG(XGBE_EN))
 		return false;
-	return get_uint_option(OPTION_NAME_XGBE_P1_LINK_LEDS, CONFIG(TURN_ON_PORT_1_LINK_SPEED_LED));
+	return get_uint_option_checked(OPTION_NAME_XGBE_P1_LINK_LEDS,
+				       CONFIG(TURN_ON_PORT_1_LINK_SPEED_LED), OPTION_BOOL);
 }
 
 #define OPTION_NAME_XGBE_P1_STATUS_LEDS "xgbe_p1_link_status_leds_enable"
@@ -135,7 +148,8 @@ static inline bool mb_cfg_xgbe_p1_link_status_leds(void)
 {
 	if (!CONFIG(XGBE_EN))
 		return false;
-	return get_uint_option(OPTION_NAME_XGBE_P1_STATUS_LEDS, CONFIG(TURN_ON_PORT_1_LINK_STATUS_LED));
+	return get_uint_option_checked(OPTION_NAME_XGBE_P1_STATUS_LEDS,
+				       CONFIG(TURN_ON_PORT_1_LINK_STATUS_LED), OPTION_BOOL);
 }
 
 #define OPTION_NAME_XGBE_P1_BLINK_RATE "xgbe_p1_link_leds_blink_rate"
@@ -143,5 +157,6 @@ static inline int mb_cfg_xgbe_p1_led_blink_rate(void)
 {
 	if (!CONFIG(XGBE_EN))
 		return false;
-	return get_uint_option(OPTION_NAME_XGBE_P1_BLINK_RATE, CONFIG_PORT_1_TX_RX_LED_BLINK_RATE);
+	return get_uint_option_checked(OPTION_NAME_XGBE_P1_BLINK_RATE,
+				       CONFIG_PORT_1_TX_RX_LED_BLINK_RATE, OPTION_RANGE(0, 3));
 }

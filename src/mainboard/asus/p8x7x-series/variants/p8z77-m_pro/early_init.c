@@ -28,9 +28,11 @@ void mainboard_fill_pei_data(struct pei_data *pei_data)
 	 * 3 = Smart Auto : same than Auto, but if OS loads USB3 driver
 	 *     and reboots, it will keep the USB3.0 speed
 	 */
-	pei_data->usb3.mode = get_uint_option("usb3_mode", 1) & 0x3;
+	pei_data->usb3.mode = get_uint_option_checked("usb3_mode", 1, OPTION_RANGE(0, 3)) & 0x3;
 	/* Load USB3 pre-OS xHCI driver */
-	pei_data->usb3.preboot_support = get_uint_option("usb3_drv", 1) & 0x1;
+	pei_data->usb3.preboot_support = get_uint_option_checked("usb3_drv", 1, OPTION_BOOL) &
+					 0x1;
 	/* Use USB3 xHCI streams */
-	pei_data->usb3.xhci_streams = get_uint_option("usb3_streams", 1) & 0x1;
+	pei_data->usb3.xhci_streams = get_uint_option_checked("usb3_streams", 1, OPTION_BOOL) &
+				      0x1;
 }
