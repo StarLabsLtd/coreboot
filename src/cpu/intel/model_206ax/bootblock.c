@@ -92,5 +92,6 @@ static void set_soft_reset(u8 nominal_ratio, bool smt_opt)
 void bootblock_cpu_init(void)
 {
 	/* Set flex ratio and smt, and reset if needed */
-	set_soft_reset(set_flex_ratio_to_tdp_nominal(), get_uint_option("hyper_threading", 1));
+	set_soft_reset(set_flex_ratio_to_tdp_nominal(),
+		       get_uint_option_checked("hyper_threading", 1, OPTION_BOOL));
 }
