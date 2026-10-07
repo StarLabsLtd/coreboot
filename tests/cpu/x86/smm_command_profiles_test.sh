@@ -6,6 +6,9 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 base=275b2812f07ef6c957103d3024ab06eda00a0065
+# The legacy OFF-object comparison retains base. The final patch-scope guard
+# uses the reviewed P8 floor, which already admits native runtime owners.
+source_floor=47598074e696be70d6e0595b819f0d5763e2d1da
 
 if [ ! -f "$root/3rdparty/vboot/firmware/include/vb2_sha.h" ]; then
 	printf '%s\n' 'required vboot submodule is not initialized' >&2
@@ -130,7 +133,7 @@ done
 for source in \
 	src/cpu/x86/smm/smm_module_handler.c \
 	src/cpu/x86/smm/smm_stub.S; do
-	git -C "$root" diff --quiet "$base" -- "$source"
+	git -C "$root" diff --quiet "$source_floor" -- "$source"
 done
 
 printf '%s\n' 'SMM APMC command registry profiles: PASS'

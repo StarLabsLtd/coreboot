@@ -172,9 +172,18 @@ static void enabled_owner_semantics(void)
 
 #if CONFIG(CAPSULE_BROKER_ENDPOINT_PUBLICATION)
 	assert(dispatch(SMM_APMC_CAPSULE_BROKER, &descriptor) ==
+#if CONFIG(SMM_APMC_ROUTE_CAPSULE_BROKER)
+		SMM_APMC_CONSUMED_SUCCESS);
+	assert(descriptor.binding_count == 1U);
+#else
 		SMM_APMC_CONSUMED_REJECT);
-	assert(descriptor.owner == SMM_APMC_OWNER_CAPSULE_BROKER);
 	assert(descriptor.binding_count == 0U);
+#endif
+	assert(descriptor.owner == SMM_APMC_OWNER_CAPSULE_BROKER);
+#else
+	assert(dispatch(SMM_APMC_CAPSULE_BROKER, &descriptor) ==
+		SMM_APMC_CONSUMED_REJECT);
+	assert(!descriptor.enabled);
 #endif
 
 #if CONFIG(STARLABS_SMM_OPTION_HANDLER) && \

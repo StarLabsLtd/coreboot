@@ -312,11 +312,29 @@ test-authvar-presence-mailbox-scrub:
 
 .PHONY: test-smm-apmc-command-registry
 test-smm-apmc-command-registry:
+	sh tests/cpu/x86/smm_command_inventory_test.sh \
+		$(obj)/tests/spi-capsule-inventory
+	sh tests/cpu/x86/smm_command_spi_capsule_test.sh \
+		$(obj)/tests/spi-capsule-commands
 	tests/cpu/x86/smm_command_test.sh
 	env MAKELEVEL=97 MAKEFLAGS=n MFLAGS=-n \
 		MAKEOVERRIDES=SMM_APMC_REGISTRY_HOSTILE_OVERRIDE \
 		SMM_APMC_REGISTRY_HOSTILE_OVERRIDE=1 \
 		tests/cpu/x86/smm_command_profiles_test.sh
+
+# The cross-repo caller gate requires its source-bound generated HOST includes
+# and the retained original caller for the old-order causal control.
+.PHONY: test-protected-spi-console
+test-protected-spi-console:
+	test -n "$(CDK2_SPI_TEST_SOURCE)"
+	test -n "$(CDK2_SPI_TEST_OLD_CALLER)"
+	sh tests/drivers/payload_spi_native_prefix_test.sh \
+		$(obj)/tests/protected-spi/prefix
+	sh tests/drivers/payload_spi_cdk2_transport_test.sh \
+		"$(CDK2_SPI_TEST_SOURCE)" $(obj)/tests/protected-spi/cross
+	sh tests/drivers/payload_spi_native_causal_test.sh \
+		"$(CDK2_SPI_TEST_SOURCE)" "$(CDK2_SPI_TEST_OLD_CALLER)" \
+		$(obj)/tests/protected-spi/causal
 
 .PHONY: test-smm-persistent-subregions
 test-smm-persistent-subregions:
