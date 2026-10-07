@@ -295,3 +295,12 @@ UefiPayload's implementation:
 **Open questions**:
 - How to avoid SWSMI number conflict?
   - In practice, this may not be an issue (yet). EDK2 uses `APM_CNT_NOOP_SMI` and its own communication buffers.
+
+The [Star Labs CFR v1 preference bridge](starlabs_preferences.md) uses a fixed
+ACPI mailbox when payload MM owns the EFI variable store.
+
+```{toctree}
+:maxdepth: 1
+
+starlabs_preferences.md
+```
