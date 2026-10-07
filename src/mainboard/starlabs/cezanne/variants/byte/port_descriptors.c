@@ -6,6 +6,7 @@
 #include <soc/gpio.h>
 #include <soc/platform_descriptors.h>
 #include <types.h>
+#include <variants.h>
 
 #define BYTE_DUMMY_DXIO_DESCRIPTOR {					\
 	.engine_type		= PCIE_ENGINE,				\
@@ -158,6 +159,9 @@ void mainboard_get_dxio_ddi_descriptors(const dxio_descriptor **dxio_descs,
 					size_t *ddi_num)
 {
 	byte_select_ssd_dxio_descriptor();
+	mainboard_update_dxio_power_management(
+		&byte_dxio_descriptors[BYTE_DXIO_WIFI], CLK_REQ6,
+		&byte_dxio_descriptors[BYTE_DXIO_M2_SSD_DESC], CLK_REQ5);
 
 	*dxio_descs = byte_dxio_descriptors;
 	*dxio_num = ARRAY_SIZE(byte_dxio_descriptors);
