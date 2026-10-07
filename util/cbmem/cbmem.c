@@ -315,6 +315,11 @@ static const char *cdk2_timestamp_name(uint32_t id)
 	case 0x1350: return "CDK2 BDS image load begin";
 	case 0x1351: return "CDK2 BDS image load result";
 	case 0x1352: return "CDK2 BDS image start begin";
+	case 0x1353: return "CDK2 BDS image start result";
+	case 0x1354: return "CDK2 BDS image unload begin";
+	case 0x1355: return "CDK2 BDS image unload result";
+	case 0x1356: return "CDK2 BDS path result";
+	case 0x1357: return "CDK2 BDS exit release result";
 	case 0x1400: return "CDK2 ATA/ATAPI entry";
 	case 0x1401: return "CDK2 ATA/ATAPI publication failed";
 	case 0x1402: return "CDK2 ATA/ATAPI ready";
