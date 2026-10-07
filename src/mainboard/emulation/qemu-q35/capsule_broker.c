@@ -6,6 +6,7 @@
 #include <boot/payload_mm_authvar_presence_bootstrap.h>
 #include <boot/payload_mm_authvar_service_receiver.h>
 #include <boot_device.h>
+#include <cpu/x86/smm_command.h>
 #include <fmap.h>
 #include <payload_mm_fmp_auth_policy.h>
 #include <string.h>
@@ -22,6 +23,9 @@
 #if !ENV_SMM
 #error "Q35 capsule broker installation is private SMM-only"
 #endif
+
+_Static_assert(CAPSULE_BROKER_APM_COMMAND == SMM_APMC_CAPSULE_BROKER,
+	"capsule broker publication and dispatcher commands differ");
 
 static struct capsule_broker_policy policy;
 static struct fmap_inventory inventory;

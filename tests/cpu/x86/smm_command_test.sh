@@ -180,9 +180,13 @@ for orphan in spi-intel capsule; do
 	grep -q 'enabled APMC owner needs one dispatcher' "$orphan_log"
 done
 
-# The real capsule/SPI e8 alias must fail at compile time when both are enabled.
+# Restoring the old capsule/SPI e8 alias must fail with both owners enabled.
+mkdir -p "$temporary/old-e8/cpu/x86"
+sed 's/SMM_APMC_CAPSULE_BROKER 0xe4U/SMM_APMC_CAPSULE_BROKER 0xe8U/' \
+	"$root/src/include/cpu/x86/smm_command.h" > "$temporary/old-e8/cpu/x86/smm_command.h"
 collision_log="$temporary/e8-collision.log"
-if build e8-collision e8-collision -O2 >"$collision_log" 2>&1; then
+if build e8-collision e8-collision -O2 "$root/src/cpu/x86/smm_command.c" \
+	"$temporary/old-e8" >"$collision_log" 2>&1; then
 	printf '%s\n' 'capsule/SPI e8 collision compiled' >&2
 	exit 1
 fi
@@ -269,7 +273,7 @@ sed -n 's/^#define[[:space:]]\+\(APM_CNT_[A-Z0-9_]*\).*/\1/p' \
 done
 
 # Platform-local constants are pinned so source drift cannot silently escape.
-grep -Eq '^#define CAPSULE_BROKER_APM_COMMAND[[:space:]]+0xe8U$' \
+grep -Eq '^#define CAPSULE_BROKER_APM_COMMAND[[:space:]]+0xe4U$' \
 	"$root/src/include/boot/capsule_broker.h"
 grep -Eq '^#define PAYLOAD_SPI_CONSOLE_APM_CMD[[:space:]]+0xe8U$' \
 	"$root/src/include/console/payload_spi_console.h"
@@ -360,29 +364,51 @@ fi
 
 grep -qx 'smm-$(CONFIG_SMM_APMC_COMMAND_REGISTRY) += smm_command.c' \
 	"$root/src/cpu/x86/Makefile.mk"
-if rg -q 'select[[:space:]]+SMM_APMC_COMMAND_REGISTRY' "$root/src"; then
-	printf '%s\n' 'APMC command registry became selected' >&2
+# Audited active registry ownership inventory begins.
+if rg -q 'select[[:space:]]+SMM_APMC_COMMAND_REGISTRY' "$root/src" \
+	-g '!src/mainboard/emulation/qemu-q35/Kconfig'; then
+	printf '%s\n' 'APMC registry selected outside the attested Q35 owner' >&2
 	exit 1
 fi
+test "$(rg -o 'select[[:space:]]+SMM_APMC_COMMAND_REGISTRY' \
+	"$root/src/mainboard/emulation/qemu-q35/Kconfig" | wc -l)" -eq 1
 grep -q 'depends on HAVE_SMI_HANDLER && SMM_APMC_COMPOSITION_ATTESTED' \
 	"$root/src/cpu/x86/Kconfig"
 if rg -q 'smm_apmc_command_select' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h' \
+	-g '!src/mainboard/emulation/qemu-q35/native_service_receiver.c' \
+	-g '!src/mainboard/emulation/qemu-q35/public_service.c' \
+	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.c' \
 	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c'; then
-	printf '%s\n' 'dormant registry gained a production callsite' >&2
+	printf '%s\n' 'registry select escaped the audited owner inventory' >&2
 	exit 1
 fi
 if rg -q 'smm_apmc_command_consume' "$root/src" \
 	-g '!src/cpu/x86/smm_command.c' \
 	-g '!src/include/cpu/x86/smm_command.h' \
+	-g '!src/mainboard/emulation/qemu-q35/native_service_receiver.c' \
+	-g '!src/mainboard/emulation/qemu-q35/public_service.c' \
+	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.c' \
 	-g '!src/lib/payload_mm_authvar_presence_route_session.c' \
 	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_route.c' \
 	-g '!src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c' \
 	-g '!src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c'; then
-	printf '%s\n' 'registry consume escaped the dormant routes' >&2
+	printf '%s\n' 'registry consume escaped the audited owner inventory' >&2
 	exit 1
 fi
+for caller in mainboard/emulation/qemu-q35/native_service_receiver.c \
+	mainboard/emulation/qemu-q35/public_service.c \
+	mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.c; do
+	for operation in select consume; do
+		if ! test "$(rg -o "smm_apmc_command_$operation" \
+			"$root/src/$caller" | wc -l)" -eq 1; then
+			printf 'registry call inventory changed: %s %s\n' "$caller" "$operation" >&2
+			exit 1
+		fi
+	done
+done
+# Audited active registry ownership inventory ends.
 test "$(rg -o 'smm_apmc_command_consume' \
 	"$root/src/lib/payload_mm_authvar_presence_route_session.c" | wc -l)" -eq 1
 test "$(rg -o 'smm_apmc_command_consume' \

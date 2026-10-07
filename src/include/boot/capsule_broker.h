@@ -17,7 +17,7 @@
 #define CAPSULE_BROKER_RESULT_PENDING UINT32_MAX
 #define CAPSULE_BROKER_STATUS_PENDING UINT32_MAX
 #define CAPSULE_BROKER_APM_PORT 0xb2U
-#define CAPSULE_BROKER_APM_COMMAND 0xe8U
+#define CAPSULE_BROKER_APM_COMMAND 0xe4U
 
 /* Broker-owned description of the authenticated raw ROM in an envelope. */
 struct capsule_broker_raw_image {
