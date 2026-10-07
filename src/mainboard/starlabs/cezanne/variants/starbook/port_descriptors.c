@@ -3,10 +3,10 @@
 #include <amdblocks/cpu.h>
 #include <console/console.h>
 #include <gpio.h>
-#include <option.h>
 #include <soc/gpio.h>
 #include <soc/platform_descriptors.h>
 #include <types.h>
+#include <variants.h>
 
 #define NVME_DET_GPIO GPIO_4
 
@@ -59,20 +59,6 @@
 	.port_params		= { PP_PSPP_AC, 0x133, PP_PSPP_DC, 0x122 },	\
 }
 
-enum {
-	STARLABS_CFR_ASPM_DISABLE = 1,
-	STARLABS_CFR_ASPM_L0S,
-	STARLABS_CFR_ASPM_L1,
-	STARLABS_CFR_ASPM_L0S_L1,
-	STARLABS_CFR_ASPM_AUTO,
-};
-
-enum {
-	STARLABS_CFR_L1SS_DISABLED = 1,
-	STARLABS_CFR_L1SS_L1_1,
-	STARLABS_CFR_L1SS_L1_2,
-};
-
 enum starbook_dxio_port_idx {
 	STARBOOK_DXIO_WIFI,
 	STARBOOK_DXIO_M2_STORAGE,
@@ -84,85 +70,6 @@ static dxio_descriptor starbook_dxio_descriptors[] = {
 	[STARBOOK_DXIO_M2_STORAGE]	= STARBOOK_M2_NVME_DXIO_DESCRIPTOR,
 	[STARBOOK_DXIO_DUMMY_MXM]	= STARBOOK_DUMMY_MXM_DXIO_DESCRIPTOR,
 };
-
-static void starbook_set_dxio_aspm(dxio_descriptor *desc, unsigned int aspm)
-{
-	desc->link_aspm = ASPM_L1;
-
-	switch (aspm) {
-	case STARLABS_CFR_ASPM_DISABLE:
-		desc->link_aspm = ASPM_DISABLED;
-		break;
-	case STARLABS_CFR_ASPM_L0S:
-		desc->link_aspm = ASPM_L0s;
-		break;
-	case STARLABS_CFR_ASPM_L1:
-		desc->link_aspm = ASPM_L1;
-		break;
-	case STARLABS_CFR_ASPM_L0S_L1:
-		desc->link_aspm = ASPM_L0sL1;
-		break;
-	case STARLABS_CFR_ASPM_AUTO:
-	default:
-		break;
-	}
-}
-
-static void starbook_set_dxio_l1ss(dxio_descriptor *desc, unsigned int l1ss)
-{
-	desc->link_aspm_L1_1 = true;
-	desc->link_aspm_L1_2 = true;
-
-	switch (l1ss) {
-	case STARLABS_CFR_L1SS_DISABLED:
-		desc->link_aspm_L1_1 = false;
-		desc->link_aspm_L1_2 = false;
-		break;
-	case STARLABS_CFR_L1SS_L1_1:
-		desc->link_aspm_L1_1 = true;
-		desc->link_aspm_L1_2 = false;
-		break;
-	case STARLABS_CFR_L1SS_L1_2:
-	default:
-		break;
-	}
-}
-
-static void starbook_update_dxio_power_management(void)
-{
-	dxio_descriptor *wifi = &starbook_dxio_descriptors[STARBOOK_DXIO_WIFI];
-	dxio_descriptor *ssd = &starbook_dxio_descriptors[STARBOOK_DXIO_M2_STORAGE];
-
-	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0) {
-		wifi->engine_type = UNUSED_ENGINE;
-		wifi->port_present = false;
-	}
-
-	wifi->clk_req = get_uint_option_checked("pciexp_wifi_clk_pm", 1, OPTION_BOOL) ?
-				CLK_REQ6 :
-				CLK_ENABLE;
-	if (ssd->engine_type == PCIE_ENGINE)
-		ssd->clk_req = get_uint_option_checked("pciexp_ssd_clk_pm", 1, OPTION_BOOL) ?
-				       CLK_REQ1 :
-				       CLK_ENABLE;
-
-	starbook_set_dxio_aspm(wifi,
-			       get_uint_option_checked("pciexp_wifi_aspm", STARLABS_CFR_ASPM_L1,
-						       OPTION_RANGE(STARLABS_CFR_ASPM_DISABLE,
-								    STARLABS_CFR_ASPM_AUTO)));
-	if (ssd->engine_type == PCIE_ENGINE)
-		starbook_set_dxio_aspm(
-			ssd, get_uint_option_checked("pciexp_ssd_aspm", STARLABS_CFR_ASPM_L1,
-						     OPTION_RANGE(STARLABS_CFR_ASPM_DISABLE,
-								  STARLABS_CFR_ASPM_AUTO)));
-
-	starbook_set_dxio_l1ss(wifi, STARLABS_CFR_L1SS_DISABLED);
-	if (ssd->engine_type == PCIE_ENGINE)
-		starbook_set_dxio_l1ss(
-			ssd, get_uint_option_checked("pciexp_ssd_l1ss", STARLABS_CFR_L1SS_L1_2,
-						     OPTION_RANGE(STARLABS_CFR_L1SS_DISABLED,
-								  STARLABS_CFR_L1SS_L1_2)));
-}
 
 static void starbook_select_m2_storage_dxio(void)
 {
@@ -215,7 +122,9 @@ void mainboard_get_dxio_ddi_descriptors(
 		const ddi_descriptor **ddi_descs, size_t *ddi_num)
 {
 	starbook_select_m2_storage_dxio();
-	starbook_update_dxio_power_management();
+	mainboard_update_dxio_power_management(
+		&starbook_dxio_descriptors[STARBOOK_DXIO_WIFI], CLK_REQ6,
+		&starbook_dxio_descriptors[STARBOOK_DXIO_M2_STORAGE], CLK_REQ1);
 
 	*dxio_descs = starbook_dxio_descriptors;
 	*dxio_num = ARRAY_SIZE(starbook_dxio_descriptors);
