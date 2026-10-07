@@ -65,6 +65,7 @@ $(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template
 		$< > $@
 
 $(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(OBJPATH)/config.h $(objutil)/kconfig/conf
+ifeq ($(CONFIG_SOC_AMD_OPENSIL_PHOENIX_POC),y)
 	mkdir -p $(OBJPATH)/opensil/config; \
 	cd $(opensil_dir); \
 		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
@@ -80,6 +81,13 @@ $(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(OBJPATH)/config.h
 		KCONFIG_WARN_UNKNOWN_SYMBOLS=1 \
 		KCONFIG_PACKAGE=openSIL.Config \
 		$(top)/$(objutil)/kconfig/conf --defconfig $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig
+else
+	cd $(opensil_dir); \
+		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
+		KCONFIG_AUTOHEADER=$@ \
+		$(PYTHON) util/kconfig/lib/genconfig.py \
+			--config-out $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig
+endif
 
 # meson handles ccache on its own
 OPENSIL_COMPILER=$(filter-out $(CCACHE), $(CC_ramstage))
