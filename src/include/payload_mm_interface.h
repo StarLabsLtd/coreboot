@@ -75,6 +75,7 @@ bool payload_mm_flash_region_is_valid(const struct region *region, size_t media_
 bool payload_mm_map_flash_region(const struct region *region, uintptr_t *mapping);
 
 void lb_payload_mm(struct lb_header *header);
+void mainboard_payload_mm_cfr_info(struct lb_payload_mm_interface_info *info);
 
 uint8_t payload_mm_exec_interface(uint8_t sub_command, void *argument);
 void payload_mm_call_entrypoint(void);
