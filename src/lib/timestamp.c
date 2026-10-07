@@ -9,8 +9,6 @@
 #include <timestamp.h>
 #include <smp/node.h>
 
-#define MAX_TIMESTAMPS 192
-
 /* This points to the active timestamp_table and can change within a stage
    as CBMEM comes available. */
 static struct timestamp_table *glob_ts_table;
@@ -48,13 +46,13 @@ static struct timestamp_table *timestamp_alloc_cbmem_table(void)
 
 	tst = cbmem_add(CBMEM_ID_TIMESTAMP,
 			sizeof(struct timestamp_table) +
-			MAX_TIMESTAMPS * sizeof(struct timestamp_entry));
+			CONFIG_TIMESTAMP_ENTRIES * sizeof(struct timestamp_entry));
 
 	if (!tst)
 		return NULL;
 
 	tst->base_time = 0;
-	tst->max_entries = MAX_TIMESTAMPS;
+	tst->max_entries = CONFIG_TIMESTAMP_ENTRIES;
 	tst->num_entries = 0;
 
 	return tst;

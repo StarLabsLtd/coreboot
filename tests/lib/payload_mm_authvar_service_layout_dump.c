@@ -42,6 +42,11 @@ int main(void)
 		PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED,
 		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION,
 		PAYLOAD_MM_AUTHVAR_STATUS_ALREADY_STARTED,
+		sizeof(struct payload_mm_authvar_confirmed_key_frame),
+		offsetof(struct payload_mm_authvar_confirmed_key_frame, key_id),
+		offsetof(struct payload_mm_authvar_confirmed_key_frame, mutation),
+		PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION, PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_HEADER_SIZE,
+		PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION,
 	};
 
 	return write(1, values, sizeof(values)) == sizeof(values) ? 0 : 1;

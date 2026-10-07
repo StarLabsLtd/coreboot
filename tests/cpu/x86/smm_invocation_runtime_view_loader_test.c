@@ -8,8 +8,6 @@
 #undef assert
 #define assert(condition) do { if (!(condition)) abort(); } while (0)
 
-#define CONFIG_MAX_CPUS 64U
-
 struct test_loader_params {
 	size_t num_cpus;
 	size_t cpu_save_state_size;

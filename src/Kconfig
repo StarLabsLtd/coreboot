@@ -311,6 +311,18 @@ config COLLECT_TIMESTAMPS
 	  Make coreboot create a table of timer-ID/timer-value pairs to
 	  allow measuring time spent at different phases of the boot process.
 
+config TIMESTAMP_ENTRIES
+	int "Number of entries in the CBMEM timestamp table"
+	depends on COLLECT_TIMESTAMPS
+	range 192 65535
+	default 4096 if PAYLOAD_CDK2 && CDK2_DEBUG
+	default 192
+	help
+	  Reserve this many timestamp entries in CBMEM. The table is shared with
+	  the payload, so include its timing records when choosing the capacity.
+	  Each entry needs 12 bytes in addition to the 16-byte table header.
+	  CDK2 debug builds use a larger table for their detailed timing records.
+
 config TIMESTAMPS_ON_CONSOLE
 	bool "Print the timestamp values on the console"
 	default n

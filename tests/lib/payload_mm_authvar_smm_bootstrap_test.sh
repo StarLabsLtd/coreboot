@@ -6,15 +6,18 @@ root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/include"
-cat > "$tmp/include/config.h" <<EOF
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
-#define CONFIG_MAX_CPUS 4
-#define CONFIG_SMMSTORE 0
-#define CONFIG_SMMSTORE_FULL_FLASH_ACCESS 0
-#define CONFIG_SMMSTORE_BLOCK_SIZE 65536
-#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 0
-#define CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR 0
-#define CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION 0
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$tmp/include/config.h" <<EOF
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
+CONFIG_MAX_CPUS=4
+CONFIG_SMMSTORE=0
+CONFIG_SMMSTORE_FULL_FLASH_ACCESS=0
+CONFIG_SMMSTORE_BLOCK_SIZE=65536
+CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT=0
+CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR=0
+CONFIG_PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION=0
 EOF
 
 build_test()

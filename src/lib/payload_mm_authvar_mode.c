@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
+#include "payload_mm_authvar_coordinator.h"
 
 #define RECORD_TIMESTAMP_OFFSET 16U
 #define RECORD_TIMESTAMP_SIZE 16U
@@ -77,6 +78,19 @@ static bool range_valid(const void *pointer, size_t size)
 {
 	return size && pointer &&
 		(uintptr_t)pointer <= UINTPTR_MAX - (size - 1U);
+}
+
+bool payload_mm_authvar_mode_request(uint32_t key,
+	struct payload_mm_authvar_policy_request *request)
+{
+	const struct mode_key_descriptor *descriptor = mode_key(key);
+
+	if (!descriptor || !request)
+		return false;
+	memcpy(request->vendor_guid, descriptor->vendor_guid, sizeof(request->vendor_guid));
+	request->name = descriptor->name;
+	request->name_size = descriptor->name_size;
+	return true;
 }
 
 const struct payload_mm_authvar_store_entry *payload_mm_authvar_mode_find(

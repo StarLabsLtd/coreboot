@@ -6,12 +6,15 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include/arch" "$temporary/include"
-cat > "$temporary/include/config.h" <<'EOF'
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
-#define CONFIG_FATAL_ASSERTS 0
-#define CONFIG_ELOG 0
-#define CONFIG_QEMU_PFLASH_VOLATILE_LEASE 1
-#define CONFIG_ROM_SIZE (64U * 1024U)
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/include/config.h" <<'EOF'
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
+CONFIG_FATAL_ASSERTS=0
+CONFIG_ELOG=0
+CONFIG_QEMU_PFLASH_VOLATILE_LEASE=1
+CONFIG_ROM_SIZE=(64U * 1024U)
 EOF
 cat > "$temporary/include/test_base.h" <<'EOF'
 #include <stdint.h>

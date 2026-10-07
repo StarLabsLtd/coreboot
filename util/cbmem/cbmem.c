@@ -312,9 +312,13 @@ static const char *cdk2_timestamp_name(uint32_t id)
 	case 0x1332: return "CDK2 USB scan end";
 	case 0x1333 ... 0x133b: return "CDK2 BDS image diagnostic";
 	case 0x1340 ... 0x1342: return "CDK2 BDS load-option diagnostic";
+	case 0x1350: return "CDK2 BDS image load begin";
+	case 0x1351: return "CDK2 BDS image load result";
+	case 0x1352: return "CDK2 BDS image start begin";
 	case 0x1400: return "CDK2 ATA/ATAPI entry";
 	case 0x1401: return "CDK2 ATA/ATAPI publication failed";
 	case 0x1402: return "CDK2 ATA/ATAPI ready";
+	case 0x1450: return "CDK2 PCI DMA quiesce";
 	case 0x164a: return "CDK2 USB subphase scan begin";
 	case 0x164b: return "CDK2 USB subphase scan end";
 	case 0x16fe: return "CDK2 timestamp overflow";

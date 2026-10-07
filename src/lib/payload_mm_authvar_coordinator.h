@@ -9,6 +9,7 @@
 #define PAYLOAD_MM_AUTHVAR_COORDINATOR_CONTEXT_MAX 256U
 
 struct payload_mm_authvar_coordinator_policy {
+	const struct payload_mm_authvar_confirmed_key_frame *confirmed_key;
 	const struct payload_mm_authvar_policy_request *request;
 	struct payload_mm_crypto_owner *owner;
 	payload_mm_authvar_authority_verify_fn *verify;
@@ -22,6 +23,13 @@ struct payload_mm_authvar_coordinator_result {
 	enum payload_mm_authvar_authority_outcome outcome;
 	u8 volatile_modes;
 };
+
+/* Bind an internal request to one of the existing fixed mode-key identities. */
+bool payload_mm_authvar_mode_request(uint32_t key,
+	struct payload_mm_authvar_policy_request *request);
+
+bool payload_mm_authvar_confirmed_key_request(uint32_t key, uint32_t mutation,
+	const void *data, size_t size, struct payload_mm_authvar_policy_request *request);
 
 #if ENV_TEST
 enum payload_mm_authvar_coordinator_test_fault {

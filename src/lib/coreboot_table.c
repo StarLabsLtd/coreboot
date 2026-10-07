@@ -46,6 +46,11 @@ __weak enum cb_err fill_lb_pcie(struct lb_pcie *pcie)
 	return CB_ERR_NOT_IMPLEMENTED;
 }
 
+__weak enum cb_err fill_lb_ec_battery(struct lb_ec_battery_descriptor *descriptor)
+{
+	return CB_ERR_NOT_IMPLEMENTED;
+}
+
 static struct lb_header *lb_table_init(unsigned long addr)
 {
 	struct lb_header *header;
@@ -159,6 +164,24 @@ static void lb_pcie(struct lb_header *header)
 		return;
 
 	memcpy(lb_new_record(header), &pcie, sizeof(pcie));
+}
+
+enum cb_err lb_add_ec_battery_descriptor(struct lb_header *header,
+				       const struct lb_ec_battery_descriptor *descriptor)
+{
+	if (!header || !descriptor || descriptor->tag != LB_TAG_EC_BATTERY_DESCRIPTOR ||
+	    descriptor->size != sizeof(*descriptor) ||
+	    descriptor->revision != LB_EC_BATTERY_DESCRIPTOR_REVISION ||
+	    descriptor->header_size != sizeof(*descriptor) ||
+	    descriptor->profile != LB_EC_BATTERY_PROFILE_MERLIN ||
+	    descriptor->transport != LB_EC_BATTERY_TRANSPORT_ACPI_IO8 ||
+	    !descriptor->data_port || !descriptor->status_port ||
+	    descriptor->data_port == UINT16_MAX || descriptor->status_port == UINT16_MAX ||
+	    descriptor->data_port == descriptor->status_port || descriptor->reserved)
+		return CB_ERR_ARG;
+
+	memcpy(lb_new_record(header), descriptor, sizeof(*descriptor));
+	return CB_SUCCESS;
 }
 
 static void lb_framebuffer(struct lb_header *header)
@@ -633,6 +656,14 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	if (CONFIG(PCI))
 		lb_pcie(head);
+
+	struct lb_ec_battery_descriptor ec_battery = { 0 };
+	enum cb_err ec_status = fill_lb_ec_battery(&ec_battery);
+
+	if (ec_status != CB_ERR_NOT_IMPLEMENTED &&
+	    (ec_status != CB_SUCCESS ||
+	     lb_add_ec_battery_descriptor(head, &ec_battery) != CB_SUCCESS))
+		die("EC battery descriptor is invalid\n");
 
 	/* Record our various random string information */
 	lb_strings(head);

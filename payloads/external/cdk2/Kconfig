@@ -5,6 +5,7 @@ if PAYLOAD_CDK2
 # The current source-built native image uses the capsule profile. This default
 # is payload policy only; it does not select coreboot's SMMSTORE backend.
 config CDK2_COREBOOT_CAPSULE_PROFILE
+	bool
 	default y
 
 source "payloads/external/cdk2/cdk2/Kconfig"

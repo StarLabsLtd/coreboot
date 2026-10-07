@@ -4,8 +4,12 @@
 #include <boot/payload_mm_authvar_presence_authority.h>
 #include <boot/payload_mm_authvar_presence_backing.h>
 #include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_policy.h>
+#include <boot/payload_mm_authvar_route.h>
 #include <bootmem.h>
 #include <string.h>
+
+#include "payload_mm_authvar_internal.h"
 
 #if !ENV_SMM && !ENV_TEST
 #error "Payload-MM authenticated-variable presence authority is SMM-only"
@@ -36,6 +40,14 @@ static struct {
 	uint64_t lifecycle_generation;
 	uint64_t closed_generation;
 	uint64_t sealed_closed_generation;
+	uint64_t last_action_request;
+	uint64_t sealed_last_action_request;
+	uint32_t active_action;
+	uint32_t active_value;
+	const struct payload_mm_authvar_confirmed_key_frame *active_key_request;
+	size_t active_key_message_size;
+	size_t sealed_key_message_size;
+	struct payload_mm_authvar_confirmed_key_frame sealed_key_request;
 	uint32_t phase;
 	uint32_t install_attempted;
 } presence;
@@ -122,6 +134,14 @@ static void capability_scrub(void)
 static void restriction_scrub(void)
 {
 	capability_scrub();
+	presence.last_action_request = 0;
+	presence.sealed_last_action_request = 0;
+	presence.active_action = 0;
+	presence.active_value = 0;
+	presence.active_key_request = NULL;
+	presence.active_key_message_size = 0;
+	presence.sealed_key_message_size = 0;
+	scrub(&presence.sealed_key_request, sizeof(presence.sealed_key_request));
 	scrub(presence.context, sizeof(presence.context));
 	scrub(presence.sealed_context, sizeof(presence.sealed_context));
 	presence.generation = 0;
@@ -131,6 +151,10 @@ static void restriction_scrub(void)
 static bool restriction_scrubbed(void)
 {
 	return presence.generation == 0 && presence.sealed_generation == 0 &&
+		presence.active_key_request == NULL &&
+		presence.active_key_message_size == 0 &&
+		presence.sealed_key_message_size == 0 &&
+		bytes_zero(&presence.sealed_key_request, sizeof(presence.sealed_key_request)) &&
 		bytes_zero(presence.capability, sizeof(presence.capability)) &&
 		bytes_zero(presence.sealed_capability,
 			sizeof(presence.sealed_capability)) &&
@@ -152,6 +176,10 @@ static bool install_phase_empty(void)
 static bool restore_state_clean(void)
 {
 	return bytes_zero(&presence.policy, sizeof(presence.policy)) &&
+		presence.active_key_request == NULL &&
+		presence.active_key_message_size == 0 &&
+		presence.sealed_key_message_size == 0 &&
+		bytes_zero(&presence.sealed_key_request, sizeof(presence.sealed_key_request)) &&
 		bytes_zero(&presence.sealed, sizeof(presence.sealed)) &&
 		bytes_zero(presence.context, sizeof(presence.context)) &&
 		bytes_zero(presence.sealed_context,
@@ -819,6 +847,47 @@ static bool page_guard(
 		!memcmp(snapshot, &presence.sealed, sizeof(*snapshot));
 }
 
+enum cb_err payload_mm_authvar_presence_confirmed_available(
+	uint64_t generation, bool *available)
+{
+	struct payload_mm_authvar_presence_policy snapshot;
+	uint32_t phase;
+
+	if (!available)
+		return CB_ERR;
+	*available = false;
+	if (!generation)
+		return CB_ERR;
+	phase = __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE);
+	if (phase == PRESENCE_EMPTY)
+		return bytes_zero(&presence, sizeof(presence)) &&
+			__atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) == PRESENCE_EMPTY ?
+			CB_SUCCESS : CB_ERR;
+	snapshot = presence.sealed;
+	if (snapshot.endpoint.generation != generation ||
+	    snapshot.backing.generation != generation)
+		return CB_ERR;
+	if (phase == PRESENCE_CLOSED)
+		return closed_snapshot_valid(&snapshot.endpoint, &snapshot.backing) ?
+			CB_SUCCESS : CB_ERR;
+	if (phase != PRESENCE_OPEN || !install_gate_sealed() ||
+	    presence.generation != generation || presence.sealed_generation != generation ||
+	    __atomic_load_n(&presence.lifecycle_generation, __ATOMIC_ACQUIRE) != generation ||
+	    !policy_equal() || bytes_zero(presence.capability, sizeof(presence.capability)) ||
+	    !capability_equal(presence.capability, presence.sealed_capability) ||
+	    payload_mm_authvar_presence_endpoint_validate(&snapshot.endpoint) != CB_SUCCESS ||
+	    !page_guard(&snapshot) ||
+	    __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) != PRESENCE_OPEN ||
+	    !install_gate_sealed() || presence.generation != generation ||
+	    presence.sealed_generation != generation ||
+	    __atomic_load_n(&presence.lifecycle_generation, __ATOMIC_ACQUIRE) != generation ||
+	    bytes_zero(presence.capability, sizeof(presence.capability)) ||
+	    !capability_equal(presence.capability, presence.sealed_capability))
+		return CB_ERR;
+	*available = true;
+	return CB_SUCCESS;
+}
+
 static __noreturn void cleanup_fail_stop(
 	payload_mm_authvar_presence_fail_stop_fn callback,
 	const void *failure_context, size_t failure_context_size)
@@ -1027,6 +1096,226 @@ enum cb_err payload_mm_authvar_presence_authority_dispatch(void)
 	dispatch_finish(&policy, response_live, false);
 	scrub(&policy, sizeof(policy));
 	return CB_ERR;
+}
+
+bool payload_mm_authvar_presence_action_authorized(uint32_t action, uint32_t value)
+{
+	return __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) == PRESENCE_EXECUTING &&
+		presence.active_action == action && presence.active_value == value &&
+		presence.last_action_request &&
+		presence.last_action_request == presence.sealed_last_action_request &&
+		presence.generation == presence.sealed_generation && policy_equal() &&
+		page_guard(&presence.sealed);
+}
+
+size_t payload_mm_authvar_presence_key_authorized(
+	const struct payload_mm_authvar_confirmed_key_frame *request,
+	const struct payload_mm_authvar_policy_request *copied)
+{
+	const struct payload_mm_authvar_service_frame *frame;
+	size_t payload_size;
+
+	if (!request || !copied || !payload_mm_authvar_smram_buffer(copied, sizeof(*copied)) ||
+	    presence.active_key_request != request ||
+	    __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) != PRESENCE_EXECUTING ||
+	    presence.active_action != PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION ||
+	    presence.active_key_message_size != presence.sealed_key_message_size ||
+	    !policy_equal() || !page_guard(&presence.sealed) || !policy_equal() ||
+	    __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) != PRESENCE_EXECUTING ||
+	    presence.active_action != PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION ||
+	    presence.active_key_request != request ||
+	    presence.active_key_message_size != presence.sealed_key_message_size ||
+	    memcmp(request, &presence.sealed_key_request, sizeof(*request)))
+		return false;
+	frame = &presence.sealed_key_request.confirmed.service;
+	payload_size = frame->data_size;
+	if (presence.active_key_message_size < sizeof(*request) ||
+	    presence.active_key_message_size > PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE ||
+	    payload_size > presence.active_key_message_size - sizeof(*request) ||
+	    !payload_mm_authvar_smram_buffer(request, presence.active_key_message_size) ||
+	    !bytes_zero((const uint8_t *)request + sizeof(*request) + payload_size,
+		presence.active_key_message_size - sizeof(*request) - payload_size))
+		return false;
+	if (presence.generation != presence.sealed_generation ||
+	    frame->generation != presence.sealed_generation ||
+	    presence.last_action_request != presence.sealed_last_action_request ||
+	    frame->request_id != presence.sealed_last_action_request ||
+	    !capability_equal(request->confirmed.capability, presence.sealed_capability) ||
+	    copied->operation != PAYLOAD_MM_AUTHVAR_SERVICE_SET ||
+	    copied->attributes != frame->attributes || copied->data_size != payload_size ||
+	    !copied->name || copied->name_size < 2U ||
+	    !payload_mm_authvar_smram_buffer(copied->name, copied->name_size) ||
+	    !payload_mm_authvar_smram_buffer(copied->data, payload_size) ||
+	    !ranges_disjoint(copied->data, payload_size, request, presence.sealed_key_message_size) ||
+	    !ranges_disjoint(copied->data, payload_size, &presence, sizeof(presence)) ||
+	    !bytes_zero((const uint8_t *)copied->name + copied->name_size - 2U, 2U) ||
+	    (uint32_t)payload_mm_authvar_route_key_target(copied->vendor_guid,
+		copied->name, copied->name_size - 2U) != request->key_id)
+		return false;
+	if (memcmp((const uint8_t *)request + sizeof(*request), copied->data, payload_size))
+		return 0;
+	return presence.active_key_message_size;
+}
+
+uint64_t payload_mm_authvar_presence_confirmed_key(
+	const struct payload_mm_authvar_confirmed_key_frame *request, size_t message_size)
+{
+	struct payload_mm_authvar_presence_policy policy;
+	struct payload_mm_authvar_confirmed_key_frame snapshot;
+	uint32_t expected = PRESENCE_OPEN;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+	size_t request_size;
+
+	if (!request || message_size < sizeof(*request) ||
+	    message_size > PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE ||
+	    !payload_mm_authvar_smram_buffer(request, message_size) ||
+	    !ranges_disjoint(request, message_size, &presence, sizeof(presence)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	snapshot = *request;
+	if (snapshot.confirmed.service.data_size >
+	    message_size - sizeof(snapshot)) {
+		scrub(&snapshot, sizeof(snapshot));
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	}
+	request_size = sizeof(snapshot) + snapshot.confirmed.service.data_size;
+	if (!payload_mm_authvar_smram_buffer(request, request_size) ||
+	    !ranges_disjoint(request, request_size, &presence, sizeof(presence)) ||
+	    !bytes_zero((const uint8_t *)request + request_size, message_size - request_size) ||
+	    snapshot.confirmed.service.revision != PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION ||
+	    snapshot.confirmed.service.flags != PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION) {
+		scrub(&snapshot, sizeof(snapshot));
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	}
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected, PRESENCE_EXECUTING,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+		scrub(&snapshot, sizeof(snapshot));
+		return status;
+	}
+	policy = presence.sealed;
+	if (!policy_equal() || !page_guard(&policy) || !policy_equal() ||
+	    memcmp(request, &snapshot, sizeof(snapshot)) ||
+	    snapshot.confirmed.service.generation != presence.sealed_generation ||
+	    !capability_equal(snapshot.confirmed.capability, presence.sealed_capability) ||
+	    presence.last_action_request != presence.sealed_last_action_request ||
+	    !snapshot.confirmed.service.request_id ||
+	    snapshot.confirmed.service.request_id == UINT64_MAX ||
+	    snapshot.confirmed.service.request_id <= presence.last_action_request)
+		goto close;
+	presence.last_action_request = snapshot.confirmed.service.request_id;
+	presence.sealed_last_action_request = snapshot.confirmed.service.request_id;
+	presence.active_action = PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION;
+	presence.active_value = 0;
+	presence.active_key_request = request;
+	presence.active_key_message_size = message_size;
+	presence.sealed_key_message_size = message_size;
+	presence.sealed_key_request = snapshot;
+	status = payload_mm_authvar_executor_confirmed_key(request);
+	/* The executor retired its arena binding before scrubbing it. */
+	if (memcmp(request, &snapshot, sizeof(snapshot)) || !policy_equal() ||
+	    !page_guard(&policy) || !policy_equal() ||
+	    memcmp(request, &snapshot, sizeof(snapshot)) ||
+	    memcmp(&presence.sealed_key_request, &snapshot, sizeof(snapshot)) ||
+	    presence.active_key_request != request ||
+	    presence.active_key_message_size != message_size ||
+	    presence.sealed_key_message_size != message_size ||
+	    !bytes_zero((const uint8_t *)request + request_size, message_size - request_size) ||
+	    presence.active_action != PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION ||
+	    presence.active_value != 0 ||
+	    presence.generation != presence.sealed_generation ||
+	    snapshot.confirmed.service.generation != presence.sealed_generation ||
+	    presence.last_action_request != presence.sealed_last_action_request ||
+	    snapshot.confirmed.service.request_id != presence.sealed_last_action_request ||
+	    __atomic_load_n(&presence.phase, __ATOMIC_ACQUIRE) != PRESENCE_EXECUTING)
+		goto close;
+	presence.active_action = 0;
+	presence.active_key_request = NULL;
+	presence.active_key_message_size = 0;
+	presence.sealed_key_message_size = 0;
+	scrub(&presence.sealed_key_request, sizeof(presence.sealed_key_request));
+	expected = PRESENCE_EXECUTING;
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected, PRESENCE_OPEN,
+		false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+		goto close;
+	goto out;
+close:
+	presence.active_action = 0;
+	presence.active_key_request = NULL;
+	presence.active_key_message_size = 0;
+	presence.sealed_key_message_size = 0;
+	scrub(&presence.sealed_key_request, sizeof(presence.sealed_key_request));
+	dispatch_finish(&policy, false, false);
+	status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+out:
+	scrub(&snapshot, sizeof(snapshot));
+	scrub(&policy, sizeof(policy));
+	return status;
+}
+
+uint64_t payload_mm_authvar_presence_confirmed_action(
+	const struct payload_mm_authvar_confirmed_frame *request, uint32_t *result_flags)
+{
+	struct payload_mm_authvar_confirmed_frame snapshot;
+	struct payload_mm_authvar_presence_policy policy;
+	bool reset_required = false;
+	uint32_t expected = PRESENCE_OPEN;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+
+	if (!request || !result_flags ||
+	    !payload_mm_authvar_smram_buffer(request, sizeof(*request)) ||
+	    !payload_mm_authvar_smram_buffer(result_flags, sizeof(*result_flags)) ||
+	    !ranges_disjoint(request, sizeof(*request), &presence, sizeof(presence)) ||
+	    !ranges_disjoint(result_flags, sizeof(*result_flags), &presence, sizeof(presence)) ||
+	    !ranges_disjoint(request, sizeof(*request), result_flags, sizeof(*result_flags)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	snapshot = *request;
+	*result_flags = 0;
+	if (snapshot.service.flags < PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE ||
+	    snapshot.service.flags > PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK ||
+	    snapshot.value > 1U ||
+	    (snapshot.service.flags == PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK && snapshot.value)) {
+		status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+		goto out;
+	}
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected, PRESENCE_EXECUTING,
+		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+		goto out;
+	policy = presence.sealed;
+	if (!policy_equal() || !page_guard(&policy) ||
+	    snapshot.service.generation != presence.sealed_generation ||
+	    !capability_equal(snapshot.capability, presence.sealed_capability) ||
+	    presence.last_action_request != presence.sealed_last_action_request ||
+	    !snapshot.service.request_id || snapshot.service.request_id == UINT64_MAX ||
+	    snapshot.service.request_id <= presence.last_action_request)
+		goto close;
+	/* Other v3 calls share the client's sequence, so gaps are valid; replay is not. */
+	presence.last_action_request = snapshot.service.request_id;
+	presence.sealed_last_action_request = snapshot.service.request_id;
+	presence.active_action = snapshot.service.flags;
+	presence.active_value = snapshot.value;
+	status = payload_mm_authvar_executor_confirmed_action(snapshot.service.flags,
+		snapshot.value, &reset_required);
+	if (reset_required)
+		*result_flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_RESET_REQUIRED;
+	if (memcmp(request, &snapshot, sizeof(snapshot)) || !policy_equal() ||
+	    !page_guard(&policy))
+		goto close;
+	presence.active_action = 0;
+	presence.active_value = 0;
+	expected = PRESENCE_EXECUTING;
+	if (!__atomic_compare_exchange_n(&presence.phase, &expected, PRESENCE_OPEN,
+		false, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE))
+		goto close;
+	scrub(&policy, sizeof(policy));
+	goto out;
+close:
+	presence.active_action = 0;
+	presence.active_value = 0;
+	dispatch_finish(&policy, false, false);
+	scrub(&policy, sizeof(policy));
+	status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+out:
+	scrub(&snapshot, sizeof(snapshot));
+	return status;
 }
 
 enum cb_err payload_mm_authvar_presence_smi_dispatch(uint16_t port,

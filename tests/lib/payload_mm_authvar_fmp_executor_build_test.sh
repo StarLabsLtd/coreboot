@@ -6,11 +6,14 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
-cat > "$temporary/include/config.h" <<'EOF'
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
-#define CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR 1
-#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1
-#define CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR 1
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/include/config.h" <<'EOF'
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
+CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR=1
+CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT=1
+CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR=1
 EOF
 
 for optimization in 0 2; do
@@ -28,6 +31,7 @@ for optimization in 0 2; do
 		"$root/tests/lib/payload_mm_authvar_fmp_executor_stubs.c" \
 		"$root/src/lib/payload_mm_authvar_executor.c" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_service.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
@@ -194,6 +198,7 @@ done
 	"$root/src/lib/payload_mm_authvar_media.c" \
 	"$root/src/lib/payload_mm_authvar_executor.c" \
 	"$root/src/lib/payload_mm_authvar_coordinator.c" \
+	"$root/src/lib/payload_mm_authvar_service.c" \
 	"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 	"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 	"$root/src/lib/payload_mm_authvar_view.c" \

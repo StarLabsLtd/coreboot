@@ -23,6 +23,10 @@ struct payload_mm_authvar_executor_limits {
 };
 
 struct lb_authvar_service_endpoint;
+struct payload_mm_authvar_confirmed_key_frame;
+
+uint64_t payload_mm_authvar_executor_confirmed_key(
+	const struct payload_mm_authvar_confirmed_key_frame *request);
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)
 /* Optional descriptive capability of the genuinely installed protected owner. */
@@ -87,6 +91,9 @@ uint64_t payload_mm_authvar_executor_recover(void);
  * including when the returned status reports a later failure.
  */
 uint64_t payload_mm_authvar_executor_enter_setup_mode(bool *reset_required);
+/* Requires the existing presence authority's active finite-action scope. */
+uint64_t payload_mm_authvar_executor_confirmed_action(uint32_t action,
+	uint32_t value, bool *reset_required);
 #endif
 
 #if CONFIG(PAYLOAD_MM_AUTHVAR_MOR_CONTROL_CLEAR_TRANSACTION)

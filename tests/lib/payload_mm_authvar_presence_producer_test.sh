@@ -121,6 +121,16 @@ grep -Fq '__asm__ __volatile__' \
 # Exercise the production constants through the real bootmem validator and
 # allocator rather than relying only on the producer's strict unit stub.
 bootmem_config="$root/build/tests/tests/lib/bootmem-aligned-reservation-test"
+# HOST override of the generated base profile; preserve its include ordering.
+{
+	printf '%s\n\n' '/* SPDX-License-Identifier: GPL-2.0-only */'
+	while IFS='=' read -r config_key config_value; do
+		printf '#undef %s\n#define %s %s\n' \
+			"$config_key" "$config_key" "$config_value"
+	done <<'EOF'
+CONFIG_BOOTMEM_ALIGNED_RESERVATION_RECEIPT=1
+EOF
+} > "$temporary/receipt-config.h"
 make -C "$root" build-tests/lib/bootmem-aligned-reservation-test >/dev/null
 for profile in o0 o2 asan ubsan; do
 	case "$profile" in
@@ -136,7 +146,7 @@ for profile in o0 o2 asan ubsan; do
 		-fno-builtin -fno-pie -fno-pic $bootmem_flags \
 		-D__TEST__ -D__COREBOOT__ -D__RAMSTAGE__ -D__TEST_SRCOBJ__ \
 		-DBOOTMEM_RECEIPT_TEST -include "$root/src/include/kconfig.h" \
-		-include "$root/tests/lib/bootmem_reservation_receipt_config.h" \
+		-include "$temporary/receipt-config.h" \
 		-include "$root/src/include/rules.h" \
 		-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
 		-I"$bootmem_config" -I"$root/tests/include/mocks" \

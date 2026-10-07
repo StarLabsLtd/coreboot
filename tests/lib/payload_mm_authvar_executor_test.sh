@@ -90,6 +90,27 @@ mutation_test()
 		echo "ERROR: $name mutant changed nothing" >&2
 		exit 1
 	fi
+	case "$name" in
+	final-full-compare|bind-before-final-proof|final-fresh-snapshot|final-ftw-clean)
+		policy_anchor='^[[:space:]]*struct payload_mm_authvar_policy_result \*completion, bool trusted_presence)$'
+		policy_scope="/$policy_anchor/,/^uint64_t payload_mm_authvar_policy_transaction/"
+		for source in "$root/src/lib/payload_mm_authvar_executor.c" "$mutant"; do
+			if [ "$(sed -n "/$policy_anchor/p" "$source" | wc -l)" -ne 1 ]; then
+				echo "ERROR: $name private policy definition is not unique" >&2
+				exit 1
+			fi
+		done
+		sed -n "$policy_scope p" "$root/src/lib/payload_mm_authvar_executor.c" > "$tmp/original-policy"
+		sed -n "$policy_scope p" "$mutant" > "$tmp/mutant-policy"
+		sed "$policy_scope d" "$root/src/lib/payload_mm_authvar_executor.c" > "$tmp/original-outside"
+		sed "$policy_scope d" "$mutant" > "$tmp/mutant-outside"
+		if cmp -s "$tmp/original-policy" "$tmp/mutant-policy" ||
+		   ! cmp -s "$tmp/original-outside" "$tmp/mutant-outside"; then
+			echo "ERROR: $name did not change only the active private policy body" >&2
+			exit 1
+		fi
+		;;
+	esac
 	for optimization in 0 2; do
 		binary="$tmp/mutant-$name-O$optimization"
 		log="$tmp/mutant-$name-O$optimization.log"
@@ -190,16 +211,16 @@ mutation_test record-f9-stage \
 	's/PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE);/PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE);/g' \
 	reclaim
 mutation_test final-full-compare \
-	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { /result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = verify_media(state, 0, snapshot(), state->contract.store_size);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/ }' \
+	'/^[[:space:]]*struct payload_mm_authvar_policy_result \*completion, bool trusted_presence)$/, /^uint64_t payload_mm_authvar_policy_transaction/ { /result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = verify_media(state, 0, snapshot(), state->contract.store_size);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/ }' \
 	final-compare-mutation
 mutation_test bind-before-final-proof \
-	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { 0,/result = verify_media(state, 0, snapshot(), state->contract.store_size);/ s//payload_mm_authvar_media_cache_bind(state->generation, state->token); result = verify_media(state, 0, snapshot(), state->contract.store_size);/ }' \
+	'/^[[:space:]]*struct payload_mm_authvar_policy_result \*completion, bool trusted_presence)$/, /^uint64_t payload_mm_authvar_policy_transaction/ { 0,/result = verify_media(state, 0, snapshot(), state->contract.store_size);/ s//payload_mm_authvar_media_cache_bind(state->generation, state->token); result = verify_media(state, 0, snapshot(), state->contract.store_size);/ }' \
 	final-compare-mutation
 mutation_test final-fresh-snapshot \
-	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { /result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = snapshot_read(state);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/ }' \
+	'/^[[:space:]]*struct payload_mm_authvar_policy_result \*completion, bool trusted_presence)$/, /^uint64_t payload_mm_authvar_policy_transaction/ { /result = verify_media(state, 0/,/result = snapshot_read(state);/ s/result = snapshot_read(state);/result = PAYLOAD_MM_AUTHVAR_MEDIA_SUCCESS;/ }' \
 	final-fresh-read-mutation
 mutation_test final-ftw-clean \
-	'/^uint64_t payload_mm_authvar_policy_transaction/,$ { /result = verify_media(state, 0/,/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/ s/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/false/ }' \
+	'/^[[:space:]]*struct payload_mm_authvar_policy_result \*completion, bool trusted_presence)$/, /^uint64_t payload_mm_authvar_policy_transaction/ { /result = verify_media(state, 0/,/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/ s/state->ftw.action != PAYLOAD_MM_AUTHVAR_FTW_CLEAN/false/ }' \
 	final-ftw-action-mutation
 mutation_test final-logical-proof \
 	'/if (!final_data/,/goto end;/ { s/status = poison_session();/status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;/; s/goto end;//; }' \

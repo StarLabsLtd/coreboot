@@ -5,7 +5,6 @@
 
 #include <commonlib/bsd/cb_err.h>
 #include <cpu/x86/smm_save_state.h>
-#include <rules.h>
 #include <stddef.h>
 #include <stdint.h>
 

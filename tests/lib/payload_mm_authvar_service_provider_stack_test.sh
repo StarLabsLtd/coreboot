@@ -7,6 +7,9 @@ case "$runtime_wave" in 0|1) ;; *) exit 1 ;; esac
 delivery_lane=${PROVIDER_STACK_BOOT_PRIVATE_DELIVERY:-0}
 case "$delivery_lane" in 0|1) ;; *) exit 1 ;; esac
 [ "$runtime_wave" -eq 0 ] || [ "$delivery_lane" -eq 0 ]
+confirmed_setup=${PROVIDER_STACK_CONFIRMED_SETUP:-0}
+case "$confirmed_setup" in 0|1) ;; *) exit 1 ;; esac
+[ "$confirmed_setup" -eq 0 ] || { [ "$runtime_wave" -eq 0 ] && [ "$delivery_lane" -eq 0 ]; }
 fixture_source="$root/tests/lib/payload_mm_authvar_service_provider_stack_test.c"
 mbedtls_source=${MBEDTLS_SOURCE:-$root/3rdparty/mbedtls}
 temporary=$(mktemp -d)
@@ -68,7 +71,124 @@ print pack("vC6VvC2", 2026, 10, 1, 0, 0, 1, 0, 0, 0, 0, 0);
 print pack("Vvv", 24 + length($cms), 0x200, 0xef1);
 print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, "payload";' \
 	"$temporary/signed.der" > "$temporary/auth2.bin"
+if [ "$confirmed_setup" -eq 1 ]; then
+	# Distinct, genuine X.509 entries; the provider must parse the complete AUTH2 frame.
+	openssl req -new -x509 -key "$temporary/signer.key" -days 2 -sha384 \
+		-subj /CN=payload-mm-provider-second -addext basicConstraints=critical,CA:FALSE \
+		-addext keyUsage=critical,digitalSignature -out "$temporary/second.pem" \
+		>/dev/null 2>&1
+	openssl x509 -in "$temporary/second.pem" -outform DER -out "$temporary/second.der"
+	openssl req -new -x509 -newkey rsa:1024 -nodes -days 2 -sha256 \
+		-subj /CN=payload-mm-provider-weak -addext basicConstraints=critical,CA:FALSE \
+		-addext keyUsage=critical,digitalSignature -keyout "$temporary/weak.key" \
+		-out "$temporary/weak.pem" >/dev/null 2>&1
+	openssl x509 -in "$temporary/weak.pem" -outform DER -out "$temporary/weak.der"
+	openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+		-days 2 -sha256 -subj /CN=payload-mm-provider-ec \
+		-addext basicConstraints=critical,CA:FALSE -addext keyUsage=critical,digitalSignature \
+		-keyout "$temporary/ec.key" -out "$temporary/ec.pem" >/dev/null 2>&1
+	openssl x509 -in "$temporary/ec.pem" -outform DER -out "$temporary/ec.der"
+	for entry in a b weak ec truncated; do
+		case "$entry" in
+		a|truncated) certificate="$temporary/signer.der" ;;
+		b) certificate="$temporary/second.der" ;;
+		*) certificate="$temporary/$entry.der" ;;
+		esac
+		perl -e 'open my $in, "<", $ARGV[0] or die $!; binmode $in;
+local $/; my $der = <$in>;
+substr($der, -1, 1, "") if $ARGV[1] eq "truncated";
+print pack("H*", "a159c0a5e494a74a87b5ab155c2bf072");
+print pack("VVV", 44 + length($der), 0, 16 + length($der));
+print pack("H*", "0123456789abcdef0123456789abcdef"), $der;' \
+			"$certificate" "$entry" > "$temporary/key-$entry.esl"
+	done
+	for key in 1 2 3 4 5; do
+		for label in replace-a replace-b replace-old append-b rsa1024 p256 truncated; do
+			entry=a day=2 attributes=39
+			case "$label" in
+			replace-b) entry=b ;;
+			replace-old) day=1 ;;
+			append-b) entry=b attributes=103 ;;
+			rsa1024|p256|truncated)
+				[ "$key" -eq 1 ] || continue
+				case "$label" in
+				rsa1024) entry=weak ;;
+				p256) entry=ec ;;
+				*) entry=truncated ;;
+				esac
+				;;
+			esac
+			perl -e 'my @names = ("PK", "KEK", "db", "dbx", "dbt");
+my ($key, $attr, $day, $file) = @ARGV;
+open my $in, "<", $file or die $!; binmode $in; local $/; my $esl = <$in>;
+print pack("v*", unpack("C*", $names[$key - 1]));
+print pack("H*", $key <= 2 ? "61dfe48bca93d211aa0d00e098032b8c" :
+"cbb219d73a3d9645a3bcdad00e67656f");
+print pack("V", $attr), pack("vC6VvC2", 2026, 10, $day, 0, 0, 1, 0, 0, 0, 0, 0), $esl;' \
+				"$key" "$attributes" "$day" "$temporary/key-$entry.esl" \
+				> "$temporary/key-content.bin"
+			openssl cms -sign -binary -in "$temporary/key-content.bin" \
+				-signer "$temporary/signer.pem" -inkey "$temporary/signer.key" \
+				-md sha256 -outform DER -out "$temporary/key-signed.der"
+			perl -e 'my ($day, $cms_file, $esl_file) = @ARGV;
+open my $in, "<", $cms_file or die $!; binmode $in; local $/; my $cms = <$in>;
+open my $payload, "<", $esl_file or die $!; binmode $payload; my $esl = <$payload>;
+print pack("vC6VvC2", 2026, 10, $day, 0, 0, 1, 0, 0, 0, 0, 0);
+print pack("Vvv", 24 + length($cms), 0x200, 0xef1);
+print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $cms, $esl;' \
+				"$day" "$temporary/key-signed.der" "$temporary/key-$entry.esl" \
+				> "$temporary/key-$key-$label.auth2"
+		done
+	done
+	openssl rsa -in "$temporary/signer.key" -noout -modulus \
+		> "$temporary/pbk-modulus.txt" 2>/dev/null
+	for label in pbk-a pbk-b pbk-short pbk-long pbk-type; do
+		perl -e 'my ($label, $path) = @ARGV;
+open my $in, "<", $path or die $!; local $/; my $text = <$in>;
+$text =~ /\AModulus=([0-9a-fA-F]{512})\s*\z/ or die "RSA2048 modulus width";
+my $modulus = pack("H*", $1);
+die "RSA2048 modulus size" unless length($modulus) == 256;
+$modulus = substr($modulus, 0, 255) if $label eq "pbk-short";
+$modulus .= chr(0) if $label eq "pbk-long";
+print pack("H*", $label eq "pbk-type" ? "00" x 16 :
+"e866573c9c26344eaa14ed776e85b3b6");
+print pack("VVV", 44 + length($modulus), 0, 16 + length($modulus));
+print pack("H*", $label eq "pbk-b" ? "fedcba9876543210fedcba9876543210" :
+"0123456789abcdef0123456789abcdef"), $modulus;' \
+			"$label" "$temporary/pbk-modulus.txt" > "$temporary/key-$label.esl"
+		for key in 1 2; do
+			perl -e 'open my $in, "<", $ARGV[0] or die $!; binmode $in;
+local $/; my $esl = <$in>;
+print pack("vC6VvC2", 2026, 10, 2, 0, 0, 1, 0, 0, 0, 0, 0);
+print pack("Vvv", 24, 0x200, 0xef1);
+print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $esl;' \
+				"$temporary/key-$label.esl" > "$temporary/key-$key-$label.auth2"
+		done
+	done
+	# Selective removal keeps the surviving ESL bytes, including duplicate records.
+	for key in 2 3 4 5; do
+		for label in selective-seed selective-first selective-list; do
+			perl -e 'my ($label, $first_file, $second_file) = @ARGV;
+open my $in, "<", $first_file or die $!; binmode $in; local $/; my $a = <$in>;
+open my $other, "<", $second_file or die $!; binmode $other; my $b = <$other>;
+my $esl = $label eq "selective-list" ? $b : $a . $b;
+if ($label eq "selective-seed") {
+  my $record = substr($a, 28);
+  substr($a, 16, 4, pack("V", length($a) + length($record)));
+  $esl = $a . $record . $b;
+}
+print pack("vC6VvC2", 2026, 10, 2, 0, 0, 1, 0, 0, 0, 0, 0);
+print pack("Vvv", 24, 0x200, 0xef1);
+print pack("H*", "9dd2af4adf68ee498aa9347d375665a7"), $esl;' \
+				"$label" "$temporary/key-a.esl" "$temporary/key-b.esl" \
+				> "$temporary/key-$key-$label.auth2"
+		done
+	done
+fi
 for authentication in auth2 ordinary; do
+	if [ "$confirmed_setup" -eq 1 ] && [ "$authentication" != ordinary ]; then
+		continue
+	fi
 	if [ "$delivery_lane" -eq 1 ] && [ "$authentication" = auth2 ]; then
 		continue
 	fi
@@ -77,6 +197,9 @@ for authentication in auth2 ordinary; do
 		continue
 	fi
 	profiles='0:65536 0:4096'
+	if [ "$confirmed_setup" -eq 1 ]; then
+		profiles='0:65536'
+	fi
 	if [ "$delivery_lane" -eq 1 ]; then
 		profiles='0:65536 0:4096 1:65536 1:4096'
 	fi
@@ -89,6 +212,7 @@ for authentication in auth2 ordinary; do
 			"#define CONFIG_SMMSTORE_BLOCK_SIZE $block_size" \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED 1' \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR 1' \
+			"#define CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY $confirmed_setup" \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1' \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER 1' \
 			'#define CONFIG_PAYLOAD_MM_AUTHVAR_CMS_VERIFY 1' \
@@ -115,6 +239,9 @@ for authentication in auth2 ordinary; do
 				>> "$temporary/include/config.h"
 		fi
 		variants='baseline record-capacity header-capacity no-request-scrub early-release early-completion'
+		if [ "$confirmed_setup" -eq 1 ]; then
+			variants=baseline
+		fi
 		if [ "$delivery_lane" -eq 1 ]; then
 			variants=baseline
 			if [ "$private_buffer" -eq 1 ]; then
@@ -206,6 +333,11 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					continue
 				fi
 				set --
+				if [ "$confirmed_setup" -eq 1 ]; then
+					set -- "$root/src/lib/payload_mm_authvar_presence_authority.c" \
+						"$root/src/lib/payload_mm_authvar_presence.c" \
+						"$root/src/lib/payload_mm_authvar_presence_backing.c"
+				fi
 				if [ "$runtime_wave" -eq 1 ]; then
 					set -- \
 						"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.c" \
@@ -228,6 +360,7 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					-Wl,--wrap=memcpy \
 					-fsanitize=address,undefined -fno-sanitize-recover=all \
 					-fno-omit-frame-pointer -DBOOTMEM_RECEIPT_TEST -D__TEST__ -D__COREBOOT__ -D__SMM__ \
+					-DTEST_PROVIDER_CONFIRMED_SETUP="$confirmed_setup" \
 					-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"' \
 					-include "$root/src/include/kconfig.h" -include "$root/src/include/rules.h" \
 					-include "$root/src/commonlib/bsd/include/commonlib/bsd/compiler.h" \
@@ -292,6 +425,33 @@ s/state->policy.maximum_record_size - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE/stat
 					"$root/src/lib/payload_mm_authvar_writer.c" \
 					-I"$mbedtls_source/library" -Wl,--wrap=mbedtls_rsa_parse_pubkey \
 					"$@" -pthread -o "$temporary/test"
+				if [ "$confirmed_setup" -eq 1 ]; then
+					for mode in normal confirmed confirmed-replay confirmed-wrong-cap \
+						confirmed-closed confirmed-runtime; do
+						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+							"$temporary/test" "$mode"
+					done
+					for mode in confirmed-keys confirmed-keys-replay confirmed-keys-wrong-cap \
+						confirmed-keys-closed confirmed-keys-runtime \
+						confirmed-keys-der-refusals confirmed-keys-selective confirmed-keys-pbk \
+						confirmed-keys-payload-drift confirmed-keys-tail-drift; do
+						log="$temporary/keys-O${optimization}-${mode}.log"
+						result=0
+						ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+							"$temporary/test" "$mode" "$temporary" > "$log" 2>&1 || result=$?
+						expected_status=0
+						case "$mode" in *-drift) expected_status=79 ;; esac
+						if [ "$result" -ne "$expected_status" ]; then
+							cat "$log" >&2
+							exit 1
+						fi
+						if grep -E 'provider stack line|provider reply:|runtime error:|Sanitizer' \
+							"$log"; then
+							exit 1
+						fi
+					done
+					continue
+				fi
 				if [ "$delivery_lane" -eq 1 ]; then
 					modes=delivery
 					if [ "$private_buffer" -eq 1 ]; then

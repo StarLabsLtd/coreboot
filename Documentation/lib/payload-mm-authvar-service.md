@@ -134,7 +134,7 @@ authoritative code, staging, keys and policy against CPU and DMA access, while
 the backend remains owned and write-restricted to SMM. It does not attest that
 the shared mailbox is immutable or that the OS retains firmware IOMMU policy.
 Old endpoint revision 2 is rejected, rather than silently reinterpreted.
-Coreboot's early default-deny DMA protection and its actual handoff proof remain
+coreboot's early default-deny DMA protection and its actual handoff proof remain
 a separate required boot gate. A validator accepting the flag mask does not
 prove these hardware facts or permit publication without the installed owner.
 EDK2 26.09 (`aab7b589fc59b7e2b8fb7eb79519bf1a5e5a5272`)

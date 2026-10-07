@@ -9,6 +9,10 @@
 #include <types.h>
 
 #define PAYLOAD_MM_AUTHVAR_SERVICE_REVISION 3U
+#define PAYLOAD_MM_AUTHVAR_CONFIRMED_REVISION 4U
+#define PAYLOAD_MM_AUTHVAR_CONFIRMED_HEADER_SIZE 184U
+#define PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION 5U
+#define PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_HEADER_SIZE 192U
 #define PAYLOAD_MM_AUTHVAR_POLICY_MIN_SIZE 44U
 #define PAYLOAD_MM_AUTHVAR_POLICY_MAX_SIZE 512U
 #define PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE 144U
@@ -71,7 +75,31 @@ enum payload_mm_authvar_service_operation {
 	PAYLOAD_MM_AUTHVAR_SERVICE_LOCK_POLICY = 8,
 	PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT = 9,
 	PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY = 10,
+	PAYLOAD_MM_AUTHVAR_SERVICE_CONFIRMED_SETUP = 11,
 };
+
+enum payload_mm_authvar_confirmed_action {
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE = 1,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_CUSTOM_MODE = 2,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK = 3,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_MUTATION = 4,
+};
+
+enum payload_mm_authvar_confirmed_key {
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_PK = 1,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_KEK = 2,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_DB = 3,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_DBX = 4,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_DBT = 5,
+};
+
+enum payload_mm_authvar_confirmed_mutation {
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_REPLACE = 1,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_APPEND = 2,
+	PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE = 3,
+};
+
+#define PAYLOAD_MM_AUTHVAR_CONFIRMED_RESET_REQUIRED 1U
 
 #define PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_REVISION 1U
 #define PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE 16U
@@ -113,6 +141,33 @@ struct payload_mm_authvar_service_frame {
 	uint32_t reserved[2];
 	uint32_t completion;
 } __aligned(8);
+
+/* Only this finite v4 operation carries boot-presence authorization. The
+ * ordinary v3 header, offsets and SetVariable contract remain unchanged. */
+struct payload_mm_authvar_confirmed_frame {
+	struct payload_mm_authvar_service_frame service;
+	uint8_t capability[32];
+	uint32_t value;
+	uint32_t result_flags;
+} __aligned(8);
+
+/* Complete AUTH2 bytes follow this header; service.data_size is their sole length. */
+struct payload_mm_authvar_confirmed_key_frame {
+	struct payload_mm_authvar_confirmed_frame confirmed;
+	uint32_t key_id;
+	uint32_t mutation;
+} __aligned(8);
+
+_Static_assert(sizeof(struct payload_mm_authvar_confirmed_key_frame) == 192U &&
+	offsetof(struct payload_mm_authvar_confirmed_key_frame, key_id) == 184U &&
+	offsetof(struct payload_mm_authvar_confirmed_key_frame, mutation) == 188U,
+	"confirmed key action wire layout");
+
+_Static_assert(sizeof(struct payload_mm_authvar_confirmed_frame) == 184U &&
+	offsetof(struct payload_mm_authvar_confirmed_frame, capability) == 144U &&
+	offsetof(struct payload_mm_authvar_confirmed_frame, value) == 176U &&
+	offsetof(struct payload_mm_authvar_confirmed_frame, result_flags) == 180U,
+	"confirmed Setup action wire layout");
 
 _Static_assert(sizeof(struct payload_mm_authvar_service_frame) ==
 	PAYLOAD_MM_AUTHVAR_SERVICE_HEADER_SIZE,

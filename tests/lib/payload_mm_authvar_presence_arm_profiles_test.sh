@@ -217,17 +217,23 @@ for profile in emulation_qemu_x86_q35_smm_tseg starlabs_starbook_mtl; do
 		}
 		{ print }
 		END {
-			print "edge: { sourcename: \"decoy\" targetname: \"smm_apmc_command_consume\" label: \"payload_mm_authvar_presence_route_session.c:1230:6\" }"
+			print "edge: { sourcename: \"decoy\" " \
+				"targetname: \"smm_apmc_command_consume\" " \
+				"label: \"payload_mm_authvar_presence_route_session.c:1231:6\" }"
 		}
 	' "$temporary/$name-smm.ci" > "$temporary/$name-target-decoy.ci"
 	! awk -v limit=12288 \
 		-f "$root/tests/lib/payload_mm_authvar_presence_route_stack_graph.awk" \
 		"$temporary/$name-target-decoy.ci" >/dev/null 2>&1
 	awk '
-		!changed && /payload_mm_authvar_presence_route_session.c:1230:6/ {
-			sub(/1230:6/, "1230:7"); changed = 1
+		/sourcename: "payload_mm_authvar_presence_route_session_dispatch_locked"/ &&
+		/targetname: "smm_apmc_command_consume"/ &&
+		/payload_mm_authvar_presence_route_session[.]c:1231:6/ {
+			changed += sub(/payload_mm_authvar_presence_route_session[.]c:1231:6/,
+				"payload_mm_authvar_presence_route_session.c:1231:7")
 		}
 		{ print }
+		END { if (changed != 1) exit 1 }
 	' "$temporary/$name-smm.ci" > "$temporary/$name-relocated-direct.ci"
 	! awk -v limit=12288 \
 		-f "$root/tests/lib/payload_mm_authvar_presence_route_stack_graph.awk" \

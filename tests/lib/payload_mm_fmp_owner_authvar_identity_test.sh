@@ -6,9 +6,12 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
-cat > "$temporary/include/config.h" <<'EOF'
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
-#define CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR 1
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/include/config.h" <<'EOF'
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
+CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR=1
 EOF
 
 for optimization in 0 2; do
@@ -83,9 +86,21 @@ if ASAN_OPTIONS=detect_leaks=1 "$temporary/wrong-size" >/dev/null 2>&1; then
 	exit 1
 fi
 
-if rg -q 'payload_mm_fmp_owner_authvar_reservation' \
-	"$root/src/lib/payload_mm_authvar_executor.c"; then
+awk '
+	/^uint64_t payload_mm_authvar_read_transaction\(/ { active = 1; starts++ }
+	active && /^static uint64_t policy_transaction\(/ { active = 0; ends++ }
+	active { print }
+	END { if (starts != 1 || ends != 1) exit 2 }
+' "$root/src/lib/payload_mm_authvar_executor.c" > "$temporary/read-body"
+if rg -q 'payload_mm_fmp_owner_authvar_reservation' "$temporary/read-body"; then
 	echo 'FMP reservation leaked into read transaction' >&2
+	exit 1
+fi
+sed '/^{/a\	/* payload_mm_fmp_owner_authvar_reservation */' \
+	"$temporary/read-body" > "$temporary/read-body-reservation-mutant"
+if ! rg -q 'payload_mm_fmp_owner_authvar_reservation' \
+	"$temporary/read-body-reservation-mutant"; then
+	echo 'ERROR: direct-read reservation assertion mutant survived' >&2
 	exit 1
 fi
 printf '%s\n' 'Payload-MM FMP sealed identity/reservation O0/O2 ASan+UBSan: PASS'

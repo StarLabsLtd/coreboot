@@ -34,6 +34,8 @@ tests-y += starbook-mtl-mor-clear-x86-binding-test
 tests-y += q35-mor-fixture-test
 tests-y += dimm_info_util-test
 tests-y += coreboot_table-test
+tests-y += coreboot_table-merlin-test
+tests-y += coreboot_table-glk-test
 tests-y += render_bmp-test
 tests-y += bootsplash-retained-test
 tests-y += payload_resource_handoff-test
@@ -214,6 +216,19 @@ coreboot_table-test-srcs += src/lib/imd.c
 coreboot_table-test-cflags += -I tests/include/tests/lib/fmap
 coreboot_table-test-mocks += cbmem_top_chipset
 coreboot_table-test-config += CONFIG_PAYLOAD_MM_AUTHVAR_PRESENCE_PUBLICATION=1
+
+$(call copy-test,coreboot_table-test,coreboot_table-merlin-test)
+coreboot_table-merlin-test-srcs += src/ec/starlabs/merlin/ssdt.c
+coreboot_table-merlin-test-cflags += -I src/ec/starlabs/merlin/variants/merlin
+coreboot_table-merlin-test-config += EC_BATTERY_TEST_EXPECT_PRESENT=1
+coreboot_table-merlin-test-config += CONFIG_EC_STARLABS_BATTERY_MODEL=\"Unknown\" \
+	CONFIG_EC_STARLABS_BATTERY_TYPE=\"LION\" CONFIG_EC_STARLABS_BATTERY_OEM=\"Unknown\"
+
+$(call copy-test,coreboot_table-test,coreboot_table-glk-test)
+coreboot_table-glk-test-srcs += src/ec/starlabs/merlin/ssdt.c
+coreboot_table-glk-test-cflags += -I src/ec/starlabs/merlin/variants/glk
+coreboot_table-glk-test-config += CONFIG_EC_STARLABS_BATTERY_MODEL=\"Unknown\" \
+	CONFIG_EC_STARLABS_BATTERY_TYPE=\"LION\" CONFIG_EC_STARLABS_BATTERY_OEM=\"Unknown\"
 
 render_bmp-test-srcs += tests/lib/render_bmp-test.c
 render_bmp-test-srcs += tests/stubs/console.c

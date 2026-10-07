@@ -41,6 +41,8 @@ config PAYLOAD_MM_AUTHVAR_MOR_LIVE_INVENTORY
 	  Build the dormant allocation-free memory-clear inventory composer.
 	  This adds no boot hook, clear operation, endpoint or support claim.
 
+menu "Payload resource handoff"
+
 config PAYLOAD_RESOURCE_HANDOFF
 	bool "Publish assigned PCI resources to the payload"
 	default n
@@ -54,6 +56,8 @@ config PAYLOAD_RESOURCE_HANDOFF
 	  serialized function. A platform must explicitly provide trustworthy
 	  revision-4 topology and boot-controller policy before that revision is
 	  published.
+
+endmenu
 
 config PAYLOAD_DMA_HANDOFF
 	bool

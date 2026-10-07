@@ -4,7 +4,6 @@
 #include <soc/authvar_presence_boot_classifier.h>
 #include <soc/pm.h>
 #include <soc/pmc.h>
-#include <rules.h>
 #include <stddef.h>
 #include <string.h>
 

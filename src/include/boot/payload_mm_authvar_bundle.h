@@ -47,6 +47,9 @@ struct payload_mm_authvar_bundle_mutation {
 };
 
 struct payload_mm_authvar_bundle_plan {
+	/* Synchronous confirmed candidate input only; never a caller boolean grant. */
+	const struct payload_mm_authvar_confirmed_key_frame *confirmed_key;
+	const struct payload_mm_authvar_policy_request *confirmed_request;
 	enum payload_mm_authvar_authority_outcome outcome;
 	uint8_t mutation_count;
 	uint8_t volatile_modes;

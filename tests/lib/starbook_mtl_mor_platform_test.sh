@@ -6,9 +6,12 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
-cat > "$temporary/include/config.h" <<'EOF'
-#define CONFIG_STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD 1
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/include/config.h" <<'EOF'
+CONFIG_STARLABS_STARBOOK_MTL_MOR_EARLY_DMA_GUARD=1
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
 EOF
 
 build_and_run()

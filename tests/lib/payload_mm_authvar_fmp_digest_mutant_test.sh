@@ -6,11 +6,14 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 mkdir -p "$temporary/include"
-cat > "$temporary/include/config.h" <<'EOF'
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
-#define CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR 1
-#define CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT 1
-#define CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR 1
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$temporary/include/config.h" <<'EOF'
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
+CONFIG_PAYLOAD_MM_FMP_OWNER_AUTHVAR=1
+CONFIG_PAYLOAD_MM_AUTHVAR_CANDIDATE_COMMIT=1
+CONFIG_PAYLOAD_MM_AUTHVAR_COORDINATOR=1
 EOF
 
 compile_mutant()
@@ -20,6 +23,33 @@ compile_mutant()
 	optimization=$3
 	test_case=$4
 	binary="$temporary/$name-O$optimization"
+	case "$name" in
+	delete-digest|delete-digest-reclaim|size-zero|size-minus-one)
+		anchor='^static bool control_snapshot('
+		boundary='^static bool control_unchanged('
+		;;
+	early-clear|late-activation)
+		anchor='^static uint64_t fmp_state_transaction('
+		boundary='^uint64_t payload_mm_authvar_fmp_state_transaction('
+		;;
+	esac
+	scope="/$anchor/,/$boundary/"
+	for source in "$source_file" "$mutant"; do
+		if [ "$(sed -n "/$anchor/p" "$source" | wc -l)" -ne 1 ] ||
+		   [ "$(sed -n "/$boundary/p" "$source" | wc -l)" -ne 1 ]; then
+			echo "ERROR: $name active source scope is not unique" >&2
+			exit 1
+		fi
+	done
+	sed -n "$scope p" "$source_file" > "$temporary/original-body"
+	sed -n "$scope p" "$mutant" > "$temporary/mutant-body"
+	sed "$scope d" "$source_file" > "$temporary/original-outside"
+	sed "$scope d" "$mutant" > "$temporary/mutant-outside"
+	if cmp -s "$temporary/original-body" "$temporary/mutant-body" ||
+	   ! cmp -s "$temporary/original-outside" "$temporary/mutant-outside"; then
+		echo "ERROR: $name did not change only its active source body" >&2
+		exit 1
+	fi
 
 	"${HOSTCC:-cc}" -std=gnu11 -O"$optimization" -Wall -Wextra -Werror \
 		-Wshadow -Wstrict-prototypes -fno-builtin \
@@ -35,6 +65,7 @@ compile_mutant()
 		"$root/tests/lib/payload_mm_authvar_fmp_executor_stubs.c" \
 		"$mutant" \
 		"$root/src/lib/payload_mm_authvar_coordinator.c" \
+		"$root/src/lib/payload_mm_authvar_service.c" \
 		"$root/src/lib/payload_mm_authvar_set_preflight.c" \
 		"$root/src/lib/payload_mm_authvar_controlled_mode.c" \
 		"$root/src/lib/payload_mm_authvar_view.c" \
@@ -69,9 +100,12 @@ early_clear="$temporary/executor-early-clear.c"
 late_activation="$temporary/executor-late-activation.c"
 
 awk '
-	index($0, "if (state->fmp_record_active &&") {
+	/^static bool control_snapshot\(/ { in_control = 1 }
+	/^static bool control_unchanged\(/ { in_control = 0 }
+	in_control && index($0, "if (state->fmp_record_active &&") {
 		print "\tif (false)"
 		skip = 1
+		changed++
 		next
 	}
 	skip && $0 ~ /^[[:space:]]*return false;/ {
@@ -80,13 +114,16 @@ awk '
 		next
 	}
 	!skip { print }
+	END { if (changed != 1 || skip) exit 2 }
 ' "$source_file" > "$delete_digest"
 if cmp -s "$source_file" "$delete_digest"; then
 	echo "ERROR: delete-digest mutant changed nothing" >&2
 	exit 1
 fi
 awk '
-	index($0, "state->write.record_size, seal->fmp_record_digest)") {
+	/^static bool control_snapshot\(/ { in_control = 1 }
+	/^static bool control_unchanged\(/ { in_control = 0 }
+	in_control && index($0, "state->write.record_size, seal->fmp_record_digest)") {
 		sub("state->write.record_size,", "0U,")
 		changed++
 	}
@@ -98,7 +135,9 @@ if cmp -s "$source_file" "$size_zero"; then
 	exit 1
 fi
 awk '
-	index($0, "state->write.record_size, seal->fmp_record_digest)") {
+	/^static bool control_snapshot\(/ { in_control = 1 }
+	/^static bool control_unchanged\(/ { in_control = 0 }
+	in_control && index($0, "state->write.record_size, seal->fmp_record_digest)") {
 		sub("state->write.record_size,", "state->write.record_size - 1U,")
 		changed++
 	}
@@ -110,25 +149,28 @@ if cmp -s "$source_file" "$size_minus_one"; then
 	exit 1
 fi
 awk '
-	index($0, "uint64_t payload_mm_authvar_fmp_state_transaction(") {
+	/^static uint64_t fmp_state_transaction\(/ {
 		in_fmp = 1
+		seen_function++
 	}
+	/^uint64_t payload_mm_authvar_fmp_state_transaction\(/ { in_fmp = 0 }
 	in_fmp && index($0, "end_result = media_end(state);") {
 		print "\tstate->fmp_record_active = false;"
 		changed++
 	}
 	{ print }
-	END { if (changed != 1) exit 2 }
+	END { if (seen_function != 1 || changed != 1) exit 2 }
 ' "$source_file" > "$early_clear"
 if cmp -s "$source_file" "$early_clear"; then
 	echo "ERROR: early-clear mutant changed nothing" >&2
 	exit 1
 fi
 awk '
-	index($0, "uint64_t payload_mm_authvar_fmp_state_transaction(") {
+	/^static uint64_t fmp_state_transaction\(/ {
 		in_fmp = 1
 		seen_function++
 	}
+	/^uint64_t payload_mm_authvar_fmp_state_transaction\(/ { in_fmp = 0 }
 	in_fmp && $0 == "\tstate->fmp_record_active = true;" {
 		activation = $0
 		removed++

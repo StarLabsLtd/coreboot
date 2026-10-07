@@ -6,8 +6,11 @@ root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd -P)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 mkdir -p "$tmp/include"
-cat > "$tmp/include/config.h" <<EOF
-#define CONFIG_DEFAULT_CONSOLE_LOGLEVEL 0
+# HOST-modeled options, serialized like the unit-test configuration overrides.
+while IFS='=' read -r config_key config_value; do
+	printf '#define %s %s\n' "$config_key" "$config_value"
+done > "$tmp/include/config.h" <<EOF
+CONFIG_DEFAULT_CONSOLE_LOGLEVEL=0
 EOF
 
 for opt in 0 2; do

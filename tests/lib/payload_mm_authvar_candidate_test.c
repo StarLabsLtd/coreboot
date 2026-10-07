@@ -3,6 +3,7 @@
 #include <boot/payload_mm_authvar_candidate.h>
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_record.h>
+#include <boot/payload_mm_authvar_service.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -389,8 +390,66 @@ static void test_projection_oracle(void)
 		assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
 			&binding, binding.source_volatile_modes));
 	}
+	/* Keep source validation causal even when its preference differs from live mode. */
+	put32(store, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store), &limits) == CB_SUCCESS);
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	put32(store, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS);
+	assert(payload_mm_authvar_store_scan(&index, store, sizeof(store), &limits) == CB_SUCCESS);
+	put32(candidate, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS);
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	put32(candidate, enable->record_offset + 4U,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS);
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	/* A saved Disable does not change sealed SecureBoot before a PK transition. */
+	store[enable->data_offset] = 0U;
+	memcpy(candidate, store, sizeof(candidate));
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	candidate[enable->data_offset] = one;
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	binding.at_runtime = 1U;
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	binding.at_runtime = 0U;
+	candidate[enable->data_offset] = 0U;
+	pk = payload_mm_authvar_store_find(&index, global_guid, pk_name, sizeof(pk_name));
+	assert(pk);
+	candidate[pk->record_offset + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP | PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SETUP | binding.source_volatile_modes));
 	store[enable->data_offset] = one;
 	store[custom->data_offset] = one;
+	memcpy(candidate, store, sizeof(candidate));
+	assert(payload_mm_authvar_store_scan(&built, candidate, sizeof(candidate),
+		&limits) == CB_SUCCESS);
+	/* A saved Enable likewise cannot turn on the live mode by itself. */
+	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	assert(payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, binding.source_volatile_modes));
+	assert(!payload_mm_authvar_candidate_projection_valid(&index, &built,
+		&binding, PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT | binding.source_volatile_modes));
 	binding.source_volatile_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
 		PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
 	memcpy(candidate, store, sizeof(candidate));
@@ -1155,6 +1214,38 @@ static void test_alias_matrix(void)
 	assert(!all_zero((const uint8_t *)&result, sizeof(result)));
 }
 
+static void test_unowned_confirmed_inputs(void)
+{
+	struct payload_mm_authvar_confirmed_key_frame frame = {0};
+	struct payload_mm_authvar_policy_request request = {0};
+	struct payload_mm_authvar_candidate_binding binding = source_binding();
+	struct payload_mm_authvar_candidate_result result, saved_result;
+	struct payload_mm_authvar_store_entry saved_scratch[MAX_ENTRIES];
+	u8 saved_candidate[STORE_SIZE];
+
+	/* This standalone lane has no installed authority: no pointer is a grant. */
+	for (size_t inputs = 1; inputs <= 3; inputs++) {
+		struct payload_mm_authvar_bundle_plan bundle = target_write();
+
+		bundle.confirmed_key = inputs & 1 ? &frame : NULL;
+		bundle.confirmed_request = inputs & 2 ? &request : NULL;
+		memset(&result, 0xa5, sizeof(result));
+		memset(candidate, 0x5a, sizeof(candidate));
+		memset(scratch, 0x3c, sizeof(scratch));
+		memcpy(&saved_result, &result, sizeof(result));
+		memcpy(saved_candidate, candidate, sizeof(candidate));
+		memcpy(saved_scratch, scratch, sizeof(scratch));
+		memcpy(source_copy, store, sizeof(store));
+		assert(payload_mm_authvar_candidate_build(&index, &bundle, &policy,
+			&binding, candidate, sizeof(candidate), scratch, MAX_ENTRIES,
+			&result) == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		assert(!memcmp(&result, &saved_result, sizeof(result)));
+		assert(!memcmp(candidate, saved_candidate, sizeof(candidate)));
+		assert(!memcmp(scratch, saved_scratch, sizeof(scratch)));
+		assert(!memcmp(store, source_copy, sizeof(store)));
+	}
+}
+
 static void test_rejections(void)
 {
 	struct payload_mm_authvar_bundle_plan bundle = target_write();
@@ -1442,6 +1533,7 @@ int main(void)
 	test_replace_delete_transition_and_dirty();
 	test_hash_and_capacity_failures();
 	test_alias_matrix();
+	test_unowned_confirmed_inputs();
 	test_real_out_of_resources();
 	return 0;
 }

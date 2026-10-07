@@ -5096,8 +5096,21 @@ static __noreturn void presence_fail_stop(void *context)
 	_exit(77);
 }
 
+static void presence_trace_check(const uint8_t *expected, size_t size)
+{
+	assert(callback_trace_count == size);
+	assert(!memcmp(callback_trace, expected, size));
+	/* Retire only the fully checked ledger; cumulative media counters remain. */
+	callback_trace_count = 0U;
+}
+
 static void coordinator_presence_authority_noop(void)
 {
+	static const uint8_t read_only_trace[] = { 1, 2, 2, 2, 2, 6 };
+	static const uint8_t scalar_trace[] = {
+		1, 2, 2, 2, 2, 2, 3, 2, 3, 3, 2, 2, 2, 3,
+		2, 3, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 6,
+	};
 	struct coordinator_fixture fixture;
 	struct payload_mm_authvar_presence_policy policy = {
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_POLICY_REVISION,
@@ -5142,10 +5155,164 @@ static void coordinator_presence_authority_noop(void)
 	coordinator_fixture_build(&fixture);
 	coordinator_make_user_source(&fixture, true);
 	install();
-	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
-		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && reset_required);
 	assert(payload_mm_authvar_presence_authority_install(&policy,
 		presence_protected_storage, NULL) == CB_SUCCESS);
+	{
+		struct payload_mm_authvar_confirmed_frame confirmed = {
+			.service = {
+				.revision = 4U, .header_size = 184U,
+				.operation = PAYLOAD_MM_AUTHVAR_SERVICE_CONFIRMED_SETUP,
+				.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE,
+				.generation = 7U, .request_id = 9U,
+			},
+		};
+		struct payload_mm_authvar_policy_request ordinary = {
+			.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+			.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		};
+		struct payload_mm_authvar_policy_result result;
+		struct payload_mm_authvar_store_entry entries[64];
+		struct payload_mm_authvar_store_index index;
+		uint8_t preference = 0U;
+		uint8_t modes;
+		uint32_t result_flags;
+
+		memcpy(confirmed.capability, presence_capability, sizeof(confirmed.capability));
+		assert(payload_mm_authvar_mode_request(PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
+			&ordinary));
+		ordinary.data = &preference;
+		ordinary.data_size = sizeof(preference);
+		assert(payload_mm_authvar_policy_transaction(&ordinary, &result) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+		presence_trace_check(read_only_trace, sizeof(read_only_trace));
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		presence_trace_check(scalar_trace, sizeof(scalar_trace));
+		(void)native_find(coordinator_enable_guid, coordinator_enable_name,
+			sizeof(coordinator_enable_name), &index, entries, ARRAY_SIZE(entries));
+		assert(payload_mm_authvar_coordinator_source_modes(&index, false, true,
+			PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT | PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS,
+			&modes));
+		assert(modes == (PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS));
+		assert(payload_mm_authvar_coordinator_source_modes(&index, false, false, 0U,
+			&modes) && modes == PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS);
+		confirmed.service.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_CUSTOM_MODE;
+		confirmed.service.request_id++;
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		presence_trace_check(scalar_trace, sizeof(scalar_trace));
+		confirmed.value = 1U;
+		confirmed.service.request_id++;
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		presence_trace_check(scalar_trace, sizeof(scalar_trace));
+		{
+			struct {
+				struct payload_mm_authvar_confirmed_key_frame frame;
+				uint8_t payload[48];
+				uint8_t unused[8];
+			} key = { .frame = {
+				.confirmed.service = {
+					.revision = 5, .header_size = 192, .operation = 11,
+					.flags = 4, .attributes = 0x27, .generation = 7,
+					.data_size = 40,
+					.status = PAYLOAD_MM_AUTHVAR_SERVICE_STATUS_PENDING,
+					.completion = UINT32_MAX,
+				},
+				.key_id = 5, .mutation = 3,
+			} };
+			static const uint8_t delete_auth2[40] = {
+				255, 255, 255, 255, 255, 255, 255, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				24, 0, 0, 0, 0, 2, 0xf1, 0x0e,
+				0x9d, 0xd2, 0xaf, 0x4a, 0xdf, 0x68, 0xee, 0x49,
+				0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7,
+			};
+			memcpy(key.payload, delete_auth2, sizeof(delete_auth2));
+			memcpy(key.frame.confirmed.capability, presence_capability,
+				sizeof(presence_capability));
+			key.frame.confirmed.service.request_id = ++confirmed.service.request_id;
+			programs = program_count;
+			erases = erase_count;
+			/* Absent closed dbt is an admitted no-op, never a stored FF date. */
+			assert(payload_mm_authvar_presence_confirmed_key(&key.frame, sizeof(key)) ==
+				PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+			presence_trace_check(read_only_trace, sizeof(read_only_trace));
+			assert(program_count == programs && erase_count == erases);
+			/* Direct authority proof; the parent retains the original v4 mutation. */
+			child = fork();
+			assert(child >= 0);
+			if (!child) {
+				struct payload_mm_authvar_policy_request replay = {
+					.operation = 3, .attributes = 0x27,
+					.name = coordinator_pk_name, .name_size = sizeof(coordinator_pk_name),
+				};
+				struct payload_mm_authvar_policy_result replay_result;
+				const struct payload_mm_authvar_store_entry *entry;
+				memcpy(replay.vendor_guid, coordinator_global_guid, 16);
+				replay.data_size = coordinator_auth2(fixture.auth2,
+					&fixture.payload, sizeof(fixture.payload));
+				put16(fixture.auth2, 2025);
+				replay.data = fixture.auth2;
+				programs = program_count;
+				erases = erase_count;
+				assert(payload_mm_authvar_set_transaction(&replay, &replay_result) ==
+					PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
+				presence_trace_check(read_only_trace, sizeof(read_only_trace));
+				assert(program_count == programs && erase_count == erases);
+				/* Real authority/coordinator/candidate replay closure; crypto is modeled here. */
+				key.frame.key_id = 1;
+				key.frame.mutation = 1;
+				key.frame.confirmed.service.data_size = 41;
+				memset(key.payload, 0, sizeof(key.payload));
+				memcpy(key.payload, delete_auth2, sizeof(delete_auth2));
+				memset(key.payload, 0, 16);
+				put16(key.payload, 2025);
+				key.payload[2] = 9;
+				key.payload[3] = 23;
+				key.payload[6] = 1;
+				key.payload[40] = fixture.payload;
+				for (size_t replacement = 0; replacement < 2; replacement++) {
+					key.frame.confirmed.service.request_id++;
+					assert(payload_mm_authvar_presence_confirmed_key(&key.frame, sizeof(key)) ==
+						PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+					presence_trace_check(candidate_callback_golden,
+						sizeof(candidate_callback_golden));
+					entry = native_find(coordinator_global_guid, coordinator_pk_name,
+						sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries));
+					assert(entry && entry->data_size == 1 &&
+						!memcmp(index.store + entry->record_offset + 16, key.payload, 16));
+				}
+				key.frame.key_id = 1;
+				key.frame.mutation = 3;
+				key.frame.confirmed.service.data_size = 40;
+				memset(key.payload, 0, sizeof(key.payload));
+				memcpy(key.payload, delete_auth2, sizeof(delete_auth2));
+				key.frame.confirmed.service.request_id++;
+				assert(payload_mm_authvar_presence_confirmed_key(&key.frame, sizeof(key)) ==
+					PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+				presence_trace_check(candidate_callback_golden,
+					sizeof(candidate_callback_golden));
+				assert(!native_find(coordinator_global_guid, coordinator_pk_name,
+					sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries)));
+				_exit(0);
+			}
+			assert(waitpid(child, &status, 0) == child);
+			assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+		}
+		confirmed.service.flags = PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK;
+		confirmed.value = 0U;
+		confirmed.service.request_id++;
+		assert(payload_mm_authvar_presence_confirmed_action(&confirmed, &result_flags) ==
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && !result_flags);
+		presence_trace_check(candidate_callback_golden, sizeof(candidate_callback_golden));
+		assert(!native_find(coordinator_global_guid, coordinator_pk_name,
+			sizeof(coordinator_pk_name), &index, entries, ARRAY_SIZE(entries)));
+	}
+	assert(payload_mm_authvar_executor_enter_setup_mode(&reset_required) ==
+		PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && reset_required);
 	presence_mailbox = (struct payload_mm_authvar_presence_message) {
 		.revision = PAYLOAD_MM_AUTHVAR_PRESENCE_REVISION,
 		.size = sizeof(presence_mailbox),

@@ -583,14 +583,40 @@ expected_entry_callers=$(printf '%s\n' \
 	"$root/src/lib/payload_mm_authvar_presence_lifecycle_close_route.c" \
 	"$root/src/lib/payload_mm_authvar_presence_lifecycle_close_s3_route.c" \
 	"$root/src/lib/payload_mm_authvar_presence_route_session.c" \
-	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c" | sort)
+	"$root/src/mainboard/emulation/qemu-q35/native_service_receiver.c" \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_presence_lifecycle_close_dispatch.c" \
+	"$root/src/mainboard/starlabs/starbook/variants/mtl/authvar_service_runtime_dispatch.c" | sort)
 if [ "$entry_callers" != "$expected_entry_callers" ]; then
 	printf '%s\n' 'unexpected SMM invocation entry caller set' >&2
 	exit 1
 fi
-if rg -q 'select[[:space:]]+SMM_INVOCATION_(ENTRY|INTEL_ADAPTER)[[:space:]]*$' \
+if rg -q 'select[[:space:]]+SMM_INVOCATION_INTEL_ADAPTER[[:space:]]*$' \
 	"$root/src"; then
-	printf '%s\n' 'dormant entry or adapter became selected' >&2
+	printf '%s\n' 'dormant Intel adapter became selected' >&2
+	exit 1
+fi
+entry_selectors=$(rg -l 'select[[:space:]]+SMM_INVOCATION_ENTRY[[:space:]]*$' \
+	"$root/src" | sort)
+if [ "$entry_selectors" != "$root/src/mainboard/emulation/qemu-q35/Kconfig" ]; then
+	printf '%s\n' 'unexpected SMM invocation entry selector set' >&2
+	exit 1
+fi
+if ! entry_selector_owner=$(awk '
+	/^config / { owner = $2; bool_count = 0; default_n_count = 0 }
+	/^[[:space:]]*bool([[:space:]]|$)/ { bool_count++ }
+	/^[[:space:]]*default[[:space:]]+n[[:space:]]*$/ { default_n_count++ }
+	/^[[:space:]]*select[[:space:]]+SMM_INVOCATION_ENTRY[[:space:]]*$/ {
+		print owner ":" $2 ":" bool_count ":" default_n_count
+		count++
+	}
+	END { if (count != 1) exit 1 }
+' "$entry_selectors"); then
+	printf '%s\n' 'unexpected SMM invocation entry selector count' >&2
+	exit 1
+fi
+if [ "$entry_selector_owner" != \
+	'Q35_SMM_INVOCATION_NATIVE_SERVICE_COMPONENT:SMM_INVOCATION_ENTRY:1:1' ]; then
+	printf '%s\n' 'unexpected SMM invocation entry selector owner' >&2
 	exit 1
 fi
 fail_stop_selectors=$(rg -l \

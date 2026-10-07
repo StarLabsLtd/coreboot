@@ -558,10 +558,9 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	if (!snapshot->facts.at_runtime &&
 	    ((snapshot->facts.setup_mode && snapshot->facts.secure_boot) ||
-	     (!snapshot->facts.setup_mode &&
-	      (!secure_boot_enable || snapshot->facts.secure_boot !=
-		      secure_boot_enable_data))))
+	     (!snapshot->facts.setup_mode && !secure_boot_enable)))
 		return PAYLOAD_MM_VERIFY_CHANGED;
+	/* Facts carry the owner's published mode; Enable is a next-boot preference. */
 	if (decision->outcome != PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION) {
 		target_entry = payload_mm_authvar_store_find(snapshot->index,
 			request->vendor_guid, request->name, request->name_size);

@@ -293,6 +293,9 @@ int main(int argc, char **argv)
 	assert(payload_mm_authvar_service_descriptor_copy(&descriptor) == CB_SUCCESS);
 	service_generation = descriptor.generation;
 	assert(descriptor.revision == 5 && descriptor.maximum_name_size == 4096);
+	assert(!!(descriptor.flags & LB_AUTHVAR_ENDPOINT_CONFIRMED_SETUP) ==
+		(CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY) &&
+		 CONFIG(PAYLOAD_MM_AUTHVAR_COORDINATOR)));
 	assert(descriptor.flags & LB_AUTHVAR_ENDPOINT_IMAGE_POLICY_GENERAL);
 	if (!strncmp(argv[1], "classification", 14)) {
 		static const uint8_t missing[] = { 'Z', 0, 0, 0 };
