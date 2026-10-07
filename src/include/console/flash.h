@@ -11,6 +11,7 @@ void flashconsole_init(void);
 void flashconsole_tx_byte(unsigned char c);
 void flashconsole_tx_flush(void);
 bool flashconsole_append(const uint8_t *data, size_t length);
+bool flashconsole_reclaim_latest(void);
 
 #define __CONSOLE_FLASH_ENABLE__ \
 	(CONFIG(CONSOLE_SPI_FLASH) && \
