@@ -5,20 +5,6 @@
 #include <ec/starlabs/merlin/cfr.h>
 #include <variants.h>
 
-enum {
-	STARLABS_CFR_ASPM_DISABLE = 1,
-	STARLABS_CFR_ASPM_L0S,
-	STARLABS_CFR_ASPM_L1,
-	STARLABS_CFR_ASPM_L0S_L1,
-	STARLABS_CFR_ASPM_AUTO,
-};
-
-enum {
-	STARLABS_CFR_L1SS_DISABLED = 1,
-	STARLABS_CFR_L1SS_L1_1,
-	STARLABS_CFR_L1SS_L1_2,
-};
-
 static void cezanne_update_pcie_clk_pm(struct sm_object *new_obj)
 {
 	if (!CONFIG(PCIEXP_CLK_PM))
