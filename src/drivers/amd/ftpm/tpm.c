@@ -24,6 +24,9 @@
  * the regions are missing or corrupted the fTPM won't be operational.
  */
 
+#include <acpi/acpi.h>
+#include <cpu/x86/cache.h>
+#include <option.h>
 #include <amdblocks/backup_boot_device.h>
 #include <amdblocks/psp.h>
 #include <amdblocks/reset.h>
@@ -151,6 +154,17 @@ static int erase_region(const char *name, const enum boot_device boot_device)
 tpm_result_t crb_tpm_init(void)
 {
 	bool psp_rpmc_nvram, psp_nvram, psp_dir;
+	bool recover = false;
+
+	/* Consume next-boot consent even when this boot does not need recovery. */
+	if (!acpi_is_wakeup_s3() && get_uint_option("ftpm_recovery", 0) == 1) {
+		if (set_uint_option("ftpm_recovery", 0) != CB_SUCCESS)
+			return TPM_CB_FAIL;
+		wbinvd();
+		if (get_uint_option("ftpm_recovery", 1) != 0)
+			return TPM_CB_FAIL;
+		recover = true;
+	}
 
 	/*
 	 * When recovery is required psp_ftpm_is_active() always returns false.
@@ -158,9 +172,19 @@ tpm_result_t crb_tpm_init(void)
 	 */
 	psp_ftpm_needs_recovery(&psp_rpmc_nvram, &psp_nvram, &psp_dir);
 
+	if (psp_dir) {
+		printk(BIOS_ERR, "fTPM: fTPM driver corrupted. Need FW update.\n");
+		return TPM_CB_FAIL;
+	}
+
+	if ((psp_rpmc_nvram || psp_nvram) && !recover) {
+		printk(BIOS_ERR, "fTPM: Storage recovery requires confirmation in setup.\n");
+		return TPM_CB_FAIL;
+	}
+
 	if (psp_rpmc_nvram) {
 		if (erase_region(FMAP_NAME_PSP_RPMC_NVRAM, FLASH_PRIMARY))
-			psp_rpmc_nvram = false; /* Skip reset if erase failed */
+			return TPM_CB_FAIL;
 
 		if (CONFIG(SOC_AMD_COMMON_BLOCK_SPI_BACKUP_SPI_FLASH) &&
 		    erase_region(FMAP_NAME_PSP_RPMC_NVRAM, FLASH_BACKUP))
@@ -169,7 +193,7 @@ tpm_result_t crb_tpm_init(void)
 	}
 	if (psp_nvram) {
 		if (erase_region(FMAP_NAME_PSP_NVRAM, FLASH_PRIMARY))
-			psp_nvram = false; /* Skip reset if erase failed */
+			return TPM_CB_FAIL;
 
 		if (CONFIG(SOC_AMD_COMMON_BLOCK_SPI_BACKUP_SPI_FLASH) &&
 		    erase_region(FMAP_NAME_PSP_NVRAM, FLASH_BACKUP))
@@ -181,10 +205,6 @@ tpm_result_t crb_tpm_init(void)
 		cold_reset();
 	}
 
-	if (psp_dir) {
-		printk(BIOS_ERR, "fTPM: fTPM driver corrupted. Need FW update.\n");
-		return CB_ERR;
-	}
 
 	if (!psp_ftpm_is_active())
 		return CB_ERR_NOT_IMPLEMENTED;
