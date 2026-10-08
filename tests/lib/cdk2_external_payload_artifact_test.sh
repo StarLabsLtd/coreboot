@@ -22,10 +22,23 @@ test -f "$cdk2_config"
 test -f "$coreboot_config"
 grep -qx 'CONFIG_PAYLOAD_CDK2=y' "$coreboot_config"
 grep -qx 'CONFIG_CDK2_STRICT_DIRECT_RUNTIME=y' "$cdk2_config"
-if grep -Eq '^CONFIG_(SMMSTORE|DRIVERS_EFI_VARIABLE_STORE)=y$' \
+if grep -Eq '^CONFIG_(SMMSTORE|DRIVERS_EFI_UPDATE_CAPSULES)=y$' \
 	"$coreboot_config"; then
 	echo 'production CDK2 artifact gate forbids the legacy variable-store route' >&2
 	exit 1
+fi
+
+# Public EFI variable storage is the RAM/disk handoff reader, not SMMSTORE.
+# Generated headers prove hidden legacy switches are off, rather than treating
+# their absence from a saved .config as an admission decision.
+for symbol in SMMSTORE DRIVERS_EFI_UPDATE_CAPSULES; do
+	grep -qx "#define CONFIG_$symbol 0" "$build/config.h"
+done
+for symbol in CDK2_NATIVE_SMMSTORE_FVB CDK2_NATIVE_FTW; do
+	grep -qx "#define CONFIG_$symbol 0" "$build/cdk2/include/cdk2/config.h"
+done
+if grep -qx 'CONFIG_CDK2_PROTECTED_VARIABLE_RUNTIME=y' "$cdk2_config"; then
+	grep -qx 'CONFIG_PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED=y' "$coreboot_config"
 fi
 
 "$cbfstool" "$rom" print > "$temporary/cbfs.txt"
