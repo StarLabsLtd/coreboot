@@ -819,6 +819,8 @@ static void endpoint_mutations(void)
 	REJECT(trigger_address, CAPSULE_BROKER_APM_PORT + 1);
 	REJECT(trigger_address, 0x10000);
 	REJECT(trigger_value, 0);
+	REJECT(trigger_value, 0xe8U);
+	REJECT(trigger_value, 0xe9U);
 	REJECT(trigger_value, CAPSULE_BROKER_APM_COMMAND + 1);
 	REJECT(trigger_value, 0x100);
 #undef REJECT

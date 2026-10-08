@@ -313,7 +313,10 @@ config CONSOLE_SPI_FLASH_LATEST_BOOT
 
 config PAYLOAD_SPI_FLASH_CONSOLE
 	bool "Allow the payload to append to the SPI flash console through SMM"
-	depends on CONSOLE_SPI_FLASH && SMMSTORE
+	depends on CONSOLE_SPI_FLASH
+	depends on SMMSTORE || (BOARD_EMULATION_QEMU_X86_Q35 && \
+		QEMU_PFLASH_VOLATILE_LEASE && CONSOLE_CBMEM && \
+		CONSOLE_SPI_FLASH_LATEST_BOOT)
 	depends on SOC_INTEL_COMMON_BLOCK_SMM || BOARD_EMULATION_QEMU_X86_Q35
 	select BOOTMEDIA_SMM_BWP if SOC_INTEL_COMMON_BLOCK_SMM
 	help
@@ -322,6 +325,14 @@ config PAYLOAD_SPI_FLASH_CONSOLE
 	  the reserved SMM communication buffer and retains SMM write protection.
 	  Enable this only in a development profile because flash writes consume
 	  device endurance.
+
+config PAYLOAD_SPI_FLASH_CONSOLE_NATIVE_PREFIX
+	bool
+	default y if PAYLOAD_SPI_FLASH_CONSOLE && !SMMSTORE
+	help
+	  The protected Q35 diagnostic owner reclaims its exact CONSOLE region
+	  once in SMM and persists the complete bounded CBMEM prefix before the
+	  first accepted payload record. No legacy variable writer is selected.
 
 config CONSOLE_I2C_SMBUS
 	bool "SMBus console output"

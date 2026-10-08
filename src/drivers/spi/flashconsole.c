@@ -38,6 +38,11 @@ void flashconsole_init(void)
 	bool latest_owner = CONFIG(CONSOLE_SPI_FLASH_LATEST_BOOT) &&
 		latest_boot_owner();
 
+	/* Protected Q35 cannot initialize flash from ramstage. The admitted
+	 * payload console sink explicitly reclaims it once from SMM instead. */
+	if (CONFIG(PAYLOAD_SPI_FLASH_CONSOLE_NATIVE_PREFIX))
+		return;
+
 	if (latest_owner && latest_boot_attempted)
 		return;
 	if (latest_owner) {
@@ -56,7 +61,7 @@ void flashconsole_init(void)
 	}
 	size = region_device_sz(&rdev);
 	if (latest_owner) {
-		if (CONFIG(SMMSTORE) &&
+		if (CONFIG(SMMSTORE_READ_REGION) &&
 		    (fmap_locate_area_as_rdev_rw("SMMSTORE", &smmstore) ||
 		     region_overlap(region_device_region(&rdev),
 			region_device_region(&smmstore)))) {
@@ -113,6 +118,44 @@ void flashconsole_init(void)
 	rdev_ptr = &rdev;
 }
 
+bool flashconsole_reclaim_latest(void)
+{
+	struct region_device candidate, store;
+	uint8_t erased[READ_BUFFER_SIZE];
+	size_t size;
+
+	if (!CONFIG(PAYLOAD_SPI_FLASH_CONSOLE_NATIVE_PREFIX) || !ENV_SMM ||
+	    latest_boot_attempted)
+		return false;
+	/* Poison before the first media callback. A partial failed erase is never
+	 * silently retried, nor may append rediscover a stale region afterwards. */
+	latest_boot_attempted = true;
+	write_failed = true;
+	rdev_ptr = NULL;
+	offset = line_offset = 0;
+	if (fmap_locate_area_as_rdev_rw("CONSOLE", &candidate) ||
+	    !CONFIG(SMMSTORE_READ_REGION) ||
+	    fmap_locate_area_as_rdev_rw("SMMSTORE", &store) ||
+	    region_overlap(region_device_region(&candidate), region_device_region(&store)))
+		return false;
+	size = region_device_sz(&candidate);
+	if (region_offset(region_device_region(&candidate)) != 0x80000 ||
+	    size != CONFIG_CONSOLE_SPI_FLASH_BUFFER_SIZE || size != 0x20000 ||
+	    rdev_eraseat(&candidate, 0, size) != size)
+		return false;
+	for (size_t cursor = 0; cursor < size; cursor += sizeof(erased)) {
+		if (rdev_readat(&candidate, erased, cursor, sizeof(erased)) != sizeof(erased))
+			return false;
+		for (size_t byte = 0; byte < sizeof(erased); byte++)
+			if (erased[byte] != 0xff)
+				return false;
+	}
+	rdev = candidate;
+	rdev_ptr = &rdev;
+	write_failed = false;
+	return true;
+}
+
 void flashconsole_tx_byte(unsigned char c)
 {
 	if (!rdev_ptr)
@@ -156,6 +199,17 @@ static bool flashconsole_flush(void)
 		line_offset = 0;
 		busy = false;
 		return false;
+	}
+	if (CONFIG(PAYLOAD_SPI_FLASH_CONSOLE_NATIVE_PREFIX)) {
+		uint8_t written[LINE_BUFFER_SIZE];
+
+		if (rdev_readat(&rdev, written, offset, len) != len ||
+		    memcmp(written, line_buffer, len)) {
+			write_failed = true;
+			line_offset = 0;
+			busy = false;
+			return false;
+		}
 	}
 
 	offset += len;
