@@ -157,4 +157,7 @@ chip soc/amd/cezanne
 		end
 	end
 	device ref uart_0	on  end
+	chip drivers/amd/ftpm
+		device mmio 0xfd3104d0 on end
+	end
 end
