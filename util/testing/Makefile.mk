@@ -516,6 +516,13 @@ test-cdk2-external-payload:
 	tests/lib/cdk2_external_payload_test.sh
 
 .PHONY: test-cdk2-external-payload-artifact
+.PHONY: test-cdk2-external-payload-artifact-policy
+test-cdk2-external-payload-artifact-policy:
+	@test -n "$(CDK2_POLICY_PRODUCER_OUTPUT)" && test -n "$(CDK2_POLICY_NATIVE_OUTPUT)"
+	python3 -B tests/lib/cdk2_external_payload_artifact_policy_test.py \
+		tests/lib/cdk2_external_payload_artifact_test.sh \
+		"$(CDK2_POLICY_PRODUCER_OUTPUT)" "$(CDK2_POLICY_NATIVE_OUTPUT)"
+
 test-cdk2-external-payload-artifact: $(obj)/coreboot.rom
 	tests/lib/cdk2_external_payload_artifact_test.sh \
 		$(obj)/coreboot.rom $(obj) $(DOTCONFIG) $(CBFSTOOL)
