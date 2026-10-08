@@ -393,6 +393,7 @@ StarBook Horizon <starlabs/adl_horizon.md>
 Byte Mk II <starlabs/byte.md>
 StarFighter Mk I <starlabs/starfighter_rpl.md>
 StarFighter Mk II <starlabs/starfighter_mtl.md>
+StarFighter Mk II (AMD) <starlabs/starfighter_phx.md>
 
 Building coreboot <starlabs/common/building.md>
 Flashing devices <starlabs/common/flashing.md>
