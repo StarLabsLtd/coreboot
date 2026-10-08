@@ -60,11 +60,6 @@ config DRIVERS_EFI_MAIN_FW_GUID
 config EC_STARLABS_ADD_ITE_BIN
 	default y
 
-config EC_STARLABS_ITE_BIN_PATH
-	help
-	  Supply a validated Phoenix EC binary separately. The blobs repository
-	  does not include it. See this mainboard's README.md for build inputs.
-
 config EC_GPE_SCI
 	default 0x0B
 
