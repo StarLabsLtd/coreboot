@@ -1,0 +1,137 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config BOARD_STARLABS_PHOENIX_SERIES
+	def_bool n
+	select AMD_SOC_CONSOLE_UART
+	select AZALIA_HDA_CODEC_SUPPORT
+	select BOARD_ROMSIZE_KB_32768
+	select DRIVERS_EFI_VARIABLE_STORE
+	select DRIVERS_OPTION_CFR_ENABLED
+	select DRIVERS_PCIE_RTD3_DEVICE
+	select EC_STARLABS_ITE
+	select EC_STARLABS_MERLIN
+	select HAVE_ACPI_TABLES
+	select MAINBOARD_HAS_TPM2
+	select MEMORY_MAPPED_TPM
+	select PCIEXP_ASPM
+	select PCIEXP_CLK_PM
+	select PCIEXP_COMMON_CLOCK
+	select PCIEXP_HOTPLUG
+	select PCIEXP_L1_SUB_STATE
+	select SOC_AMD_COMMON_BLOCK_HDA
+	select SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3
+	select SOC_AMD_COMMON_BLOCK_USE_ESPI
+	select SOC_AMD_PHOENIX_OPENSIL
+
+config BOARD_STARLABS_STARFIGHTER_AMD
+	select BOARD_STARLABS_PHOENIX_SERIES
+	select DRIVERS_I2C_HID
+	select EC_STARLABS_FAN
+	select SYSTEM_TYPE_LAPTOP
+	select TPM_MEASURED_BOOT if TPM
+
+if BOARD_STARLABS_PHOENIX_SERIES
+
+config BOARD_SPECIFIC_OPTIONS
+	def_bool y
+
+config SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION
+	default y
+
+config STARLABS_TOUCHPAD_CONTROLLER
+	default "pixart" if BOARD_STARLABS_STARFIGHTER_AMD
+
+config ADD_APCB_SOURCES
+	bool "Add PSP customisation files"
+
+config APCB_SOURCES_PATH
+	string "Path to APCB files"
+
+config CONSOLE_SERIAL
+	default n if !EDK2_DEBUG
+
+config DEVICETREE
+	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
+
+config DRIVERS_EFI_MAIN_FW_GUID
+	default "28716706-098a-4ad5-8f40-85ae29dfacad" if BOARD_STARLABS_STARFIGHTER_AMD
+
+
+config EC_STARLABS_ADD_ITE_BIN
+	default y
+
+config EC_STARLABS_ITE_BIN_PATH
+	help
+	  Supply a validated Phoenix EC binary separately. The blobs repository
+	  does not include it. See this mainboard's README.md for build inputs.
+
+config EC_GPE_SCI
+	default 0x0B
+
+config EARLY_RESERVED_DRAM_BASE
+	default 0x10000000
+
+config EDK2_BOOTSPLASH_FILE
+	string
+	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
+
+config FMDFILE
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/board.fmd"
+
+config MAINBOARD_DIR
+	default "starlabs/phoenix"
+
+config MAINBOARD_FAMILY
+	string
+	default "F2-A"
+
+config MAINBOARD_PART_NUMBER
+	string
+	default "StarFighter Mk II"
+
+config MAINBOARD_SMBIOS_PRODUCT_NAME
+	string
+	default "StarFighter"
+
+config PSP_LOAD_MP2_FW
+	default y
+
+# Reserve USB4 PCIe tunnel capacity even when no dock is attached at boot.
+config PCIEXP_HOTPLUG_BUSES
+	default 42
+
+config PCIEXP_HOTPLUG_MEM
+	default 0xc200000  # 194 MiB per hotplug port
+
+config PCIEXP_HOTPLUG_PREFETCH_MEM
+	default 0x1c000000 # 448 MiB per hotplug port
+
+config PSP_APOB_DRAM_SIZE
+	default 0x40000
+
+config PSP_APOB_DRAM_ADDRESS
+	default 0x10001000
+
+config ROMSTAGE_ADDR
+	default 0x10070000
+
+config VARIANT_DIR
+	string
+	default "starfighter"
+
+config EFS_SPI_SPEED
+	default 3
+
+config NORMAL_READ_SPI_SPEED
+	default 1
+
+config ALT_SPI_SPEED
+	default 0
+
+config PSP_UNLOCK_SECURE_DEBUG
+	default n
+
+config ALWAYS_ALLOW_ABOVE_4G_ALLOCATION
+	default y
+
+endif # BOARD_STARLABS_PHOENIX_SERIES
