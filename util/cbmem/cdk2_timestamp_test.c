@@ -25,7 +25,7 @@ int main(void)
 	static const uint32_t holes[] = {
 		0x1002, 0x130a, 0x1328, 0x132f, 0x133c, 0x133f, 0x1343,
 		0x1358, 0x135f, 0x144f, 0x1451, 0x15ff,
-		0x1620, 0x1621, 0x1626, 0x1649, 0x164c,
+		0x1620, 0x1621, 0x1626, 0x1649, 0x165c,
 		0x1680, 0x1700, 0x1707, 0x17df, 0x17ea, 0x17eb, 0x17ec,
 		0x17ed, 0x17ee, 0x17ef, 0x17fa, 0x17fb, 0x17fc, 0x17fd,
 		0x17fe, 0x17ff, 0x1804, 0x181f, 0x182f,
@@ -85,6 +85,22 @@ int main(void)
 		assert(strcmp(timestamp_name(id), "<unknown>"));
 	for (uint32_t id = 0x1340; id <= 0x1342; id++)
 		assert(strcmp(timestamp_name(id), "<unknown>"));
+	{
+		static const char *const operations[] = {
+			"CDK2 FAT open/size", "CDK2 FAT read", "CDK2 loader seal",
+			"CDK2 PE precheck", "CDK2 file close/reproof",
+			"CDK2 native load call", "CDK2 post-load reproof",
+			"CDK2 start preparation",
+		};
+		char expected[64];
+
+		for (size_t index = 0U; index < ARRAY_SIZE(operations); index++) {
+			snprintf(expected, sizeof(expected), "%s begin", operations[index]);
+			assert(!strcmp(timestamp_name(0x164cU + 2U * index), expected));
+			snprintf(expected, sizeof(expected), "%s end", operations[index]);
+			assert(!strcmp(timestamp_name(0x164dU + 2U * index), expected));
+		}
+	}
 	assert(!strcmp(timestamp_name(0x19a0), "CDK2 DXE firmware volume"));
 	assert(!strcmp(timestamp_name(0x1830), "CDK2 DXE image service"));
 	assert(!strcmp(timestamp_name(0x1838), "CDK2 DXE image service"));
