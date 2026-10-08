@@ -60,7 +60,6 @@ source "payloads/external/*/Kconfig"
 
 config PAYLOAD_OWNS_PCI_DEVICES
 	bool
-	depends on !EDK2_UNIVERSAL_PAYLOAD
 	default n if VENDOR_SIEMENS && PCI_ALLOW_BUS_MASTER_ANY_DEVICE
 	default y if PAYLOAD_EDK2
 	help
