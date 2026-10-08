@@ -26,7 +26,6 @@
 
 #include <amdblocks/backup_boot_device.h>
 #include <amdblocks/psp.h>
-#include <amdblocks/reset.h>
 #include <boot_device.h>
 #include <cbmem.h>
 #include <console/console.h>
@@ -114,33 +113,6 @@ static int synchronize_region(const char *name)
 	return 0;
 }
 
-static int erase_region(const char *name, const enum boot_device boot_device)
-{
-	struct region_device store;
-	struct region ar;
-
-	if (fmap_locate_area(name, &ar)) {
-		printk(BIOS_ERR, "FTPM: Unable to find FMAP region %s\n", name);
-		return -1;
-	}
-	if (boot_device == FLASH_PRIMARY && boot_device_rw_subregion(&ar, &store)) {
-		printk(BIOS_ERR, "FTPM: Unable to find FMAP region %s\n", name);
-		return -1;
-	}
-	if (CONFIG(SOC_AMD_COMMON_BLOCK_SPI_BACKUP_SPI_FLASH) && boot_device == FLASH_BACKUP &&
-	    backup_boot_device_rw_subregion(&ar, &store)) {
-		printk(BIOS_ERR, "FTPM: Unable to find FMAP region %s\n", name);
-		return -1;
-	}
-
-	if (rdev_eraseat(&store, 0, region_device_sz(&store))
-	    != region_device_sz(&store))
-		return -1;
-
-	printk(BIOS_NOTICE, "fTPM: Erased FMAP region %s\n", name);
-	return 0;
-}
-
 /*
  * crb_tpm_init
  *
@@ -158,27 +130,10 @@ tpm_result_t crb_tpm_init(void)
 	 */
 	psp_ftpm_needs_recovery(&psp_rpmc_nvram, &psp_nvram, &psp_dir);
 
-	if (psp_rpmc_nvram) {
-		if (erase_region(FMAP_NAME_PSP_RPMC_NVRAM, FLASH_PRIMARY))
-			psp_rpmc_nvram = false; /* Skip reset if erase failed */
-
-		if (CONFIG(SOC_AMD_COMMON_BLOCK_SPI_BACKUP_SPI_FLASH) &&
-		    erase_region(FMAP_NAME_PSP_RPMC_NVRAM, FLASH_BACKUP))
-			printk(BIOS_ERR, "Failed to erase backup " FMAP_NAME_PSP_RPMC_NVRAM
-					 " FMAP region\n");
-	}
-	if (psp_nvram) {
-		if (erase_region(FMAP_NAME_PSP_NVRAM, FLASH_PRIMARY))
-			psp_nvram = false; /* Skip reset if erase failed */
-
-		if (CONFIG(SOC_AMD_COMMON_BLOCK_SPI_BACKUP_SPI_FLASH) &&
-		    erase_region(FMAP_NAME_PSP_NVRAM, FLASH_BACKUP))
-			printk(BIOS_ERR, "Failed to erase backup " FMAP_NAME_PSP_NVRAM
-					 " FMAP region\n");
-	}
 	if (psp_rpmc_nvram || psp_nvram) {
-		printk(BIOS_DEBUG, "fTPM: Reset to recover fTPM...\n");
-		cold_reset();
+		/* Recovery destroys sealed secrets and requires an explicit owner decision. */
+		printk(BIOS_ERR, "fTPM: Storage recovery required; preserving TPM data.\n");
+		return TPM_CB_FAIL;
 	}
 
 	if (psp_dir) {
