@@ -97,12 +97,21 @@ static void uart8250_mem_init(void *base, unsigned int divisor)
 	uart8250_write(base, UART8250_LCR, CONFIG_TTYS0_LCS);
 }
 
+static bool console_initialized;
+
+bool uart_is_initialized(unsigned int idx)
+{
+	return idx == get_uart_for_console() && console_initialized;
+}
+
 void uart_init(unsigned int idx)
 {
 	void *base = uart_platform_baseptr(idx);
 	unsigned int clock;
 	unsigned int div;
 
+	if (idx == get_uart_for_console())
+		console_initialized = false;
 	if (!base)
 		return;
 
@@ -114,6 +123,8 @@ void uart_init(unsigned int idx)
 	if (!div || div > UINT16_MAX)
 		return;
 	uart8250_mem_init(base, div);
+	if (idx == get_uart_for_console())
+		console_initialized = true;
 }
 
 void uart_tx_byte(unsigned int idx, unsigned char data)

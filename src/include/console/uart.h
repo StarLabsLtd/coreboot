@@ -4,6 +4,7 @@
 #define CONSOLE_UART_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* Return the clock frequency UART uses as reference clock for
  * baudrate generator. */
@@ -55,6 +56,8 @@ static inline unsigned int uart_get_baudrate_divisor(void)
 void uart_bitbang_tx_byte(unsigned char data, void (*set_tx)(int line_state));
 
 void uart_init(unsigned int idx);
+/* MEM 8250 console owner: true only after this stage completed programming. */
+bool uart_is_initialized(unsigned int idx);
 void uart_tx_byte(unsigned int idx, unsigned char data);
 void uart_tx_flush(unsigned int idx);
 unsigned char uart_rx_byte(unsigned int idx);
