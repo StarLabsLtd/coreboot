@@ -24,6 +24,8 @@ void lb_add_gpios(struct lb_gpios *gpios, const struct lb_gpio *gpio_table,
 		  size_t count);
 
 enum cb_err fill_lb_serial(struct lb_serial *serial);
+/* Optional initialized UART contract; unavailable controllers remain undeclared. */
+enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial);
 void lb_add_console(uint16_t consoletype, void *data);
 
 enum cb_err fill_lb_pcie(struct lb_pcie *pcie);

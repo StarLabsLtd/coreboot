@@ -3,6 +3,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpigen.h>
 #include <acpi/acpi_gnvs.h>
+#include <boot/coreboot_tables.h>
 #include <console/uart.h>
 #include <cpu/x86/smm.h>
 #include <device/device.h>
@@ -74,6 +75,67 @@ unsigned int uart_platform_refclk(void)
 	clock = UART_SOURCE_CLOCK * numerator / denominator;
 	return clock && clock <= UINT32_MAX / 2 ? clock : 0;
 }
+
+#if ENV_RAMSTAGE
+enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial)
+{
+	const struct device *dev = uart_get_device();
+	const struct resource *resource;
+	uintptr_t base;
+	uint32_t clock, parameters, fifo_mode, enabled;
+
+	if (!dev || !dev->enabled || !uart_is_initialized(CONFIG_UART_FOR_CONSOLE) ||
+	    pci_read_config16(dev, PCI_VENDOR_ID) != PCI_VID_INTEL)
+		return CB_ERR;
+	/* Documented on-package ADL and MTL LPSS UART register owners only. */
+	switch (pci_read_config16(dev, PCI_DEVICE_ID)) {
+	case 0x51a8:
+	case 0x51a9:
+	case 0x51c7:
+	case 0x7e25:
+	case 0x7e26:
+	case 0x7e52:
+		break;
+	default:
+		return CB_ERR;
+	}
+	base = uart_platform_base(CONFIG_UART_FOR_CONSOLE);
+	resource = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	if (!resource || !(resource->flags & IORESOURCE_MEM) ||
+	    !(resource->flags & IORESOURCE_ASSIGNED) || resource->base != base ||
+	    resource->size < 0x300 || resource->size > UINT32_MAX)
+		return CB_ERR;
+	/* The shared clock owner validates D0, BAR, decode and reset before MMIO. */
+	clock = uart_platform_refclk();
+	if (!clock || read32((void *)(base + 0xfc)) != 0x44570110)
+		return CB_ERR;
+	parameters = read32((void *)(base + 0xf4));
+	if (parameters == UINT32_MAX || (parameters & 3U) != 2U ||
+	    (parameters & ((1U << 11) | (1U << 12))) != ((1U << 11) | (1U << 12)))
+		return CB_ERR;
+	fifo_mode = (parameters >> 16) & 0xffU;
+	if (!fifo_mode || fifo_mode > 128U || (fifo_mode & (fifo_mode - 1U)))
+		return CB_ERR;
+	/* SFE is the readable FIFO-enable shadow; never read IIR or write FCR here. */
+	enabled = read32((void *)(base + 0x98));
+	if (enabled > 1U)
+		return CB_ERR;
+	*serial = (struct lb_prh_serial_capability) {
+		.revision = LB_PRH_SERIAL_CAPABILITY_REVISION,
+		.family = LB_PRH_SERIAL_FAMILY_INTEL_LPSS,
+		.base = base,
+		.input_hertz = clock,
+		.register_window = resource->size,
+		.fifo_capacity = fifo_mode * 16U,
+		.type = LB_SERIAL_TYPE_MEMORY_MAPPED,
+		.register_width = sizeof(uint32_t),
+		.register_stride = sizeof(uint32_t),
+		.flags = LB_PRH_SERIAL_INITIALIZED |
+			(enabled ? LB_PRH_SERIAL_FIFO_ENABLED : 0),
+	};
+	return CB_SUCCESS;
+}
+#endif
 #endif
 
 static void uart_lpss_init(pci_devfn_t dev, uintptr_t baseaddr)

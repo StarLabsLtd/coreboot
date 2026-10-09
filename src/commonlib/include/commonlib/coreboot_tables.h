@@ -220,6 +220,30 @@ struct lb_ec_battery_descriptor {
 #define LB_PRH_SECTION_MEMORY_POLICY    1
 #define LB_PRH_SECTION_FRAMEBUFFER      7
 #define LB_PRH_SECTION_PCI_TOPOLOGY     8
+#define LB_PRH_SECTION_SERIAL_CAPABILITY 9
+
+#define LB_PRH_SERIAL_CAPABILITY_REVISION 1
+#define LB_PRH_SERIAL_FAMILY_INTEL_LPSS 1
+#define LB_PRH_SERIAL_INITIALIZED 0x01
+#define LB_PRH_SERIAL_FIFO_ENABLED 0x02
+
+/* Initialized Intel LPSS integer-divisor UART, not a generic MMIO UART claim. */
+struct lb_prh_serial_capability {
+	uint16_t revision;
+	uint16_t family;
+	lb_uint64_t base;
+	uint32_t input_hertz;
+	uint32_t register_window;
+	uint32_t fifo_capacity;
+	uint8_t type;
+	uint8_t register_width;
+	uint8_t register_stride;
+	uint8_t flags;
+	uint32_t reserved;
+} __packed;
+
+_Static_assert(sizeof(struct lb_prh_serial_capability) == 32,
+	       "unexpected serial capability size");
 
 #define LB_PRH_PCI_ROOT_TOPOLOGY_ONLY 0x00000001
 

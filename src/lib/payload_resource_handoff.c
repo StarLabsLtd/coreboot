@@ -14,6 +14,12 @@
 static bool revision4_published;
 static uint64_t revision4_generation;
 
+__weak enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial)
+{
+	(void)serial;
+	return CB_ERR;
+}
+
 bool payload_resource_revision4_published(void)
 {
 	return revision4_published;
@@ -754,6 +760,8 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	struct lb_payload_resource_section *root_section, *assignment_section;
 	struct lb_payload_resource_section *topology_section = NULL, *boot_section = NULL;
 	struct lb_payload_resource_section *memory_section = NULL, *framebuffer_section = NULL;
+	struct lb_payload_resource_section *serial_section;
+	struct lb_prh_serial_capability serial = { 0 };
 	struct lb_prh_pci_root_bridge *roots;
 	struct lb_prh_pci_assignment *assignments;
 	struct lb_prh_pci_topology *topology = NULL;
@@ -771,6 +779,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	uint8_t framebuffer_bar;
 	uint64_t framebuffer_length;
 	bool revision4;
+	bool serial_available;
 
 	revision4_published = false;
 	revision4_generation = 0;
@@ -803,12 +812,14 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	if ((revision4 ? quiesce_topology_devices(snapshot) : quiesce_assigned_devices()) !=
 	    CB_SUCCESS)
 		return CB_ERR;
-	section_count = 2 + (revision4 ? 2 : 0) + (framebuffer ? 2 : 0);
+	serial_available = fill_lb_serial_capability(&serial) == CB_SUCCESS;
+	section_count = 2 + (revision4 ? 2 : 0) + (framebuffer ? 2 : 0) + serial_available;
 	record_size = sizeof(*handoff) + section_count * sizeof(*root_section) +
 		root_count * sizeof(*roots) + assignment_count * sizeof(*assignments) +
 		(revision4 ? snapshot->count * sizeof(*topology) +
 		 snapshot->boot_count * sizeof(*boot_intent) : 0) +
-		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0);
+		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0) +
+		(serial_available ? sizeof(serial) : 0);
 	if (record_size > UINT32_MAX || root_count > UINT32_MAX ||
 	    assignment_count > UINT32_MAX ||
 	    (revision4 && (snapshot->count > UINT32_MAX || snapshot->boot_count > UINT32_MAX)))
@@ -1021,6 +1032,20 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 				first = false;
 			}
 		}
+	}
+	if (serial_available) {
+		const struct lb_payload_resource_section *previous =
+			&handoff->sections[section_index - 1];
+
+		serial_section = &handoff->sections[section_index];
+		serial_section->type = LB_PRH_SECTION_SERIAL_CAPABILITY;
+		serial_section->flags = LB_PRH_SECTION_FLAG_AUTHORITATIVE;
+		serial_section->header_length = sizeof(*serial_section);
+		serial_section->entry_size = sizeof(serial);
+		serial_section->entry_count = 1;
+		serial_section->offset = previous->offset + previous->length;
+		serial_section->length = sizeof(serial);
+		memcpy((uint8_t *)handoff + serial_section->offset, &serial, sizeof(serial));
 	}
 	handoff->crc32 = handoff_crc32(handoff);
 	revision4_published = revision4;
