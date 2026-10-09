@@ -100,10 +100,19 @@ static void uart8250_mem_init(void *base, unsigned int divisor)
 void uart_init(unsigned int idx)
 {
 	void *base = uart_platform_baseptr(idx);
+	unsigned int clock;
+	unsigned int div;
+
 	if (!base)
 		return;
 
-	unsigned int div = uart_get_baudrate_divisor();
+	clock = uart_platform_refclk();
+	if (!clock)
+		return;
+	div = uart_calc_baudrate_divisor(get_uart_baudrate(), clock,
+		uart_input_clock_divider());
+	if (!div || div > UINT16_MAX)
+		return;
 	uart8250_mem_init(base, div);
 }
 
@@ -133,6 +142,10 @@ void uart_tx_flush(unsigned int idx)
 
 enum cb_err fill_lb_serial(struct lb_serial *serial)
 {
+	unsigned int clock = uart_platform_refclk();
+
+	if (!clock)
+		return CB_ERR;
 	serial->type = LB_SERIAL_TYPE_MEMORY_MAPPED;
 	serial->baseaddr = uart_platform_base(CONFIG_UART_FOR_CONSOLE);
 	if (!serial->baseaddr)
@@ -142,7 +155,7 @@ enum cb_err fill_lb_serial(struct lb_serial *serial)
 		serial->regwidth = sizeof(uint32_t);
 	else
 		serial->regwidth = sizeof(uint8_t);
-	serial->input_hertz = uart_platform_refclk();
+	serial->input_hertz = clock;
 
 	return CB_SUCCESS;
 }

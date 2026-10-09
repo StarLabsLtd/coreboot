@@ -6,6 +6,7 @@
 #include <console/uart.h>
 #include <cpu/x86/smm.h>
 #include <device/device.h>
+#include <device/mmio.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
@@ -20,6 +21,60 @@
 
 extern const unsigned int uart_devices[];
 extern const int uart_devices_size;
+
+#if CONFIG(INTEL_LPSS_UART_FOR_CONSOLE) && \
+	(CONFIG(SOC_INTEL_ALDERLAKE) || CONFIG(SOC_INTEL_METEORLAKE))
+#define UART_SOURCE_CLOCK 100000000ULL
+#define UART_CLOCK_CONTROL 0x200
+#define UART_CLOCK_ENABLE 1U
+#define UART_CLOCK_DIVISOR_MASK 0x7fffU
+
+_Static_assert(CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_M_VAL > 0 &&
+	CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_M_VAL <= UART_CLOCK_DIVISOR_MASK,
+	"LPSS UART clock numerator must be a nonzero 15-bit value");
+_Static_assert(CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL > 0 &&
+	CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL <= UART_CLOCK_DIVISOR_MASK,
+	"LPSS UART clock denominator must be a nonzero 15-bit value");
+_Static_assert(UART_SOURCE_CLOCK * CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_M_VAL /
+	CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL > 0 &&
+	UART_SOURCE_CLOCK * CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_M_VAL /
+	CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL <= UINT32_MAX / 2,
+	"LPSS UART input clock must fit the baud divisor calculation");
+
+unsigned int uart_platform_refclk(void)
+{
+	uint32_t numerator = CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_M_VAL;
+	uint32_t denominator = CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL;
+	uint64_t clock;
+
+	/* Outside ramstage, use the configured platform console clock. */
+	if (ENV_RAMSTAGE) {
+		const struct device *dev = uart_get_device();
+		uintptr_t base;
+		uint32_t control;
+
+		if (!dev || !dev->enabled ||
+		    lpss_get_power_state(PCI_BDF(dev)) != STATE_D0)
+			return 0;
+		base = pci_read_config32(dev, PCI_BASE_ADDRESS_0) & ~0xFFF;
+		if (!base || base != uart_platform_base(CONFIG_UART_FOR_CONSOLE) ||
+		    !(pci_read_config16(dev, PCI_COMMAND) & PCI_COMMAND_MEMORY))
+			return 0;
+		control = read32((void *)(base + LPSS_RESET_CTL_REG));
+		if (control == UINT32_MAX || (control & 3U) != 3U)
+			return 0;
+		control = read32((void *)(base + UART_CLOCK_CONTROL));
+		if (control == UINT32_MAX || !(control & UART_CLOCK_ENABLE))
+			return 0;
+		numerator = (control >> 1) & UART_CLOCK_DIVISOR_MASK;
+		denominator = (control >> 16) & UART_CLOCK_DIVISOR_MASK;
+		if (!numerator || !denominator)
+			return 0;
+	}
+	clock = UART_SOURCE_CLOCK * numerator / denominator;
+	return clock && clock <= UINT32_MAX / 2 ? clock : 0;
+}
+#endif
 
 static void uart_lpss_init(pci_devfn_t dev, uintptr_t baseaddr)
 {
