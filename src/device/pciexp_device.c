@@ -463,6 +463,48 @@ static unsigned char pciexp_L1_substate_cal(struct device *dev, unsigned int end
 	return 1;
 }
 
+static unsigned int pciexp_l1ss_disable(const struct device *root)
+{
+	unsigned int disable = root->pcie_l1ss_disable;
+
+	/* ASPM L1 substates require ASPM L1; PCI-PM substates are independent. */
+	if (root->pcie_aspm_disable & PCIE_ASPM_L1)
+		disable |= BIT(2) | BIT(3);
+
+	return disable & 0xf;
+}
+
+static void pciexp_disable_l1ss(struct device *dev, unsigned int disable)
+{
+	unsigned int cap = pciexp_find_extended_cap(dev, PCIE_EXT_CAP_L1SS_ID, 0);
+
+	if (!cap && dev->vendor == PCI_VID_INTEL)
+		cap = pciexp_find_ext_vendor_cap(dev, 0xcafe, 0);
+	if (cap)
+		pci_and_config32(dev, cap + 0x08, ~disable);
+}
+
+static void pciexp_disable_link_pm(struct device *root, unsigned int root_cap,
+				  struct device *endp, unsigned int endp_cap)
+{
+	const unsigned int l1ss = pciexp_l1ss_disable(root);
+	const unsigned int aspm = root->pcie_aspm_disable & PCIE_ASPM_BOTH;
+
+	/* Remove L1SS enables before disabling ASPM L1 on the link. */
+	if (l1ss) {
+		if (endp)
+			pciexp_disable_l1ss(endp, l1ss);
+		pciexp_disable_l1ss(root, l1ss);
+	}
+	if (aspm) {
+		if (endp)
+			pci_and_config16(endp, endp_cap + PCI_EXP_LNKCTL, ~aspm);
+		pci_and_config16(root, root_cap + PCI_EXP_LNKCTL, ~aspm);
+	}
+	if (endp && root->disable_pcie_clk_pm)
+		pci_and_config16(endp, endp_cap + PCI_EXP_LNKCTL, ~PCI_EXP_EN_CLK_PM);
+}
+
 static void pciexp_L1_substate_commit(struct device *root, struct device *dev,
 	unsigned int root_cap, unsigned int end_cap)
 {
@@ -487,7 +529,7 @@ static void pciexp_L1_substate_commit(struct device *root, struct device *dev,
 			return;
 	}
 
-	L1SubStateSupport = rp_L1_support & 0xf & ~root->pcie_l1ss_disable;
+	L1SubStateSupport = rp_L1_support & 0xf & ~pciexp_l1ss_disable(root);
 	comm_mode_rst_time = (rp_L1_support >> 8) & 0xff;
 	power_on_scale = (rp_L1_support >> 16) & 0x3;
 	endp_power_on_value = (rp_L1_support >> 19) & 0x1f;
@@ -619,6 +661,7 @@ static void pciexp_enable_aspm_root_port_only(struct device *root, unsigned int 
 	 * 11 = L0s and L1 supported -> apmc = 3 (BOTH)
 	 */
 	apmc = (enum aspm_type)aspm_support;
+	apmc &= ~root->pcie_aspm_disable;
 
 	if (apmc != PCIE_ASPM_NONE) {
 		/* Set ASPM control in root port's Link Control register */
@@ -662,6 +705,8 @@ static void pciexp_enable_aspm(struct device *root, unsigned int root_cap,
 					   PCIE_ASPM_L1);
 	if (exit_latency >= 0 && exit_latency <= ok_latency)
 		apmc |= PCIE_ASPM_L1;
+
+	apmc &= ~root->pcie_aspm_disable;
 
 	if (apmc != PCIE_ASPM_NONE) {
 		/* Set APMC in root port first */
@@ -786,12 +831,14 @@ static void pciexp_tune_dev(struct device *dev)
 	if (!root_cap)
 		return;
 
+	pciexp_disable_link_pm(root, root_cap, dev, cap);
+
 	/* Check for and enable Common Clock */
 	if (CONFIG(PCIEXP_COMMON_CLOCK))
 		pciexp_enable_common_clock(root, root_cap, dev, cap);
 
 	/* Check if per port CLK req is supported by endpoint*/
-	if (CONFIG(PCIEXP_CLK_PM))
+	if (CONFIG(PCIEXP_CLK_PM) && !root->disable_pcie_clk_pm)
 		pciexp_enable_clock_power_pm(dev, cap);
 
 	/* Enable L1 Sub-State when both root port and endpoint support */
@@ -941,10 +988,13 @@ void pciexp_scan_bus(struct bus *bus, unsigned int min_devfn,
 	 * If no endpoint is connected and this is a root port, program ASPM
 	 * based on the root port's own capabilities.
 	 */
-	if (!has_children && pcie_is_root_port(bus->dev) && CONFIG(PCIEXP_ASPM)) {
+	if (!has_children && pcie_is_root_port(bus->dev)) {
 		root_cap = pci_find_capability(bus->dev, PCI_CAP_ID_PCIE);
-		if (root_cap)
-			pciexp_enable_aspm_root_port_only(bus->dev, root_cap);
+		if (root_cap) {
+			pciexp_disable_link_pm(bus->dev, root_cap, NULL, 0);
+			if (CONFIG(PCIEXP_ASPM))
+				pciexp_enable_aspm_root_port_only(bus->dev, root_cap);
+		}
 	}
 
 	/*
