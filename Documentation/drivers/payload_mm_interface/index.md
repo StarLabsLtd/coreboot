@@ -265,6 +265,18 @@ returning, payload MM publishes its runtime entrypoint in the shared header. The
 **CLOSE_LOADER** before OS handoff. The load path remains closed while successful registration
 permits runtime dispatch to the published entrypoint.
 
+The first load attempt consumes the loader, including failed registration.
+Before handing control to an OS, a compatible payload must either complete
+registration or issue **CLOSE_LOADER**. Closing an unused loader prevents later
+registration but returns failure, indicating that no MM service was registered.
+Closing a registered loader returns success and never permits another load.
+A payload which requires MM services must stop booting if registration or the
+required services fail; closing alone does not make those services available.
+
+Enabling this interface does not require a particular payload implementation.
+The firmware builder must pair it with a payload that follows this lifecycle;
+coreboot cannot infer OS handoff from a payload that never uses the interface.
+
 An example initialisation control flow (from payload MM IPL onwards) is below:
 
 ![Sequence_Init.png](./Sequence_Init.svg)
@@ -279,6 +291,17 @@ during MM initialization.
 An example runtime control flow (from delivery of an APMC to the HW) is below:
 
 ![Sequence_Runtime.png](./Sequence_Runtime.svg)
+
+### Protected flash writes
+
+Coreboot establishes platform flash protection. The SPI handoff reports whether
+write operations require the software-controlled chipset in-SMM status. A payload
+using the SPI controller directly must qualify each write or erase and restore
+the previous status on success and failure. It also owns BIOSWE for those
+operations; coreboot does not qualify the entire MM dispatch.
+
+This does not relax flash protection or change the restricted SMMSTORE capsule
+transport. Payloads must keep their flash access inside their privileged service.
 
 ### S3 resume
 
