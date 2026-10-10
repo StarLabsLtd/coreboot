@@ -10,7 +10,9 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pciexp.h>
+#include <drivers/amd/opensil/mpio/chip.h>
 #include <drivers/usb/pci_xhci/pci_xhci.h>
+#include <option.h>
 #include <static.h>
 #include <variants.h>
 #include <ec/starlabs/merlin/ec.h>
@@ -71,14 +73,65 @@ static void mainboard_configure_gpios(void)
 	gpio_configure_pads(gpios, num_gpios);
 }
 
+static void configure_pcie_power_management(struct device *dev, bool clock_pm,
+					   unsigned int aspm, unsigned int l1ss)
+{
+	struct drivers_amd_opensil_mpio_config *config = dev->chip_info;
+
+	dev->disable_pcie_clk_pm = !clock_pm;
+	if (!clock_pm) {
+		config->clock_pm = 0;
+		config->clk_req = CLK_DISABLE;
+	}
+	if (aspm != PHX_ASPM_DEFAULT) {
+		/* CFR values 1..4 map to the MPIO/Link Control states 0..3. */
+		config->aspm = aspm - PHX_ASPM_DISABLED;
+		dev->pcie_aspm_disable = PCIE_ASPM_BOTH & ~config->aspm;
+	}
+	if (l1ss != PHX_L1SS_DEFAULT) {
+		config->aspm_l1_1 = l1ss != PHX_L1SS_DISABLED;
+		config->aspm_l1_2 = l1ss == PHX_L1SS_L1_2;
+		dev->pcie_l1ss_disable = 0;
+		if (l1ss == PHX_L1SS_DISABLED)
+			dev->pcie_l1ss_disable = 0xf;
+		else if (l1ss == PHX_L1SS_L1_1)
+			dev->pcie_l1ss_disable = 0x5;
+	}
+}
+
 static void mainboard_init(void *chip_info)
 {
 	mainboard_configure_gpios();
 	if (CONFIG(BOARD_STARLABS_STARFIGHTER_AMD)) {
+		const bool wifi_clock_pm = get_uint_option_checked("pciexp_wifi_clk_pm",
+								  1, OPTION_BOOL);
+		const bool ssd_clock_pm = get_uint_option_checked("pciexp_ssd_clk_pm",
+								 1, OPTION_BOOL);
+		const unsigned int wifi_aspm = get_uint_option_checked("pciexp_wifi_aspm",
+			PHX_ASPM_DEFAULT, OPTION_ENUM(PHX_ASPM_DISABLED, PHX_ASPM_L1,
+						     PHX_ASPM_DEFAULT));
+		const unsigned int ssd_aspm = get_uint_option_checked("pciexp_ssd_aspm",
+			PHX_ASPM_DEFAULT, OPTION_RANGE(PHX_ASPM_DISABLED, PHX_ASPM_DEFAULT));
+		const unsigned int ssd_l1ss = get_uint_option_checked("pciexp_ssd_l1ss",
+			PHX_L1SS_DEFAULT, OPTION_RANGE(PHX_L1SS_DISABLED, PHX_L1SS_DEFAULT));
+
+		configure_pcie_power_management(DEV_PTR(gpp_bridge_2_2), wifi_clock_pm,
+						wifi_aspm, PHX_L1SS_DISABLED);
+		configure_pcie_power_management(DEV_PTR(gpp_bridge_1_2), ssd_clock_pm,
+						ssd_aspm, ssd_l1ss);
+		configure_pcie_power_management(DEV_PTR(gpp_bridge_2_4), ssd_clock_pm,
+						ssd_aspm, ssd_l1ss);
+		DEV_PTR(gpp_bridge_2_2)->pcie_aspm_disable |= PCIE_ASPM_L0S;
+
 		/* The openSIL path does not run the FSP GPP clock setup. */
 		uint32_t clocks = misc_read32(GPP_CLK_CNTRL);
 		clocks &= ~GPP_CLK_REQ_MASK(GPP_CLK6_REQ_SHIFT);
-		clocks |= GPP_CLK_REQ_EXT(GPP_CLK6_REQ_SHIFT);
+		clocks |= wifi_clock_pm ? GPP_CLK_REQ_EXT(GPP_CLK6_REQ_SHIFT) :
+					 GPP_CLK_REQ_ON(GPP_CLK6_REQ_SHIFT);
+		if (!ssd_clock_pm) {
+			clocks &= ~GPP_CLK_REQ_MASK(GPP_CLK3_REQ_SHIFT);
+			clocks |= GPP_CLK_REQ_ON(GPP_CLK3_REQ_SHIFT);
+		}
 		misc_write32(GPP_CLK_CNTRL, clocks);
 
 		/* Keep WLAN at ordinary L1; PCI-PM L1.1 wedges its D3hot transition. */

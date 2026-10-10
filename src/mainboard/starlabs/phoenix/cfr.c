@@ -4,6 +4,75 @@
 #include <drivers/option/cfr_frontend.h>
 #include <common/cfr_touchpad.h>
 #include <ec/starlabs/merlin/cfr.h>
+#include <variants.h>
+
+static const struct sm_object pciexp_wifi_clk_pm = SM_DECLARE_BOOL({
+	.opt_name	= "pciexp_wifi_clk_pm",
+	.ui_name	= "Wi-Fi Clock Power Management",
+	.ui_helptext	= "Allow Wi-Fi clock power management. Requires a reboot.",
+	.default_value	= true,
+});
+
+static const struct sm_object pciexp_wifi_aspm = SM_DECLARE_ENUM({
+	.opt_name	= "pciexp_wifi_aspm",
+	.ui_name	= "Wi-Fi ASPM",
+	.ui_helptext	= "Limit Wi-Fi Active State Power Management. Requires a reboot.",
+	.default_value	= PHX_ASPM_DEFAULT,
+	.values		= (const struct sm_enum_value[]) {
+		{ "Default", PHX_ASPM_DEFAULT },
+		{ "Disabled", PHX_ASPM_DISABLED },
+		{ "L1", PHX_ASPM_L1 },
+		SM_ENUM_VALUE_END,
+	},
+});
+
+static const struct sm_object pciexp_ssd_clk_pm = SM_DECLARE_BOOL({
+	.opt_name	= "pciexp_ssd_clk_pm",
+	.ui_name	= "SSD Clock Power Management",
+	.ui_helptext	= "Allow SSD clock power management. Requires a reboot.",
+	.default_value	= true,
+});
+
+static const struct sm_object pciexp_ssd_aspm = SM_DECLARE_ENUM({
+	.opt_name	= "pciexp_ssd_aspm",
+	.ui_name	= "SSD ASPM",
+	.ui_helptext	= "Limit SSD Active State Power Management. Requires a reboot.",
+	.default_value	= PHX_ASPM_DEFAULT,
+	.values		= (const struct sm_enum_value[]) {
+		{ "Default", PHX_ASPM_DEFAULT },
+		{ "Disabled", PHX_ASPM_DISABLED },
+		{ "L0s", PHX_ASPM_L0S },
+		{ "L1", PHX_ASPM_L1 },
+		{ "L0s and L1", PHX_ASPM_L0S_L1 },
+		SM_ENUM_VALUE_END,
+	},
+});
+
+static const struct sm_object pciexp_ssd_l1ss = SM_DECLARE_ENUM({
+	.opt_name	= "pciexp_ssd_l1ss",
+	.ui_name	= "SSD L1 Substates",
+	.ui_helptext	= "Limit SSD PCI-PM and ASPM L1 substates. Requires a reboot.",
+	.default_value	= PHX_L1SS_DEFAULT,
+	.values		= (const struct sm_enum_value[]) {
+		{ "Default", PHX_L1SS_DEFAULT },
+		{ "Disabled", PHX_L1SS_DISABLED },
+		{ "L1.1", PHX_L1SS_L1_1 },
+		{ "L1.1 and L1.2", PHX_L1SS_L1_2 },
+		SM_ENUM_VALUE_END,
+	},
+});
+
+static struct sm_obj_form pcie_group = {
+	.ui_name = "PCIe Power Management",
+	.obj_list = (const struct sm_object *[]) {
+		&pciexp_wifi_clk_pm,
+		&pciexp_wifi_aspm,
+		&pciexp_ssd_clk_pm,
+		&pciexp_ssd_aspm,
+		&pciexp_ssd_l1ss,
+		NULL,
+	},
+};
 
 static const struct sm_object microphone = SM_DECLARE_BOOL({
 	.opt_name	= "microphone",
@@ -116,6 +185,7 @@ void mb_cfr_setup_menu(struct lb_cfr *cfr_root)
 		&battery_group,
 		&keyboard_group,
 		&led_group,
+		&pcie_group,
 		&lid_group,
 		&performance_group,
 		&trackpad_group,
