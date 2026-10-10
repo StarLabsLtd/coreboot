@@ -4,6 +4,7 @@
 #include <cpu/x86/smm.h>
 #include <device/pci_ops.h>
 #include <fmap.h>
+#include <intelblocks/fast_spi.h>
 #include <lib.h>
 #include <payload_mm_interface.h>
 #include <soc/pci_devs.h>
@@ -75,6 +76,8 @@ void lb_payload_mm(struct lb_header *header)
 
 	spi_info->revision = 2;
 	spi_info->flags = 0;
+	if (CONFIG(HAVE_INSMM_STS) && fast_spi_eiss_status())
+		spi_info->flags |= FLAGS_SPI_DISABLE_SMM_WRITE_PROTECT;
 
 	spi_info->spi_address.address_space_id = PLD_EFI_ACPI_3_0_PCI_CONFIGURATION_SPACE;
 	spi_info->spi_address.register_bit_width = 32;
