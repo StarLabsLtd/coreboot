@@ -14,6 +14,8 @@ static struct sm_obj_form battery_group = {
 		#if CONFIG(EC_STARLABS_CHARGING_SPEED)
 		&charging_speed,
 		#endif
+		&charging_policy,
+		&power_reporting,
 		#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 		&power_on_ac,
 		#endif
