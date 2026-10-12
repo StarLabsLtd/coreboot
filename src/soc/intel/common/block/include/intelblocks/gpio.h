@@ -267,6 +267,16 @@ int gpio_lock_pad(const gpio_t pad, enum gpio_lock_action lock_action);
  */
 int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count);
 
+#if !CONFIG(PCR_COMMON_IOSF_1_0)
+/*
+ * Access a pad's TX state through checked, non-posted sideband transactions.
+ * These functions are only available from SMM. Set normalizes value to 0 or 1.
+ * Both functions return 0 on success and -1 on failure.
+ */
+int gpio_sbi_get_tx(gpio_t pad, int *value);
+int gpio_sbi_set_tx(gpio_t pad, int value);
+#endif
+
 /*
  * Returns an array of gpio_lock_config entries that the SoC
  * deems security risks that should be locked down.
