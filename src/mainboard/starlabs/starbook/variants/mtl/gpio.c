@@ -2,6 +2,28 @@
 
 #include <variants.h>
 #include <common/nvme_seq.h>
+#include <intelblocks/smm_gpio.h>
+
+static bool protected_gpio(gpio_t pad)
+{
+	switch (pad) {
+	case GPP_B18:
+	case GPP_B19:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool mainboard_smm_gpio_allowed(gpio_t pad)
+{
+	return protected_gpio(pad);
+}
+
+bool mainboard_acpi_gpio_uses_smm(gpio_t pad)
+{
+	return protected_gpio(pad);
+}
 
 #if ENV_RAMSTAGE
 /* clang-format off */
