@@ -157,6 +157,14 @@ config TPM_MEASURED_BOOT_RUNTIME_DATA
 	  Runtime data whitelist of cbfs filenames. Needs to be a
 	  space delimited list
 
+config TPM_PREBOOT_AUTH_PHASE
+	bool
+	depends on PAYLOAD_EDK2
+	depends on TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
+	help
+	  Open PCR 6 immediately before the payload. The payload must
+	  close this dedicated pre-OS authentication PCR before OS hand-off.
+
 config PCR_BOOT_MODE
 	int
 	default 0 if CHROMEOS

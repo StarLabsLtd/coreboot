@@ -425,6 +425,28 @@ void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 	}
 }
 
+int tpm2_log_add_compact_hash(const char *name, uint32_t pcr,
+			    enum vb2_hash_algorithm digest_algo, const uint8_t *digest,
+			    size_t digest_len)
+{
+	struct tpm_2_log_table *tclt;
+	size_t name_len;
+
+	if (!ENV_HAS_CBMEM || !name)
+		return 0;
+
+	name_len = strnlen(name, TPM_20_LOG_DATA_MAX_LENGTH);
+	if (name_len == TPM_20_LOG_DATA_MAX_LENGTH)
+		return 0;
+
+	tclt = tpm_log_init();
+	if (!tclt || !tpm2_log_uses_packed_entries(tclt))
+		return 0;
+
+	return tpm2_log_append_packed_event(tclt, pcr, EV_COMPACT_HASH, digest_algo, digest,
+					  digest_len, (const uint8_t *)name, name_len);
+}
+
 int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 		 enum vb2_hash_algorithm *digest_algo, const char **event_name)
 {

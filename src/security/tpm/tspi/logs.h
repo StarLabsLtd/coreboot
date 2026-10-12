@@ -50,5 +50,8 @@ void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 			      const uint8_t *digest,
 			      const size_t digest_len);
 void tpm2_log_dump(void);
+int tpm2_log_add_compact_hash(const char *name, uint32_t pcr,
+			    enum vb2_hash_algorithm digest_algo, const uint8_t *digest,
+			    size_t digest_len);
 
 #endif /* LOGS_H_ */
