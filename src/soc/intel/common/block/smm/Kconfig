@@ -19,6 +19,15 @@ config SOC_INTEL_COMMON_BLOCK_SMM_IO_TRAP
 	help
 	  Intel Processor trap flag if it is supported
 
+config SOC_INTEL_COMMON_BLOCK_SMM_GPIO
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	depends on !PCR_COMMON_IOSF_1_0
+	help
+	  Allow ACPI to access selected GPIO outputs through SMM when direct
+	  access to their GPIO community is blocked. The mainboard must provide
+	  the immutable list of permitted pads.
+
 config SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS
 	bool
 	help

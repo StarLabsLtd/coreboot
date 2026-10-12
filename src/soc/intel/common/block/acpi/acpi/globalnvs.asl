@@ -25,4 +25,9 @@ Field (GNVS, ByteAcc, NoLock, Preserve)
 	,	64,	// 0x30 - 0x37 Hest log buffer (used in SMM, not ASL code)
 	WATS,	8,	// 0x38 WADT wake status mask
 	WATA,	8,	// 0x39 WADT armed timer mask
+	,	16,	// 0x3a - 0x3b
+	GPAD,	32,	// 0x3c SMM GPIO pad
+	GPOP,	8,	// 0x40 SMM GPIO operation
+	GPVL,	8,	// 0x41 SMM GPIO value
+	GPST,	8,	// 0x42 SMM GPIO status
 }
