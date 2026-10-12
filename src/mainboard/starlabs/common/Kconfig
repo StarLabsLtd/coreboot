@@ -62,7 +62,11 @@ config DAVE_MODE
 	bool "Enable DAVE mode"
 	depends on !BOARD_STARLABS_STARFIGHTER_MTL || VBOOT || \
 		(SMMSTORE && BOOTMEDIA_SMM_BWP && SOC_INTEL_COMMON_BLOCK_SMM)
+	depends on PAYLOAD_EDK2
+	depends on TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
 	select SECURITY_FAIL_CLOSED
+	select TPM_PREBOOT_AUTH_PHASE
+	select SMMSTORE_SRK_PIN if BOARD_STARLABS_STARFIGHTER_MTL && !VBOOT
 	help
 	  DAVE mode is the secure, locked-down variant.
 

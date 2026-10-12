@@ -83,3 +83,5 @@ postcar-$(CONFIG_TPM_LOG_TPM2) += tspi/log-tpm2.c
 bootblock-$(CONFIG_TPM_LOG_TPM2) += tspi/log-tpm2.c
 
 endif # CONFIG_TPM_MEASURED_BOOT
+
+ramstage-$(CONFIG_TPM_PREBOOT_AUTH_PHASE) += preboot_auth.c
