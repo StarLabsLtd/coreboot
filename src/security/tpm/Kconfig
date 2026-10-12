@@ -157,6 +157,12 @@ config TPM_MEASURED_BOOT_RUNTIME_DATA
 	  Runtime data whitelist of cbfs filenames. Needs to be a
 	  space delimited list
 
+config TPM_PREBOOT_AUTH_PHASE
+	bool
+	depends on TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
+	help
+	  Enable live PCR extension with a compact hash event in the TPM2 log.
+
 config PCR_BOOT_MODE
 	int
 	default 0 if CHROMEOS
