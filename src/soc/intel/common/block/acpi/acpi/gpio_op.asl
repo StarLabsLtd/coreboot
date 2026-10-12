@@ -1,5 +1,69 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <intelblocks/gpio_defs.h>
+#include <intelblocks/smm_gpio_defs.h>
+
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)
+OperationRegion (APMP, SystemIO, SMM_GPIO_APM_PORT, 1)
+Field (APMP, ByteAcc, NoLock, Preserve)
+{
+	APMC, 8,
+}
+
+Mutex (GPMX, 0)
+
+Method (GPCK, 0, NotSerialized)
+{
+	If (GPST)
+	{
+		Fatal (3, 0, 0)
+	}
+}
+
+Method (PGTX, 1, Serialized)
+{
+	If (Acquire (GPMX, 0xffff))
+	{
+		Return (0)
+	}
+	GPAD = Arg0
+	GPOP = SMM_GPIO_GET
+	GPVL = 0
+	GPST = 1
+	APMC = APM_CNT_GPIO
+	GPCK ()
+	Local0 = GPVL
+	Release (GPMX)
+	Return (Local0)
+}
+
+Method (PSTX, 1, Serialized)
+{
+	If (Acquire (GPMX, 0xffff))
+	{
+		Return
+	}
+	GPAD = Arg0
+	GPOP = SMM_GPIO_SET
+	GPST = 1
+	APMC = APM_CNT_GPIO
+	GPCK ()
+	Release (GPMX)
+}
+
+Method (PCTX, 1, Serialized)
+{
+	If (Acquire (GPMX, 0xffff))
+	{
+		Return
+	}
+	GPAD = Arg0
+	GPOP = SMM_GPIO_CLEAR
+	GPST = 1
+	APMC = APM_CNT_GPIO
+	GPCK ()
+	Release (GPMX)
+}
+#endif
 
 /*
  * Get GPIO Value
