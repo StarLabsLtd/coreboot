@@ -265,6 +265,31 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 	return TPM_SUCCESS;
 }
 
+#if CONFIG(TPM_PREBOOT_AUTH_PHASE) && ENV_RAMSTAGE
+tpm_result_t tpm_extend_pcr_compact_hash(int pcr, enum vb2_hash_algorithm digest_algo,
+				      const uint8_t *digest, size_t digest_len, const char *name)
+{
+	tpm_result_t rc;
+
+	/* Unlike ordinary measured-boot events, logging alone cannot open a phase. */
+	if (!digest || !name || digest_len != vb2_digest_size(digest_algo) ||
+	    !tspi_tpm_is_setup() || !tpm_log_init())
+		return TPM_IOERROR;
+
+	rc = tlcl_lib_init();
+	if (rc != TPM_SUCCESS)
+		return rc;
+	rc = tlcl_extend(pcr, digest, digest_algo);
+	if (rc != TPM_SUCCESS)
+		return rc;
+
+	if (!tpm2_log_add_compact_hash(name, pcr, digest_algo, digest, digest_len))
+		return TPM_IOERROR;
+
+	return TPM_SUCCESS;
+}
+#endif
+
 #if CONFIG(VBOOT_LIB)
 tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 			    const char *rname)
