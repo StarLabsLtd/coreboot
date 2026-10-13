@@ -13,6 +13,8 @@
  *
  * The region is left untouched unless it is erased or contains only a partial
  * programming of the expected headers from an interrupted initialization.
+ * CB_EFI_FVH_INVALID means initialization was declined without modification;
+ * the caller may still attempt recovery of the existing store.
  */
 enum cb_err efi_fv_initialize(const struct region_device *rdev, size_t block_size);
 
