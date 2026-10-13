@@ -27,6 +27,11 @@ static void apmc_log(const char *fn, u8 cmd)
 			break;
 		printk(BIOS_DEBUG, "%s: Unknown APMC 0x%02x.\n", fn, cmd);
 		break;
+	case APM_CNT_EFI_VARIABLE_SERVICE:
+		if (CONFIG(ASS))
+			break;
+		printk(BIOS_DEBUG, "%s: Unknown APMC 0x%02x.\n", fn, cmd);
+		break;
 	case APM_CNT_ROM_ARMOR:
 		break;
 	case APM_CNT_SMMINFO:
@@ -56,10 +61,11 @@ enum cb_err apm_control(u8 cmd)
 
 	/* Now raise the SMI. */
 	u32 ret = apm_control_call_smm(cmd);
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) &&
+	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) || CONFIG(ASS)) &&
 	    cmd == APM_CNT_FINALIZE && ret) {
 		printk(BIOS_ERR, "APMC command 0x%02x failed.\n", cmd);
-		if (CONFIG(SECURITY_FAIL_CLOSED))
+		if (CONFIG(SECURITY_FAIL_CLOSED) ||
+		    (CONFIG(ASS) && ret != APM_FINALIZE_OTHER_ERROR))
 			die("SMM finalization failed\n");
 		return CB_ERR;
 	}
