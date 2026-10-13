@@ -93,6 +93,25 @@ void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 	*size = smm_runtime.smmstore_com_buffer_size;
 }
 
+#if CONFIG(ASS)
+void smm_get_efi_variable_service(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.efi_variable_service_base;
+	*size = smm_runtime.efi_variable_service_size;
+}
+
+void smm_get_efi_variable_service_buffer(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.efi_variable_service_buffer;
+	*size = smm_runtime.efi_variable_service_buffer_size;
+}
+
+bool smm_efi_variable_service_is_s3_resume(void)
+{
+	return smm_runtime.efi_variable_service_s3_resume;
+}
+#endif
+
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size)
 {
