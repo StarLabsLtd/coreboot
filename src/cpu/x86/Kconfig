@@ -190,8 +190,10 @@ if HAVE_SMI_HANDLER
 
 config SMM_MODULE_STACK_SIZE
 	hex
+	default 0x4000 if EFI_VARIABLE_SERVICE
 	default 0x800 if ARCH_RAMSTAGE_X86_64
 	default 0x400
+	range 0x4000 0xffffffff if EFI_VARIABLE_SERVICE
 	help
 	  This option determines the size of the stack within the SMM handler
 	  modules.
@@ -210,6 +212,14 @@ config SMM_OPAL_S3_STATE_SMRAM_SIZE
 	  Size in bytes of the persistent SMRAM region reserved for OPAL S3
 	  secret/state. Must be large enough to store the OPAL S3 state
 	  structure and should be kept minimal to reduce SMRAM pressure.
+
+config SMM_EFI_VARIABLE_SERVICE_SIZE
+	hex
+	default 0x400000 if EFI_VARIABLE_SERVICE
+	default 0x0
+	help
+	  Size of the SMRAM region reserved for the fixed EFI authenticated-variable
+	  service image. The image remains in place across S3.
 
 config SMM_OPAL_S3_SCRATCH_CBMEM
 	bool

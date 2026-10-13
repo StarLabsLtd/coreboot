@@ -3,6 +3,7 @@
 #ifndef _SMMSTORE_H_
 #define _SMMSTORE_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -124,6 +125,7 @@ struct region_device;
 int smmstore_lookup_region(struct region_device *rstore);
 /* Returns 0 if normal parsing should continue, 1 otherwise */
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param);
+bool smmstore_full_flash_requested(void);
 
 /* Advertise SMMSTORE support */
 struct lb_header;

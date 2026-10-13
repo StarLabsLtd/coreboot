@@ -29,3 +29,9 @@ $(foreach test,smmstore-srk-test smmstore-srk-customer-test,\
 		-I src/soc/intel/common/block/include))
 smmstore-srk-test-config += CONFIG_SMMSTORE_SRK_PROVISION=1
 smmstore-srk-customer-test-config += CONFIG_SMMSTORE_SRK_PROVISION=0
+
+tests-y += smmstore-fixed-mm-test
+smmstore-fixed-mm-test-srcs += tests/drivers/smmstore-fixed-mm.c src/drivers/smmstore/smi.c \
+	src/commonlib/region.c tests/stubs/console.c
+smmstore-fixed-mm-test-stage := smm
+smmstore-fixed-mm-test-config += CONFIG_EFI_VARIABLE_SERVICE=1 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000

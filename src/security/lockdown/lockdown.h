@@ -8,6 +8,9 @@
 
 static inline bool enable_smm_bios_protection(void)
 {
+	/* The protected owner cannot coexist with an OS-writable flash path. */
+	if (CONFIG(EFI_VARIABLE_SERVICE))
+		return true;
 	if (CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION))
 		return get_uint_option_checked("bios_lock", CONFIG(BOOTMEDIA_SMM_BWP),
 					       OPTION_BOOL);

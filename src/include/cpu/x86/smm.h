@@ -6,6 +6,7 @@
 #include <arch/cpu.h>
 #include <commonlib/cfr.h>
 #include <commonlib/region.h>
+#include <efi_variable_service.h>
 #include <device/pci_type.h>
 #include <device/resource.h>
 #include <types.h>
@@ -25,8 +26,12 @@
 #define APM_CNT_ACPI_ENABLE	0xe1
 #define APM_CNT_ROUTE_ALL_XHCI	0xca
 #define APM_CNT_FINALIZE	0xcb
+/* Finalization result bits when the fixed EFI variable service is enabled. */
+#define APM_FINALIZE_OTHER_ERROR	1
+#define APM_FINALIZE_EFI_ERROR		2
 #define APM_CNT_LEGACY		0xcc
 #define APM_CNT_CFR_RUNTIME_APPLY	CFR_RUNTIME_APPLY_APM_CNT_COMMAND
+#define APM_CNT_EFI_VARIABLE_SERVICE	EFI_VARIABLE_SERVICE_APM_CMD
 #define APM_CNT_ROM_ARMOR	0xea
 #define APM_CNT_MBI_UPDATE	0xeb
 #define APM_CNT_SMMINFO		0xec
@@ -103,6 +108,13 @@ struct smm_runtime {
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
+#if CONFIG(EFI_VARIABLE_SERVICE)
+	uintptr_t efi_variable_service_base;
+	size_t efi_variable_service_size;
+	uintptr_t efi_variable_service_buffer;
+	size_t efi_variable_service_buffer_size;
+	bool efi_variable_service_s3_resume;
+#endif
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	uintptr_t opal_s3_scratch_base;
 	size_t opal_s3_scratch_size;
@@ -226,6 +238,8 @@ enum {
 	SMM_SUBREGION_HANDLER,
 	/* Persistent OPAL S3 state area. */
 	SMM_SUBREGION_OPAL_S3_STATE,
+	/* Fixed EFI authenticated-variable service. */
+	SMM_SUBREGION_EFI_VARIABLE_SERVICE,
 	/* SMM cache region. */
 	SMM_SUBREGION_CACHE,
 	/* Chipset specific area. */
@@ -269,6 +283,11 @@ bool smm_acpi_global_lock_release(void);
 bool smm_is_s3_resume(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
+#if CONFIG(EFI_VARIABLE_SERVICE)
+void smm_get_efi_variable_service(uintptr_t *base, size_t *size);
+void smm_get_efi_variable_service_buffer(uintptr_t *base, size_t *size);
+bool smm_efi_variable_service_is_s3_resume(void);
+#endif
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size);
 #endif

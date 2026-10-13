@@ -193,7 +193,7 @@ static const struct sm_object intel_tme = SM_DECLARE_BOOL({
 /* BIOS Lock */
 static void update_smm_bwp(struct sm_object *new)
 {
-	if (!CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION))
+	if (CONFIG(EFI_VARIABLE_SERVICE) || !CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION))
 		new->sm_bool.flags |= CFR_OPTFLAG_SUPPRESS;
 }
 

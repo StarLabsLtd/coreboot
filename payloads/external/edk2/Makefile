@@ -35,6 +35,7 @@ export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
+EDK2_FIXED_MM_OUT ?= $(abspath ../../../build/FIXEDMMFV.Fv)
 
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
 BUILD_STR += -t GCC
@@ -77,7 +78,10 @@ BUILD_STR += -D DISABLE_SERIAL_TERMINAL=TRUE
 endif
 # VARIABLE_SUPPORT		= EMU
 # MAX_VARIABLE_SIZE		= 0x10000
-ifeq ($(CONFIG_SMMSTORE),y)
+ifeq ($(CONFIG_EFI_VARIABLE_SERVICE),y)
+BUILD_STR += -D VARIABLE_SUPPORT=SPI
+BUILD_STR += -D FIXED_MM_SERVICE=TRUE
+else ifeq ($(CONFIG_SMMSTORE),y)
 BUILD_STR += -D VARIABLE_SUPPORT=SMMSTORE
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize=0x8000
 endif
@@ -443,8 +447,29 @@ prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
 
+ifeq ($(CONFIG_EFI_VARIABLE_SERVICE),y)
+ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+FIXED_MM_CAPSULE_ARGS := -D CAPSULE_SUPPORT=TRUE \
+	-D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
+endif
+FixedMmService: prep print
+	cd $(WORKSPACE); \
+		source $(EDK2_PATH)/edksetup.sh; \
+		if [ ! -f $(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.dsc ]; then \
+			echo "EDK2: The selected repository does not support the fixed MM service"; \
+			exit 1; \
+		fi; \
+		build -a IA32 -b $(RELEASE_STR) -t GCC \
+			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
+			$(FIXED_MM_CAPSULE_ARGS) \
+			-y $(WORKSPACE)/Build/CorebootFixedMmService/FIXEDMMFV.txt || exit 1; \
+		cp $(WORKSPACE)/Build/CorebootFixedMmService/$(RELEASE_STR)_GCC/FV/FIXEDMMFV.Fv \
+			$(EDK2_FIXED_MM_OUT) || exit 1
+fixed_mm_service := FixedMmService
+endif
+
 $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
-	prep print
+	prep print $(fixed_mm_service)
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		echo -n "EDK2: Building... "; \
@@ -479,7 +504,8 @@ distclean:
 		git -C "$$path" clean -xffd || exit 1; \
 	done
 
-.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo UefiPayloadPkg clean distclean
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo FixedMmService \
+	UefiPayloadPkg clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
