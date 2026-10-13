@@ -175,6 +175,7 @@ uint32_t smmstore_srk_exec(uint8_t command, void *buffer)
 
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
+	smmstore_use_full_flash = 0;
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
 		if (*cmd == SMMSTORE_CMD_USE_FULL_FLASH && !param) {
 			has_capsules = 0;
@@ -187,12 +188,15 @@ int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 		} else if (has_capsules == 1 && *cmd & SMMSTORE_CMD_USE_FULL_FLASH) {
 			smmstore_use_full_flash = 1;
 			*cmd &= ~SMMSTORE_CMD_USE_FULL_FLASH;
-		} else {
-			smmstore_use_full_flash = 0;
 		}
 	}
 
 	return 0;
+}
+
+bool smmstore_full_flash_requested(void)
+{
+	return CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && smmstore_use_full_flash;
 }
 
 static enum cb_err lookup_store_region(struct region *region)

@@ -20,6 +20,7 @@
 #include <lib.h>
 #include <soc/pci_devs.h>
 #include <spi_flash.h>
+#include <efi_variable_service.h>
 #include <spi-generic.h>
 #include <security/vboot/vbnv.h>
 
@@ -46,6 +47,10 @@ void *fast_spi_get_bar(void)
 		printk(BIOS_EMERG, "FAST_SPI: BAR0 0x%" PRIxPTR " overlaps SMRAM!\n", bar);
 		die("SMM BAR exploitation attempt detected.");
 	}
+
+	if (ENV_SMM && CONFIG(ASS) &&
+	    !efi_variable_service_spi_bar_valid(bar))
+		die("FAST_SPI: BAR0 changed after trusted finalization.");
 
 	return (void *)bar;
 }
@@ -123,6 +128,15 @@ void fast_spi_set_ext_bios_lock_enable(void)
 	fast_spi_set_bios_control_reg(SPI_BIOS_CONTROL_EXT_BIOS_LOCK_ENABLE);
 
 	fast_spi_read_post_write(SPI_BIOS_CONTROL);
+}
+
+bool fast_spi_bios_protected(void)
+{
+	const uint8_t required = SPI_BIOS_CONTROL_EISS | SPI_BIOS_CONTROL_LOCK_ENABLE |
+		SPI_BIOS_CONTROL_BILD;
+	const uint8_t control = pci_read_config8(PCH_DEV_SPI, SPI_BIOS_CONTROL);
+
+	return (control & (required | SPI_BIOS_CONTROL_WPD)) == required;
 }
 
 /*
