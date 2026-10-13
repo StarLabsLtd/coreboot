@@ -26,6 +26,7 @@
 #include <inttypes.h>
 #include <spi_flash.h>
 #include <smmstore.h>
+#include <efi_variable_service.h>
 #include <types.h>
 #include <version.h>
 
@@ -625,6 +626,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* SMMSTORE */
 	if (CONFIG(SMMSTORE))
 		lb_smmstorev2(head);
+	if (CONFIG(ASS))
+		lb_efi_variable_service(head);
 
 	/* Non-PCI SDHCI controller list for payloads */
 	lb_sdhci_nonpci(head);

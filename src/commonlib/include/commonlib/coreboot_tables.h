@@ -3,6 +3,7 @@
 #ifndef COMMONLIB_COREBOOT_TABLES_H
 #define COMMONLIB_COREBOOT_TABLES_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /* The coreboot table information is for conveying information
@@ -94,6 +95,7 @@ enum {
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_BOOT_REASON		= 0x004b,
+	LB_TAG_EFI_VARIABLE_SERVICE	= 0x004c,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -580,6 +582,24 @@ struct lb_smmstorev2 {
 					   this table must check the 'size' field to detect if its
 					   written out by coreboot. */
 };
+
+/* Fixed authenticated-variable service provided by coreboot SMM. */
+struct lb_efi_variable_service {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint8_t apm_cmd;
+	uint8_t flags;
+	uint64_t communication_buffer;
+	uint32_t communication_buffer_size;
+} __packed;
+
+_Static_assert(sizeof(struct lb_efi_variable_service) == 24,
+	       "Unexpected EFI variable service record size");
+_Static_assert(offsetof(struct lb_efi_variable_service, apm_cmd) == 10,
+	       "Unexpected EFI variable service APMC offset");
+_Static_assert(offsetof(struct lb_efi_variable_service, communication_buffer) == 12,
+	       "Unexpected EFI variable service buffer offset");
 
 enum lb_tpm_ppi_tpm_version {
 	LB_TPM_VERSION_UNSPEC = 0,
