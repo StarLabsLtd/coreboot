@@ -38,6 +38,10 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 
 	if (smmstore_preprocess_cmd(&command, param))
 		return SMMSTORE_RET_SUCCESS;
+	if (CONFIG(EFI_VARIABLE_SERVICE) &&
+	    (command == SMMSTORE_CMD_RAW_WRITE || command == SMMSTORE_CMD_RAW_CLEAR) &&
+	    !smmstore_full_flash_requested())
+		return SMMSTORE_RET_FAILURE;
 
 	if (!param)
 		return SMMSTORE_RET_FAILURE;

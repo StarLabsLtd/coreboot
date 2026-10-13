@@ -12,6 +12,7 @@
 #include <cpu/x86/gdt.h>
 #include <device/device.h>
 #include <device/mmio.h>
+#include <efi_variable_service.h>
 #include <rmodule.h>
 #include <smmstore.h>
 #include <stdio.h>
@@ -453,6 +454,9 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
 		mod_params->smmstore_com_buffer_size = info.block_size;
 	}
+
+	if (CONFIG(EFI_VARIABLE_SERVICE))
+		efi_variable_service_load(mod_params);
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	/*

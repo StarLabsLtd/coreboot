@@ -17,6 +17,7 @@
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
 #include <elog.h>
+#include <efi_variable_service.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/oc_wdt.h>
@@ -339,6 +340,30 @@ static void southbridge_smi_store(
 	}
 }
 
+static void southbridge_smi_efi_variable_service(
+	const struct smm_save_state_ops *save_state_ops)
+{
+	int node = save_state_ops->apmc_node(APM_CNT_EFI_VARIABLE_SERVICE);
+	if (node < 0)
+		return;
+
+	const bool wp_enabled = !fast_spi_wpd_status();
+	if (wp_enabled) {
+		set_insmm_sts(true);
+		smmstore_drain_sync_smi();
+		fast_spi_disable_wp();
+	}
+
+	uint32_t ret = efi_variable_service_communicate();
+	smmstore_drain_sync_smi();
+	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
+
+	if (wp_enabled) {
+		fast_spi_enable_wp();
+		set_insmm_sts(false);
+	}
+}
+
 __weak int soc_gpio_lock_finalize(void)
 {
 	return 0;
@@ -410,6 +435,9 @@ static int finalize(void)
 		return finalize_result;
 	}
 
+	if (CONFIG(EFI_VARIABLE_SERVICE) && efi_variable_service_finalize())
+		finalize_result = -1;
+
 	enable_smm_code_access_check();
 
 	if (CONFIG(SPI_FLASH_SMM))
@@ -463,6 +491,10 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_SMMSTORE:
 		if (CONFIG(SMMSTORE))
 			southbridge_smi_store(save_state_ops);
+		break;
+	case APM_CNT_EFI_VARIABLE_SERVICE:
+		if (CONFIG(EFI_VARIABLE_SERVICE))
+			southbridge_smi_efi_variable_service(save_state_ops);
 		break;
 	case APM_CNT_FINALIZE:
 		{
