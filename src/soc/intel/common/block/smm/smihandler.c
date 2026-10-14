@@ -527,7 +527,7 @@ void smihandler_southbridge_tco(
 	fast_spi_clear_sync_smi_status();
 
 	/* If enabled, enforce SMM BIOS write protection */
-	if (enable_smm_bios_protection() && fast_spi_wpd_status()) {
+	if (fast_spi_wpd_status() && enable_smm_bios_protection()) {
 		/*
 		 * BWE is RW, so the SMI was caused by a
 		 * write to BWE, not by a write to the BIOS
