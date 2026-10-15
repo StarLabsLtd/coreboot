@@ -5,7 +5,9 @@
 #include <console/console.h>
 #include <crc_byte.h>
 #include <device/device.h>
+#include <device/pci.h>
 #include <device/pci_def.h>
+#include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <framebuffer_info.h>
 #include <string.h>
@@ -660,32 +662,25 @@ static enum cb_err quiesce_topology_devices(struct topology_snapshot *snapshot)
 {
 	const struct device *device;
 
+	/* Tables precede the final payload hook; snapshot the same quiesced state. */
+	pci_disable_bus_mastering();
+
 	/* Topology omits functions with no assigned resource.  They are still
 	 * potential DMA requesters, so quiesce and verify every enabled PCI
-	 * function before publishing an authoritative revision-4 record. */
+	 * endpoint. Host bridges can have a hardwired bus-master bit and are
+	 * not independently controlled DMA endpoints. */
 	for (device = all_devices; device; device = device->next) {
-		uint16_t command;
-
-		if (!device->enabled || device->path.type != DEVICE_PATH_PCI)
+		if (!device->enabled || device->path.type != DEVICE_PATH_PCI ||
+		    (device->class >> 8) == PCI_CLASS_BRIDGE_HOST)
 			continue;
-		command = payload_resource_read_command(device);
-		payload_resource_write_command(device, command & ~PCI_COMMAND_MASTER);
 		if (payload_resource_read_command(device) & PCI_COMMAND_MASTER) {
 			printk(BIOS_ERR, "PRH: failed to quiesce bus mastering for %s\n",
 			       dev_path(device));
 			return CB_ERR;
 		}
 	}
-	for (size_t index = 0; index < snapshot->count; index++) {
-		uint16_t command = payload_resource_read_command(snapshot->devices[index]);
-
-		if (command & PCI_COMMAND_MASTER) {
-			printk(BIOS_ERR, "PRH: failed to quiesce bus mastering for %s\n",
-			       dev_path(snapshot->devices[index]));
-			return CB_ERR;
-		}
-		snapshot->commands[index] = command;
-	}
+	for (size_t index = 0; index < snapshot->count; index++)
+		snapshot->commands[index] = payload_resource_read_command(snapshot->devices[index]);
 	return CB_SUCCESS;
 }
 

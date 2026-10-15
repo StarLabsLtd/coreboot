@@ -1615,16 +1615,19 @@ void pci_dev_disable_bus_master(const struct device *dev)
 	pci_update_config16(dev, PCI_COMMAND, ~PCI_COMMAND_MASTER, 0x0);
 }
 
-static void pci_disable_bus_mastering_before_payload(void *unused)
+void pci_disable_bus_mastering(void)
 {
 	struct device *dev;
 
-	if (!CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
-		return;
-
 	for (dev = all_devices; dev; dev = dev->next)
-		if (is_enabled_pci(dev))
+		if (is_enabled_pci(dev) && (dev->class >> 8) != PCI_CLASS_BRIDGE_HOST)
 			pci_dev_disable_bus_master(dev);
+}
+
+static void pci_disable_bus_mastering_before_payload(void *unused)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		pci_disable_bus_mastering();
 }
 
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY,
