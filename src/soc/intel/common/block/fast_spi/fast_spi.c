@@ -550,6 +550,13 @@ static void fast_spi_read_resources(struct device *dev)
 	/* Read standard PCI resources. */
 	pci_dev_read_resources(dev);
 
+	/* Keep the boot-flash register window stable across chipset finalization. */
+	struct resource *bar = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	if (bar && bar->size) {
+		bar->base = (uintptr_t)fast_spi_get_bar();
+		bar->flags |= IORESOURCE_FIXED | IORESOURCE_ASSIGNED;
+	}
+
 	/* Add SPI flash MMIO window as a reserved resource. */
 	mmio_range(dev, 0, FLASH_BASE_ADDR, FLASH_MMIO_SIZE);
 	/* Add extended SPI flash MMIO window as reserved resource if enabled. */
