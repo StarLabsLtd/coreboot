@@ -68,6 +68,7 @@ const struct lb_framebuffer *payload_resource_framebuffer(void);
 
 /* Allow arch to add records. */
 void lb_arch_add_records(struct lb_header *header);
+void lb_add_local_apic_timer(struct lb_header *header);
 
 /*
  * Function to retrieve MAC address(es) from the VPD and store them in the

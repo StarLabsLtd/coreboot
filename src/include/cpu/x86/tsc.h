@@ -55,6 +55,8 @@ static inline unsigned long long rdtscll(void)
 
 /* Provided by CPU/chipset code for the TSC rate in MHz. */
 unsigned long tsc_freq_mhz(void);
+/* Return only an actual calibration result, never a fallback delay rate. */
+unsigned long tsc_freq_mhz_measured(void);
 
 static inline int tsc_constant_rate(void)
 {

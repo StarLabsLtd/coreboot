@@ -699,6 +699,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* Add architecture records. */
 	lb_arch_add_records(head);
+	if (CONFIG(PAYLOAD_LOCAL_APIC_TIMER_INFO))
+		lb_add_local_apic_timer(head);
 
 	/* Add all cbmem entries into the coreboot tables. */
 	cbmem_add_records_to_cbtable(head);
