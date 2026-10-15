@@ -161,10 +161,17 @@ struct logo_coordinates calculate_logo_coordinates(
 	enum fw_splash_horizontal_alignment halignment,
 	enum fw_splash_vertical_alignment valignment);
 void render_logo_to_framebuffer(struct logo_config *config);
-void load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
+/* The one displayed primary logo retains its source bitmap in CBMEM. */
+bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
+	uint32_t framebuffer_width, uint32_t framebuffer_height,
+	uint32_t image_offset_x, uint32_t image_offset_y,
+	uint32_t image_width, uint32_t image_height, const void *bmp, size_t bmp_size);
+bool bootsplash_get_handoff(struct lb_boot_splash *handoff);
+/* Failure clears all outputs; successful conversion returns an owned BLT. */
+bool load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
-void convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
+bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
 void render_text_to_framebuffer(struct logo_config *config, const char *str,
@@ -181,6 +188,11 @@ const char *bmp_logo_filename(void);
 void *bmp_load_logo(size_t *logo_size);
 void *bmp_load_logo_by_type(enum bootsplash_type type, size_t *logo_size);
 void bmp_release_logo(void);
+void bmp_retain_logo(void);
+void bootsplash_render_primary(void);
+/* Serialize final oriented BGRX pixels into an owned, page-aligned bitmap. */
+void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
+	size_t *bmp_size);
 /*
  * Platform specific callbacks for power-off handling.
  *
