@@ -3,8 +3,10 @@
 #define __SIMPLE_DEVICE__
 
 #include <assert.h>
+#include <boot/coreboot_tables.h>
 #include <commonlib/helpers.h>
 #include <console/console.h>
+#include <device/device.h>
 #include <device/mmio.h>
 #include <delay.h>
 #include <device/pci.h>
@@ -1470,6 +1472,27 @@ static void cse_set_state(struct device *dev)
 		me_reset_with_count();
 }
 
+static bool cse_should_hide_heci1(void)
+{
+	return soc_disable_heci1_at_pre_boot() || cse_is_hfs1_com_soft_temp_disable();
+}
+
+#if CONFIG(PAYLOAD_RESOURCE_HANDOFF)
+bool payload_resource_firmware_owned(const struct device *device)
+{
+	if (device->path.type != DEVICE_PATH_PCI)
+		return false;
+	if (device->hidden)
+		return true;
+	if (CONFIG(SOC_INTEL_CSE_SEND_EOP_BY_PAYLOAD) ||
+	    CONFIG(USE_FSP_NOTIFY_PHASE_READY_TO_BOOT) ||
+	    device != pcidev_path_on_root(PCH_DEVFN_CSE))
+		return false;
+	/* Resource tables precede the finalizer that removes HECI1 from PCI. */
+	return cse_should_hide_heci1();
+}
+#endif
+
 /*
  * `cse_final_ready_to_boot` function is native implementation of equivalent events
  * performed by FSP NotifyPhase(Ready To Boot) API invocations.
@@ -1484,7 +1507,7 @@ static void cse_final_ready_to_boot(void)
 {
 	cse_control_global_reset_lock();
 
-	if (soc_disable_heci1_at_pre_boot() || cse_is_hfs1_com_soft_temp_disable()) {
+	if (cse_should_hide_heci1()) {
 		cse_set_to_d0i3();
 		heci1_disable();
 	}
