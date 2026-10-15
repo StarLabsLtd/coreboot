@@ -1569,6 +1569,9 @@ static unsigned long write_acpi_tables(const unsigned long start)
 		current = acpi_align_current(current);
 		if (rsdp->xsdt_address == 0) {
 			acpi_rsdt_t *existing_rsdt = (acpi_rsdt_t *)(uintptr_t)rsdp->rsdt_address;
+			memcpy(oem_id, rsdp->oem_id, sizeof(oem_id));
+			memcpy(oem_table_id, existing_rsdt->header.oem_table_id,
+			       sizeof(oem_table_id));
 
 			/*
 			 * Qemu only provides a smaller ACPI 1.0 RSDP, thus
@@ -1579,6 +1582,7 @@ static unsigned long write_acpi_tables(const unsigned long start)
 			coreboot_rsdp = (uintptr_t)rsdp;
 
 			xsdt = (acpi_xsdt_t *)current;
+			memset(xsdt, 0, sizeof(*xsdt));
 			current += sizeof(acpi_xsdt_t);
 			current = acpi_align_current(current);
 
