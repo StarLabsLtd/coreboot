@@ -634,6 +634,10 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 		lb_efi_fw_info(head);
 
 	/* Add board-specific table entries, if any. */
+	if (CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
+	    lb_add_payload_resource_handoff(head) != CB_SUCCESS)
+		die("Payload resource handoff is not trustworthy\n");
+
 	lb_board(head);
 
 	/* Possibly add UEFI capsules. */
