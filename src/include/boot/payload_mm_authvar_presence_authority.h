@@ -1,0 +1,106 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef BOOT_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY_H
+#define BOOT_PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY_H
+
+#include <boot/payload_mm_authvar.h>
+#include <boot/payload_mm_authvar_presence.h>
+
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_POLICY_REVISION 2U
+#define PAYLOAD_MM_AUTHVAR_PRESENCE_CONTEXT_MAX 128U
+
+typedef enum cb_err (*payload_mm_authvar_presence_provision_fn)(void *context,
+	uint64_t generation,
+	uint8_t capability[LB_AUTHVAR_PRESENCE_CAPABILITY_SIZE]);
+typedef bool (*payload_mm_authvar_presence_range_proof_fn)(void *context,
+	uint64_t base, uint64_t size);
+typedef bool (*payload_mm_authvar_presence_state_proof_fn)(void *context);
+typedef void (*payload_mm_authvar_presence_cold_reset_fn)(void *context);
+typedef void (*payload_mm_authvar_presence_fail_stop_fn)(void *context)
+	__noreturn;
+
+/* Protected SMM installation policy; this is not a shared-memory ABI. */
+struct payload_mm_authvar_presence_policy {
+	uint32_t revision;
+	uint32_t size;
+	struct lb_authvar_presence_endpoint endpoint;
+	struct payload_mm_authvar_presence_backing backing;
+	payload_mm_authvar_presence_provision_fn provision;
+	payload_mm_authvar_presence_range_proof_fn dma_protected;
+	payload_mm_authvar_presence_state_proof_fn cpu_rendezvous_active;
+	payload_mm_authvar_presence_cold_reset_fn cold_reset;
+	payload_mm_authvar_presence_fail_stop_fn fail_stop;
+	void *context;
+	size_t context_size;
+};
+
+enum cb_err payload_mm_authvar_presence_authority_install(
+	const struct payload_mm_authvar_presence_policy *trusted_policy,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context);
+
+/* True only for an installed, live finite-action authority of this generation. */
+enum cb_err payload_mm_authvar_presence_confirmed_available(
+	uint64_t generation, bool *available);
+
+/*
+ * Restore only a terminal CLOSED authority after an S3 handler reload. The
+ * endpoint, backing, proof callback, and optional proof context are protected
+ * inputs. The proof is consumed once and no callback, context, or capability
+ * is retained.
+ */
+enum cb_err payload_mm_authvar_presence_authority_restore_closed(
+	const struct lb_authvar_presence_endpoint *endpoint,
+	const struct payload_mm_authvar_presence_backing *backing,
+	payload_mm_authvar_presence_range_proof_fn dma_protected,
+	const void *dma_context, size_t dma_context_size,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context);
+
+/*
+ * Copy only the terminal semantic identity of an exact, stable CLOSED
+ * authority into protected, disjoint caller-owned storage.  No capability,
+ * callback, context, or other live authority state is exposed.
+ */
+enum cb_err payload_mm_authvar_presence_authority_closed_snapshot(
+	struct lb_authvar_presence_endpoint *endpoint,
+	struct payload_mm_authvar_presence_backing *backing,
+	payload_mm_authvar_protected_storage storage_is_protected,
+	void *storage_context, size_t storage_context_size);
+
+/*
+ * Irreversibly restrict an authority installed for exactly generation.
+ * Restricting the open matching generation closes it and scrubs its private
+ * capability and context. Repeating the same generation after closure is an
+ * idempotent success. Zero, stale, mutated, or otherwise invalid authority
+ * state fails closed.
+ */
+enum cb_err payload_mm_authvar_presence_authority_restrict(
+	uint64_t generation);
+
+/* Compatibility wrapper for existing internal lifecycle callers. */
+void payload_mm_authvar_presence_authority_close(void);
+
+/* Exact fixed-mailbox dispatch and optional platform APM route. */
+enum cb_err payload_mm_authvar_presence_authority_dispatch(void);
+struct payload_mm_authvar_confirmed_frame;
+struct payload_mm_authvar_confirmed_key_frame;
+struct payload_mm_authvar_policy_request;
+
+uint64_t payload_mm_authvar_presence_confirmed_key(
+	const struct payload_mm_authvar_confirmed_key_frame *request, size_t message_size);
+/* Zero refuses; success returns the live admitted full protected message span. */
+size_t payload_mm_authvar_presence_key_authorized(
+	const struct payload_mm_authvar_confirmed_key_frame *request,
+	const struct payload_mm_authvar_policy_request *copied);
+/* Protected v4 snapshot only; consumes one finite action authorization. */
+uint64_t payload_mm_authvar_presence_confirmed_action(
+	const struct payload_mm_authvar_confirmed_frame *request, uint32_t *result_flags);
+bool payload_mm_authvar_presence_action_authorized(uint32_t action, uint32_t value);
+enum cb_err payload_mm_authvar_presence_smi_dispatch(uint16_t port,
+	uint8_t value);
+
+#if ENV_TEST
+#endif
+
+#endif
