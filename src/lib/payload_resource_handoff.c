@@ -39,8 +39,8 @@ __weak const struct lb_framebuffer *payload_resource_framebuffer(void)
 
 __weak bool payload_resource_firmware_owned(const struct device *device)
 {
-	(void)device;
-	return false;
+	/* Hidden PCI functions retain platform ownership and are not enumerated. */
+	return device->path.type == DEVICE_PATH_PCI && device->hidden;
 }
 
 /* Native payloads consume the validated assigned-device topology below. */
@@ -456,7 +456,8 @@ static bool bus_has_assignment(const struct bus *bus, unsigned int depth, bool *
 			*valid = false;
 			return false;
 		}
-		if (!device->enabled || device->path.type != DEVICE_PATH_PCI)
+		if (!device->enabled || device->path.type != DEVICE_PATH_PCI ||
+		    payload_resource_firmware_owned(device))
 			continue;
 		if (device->upstream != bus || device->path.pci.devfn > UINT8_MAX) {
 			*valid = false;
@@ -493,7 +494,7 @@ static const struct device *pci_child(const struct bus *bus, uint8_t devfn, bool
 			return NULL;
 		}
 		if (!device->enabled || device->path.type != DEVICE_PATH_PCI ||
-		    device->path.pci.devfn != devfn)
+		    device->path.pci.devfn != devfn || payload_resource_firmware_owned(device))
 			continue;
 		if (match) {
 			*valid = false;
@@ -671,6 +672,7 @@ static enum cb_err quiesce_topology_devices(struct topology_snapshot *snapshot)
 	 * not independently controlled DMA endpoints. */
 	for (device = all_devices; device; device = device->next) {
 		if (!device->enabled || device->path.type != DEVICE_PATH_PCI ||
+		    payload_resource_firmware_owned(device) ||
 		    (device->class >> 8) == PCI_CLASS_BRIDGE_HOST)
 			continue;
 		if (payload_resource_read_command(device) & PCI_COMMAND_MASTER) {

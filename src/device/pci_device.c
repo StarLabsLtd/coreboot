@@ -1620,7 +1620,8 @@ void pci_disable_bus_mastering(void)
 	struct device *dev;
 
 	for (dev = all_devices; dev; dev = dev->next)
-		if (is_enabled_pci(dev) && (dev->class >> 8) != PCI_CLASS_BRIDGE_HOST)
+		if (is_enabled_pci(dev) && !dev->hidden &&
+		    (dev->class >> 8) != PCI_CLASS_BRIDGE_HOST)
 			pci_dev_disable_bus_master(dev);
 }
 
