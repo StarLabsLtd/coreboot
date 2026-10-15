@@ -27,6 +27,10 @@ void lb_add_console(uint16_t consoletype, void *data);
 
 enum cb_err fill_lb_pcie(struct lb_pcie *pcie);
 
+enum cb_err fill_lb_ec_battery(struct lb_ec_battery_descriptor *descriptor);
+enum cb_err lb_add_ec_battery_descriptor(struct lb_header *header,
+				       const struct lb_ec_battery_descriptor *descriptor);
+
 /* Optional initialized UART contract; unavailable controllers remain undeclared. */
 enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial);
 

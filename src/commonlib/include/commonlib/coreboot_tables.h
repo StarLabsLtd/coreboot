@@ -96,6 +96,7 @@ enum {
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_BOOT_REASON		= 0x004b,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x005b,
+	LB_TAG_EC_BATTERY_DESCRIPTOR	= 0x005a,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -171,6 +172,23 @@ struct lb_pcie {
 };
 _Static_assert(_Alignof(struct lb_pcie) == 4,
 	       "lb_uint64_t alignment doesn't work as expected for struct lb_pcie!");
+
+#define LB_EC_BATTERY_DESCRIPTOR_REVISION 1
+#define LB_EC_BATTERY_PROFILE_MERLIN 1
+#define LB_EC_BATTERY_TRANSPORT_ACPI_IO8 1
+
+/* Configured EC register map and transport, not proof of a responding battery. */
+struct lb_ec_battery_descriptor {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint16_t profile;
+	uint16_t transport;
+	uint16_t data_port;
+	uint16_t status_port;
+	uint32_t reserved;
+};
 
 #define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION 3
 #define LB_PAYLOAD_RESOURCE_HANDOFF_REVISION_4 4
