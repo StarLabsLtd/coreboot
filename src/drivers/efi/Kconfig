@@ -114,11 +114,11 @@ config DRIVERS_EFI_CAPSULE_INITIATE_RESET
 config DRIVERS_EFI_CAPSULE_REGIONS
 	string "FMAP regions to include in the capsule manifest"
 	default "COREBOOT"
-	depends on DRIVERS_EFI_GENERATE_CAPSULE
+	depends on DRIVERS_EFI_UPDATE_CAPSULES
 	help
 	  Whitespace-separated list of FMAP regions that the update capsule is
-	  allowed to modify. The list is embedded as a manifest inside the ROM
-	  image prior to building the capsule.
+	  allowed to modify. The list is published to the payload and embedded
+	  as a signed manifest when generating a capsule.
 
 menu "Capsule signing certificates"
 	depends on DRIVERS_EFI_UPDATE_CAPSULES

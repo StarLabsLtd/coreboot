@@ -90,6 +90,8 @@ enum {
 	LB_TAG_PCIE			= 0x0044,
 	LB_TAG_EFI_FW_INFO		= 0x0045,
 	LB_TAG_CAPSULE			= 0x0046,
+	LB_TAG_CAPSULE_DELIVERY_POLICY	= 0x0059,
+	LB_TAG_CAPSULE_SMMSTORE		= 0x005c,
 	LB_TAG_CFR_ROOT			= 0x0047,
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
@@ -811,6 +813,40 @@ struct	cmos_checksum {
 /* SMMSTOREv2 record
  * This record contains information to use SMMSTOREv2.
  */
+
+#define LB_CAPSULE_DELIVERY_POLICY_REVISION 1U
+#define LB_CAPSULE_DELIVERY_RAM (1U << 0)
+#define LB_CAPSULE_DELIVERY_DISK (1U << 1)
+
+struct lb_capsule_delivery_policy {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t allowed_transports;
+	lb_uint64_t max_nonpopulate;
+	lb_uint64_t max_populate;
+	uint32_t reserved[2];
+};
+
+#define LB_CAPSULE_SMMSTORE_WRITER_READY (1U << 0)
+#define LB_CAPSULE_SMMSTORE_MAX_REGIONS 64U
+#define LB_CAPSULE_SMMSTORE_REGION_NAME_SIZE 16U
+
+struct lb_capsule_smmstore_region {
+	char name[LB_CAPSULE_SMMSTORE_REGION_NAME_SIZE];
+	uint32_t offset;
+	uint32_t size;
+};
+
+/* Normal SMMSTORE is writable only on a producer-latched capsule boot. */
+struct lb_capsule_smmstore {
+	uint32_t tag;
+	uint32_t size;
+	uint32_t flags;
+	uint32_t region_count;
+	struct lb_capsule_smmstore_region regions[];
+};
 
 struct lb_smmstorev2 {
 	uint32_t tag;
