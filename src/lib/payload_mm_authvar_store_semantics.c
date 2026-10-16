@@ -127,7 +127,6 @@ static bool physical_record(const struct payload_mm_authvar_store_index *index,
 	uint32_t offset, uint32_t *attributes, uint32_t *size)
 {
 	uint32_t name_end;
-	uint32_t data_offset;
 	uint32_t data_end;
 	uint32_t next;
 	const uint8_t *header;
@@ -138,8 +137,7 @@ static bool physical_record(const struct payload_mm_authvar_store_index *index,
 	header = index->store + offset;
 	if (!add_u32(offset, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE, &name_end) ||
 	    !add_u32(name_end, read_le32(header + 36U), &name_end) ||
-	    !align4_u32(name_end, &data_offset) ||
-	    !add_u32(data_offset, read_le32(header + 40U), &data_end) ||
+	    !add_u32(name_end, read_le32(header + 40U), &data_end) ||
 	    !align4_u32(data_end, &next) || next > index->used_size)
 		return false;
 	*attributes = read_le32(header + 4U);

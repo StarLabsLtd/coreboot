@@ -211,8 +211,7 @@ bool payload_mm_authvar_store_index_valid(
 			return false;
 		header = index->store + entry->record_offset;
 		data_offset = (size_t)entry->name_offset + entry->name_size;
-		if (!align4(data_offset, &data_offset) ||
-		    data_offset != entry->data_offset ||
+		if (data_offset != entry->data_offset ||
 		    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID ||
 		    header[3] ||
 		    (header[2] != PAYLOAD_MM_AUTHVAR_STATE_ADDED &&
@@ -313,12 +312,9 @@ static enum record_result decode_record(const uint8_t *store, size_t store_size,
 	    !add_size(offset, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE,
 		&record->name_offset) ||
 	    !add_size(record->name_offset, record->name_size, &record->data_offset) ||
-	    !align4(record->data_offset, &record->data_offset) ||
 	    !add_size(record->data_offset, record->data_size, &record_end) ||
 	    !align4(record_end, &record->next) || record->next > store_size ||
 	    !name_valid(store + record->name_offset, record->name_size) ||
-	    !bytes_are(store + record->name_offset + record->name_size,
-		record->data_offset - record->name_offset - record->name_size, 0xff) ||
 	    !bytes_are(store + record_end, record->next - record_end, 0xff))
 		return record->state == PAYLOAD_MM_AUTHVAR_STATE_ERASED ?
 			RECORD_DIRTY_TAIL : RECORD_INVALID;

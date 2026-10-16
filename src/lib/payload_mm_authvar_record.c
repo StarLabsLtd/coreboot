@@ -91,7 +91,6 @@ bool payload_mm_authvar_record_layout(size_t name_size, size_t data_size,
 				      size_t *record_size, size_t *data_offset)
 {
 	size_t name_end;
-	size_t aligned_name_end;
 	size_t data_end;
 	size_t aligned_data_end;
 
@@ -102,18 +101,16 @@ bool payload_mm_authvar_record_layout(size_t name_size, size_t data_size,
 	    !range_valid(data_offset, sizeof(*data_offset)) ||
 	    name_size > UINT32_MAX || data_size > UINT32_MAX ||
 	    __builtin_add_overflow((size_t)PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE,
-				   name_size, &name_end) ||
-	    __builtin_add_overflow(name_end, 3U, &aligned_name_end))
+				   name_size, &name_end))
 		return false;
-	aligned_name_end &= ~(size_t)3U;
-	if (__builtin_add_overflow(aligned_name_end, data_size, &data_end) ||
+	if (__builtin_add_overflow(name_end, data_size, &data_end) ||
 	    __builtin_add_overflow(data_end, 3U, &aligned_data_end))
 		return false;
 	aligned_data_end &= ~(size_t)3U;
 	if (aligned_data_end > UINT32_MAX)
 		return false;
 	*record_size = aligned_data_end;
-	*data_offset = aligned_name_end;
+	*data_offset = name_end;
 	return true;
 }
 
