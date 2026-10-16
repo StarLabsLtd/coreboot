@@ -9,7 +9,7 @@
 #include <timestamp.h>
 #include <smp/node.h>
 
-#define MAX_TIMESTAMPS 192
+#define MAX_TIMESTAMPS 512
 
 /* This points to the active timestamp_table and can change within a stage
    as CBMEM comes available. */
