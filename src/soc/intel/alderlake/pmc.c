@@ -173,6 +173,17 @@ static void pm1_enable_pwrbtn_smi(void *unused)
 
 BOOT_STATE_INIT_ENTRY(BS_DEV_INIT_CHIPS, BS_ON_EXIT, pm1_enable_pwrbtn_smi, NULL);
 
+static void report_payload_power_state(void *unused)
+{
+	if (!CONFIG(PAYLOAD_CDK2) || !CONFIG(CDK2_DIAGNOSTIC))
+		return;
+	/* Setup's FADT-based PM1 sampling cannot describe chipset SMI routing. */
+	printk(BIOS_INFO, "Payload power handoff: PM1 enable=0x%04x control=0x%08x SMI enable=0x%08x\n",
+	       pmc_read_pm1_enable(), pmc_read_pm1_control(), pmc_get_smi_en());
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, report_payload_power_state, NULL);
+
 /*
  * `pmc_final` function is native implementation of equivalent events performed by
  * each FSP NotifyPhase() API invocations.
