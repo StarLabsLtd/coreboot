@@ -70,18 +70,23 @@ static bool state_valid(uint8_t state)
 		state == PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION;
 }
 
-static bool timestamp_valid(const uint8_t timestamp[16], uint32_t attributes)
+static bool authentication_fields_valid(const uint8_t *header, uint32_t attributes)
 {
 	static const uint8_t days_per_month[] = {
 		31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
 	};
 	const bool time_authenticated = attributes &
 		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+	const uint8_t *timestamp = header + 16U;
 	uint16_t year;
 	uint8_t maximum_day;
 
+	/* Ordinary records do not use the authentication fields. */
 	if (!time_authenticated)
-		return bytes_are(timestamp, 16, 0);
+		return true;
+	if (header[3] || read_le32(header + 8U) || read_le32(header + 12U) ||
+	    read_le32(header + 32U))
+		return false;
 	/*
 	 * EDK2 initializes some time-authenticated variables without a signed
 	 * update, so their stored timestamp is the all-zero EFI_TIME sentinel.
@@ -213,7 +218,7 @@ bool payload_mm_authvar_store_index_valid(
 		data_offset = (size_t)entry->name_offset + entry->name_size;
 		if (data_offset != entry->data_offset ||
 		    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID ||
-		    header[3] ||
+		    !authentication_fields_valid(header, entry->attributes) ||
 		    (header[2] != PAYLOAD_MM_AUTHVAR_STATE_ADDED &&
 		     header[2] !=
 			PAYLOAD_MM_AUTHVAR_STATE_ADDED_IN_DELETED_TRANSITION) ||
@@ -275,7 +280,7 @@ static enum record_result decode_record(const uint8_t *store, size_t store_size,
 	if (bytes_are(header, store_size - offset, 0xff))
 		return RECORD_END;
 	if (store_size - offset < PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE ||
-	    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID || header[3])
+	    read_le16(header) != PAYLOAD_MM_AUTHVAR_RECORD_START_ID)
 		return store_size - offset > 2U && header[2] == 0xff ?
 			RECORD_DIRTY_TAIL : RECORD_INVALID;
 	record->state = header[2];
@@ -307,8 +312,7 @@ static enum record_result decode_record(const uint8_t *store, size_t store_size,
 				    PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) ||
 	    record->name_size > limits->maximum_name_size ||
 	    record->data_size > limits->maximum_data_size ||
-	    !timestamp_valid(header + 16U, record->attributes) ||
-	    read_le32(header + 32U) || read_le32(header + 12U) || read_le32(header + 8U) ||
+	    !authentication_fields_valid(header, record->attributes) ||
 	    !add_size(offset, PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE,
 		&record->name_offset) ||
 	    !add_size(record->name_offset, record->name_size, &record->data_offset) ||
