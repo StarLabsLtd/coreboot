@@ -543,6 +543,9 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	soc_memory_init_params(m_cfg, config);
 	mainboard_memory_init_params(mupd);
 
+	/* DSP firmware authentication requires ME, even after board overrides. */
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+
 	/* Override the memory init params through runtime debug capability */
 	if (CONFIG(SOC_INTEL_COMMON_BASECODE_DEBUG_FEATURE))
 		debug_override_memory_init_params(m_cfg);
@@ -557,7 +560,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	if (cpuid == CPUID_ALDERLAKE_J0 || cpuid == CPUID_ALDERLAKE_Q0)
 		m_cfg->VtdDisable = 1;
 
-	m_cfg->PchHdaDspEnable = cse_get_audio_dsp_enable(m_cfg->PchHdaDspEnable);
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
