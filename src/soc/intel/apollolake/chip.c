@@ -776,7 +776,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	cfg->lpss_s0ix_enable = cse_get_s0ix_enable_state(silconfig->LPSS_S0ixEnable);
 	silconfig->LPSS_S0ixEnable = cfg->lpss_s0ix_enable;
 
-	silconfig->DspEnable = cse_get_audio_dsp_enable(silconfig->DspEnable);
+	silconfig->DspEnable &= cse_is_me_state_requested_enabled();
 }
 
 struct chip_operations soc_intel_apollolake_ops = {

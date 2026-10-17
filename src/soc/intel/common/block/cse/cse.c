@@ -306,16 +306,6 @@ bool cse_is_me_state_requested_enabled(void)
 	return me_state == 0;
 }
 
-bool cse_get_audio_dsp_enable(bool enable)
-{
-	if (enable && !cse_is_me_state_requested_enabled()) {
-		printk(BIOS_INFO, "Disabling audio DSP because ME is disabled.\n");
-		return false;
-	}
-
-	return enable;
-}
-
 #if ENV_RAMSTAGE
 bool cse_is_me_enabled(void)
 {
