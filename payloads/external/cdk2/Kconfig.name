@@ -7,6 +7,7 @@ config PAYLOAD_CDK2
 	select PAYLOAD_OWNS_PCI_DEVICES
 	select PAYLOAD_RESOURCE_HANDOFF
 	select PAYLOAD_LOCAL_APIC_TIMER_INFO
+	select CONSOLE_SERIAL if CDK2_DEBUG && DRIVERS_UART
 	help
 	  Build CDK2 from the pinned source submodule and add its native ELF as
 	  the primary payload. CDK2 consumes coreboot tables through the standard
