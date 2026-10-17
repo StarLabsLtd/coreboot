@@ -513,9 +513,6 @@ bool cse_is_me_operational(void);
  */
 bool cse_is_me_state_requested_enabled(void);
 
-/* DSP firmware authentication requires ME; retain a disabled DSP preference. */
-bool cse_get_audio_dsp_enable(bool enable);
-
 #if ENV_RAMSTAGE
 /*
  * Check whether ME/CSME is both requested enabled and operational.
