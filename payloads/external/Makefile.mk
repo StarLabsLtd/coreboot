@@ -166,6 +166,25 @@ CDK2_PAYLOAD := $(call strip_quotes,$(CONFIG_PAYLOAD_FILE))
 CDK2_OUTPUT := $(patsubst %/native/,%,$(dir $(CDK2_PAYLOAD)))
 CDK2_CONFIG := $(CDK2_OUTPUT)/.config
 
+ifeq ($(CONFIG_CDK2_NATIVE_SYSTEM_FMP),y)
+CDK2_CAPSULE_CERT := $(objutil)/efi_capsule/capsule-cert
+CDK2_CAPSULE_TRUST := $(CDK2_OUTPUT)/capsule-trust.c
+CDK2_CAPSULE_ROOT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
+
+$(CDK2_CAPSULE_CERT): $(top)/util/efi_capsule/capsule_cert.c
+	mkdir -p $(dir $@)
+	$(HOSTCC) $(HOSTCFLAGS) -o $@ $< -lcrypto
+
+$(CDK2_CAPSULE_TRUST): $(CDK2_CAPSULE_CERT) $(CDK2_CAPSULE_ROOT) $(DOTCONFIG) cdk2-force
+	@test -n "$(CDK2_CAPSULE_ROOT)" || { \
+		echo 'DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT is required for CDK2 firmware updates' >&2; \
+		exit 1; \
+	}
+	mkdir -p $(dir $@)
+	$(CDK2_CAPSULE_CERT) "$(CDK2_CAPSULE_ROOT)" > $@.tmp
+	if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
+endif
+
 # Preserve both sides of the configuration boundary. The outer configuration
 # records platform policy while the nested configuration records CDK2's
 # resolved view of that policy.
@@ -188,11 +207,12 @@ cdk2-force:
 
 $(CDK2_CONFIG): $(CDK2_PAYLOAD)
 
-$(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(objutil)/kconfig/conf
+$(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(objutil)/kconfig/conf $(CDK2_CAPSULE_TRUST)
 	+$(MAKE) -C $(CDK2_SOURCE) coreboot-stage \
 		COREBOOT_SOURCE="$(abspath .)" \
 		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
 		COREBOOT_OUTPUT_DIR="$(abspath $(CDK2_OUTPUT))" \
+		CDK2_CAPSULE_TRUST_SOURCE="$(abspath $(CDK2_CAPSULE_TRUST))" \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
 		HOSTCC="$(HOSTCC)" CC="$(CC_x86_64)" \
 		LD="$(word 1,$(LD_x86_64))" \
