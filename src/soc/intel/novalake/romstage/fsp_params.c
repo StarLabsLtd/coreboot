@@ -8,9 +8,9 @@
 #include <fsp/debug.h>
 #include <fsp/fsp_debug_event.h>
 #include <fsp/util.h>
+#include <intelblocks/cse.h>
 #include <intelbasecode/ramtop.h>
 #include <intelblocks/cpulib.h>
-#include <intelblocks/cse.h>
 #include <option.h>
 #include <soc/iomap.h>
 #include <soc/msr.h>
@@ -498,8 +498,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(mupd);
 
 	mainboard_memory_init_params(mupd);
-
-	mupd->FspmConfig.PchHdaDspEnable = cse_get_audio_dsp_enable(mupd->FspmConfig.PchHdaDspEnable);
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
