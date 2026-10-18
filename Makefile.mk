@@ -93,6 +93,35 @@ $(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) | files_added
 		$(EDK2_CAPSULE_ARGS)
 endif
 
+ifeq ($(CONFIG_PAYLOAD_CDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yyy)
+EFI_CAPSULE_TOOL := $(objutil)/efi_capsule/capsule
+EFI_CAPSULE_SIGNER := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))
+EFI_CAPSULE_INTERMEDIATE := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))
+EFI_CAPSULE_ROOT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
+
+$(EFI_CAPSULE_TOOL): util/efi_capsule/capsule.c
+	mkdir -p $(dir $@)
+	$(HOSTCC) $(HOSTCFLAGS) -Isrc/commonlib/bsd/include -o $@ $< -lcrypto
+
+finalised_rom:: $(obj)/coreboot.cap
+capsule:: $(obj)/coreboot.cap
+
+$(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) $(EFI_CAPSULE_TOOL) \
+		$(EFI_CAPSULE_SIGNER) $(EFI_CAPSULE_INTERMEDIATE) $(EFI_CAPSULE_ROOT) | files_added
+	@set -e; temporary="$@.tmp"; trap 'rm -f "$$temporary"' EXIT HUP INT TERM; \
+		rm -f "$$temporary"; \
+		$(EFI_CAPSULE_TOOL) --rom "$<" --output "$$temporary" \
+			--guid $(CONFIG_DRIVERS_EFI_MAIN_FW_GUID) \
+			--version $(CONFIG_DRIVERS_EFI_MAIN_FW_VERSION) \
+			--lsv $(CONFIG_DRIVERS_EFI_MAIN_FW_LSV) \
+			--localversion $(CONFIG_LOCALVERSION) \
+			--regions $(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS) \
+			--signer "$(EFI_CAPSULE_SIGNER)" \
+			--intermediate "$(EFI_CAPSULE_INTERMEDIATE)" --root "$(EFI_CAPSULE_ROOT)" \
+			$(if $(filter y,$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)),--initiate-reset); \
+		mv "$$temporary" "$@"; trap - EXIT HUP INT TERM
+endif
+
 # This target should come just before the show_notices target.  If there
 # are no notices, the build should finish with the text of what was just
 # built.

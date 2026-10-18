@@ -1,11 +1,11 @@
-# Generating signed UEFI capsules with EDK2
+# Generating signed UEFI capsules
 
-coreboot can cooperate with an EDK2 payload to support firmware updates via the UEFI
+coreboot can cooperate with a CDK2 or EDK2 payload to support firmware updates via the UEFI
 ESRT/FMP capsule mechanism.
 
 This document covers generating a *signed* capsule during the coreboot build.
 
-At present, capsule generation requires a compatible EDK2 tree with the
+For EDK2, capsule generation requires a compatible EDK2 tree with the
 corresponding payload-side changes. Upstream support is being tracked in:
 
 https://github.com/tianocore/edk2/pull/12053
@@ -14,14 +14,27 @@ Older EDK2 trees may be missing pieces required by this integration.
 
 ## Build-time capsule generation
 
-Enable capsule support and use an EDK2 payload:
+Enable capsule support and select the payload:
 
 - `CONFIG_DRIVERS_EFI_UPDATE_CAPSULES`: enable coreboot capsule update support.
 - `CONFIG_DRIVERS_EFI_GENERATE_CAPSULE`: generate `build/coreboot.cap` after the ROM is finalised.
-- `CONFIG_PAYLOAD_EDK2`: build an EDK2 payload.
+- `CONFIG_PAYLOAD_CDK2` or `CONFIG_PAYLOAD_EDK2`: select the payload.
 
 When enabled, the coreboot build generates `build/coreboot.cap` after the ROM image is
 finalised. The capsule can also be generated explicitly with `make capsule`.
+
+CDK2 uses `util/efi_capsule/capsule.c`, built with the host C compiler and
+OpenSSL's libcrypto development files. It does not invoke EDK2, BaseTools or
+Python. The utility produces one authenticated FMP image, without embedded
+drivers or vendor code, using SHA-256 and detached PKCS#7 SignedData.
+It verifies the signature and configured certificate chain before writing
+the capsule. The signed payload includes the ROM, firmware version, lowest
+supported version and RMAP region manifest.
+
+For CDK2, all three certificate paths must be configured explicitly. Relative
+paths are relative to the coreboot source directory. The trust certificate
+must be a self-signed CA, not an intermediate certificate. An existing capsule
+output is replaced only after its replacement is generated successfully.
 
 Configure the FMAP allowlist embedded into the ROM as a manifest:
 
@@ -67,10 +80,10 @@ coreboot exposes three Kconfig options for the certificate chain:
 - `CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT`: PEM intermediate certificate
 - `CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT`: PEM trusted root certificate
 
-If a configured path is relative, it is interpreted relative to the configured EDK2 repository
+For EDK2, a relative path is interpreted relative to the configured EDK2 repository
 inside `payloads/external/edk2/workspace`.
 
-The defaults use the EDK2 BaseTools test certificate chain. Do not use the test keys for
+EDK2's defaults use the BaseTools test certificate chain. Do not use the test keys for
 production firmware updates.
 
 To generate your own certificate chain and convert it into the required PEM files, see:
