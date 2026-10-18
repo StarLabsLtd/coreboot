@@ -5,6 +5,7 @@
 #include <cbmem.h>
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
+#include <commonlib/bsd/cb_err.h>
 #include <console/console.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
@@ -47,6 +48,45 @@ struct cpu_smm_info {
 struct cpu_smm_info cpus[CONFIG_MAX_CPUS] = { 0 };
 
 /*
+ * Carve out a region from the top of the given SMRAM free region.
+ * The SMRAM free region shrinks and the newly carved region is returned
+ * through the `out` parameter.
+ *
+ * @arg smram_free: Pointer to the free SMRAM region to carve from.
+ * @arg size:       The size of the region to carve out.
+ * @arg alignment:  The alignment requirement for the carved region.
+ * @arg name:       Name of the region for logging purposes.
+ * @arg out:        Pointer to the region structure to store the carved region.
+ * Returns CB_SUCCESS on success, CB_ERR if the requested size cannot be accommodated.
+ */
+static enum cb_err smm_smram_carve_top(struct region *smram_free,
+				       const size_t size,
+				       const size_t alignment,
+				       const char *name,
+				       struct region *out)
+{
+	const size_t smram_region_end = region_last(smram_free) + 1 - size;
+	const size_t new_region_end = ALIGN_DOWN(smram_region_end, alignment);
+	const size_t size_with_padding = region_last(smram_free) + 1 - new_region_end;
+
+	if (size_with_padding == 0)
+		return CB_SUCCESS;
+
+	if (size_with_padding > region_sz(smram_free)) {
+		printk(BIOS_ERR, "SMM region %s, size 0x%zx exceeds free SMRAM size 0x%zx\n",
+		       name, size, region_sz(smram_free));
+		return CB_ERR;
+	}
+
+	smram_free->size -= size_with_padding;
+	*out = region_create(new_region_end, size_with_padding);
+	printk(BIOS_INFO, "SMM SUBREGION: %-20s 0x%zx 0x%zx\n", name, region_offset(out), region_last(out));
+
+	return CB_SUCCESS;
+}
+
+
+/*
  * This method creates a map of all the CPU entry points, save state locations
  * and the beginning and end of code segments for each CPU. This map is used
  * during relocation to properly align as many CPUs that can fit into the SMRAM
@@ -83,10 +123,11 @@ struct cpu_smm_info cpus[CONFIG_MAX_CPUS] = { 0 };
  * input : num_cpus in the system. The map will
  *         be created from 0 to num_cpus.
  */
-static int smm_create_map(const uintptr_t smbase, const unsigned int num_cpus,
-			  const struct smm_loader_params *params)
+static int smm_create_map(struct region *smram_free, const unsigned int num_cpus,
+			  const size_t cpu_save_state_size)
 {
 	struct rmodule smm_stub;
+	char segment_name[32];
 
 	if (ARRAY_SIZE(cpus) < num_cpus) {
 		printk(BIOS_ERR, "%s: increase MAX_CPUS in Kconfig\n", __func__);
@@ -103,7 +144,7 @@ static int smm_create_map(const uintptr_t smbase, const unsigned int num_cpus,
 	 * Make sure that the first stub does not overlap with the last save state of a segment.
 	 */
 	const size_t stub_size = rmodule_memory_size(&smm_stub);
-	const size_t needed_ss_size = MAX(params->cpu_save_state_size, stub_size);
+	const size_t needed_ss_size = MAX(cpu_save_state_size, stub_size);
 	const size_t cpus_per_segment =
 		(SMM_CODE_SEGMENT_SIZE - SMM_ENTRY_OFFSET - stub_size) / needed_ss_size;
 
@@ -112,16 +153,45 @@ static int smm_create_map(const uintptr_t smbase, const unsigned int num_cpus,
 		       __func__);
 		return 0;
 	}
+	struct region padding;
+	if (smm_smram_carve_top(smram_free, 0, SMM_CODE_SEGMENT_SIZE, "PADDING", &padding) != CB_SUCCESS)
+		return 0;
 
-	for (unsigned int i = 0; i < num_cpus; i++) {
-		const size_t segment_number = i / cpus_per_segment;
-		cpus[i].smbase = smbase - SMM_CODE_SEGMENT_SIZE * segment_number
-			- needed_ss_size * (i % cpus_per_segment);
-		cpus[i].stub_code = region_create(cpus[i].smbase + SMM_ENTRY_OFFSET, stub_size);
-		cpus[i].ss = region_create(
-				cpus[i].smbase + SMM_CODE_SEGMENT_SIZE - params->cpu_save_state_size,
-				params->cpu_save_state_size);
-		cpus[i].active = 1;
+	for (size_t segment = 0; segment < DIV_ROUND_UP(num_cpus, cpus_per_segment); segment++) {
+		for (size_t i = 0; i < cpus_per_segment; i++) {
+			const size_t cpu_index = segment * cpus_per_segment + i;
+			struct cpu_smm_info *cpu_info = &cpus[cpu_index];
+			if (cpu_index >= num_cpus)
+				break;
+
+			snprintf(segment_name, sizeof(segment_name), "SAVE_STATE_SEGMENT_%zu", cpu_index);
+			if (smm_smram_carve_top(smram_free, needed_ss_size, 1, segment_name, &cpu_info->ss) != CB_SUCCESS)
+				return 0;
+			/* SMBASE start's SMM_CODE_SEGMENT_SIZE bytes before end of save state */
+			cpu_info->smbase = region_last(&cpu_info->ss) + 1 - SMM_CODE_SEGMENT_SIZE;
+			/* Stub code starts at SMBASE + SMM_ENTRY_OFFSET */
+			cpu_info->stub_code = region_create(cpu_info->smbase + SMM_ENTRY_OFFSET, stub_size);
+			cpu_info->active = 1;
+		}
+
+		for (size_t i = 0; i < cpus_per_segment; i++) {
+			struct region stub_code;
+			const size_t cpu_index = segment * cpus_per_segment + i;
+			struct cpu_smm_info *cpu_info = &cpus[cpu_index];
+			if (cpu_index >= num_cpus)
+				break;
+
+			const size_t len = region_last(smram_free) + 1 - region_offset(&cpu_info->stub_code);
+			/* Reserve space for the stub code in SMRAM. Might be larger than the actual stub size
+			 * due to size of save state. */
+			snprintf(segment_name, sizeof(segment_name), "STUB_CODE_%zu", cpu_index);
+			if (smm_smram_carve_top(smram_free, len, 1, segment_name, &stub_code) != CB_SUCCESS)
+				return 0;
+
+			/* Sanity check if calculated stub code region is within the reserved region */
+			if (!region_is_subregion(&stub_code, &cpu_info->stub_code))
+				die("stub code not within reserved region\n");
+		}
 	}
 
 	return 1;
@@ -421,48 +491,6 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 #endif
 }
 
-static void print_region(const char *name, const struct region region)
-{
-	printk(BIOS_DEBUG, "%-12s [0x%zx-0x%zx]\n", name, region_offset(&region),
-	       region_last(&region));
-}
-
-/* STM + Handler + GDT + (Stub + Save state) * CONFIG_MAX_CPUS + stacks + page tables*/
-#define SMM_REGIONS_ARRAY_SIZE (1 + 1 + 1 + CONFIG_MAX_CPUS * 2 + 1 + 1)
-
-static int append_and_check_region(const struct region smram,
-				   const struct region region,
-				   struct region *region_list,
-				   const char *name)
-{
-	unsigned int region_counter = 0;
-	for (; region_counter < SMM_REGIONS_ARRAY_SIZE; region_counter++)
-		if (region_sz(&region_list[region_counter]) == 0)
-			break;
-
-	if (region_counter >= SMM_REGIONS_ARRAY_SIZE) {
-		printk(BIOS_ERR, "Array used to check regions too small\n");
-		return 1;
-	}
-
-	if (!region_is_subregion(&smram, &region)) {
-		printk(BIOS_ERR, "%s not in SMM\n", name);
-		return 1;
-	}
-
-	print_region(name, region);
-	for (unsigned int i = 0; i < region_counter; i++) {
-		if (region_overlap(&region_list[i], &region)) {
-			printk(BIOS_ERR, "%s overlaps with a previous region\n", name);
-			return 1;
-		}
-	}
-
-	region_list[region_counter] = region;
-
-	return 0;
-}
-
 #define _PRES (1ULL << 0)
 #define _RW   (1ULL << 1)
 #define _US   (1ULL << 2)
@@ -520,6 +548,48 @@ static void smm_permanent_install_page_table(const uintptr_t pt_base)
 		write64p(pml4e + i * PTE_SIZE, _GEN_DIR(pdpt + i * 4096));
 }
 
+/* GDT */
+static const struct gdt_entry permanent_gdt[] = {
+	[0] = { 0 }, /* Empty to keep NULL selector */
+	[1] = { /* gdt selector 0x08, flat code segment */
+		.limit_low = 0xffff,
+		.access = 0x9b,
+		.limit_high_and_flags = 0xcf,
+	},
+	[2] = { /* gdt selector 0x10, flat data segment */
+
+		.limit_low = 0xffff,
+		.access = 0x93,
+		.limit_high_and_flags = 0xcf,
+	},
+	[3] = { /* gdt selector 0x18, flat code segment (64-bit) */
+
+		.limit_low = 0xffff,
+		.access = 0x9b,
+		.limit_high_and_flags = 0xaf,
+	},
+	[4] = { /* gdt selector 0x20 tss segment */
+		.limit_low = 0xffff,
+		.access = 0x8b,
+		.limit_high_and_flags = 0x80,
+	},
+};
+
+static size_t smm_permanent_gdt_size(void)
+{
+	return sizeof(permanent_gdt);
+}
+
+static size_t smm_permanent_gdt_alignment(void)
+{
+	return 8;
+}
+
+static void smm_install_permanent_gdt(const uintptr_t permanent_gdt_base)
+{
+	memcpy((void *)permanent_gdt_base, permanent_gdt, sizeof(permanent_gdt));
+}
+
 /*
  *The SMM module is placed within the provided region in the following
  * manner:
@@ -537,7 +607,9 @@ static void smm_permanent_install_page_table(const uintptr_t pt_base)
  * |    stub code    | <- cpu3, etc
  * |                 |
  * |                 |
- * |                 |
+ * |-----------------|
+ * |    unused       |
+ * |-----------------| <- num_concurrent_save_states * CONFIG_SMM_MODULE_STACK_SIZE
  * |    stacks       |
  * +-----------------+ <- smram start
  *
@@ -547,117 +619,69 @@ static void smm_permanent_install_page_table(const uintptr_t pt_base)
 int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 		    struct smm_loader_params *params)
 {
-	/*
-	 * Place in .bss to reduce stack usage.
-	 * TODO: once CPU_INFO_V2 is used everywhere, use smaller stack for APs and move
-	 * this back to the BSP stack.
-	 */
-	static struct region region_list[SMM_REGIONS_ARRAY_SIZE] = {};
-
-	struct rmodule smi_handler;
-	if (rmodule_parse(&_binary_smm_start, &smi_handler))
-		return -1;
-
 	const struct region smram = region_create(smram_base, smram_size);
-	const uintptr_t smram_top = region_last(&smram) + 1;
-
-	const size_t stm_size =
-		CONFIG(STM) ? CONFIG_MSEG_SIZE + CONFIG_BIOS_RESOURCE_LIST_SIZE : 0;
+	struct region smram_free = smram;
 
 	if (CONFIG(STM)) {
-		struct region stm = region_create(smram_top - stm_size, stm_size);
-		if (append_and_check_region(smram, stm, region_list, "STM"))
+		const size_t stm_size = CONFIG_MSEG_SIZE + CONFIG_BIOS_RESOURCE_LIST_SIZE;
+
+		struct region stm;
+		if (smm_smram_carve_top(&smram_free, stm_size, 1, "STM", &stm) != CB_SUCCESS)
 			return -1;
 		printk(BIOS_DEBUG, "MSEG size     0x%x\n", CONFIG_MSEG_SIZE);
 		printk(BIOS_DEBUG, "BIOS res list 0x%x\n", CONFIG_BIOS_RESOURCE_LIST_SIZE);
 	}
 
-	/* Install permanent GDT */
-	static const struct gdt_entry permanent_gdt[] __aligned(4) = {
-		[0] = { 0 }, /* Empty to keep NULL selector */
-		[1] = { /* gdt selector 0x08, flat code segment */
-			.limit_low = 0xffff,
-			.access = 0x9b,
-			.limit_high_and_flags = 0xcf,
-		},
-		[2] = { /* gdt selector 0x10, flat data segment */
-
-			.limit_low = 0xffff,
-			.access = 0x93,
-			.limit_high_and_flags = 0xcf,
-		},
-		[3] = { /* gdt selector 0x18, flat code segment (64-bit) */
-
-			.limit_low = 0xffff,
-			.access = 0x9b,
-			.limit_high_and_flags = 0xaf,
-		},
-		[4] = { /* gdt selector 0x20 tss segment */
-			.limit_low = 0xffff,
-			.access = 0x8b,
-			.limit_high_and_flags = 0x80,
-		},
-	};
-	const size_t permanent_gdt_size = sizeof(permanent_gdt);
-	const size_t permanent_gdt_base = ALIGN_DOWN(smram_top - stm_size - permanent_gdt_size,
-		4);
-	struct region permanent_gdt_region = region_create(permanent_gdt_base, permanent_gdt_size);
-	if (append_and_check_region(smram, permanent_gdt_region, region_list, "GDT"))
-		return -1;
-
-	memcpy((void *)permanent_gdt_base, permanent_gdt, permanent_gdt_size);
-	params->gdt_base = permanent_gdt_base;
-	params->gdt_limit = permanent_gdt_size - 1;
-
-	const size_t handler_size = rmodule_memory_size(&smi_handler);
-	const size_t handler_alignment = rmodule_load_alignment(&smi_handler);
-	const uintptr_t handler_base =
-		ALIGN_DOWN(permanent_gdt_base - handler_size,
-			   handler_alignment);
-	struct region handler = region_create(handler_base, handler_size);
-	if (append_and_check_region(smram, handler, region_list, "HANDLER"))
-		return -1;
-
-	uintptr_t stub_segment_base;
-	if (ENV_X86_64) {
-		const size_t pt_size = smm_permanent_page_table_size();
-		const size_t pt_alignment = smm_permanent_page_table_alignment();
-		const uintptr_t pt_base =
-			ALIGN_DOWN(handler_base - pt_size, pt_alignment);
-
-		struct region page_tables = region_create(pt_base, pt_size);
-		if (append_and_check_region(smram, page_tables, region_list, "PAGE TABLES"))
+	/* Install GDT */
+	{
+		struct region r_gdt;
+		const size_t size = smm_permanent_gdt_size();
+		const size_t alignment = smm_permanent_gdt_alignment();
+		if (smm_smram_carve_top(&smram_free, size, alignment, "GDT", &r_gdt) != CB_SUCCESS)
 			return -1;
-		smm_permanent_install_page_table(pt_base);
-
-		params->cr3 = pt_base;
-		stub_segment_base = pt_base - SMM_CODE_SEGMENT_SIZE;
-	} else {
-		stub_segment_base = handler_base - SMM_CODE_SEGMENT_SIZE;
+		smm_install_permanent_gdt(region_offset(&r_gdt));
+		params->gdt_base = region_offset(&r_gdt);
+		params->gdt_limit = region_sz(&r_gdt) - 1;
 	}
 
-	if (!smm_create_map(stub_segment_base, params->num_concurrent_save_states, params)) {
+	/* Parse the SMI handler module */
+	struct rmodule smi_handler;
+	struct region handler;
+	if (rmodule_parse(&_binary_smm_start, &smi_handler))
+		return -1;
+	{
+		const size_t size = rmodule_memory_size(&smi_handler);
+		const size_t alignment = rmodule_load_alignment(&smi_handler);
+
+		if (smm_smram_carve_top(&smram_free, size, alignment, "HANDLER", &handler) != CB_SUCCESS)
+			return -1;
+	}
+
+	/* Page tables for the SMM permanent code segment */
+	if (ENV_X86_64) {
+		const size_t size = smm_permanent_page_table_size();
+		const size_t alignment = smm_permanent_page_table_alignment();
+		struct region pt;
+
+		if (smm_smram_carve_top(&smram_free, size, alignment, "PAGE TABLES", &pt) != CB_SUCCESS)
+			return -1;
+
+		smm_permanent_install_page_table(region_offset(&pt));
+
+		params->cr3 = region_offset(&pt);
+	}
+
+	if (!smm_create_map(&smram_free, params->num_cpus, params->cpu_save_state_size)) {
 		printk(BIOS_ERR, "%s: Error creating CPU map\n", __func__);
 		return -1;
 	}
-	for (unsigned int i = 0; i < params->num_concurrent_save_states; i++) {
-		printk(BIOS_DEBUG, "\nCPU %u\n", i);
-		char string[13];
-		snprintf(string, sizeof(string), "  ss%d", i);
-		if (append_and_check_region(smram, cpus[i].ss, region_list, string))
-			return -1;
-		snprintf(string, sizeof(string), "  stub%d", i);
-		if (append_and_check_region(smram, cpus[i].stub_code, region_list, string))
-			return -1;
+
+	if (region_sz(&smram_free) < params->num_concurrent_save_states * CONFIG_SMM_MODULE_STACK_SIZE) {
+		printk(BIOS_ERR, "%s: Not enough SMRAM for SMM module stacks\n", __func__);
+		return -1;
 	}
 
-	struct region stacks = region_create(smram_base,
-			params->num_concurrent_save_states * CONFIG_SMM_MODULE_STACK_SIZE);
-	printk(BIOS_DEBUG, "\n");
-	if (append_and_check_region(smram, stacks, region_list, "stacks"))
-		return -1;
-
-	if (rmodule_load((void *)handler_base, &smi_handler))
+	if (rmodule_load((void *)region_offset(&handler), &smi_handler))
 		return -1;
 
 	struct smm_runtime *smihandler_params = rmodule_parameters(&smi_handler);
