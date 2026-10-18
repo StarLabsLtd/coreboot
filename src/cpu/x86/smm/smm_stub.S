@@ -26,6 +26,10 @@ c_handler:
 .long 0
 cr3:
 .long 0
+gdt_ptr:
+.word 0
+.long 0
+
 /* apic_to_cpu_num is a table mapping the default APIC id to CPU num. If the
  * APIC id is found at the given index, the contiguous CPU number is index
  * into the table. */
@@ -84,7 +88,9 @@ _start:
 	ud2
 untampered_lapic:
 #endif
-	movl	$(smm_relocate_gdt), %ebx
+	xor	%ebp, %ebp
+load_gdt:
+	movl	$(gdt_ptr), %ebx
 	lgdtl	(%ebx)
 
 	movl	%cr0, %eax
@@ -94,30 +100,6 @@ untampered_lapic:
 
 	/* Enable protected mode */
 	ljmpl	$GDT_CODE_SEG, $smm_trampoline32
-
-.align 4
-smm_relocate_gdt:
-	/* The first GDT entry is used for the lgdt instruction. */
-	.word	smm_relocate_gdt_end - smm_relocate_gdt - 1
-	.long	smm_relocate_gdt
-	.word	0x0000
-
-	/* gdt selector 0x08, flat code segment */
-	.word	0xffff, 0x0000
-	.byte	0x00, 0x9b, 0xcf, 0x00 /* G=1 and 0x0f, 4GB limit */
-
-	/* gdt selector 0x10, flat data segment */
-	.word	0xffff, 0x0000
-	.byte	0x00, 0x93, 0xcf, 0x00
-
-	/* gdt selector 0x18, flat code segment (64-bit) */
-	.word	0xffff, 0x0000
-	.byte	0x00, 0x9b, 0xaf, 0x00
-
-	/* gdt selector 0x20 tss segment */
-	.word   0xffff, 0x0000
-	.byte   0x00, 0x8b, 0x80, 0x00
-smm_relocate_gdt_end:
 
 .align 4
 .code32
