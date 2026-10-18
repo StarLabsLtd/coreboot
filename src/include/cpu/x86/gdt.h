@@ -10,6 +10,26 @@ extern char per_cpu_segment_descriptors[];
 extern uint32_t per_cpu_segment_selector;
 extern char gdt_end[];
 extern char idtarg[];
+
+struct gdt_entry {
+	uint16_t limit_low;
+	uint16_t base_low;
+	uint8_t base_middle;
+	uint8_t access;
+	uint8_t limit_high_and_flags;
+	uint8_t base_high;
+} __packed;
+
+struct gdt_descriptor {
+	uint16_t limit;
+	uintptr_t base;
+} __packed;
+
+static inline void read_gdtr(struct gdt_descriptor *gdtr)
+{
+	__asm__ __volatile__("sgdt %0" : "=m"(*gdtr));
+}
+
 #endif
 
 /* Offset to GDT's segment descriptors: */
