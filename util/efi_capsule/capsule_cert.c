@@ -3,6 +3,7 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -23,6 +24,12 @@ int main(int argc, char **argv)
 	certificate = PEM_read_bio_X509(input, NULL, NULL, NULL);
 	if (certificate == NULL)
 		goto out;
+	if (X509_check_ca(certificate) != 1 ||
+	    X509_check_issued(certificate, certificate) != X509_V_OK ||
+	    X509_verify(certificate, X509_get0_pubkey(certificate)) != 1) {
+		fprintf(stderr, "Capsule trust certificate must be a self-signed CA\n");
+		goto out;
+	}
 	size = i2d_X509(certificate, &der);
 	if (size <= 0)
 		goto out;
