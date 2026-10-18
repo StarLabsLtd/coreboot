@@ -192,7 +192,7 @@ void bmp_retain_logo(void);
 void bootsplash_render_primary(void);
 /* Serialize final oriented BGRX pixels into an owned, page-aligned bitmap. */
 void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
-	size_t *bmp_size);
+	unsigned int scale, size_t *bmp_size);
 /*
  * Platform specific callbacks for power-off handling.
  *

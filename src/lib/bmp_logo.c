@@ -135,7 +135,7 @@ void *bmp_load_logo(size_t *logo_size)
 }
 
 void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
-	size_t *bmp_size)
+	unsigned int scale, size_t *bmp_size)
 {
 	struct bmp_cbmem_allocation allocation = { .id = CBMEM_ID_BOOT_SPLASH };
 	struct bmp_image_header *header;
@@ -144,12 +144,14 @@ void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
 	if (!bmp_size)
 		return NULL;
 	*bmp_size = 0;
-	if (!blt || !width || !height || width > INT32_MAX || height > INT32_MAX)
+	if (!blt || !width || !height || (scale != 1 && scale != 2) ||
+	    width > INT32_MAX / scale || height > INT32_MAX / scale)
 		return NULL;
-	row_size = (uint64_t)width * sizeof(struct blt_pixel);
-	pixel_bytes = row_size * height;
+	row_size = (uint64_t)width * scale * sizeof(struct blt_pixel);
+	pixel_bytes = row_size * height * scale;
 	if (pixel_bytes > 1 * MiB - sizeof(*header) ||
-	    pixel_bytes - 1U > UINTPTR_MAX - (uintptr_t)blt)
+	    (uint64_t)width * height * sizeof(struct blt_pixel) - 1U >
+		UINTPTR_MAX - (uintptr_t)blt)
 		return NULL;
 	if (logo_entry && cbmem_entry_remove(logo_entry))
 		return NULL;
@@ -163,13 +165,25 @@ void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
 	*header = (struct bmp_image_header) {
 		.CharB = 'B', .CharM = 'M', .Size = sizeof(*header) + pixel_bytes,
 		.ImageOffset = sizeof(*header), .HeaderSize = 40,
-		.PixelWidth = width, .PixelHeight = height, .Planes = 1, .BitPerPixel = 32,
+		.PixelWidth = width * scale, .PixelHeight = height * scale,
+		.Planes = 1, .BitPerPixel = 32,
 		.ImageSize = pixel_bytes,
 	};
-	for (uint32_t row = 0; row < height; row++)
-		memcpy((uint8_t *)(header + 1) + (size_t)row * row_size,
-			(const uint8_t *)blt + (size_t)(height - row - 1U) * row_size,
-			row_size);
+	for (uint32_t row = 0; row < height * scale; row++) {
+		struct blt_pixel *destination = (void *)((uint8_t *)(header + 1) +
+			(size_t)row * row_size);
+		const struct blt_pixel *source = (const struct blt_pixel *)blt +
+			(size_t)(height - row / scale - 1U) * width;
+
+		if (scale == 1) {
+			memcpy(destination, source, row_size);
+			continue;
+		}
+		for (uint32_t column = 0; column < width; column++) {
+			destination[2U * column] = source[column];
+			destination[2U * column + 1U] = source[column];
+		}
+	}
 	*bmp_size = header->Size;
 	return header;
 }
