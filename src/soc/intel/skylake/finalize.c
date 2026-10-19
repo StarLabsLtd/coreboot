@@ -31,7 +31,7 @@
 #define PCR_PSFX_T0_SHDW_PCIEN	0x1C
 #define PCR_PSFX_T0_SHDW_PCIEN_FUNDIS	(1 << 8)
 
-void soc_disable_heci1_using_pcr(void)
+int soc_disable_heci1_using_pcr(void)
 {
 	/* unhide p2sb device */
 	if (!p2sb_unhide())
@@ -42,7 +42,7 @@ void soc_disable_heci1_using_pcr(void)
 	pcr_or32(PID_PSF1, PSF_BASE_ADDRESS + PCR_PSFX_T0_SHDW_PCIEN,
 		PCR_PSFX_T0_SHDW_PCIEN_FUNDIS);
 
-	p2sb_disable_sideband_access();
+	return p2sb_disable_sideband_access();
 }
 
 static void pch_finalize_script(struct device *dev)

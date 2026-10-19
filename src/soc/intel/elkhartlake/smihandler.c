@@ -13,10 +13,12 @@
  * restriction in place from MCC chipset. Hence create SMI Handler to
  * perform CSME function disabling logic during SMM mode.
  */
-void smihandler_soc_at_finalize(void)
+int smihandler_soc_at_finalize(void)
 {
 	if (soc_disable_heci1_at_pre_boot())
-		heci1_disable();
+		return heci1_disable();
+
+	return 0;
 }
 
 const smi_handler_t southbridge_smi[SMI_STS_BITS] = {

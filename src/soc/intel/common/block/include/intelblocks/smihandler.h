@@ -106,8 +106,8 @@ void smihandler_southbridge_espi(
 
 /* SoC overrides. */
 
-/* Specific SOC SMI handler during ramstage finalize phase */
-void smihandler_soc_at_finalize(void);
+/* Specific SOC SMI handler during ramstage finalize phase. Returns 0 on success. */
+int smihandler_soc_at_finalize(void);
 
 /*
  * This function returns a 1 or 0 depending on whether disable_busmaster
