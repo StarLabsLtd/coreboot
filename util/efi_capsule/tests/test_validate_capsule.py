@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import struct
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 import unittest
@@ -100,22 +102,33 @@ def make_fv(file_guid=FMP_GUID, file_type=0x07, duplicate=False):
     return bytes(fv)
 
 
-def make_rmap_image(regions, overlap=False, nested=False, out_of_bounds=False):
+def make_rmap_image(regions, overlap=False, nested=False, out_of_bounds=False,
+                    empty_region=None, relocate_region=None, decoy=False):
     image = bytearray(b"\xff" * 0x1000)
     fmap_offset = 0x100
-    struct.pack_into("<8sBBQI32sH", image, fmap_offset, b"__FMAP__", 1, 1,
-                     0, len(image), b"test\0", len(regions) + nested)
+    areas = [("FMAP", fmap_offset, 0x100), ("WP_RO", 0x800, 0x200)]
     for index, name in enumerate(regions):
-        offset = 0x400 + index * 0x100
+        offset = 0x300 + index * 0x80
         if overlap and index:
-            offset -= 0x80
+            offset -= 0x40
         if out_of_bounds and index == 0:
-            offset = len(image) - 0x80
-        struct.pack_into("<II32sH", image, fmap_offset + 56 + index * 42,
-                         offset, 0x100, name.encode() + b"\0", 0)
+            offset = len(image) - 0x40
+        if name == empty_region:
+            length = 0
+        else:
+            length = 0x80
+        if name == relocate_region:
+            offset = 0x880
+        areas.append((name, offset, length))
     if nested:
-        struct.pack_into("<II32sH", image, fmap_offset + 56 + len(regions) * 42,
-                         0x300, 0x600, b"RW_SECTION_A\0", 0)
+        areas.append(("RW_SECTION_A", 0x280, 0x300))
+    struct.pack_into("<8sBBQI32sH", image, fmap_offset, b"__FMAP__", 1, 1,
+                     0, len(image), b"test\0", len(areas))
+    for index, (name, offset, length) in enumerate(areas):
+        struct.pack_into("<II32sH", image, fmap_offset + 56 + index * 42,
+                         offset, length, name.encode() + b"\0", 0)
+    if decoy:
+        image[0:8] = b"__FMAP__"
     entries = b"".join(name.encode().ljust(16, b"\0") for name in regions)
     return bytes(image) + entries + struct.pack("<IHH", RMAP_SIGNATURE, 1,
                                                   len(regions))
@@ -123,6 +136,15 @@ def make_rmap_image(regions, overlap=False, nested=False, out_of_bounds=False):
 
 def rmap_firmware(image, region_count):
     return image[:-(region_count * 16 + 8)]
+
+
+def rmap_layout(image, region_count):
+    firmware = rmap_firmware(image, region_count)
+    count = struct.unpack_from("<H", firmware, 0x100 + 54)[0]
+    fmap_size = 56 + count * 42
+    layout = bytearray(firmware)
+    layout[0:fmap_size] = firmware[0x100:0x100 + fmap_size]
+    return bytes(layout)
 
 
 class ValidateCapsuleTest(unittest.TestCase):
@@ -216,56 +238,120 @@ class ValidateCapsuleTest(unittest.TestCase):
     def test_accepts_expected_rmap_regions(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
         image = make_rmap_image(regions)
-        validate_rmap(image, regions, rmap_firmware(image, len(regions)))
+        validate_rmap(image, regions, rmap_firmware(image, len(regions)),
+                      rmap_layout(image, len(regions)))
 
     def test_rejects_rmap_for_different_firmware(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
         image = make_rmap_image(regions)
         with self.assertRaisesRegex(ValidationError, "does not match"):
-            validate_rmap(image, regions, b"different firmware")
+            validate_rmap(image, regions, b"different firmware",
+                          rmap_layout(image, len(regions)))
 
     def test_rejects_missing_or_extra_rmap_regions(self):
         expected = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
         with self.assertRaisesRegex(ValidationError, "do not match"):
-            validate_rmap(make_rmap_image(["EC", "FW_MAIN_A"]), expected)
+            image = make_rmap_image(["EC", "FW_MAIN_A"])
+            validate_rmap(image, expected, expected_layout=rmap_layout(image, 2))
         with self.assertRaisesRegex(ValidationError, "do not match"):
-            validate_rmap(make_rmap_image(expected + ["WP_RO"]), expected)
+            image = make_rmap_image(expected + ["WP_RO"])
+            validate_rmap(image, expected, expected_layout=rmap_layout(image, 6))
 
     def test_rejects_overlapping_rmap_regions(self):
         regions = ["EC", "RW_NVRAM"]
         with self.assertRaisesRegex(ValidationError, "overlapping RMAP"):
-            validate_rmap(make_rmap_image(regions, overlap=True), regions)
+            image = make_rmap_image(regions, overlap=True)
+            validate_rmap(image, regions, expected_layout=rmap_layout(image, 2))
 
     def test_accepts_nested_unselected_fmap_regions(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
-        validate_rmap(make_rmap_image(regions, nested=True), regions)
+        image = make_rmap_image(regions, nested=True)
+        validate_rmap(image, regions, expected_layout=rmap_layout(image, len(regions)))
 
     def test_rejects_duplicate_or_out_of_bounds_rmap_regions(self):
         with self.assertRaisesRegex(ValidationError, "duplicate RMAP"):
-            validate_rmap(make_rmap_image(["EC", "EC"]), ["EC", "EC"])
+            image = make_rmap_image(["EC", "EC"])
+            validate_rmap(image, ["EC", "EC"], expected_layout=rmap_layout(image, 2))
         with self.assertRaisesRegex(ValidationError, "invalid FMAP"):
-            validate_rmap(make_rmap_image(["EC"], out_of_bounds=True), ["EC"])
+            image = make_rmap_image(["EC"], out_of_bounds=True)
+            validate_rmap(image, ["EC"], expected_layout=rmap_layout(image, 1))
 
     def test_rejects_nonempty_rw_nvram(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
         image = bytearray(make_rmap_image(regions))
-        image[0x500] = 0
+        image[0x380] = 0
         with self.assertRaisesRegex(ValidationError, "RW_NVRAM must be erased"):
-            validate_rmap(bytes(image), regions)
+            validate_rmap(bytes(image), regions, expected_layout=rmap_layout(image, len(regions)))
+
+    def test_rejects_rmap_geometry_that_differs_from_selected_layout(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        layout_image = make_rmap_image(regions, nested=True)
+        layout = rmap_layout(layout_image, len(regions))
+        for image in (
+                make_rmap_image(regions, empty_region="RW_NVRAM"),
+                make_rmap_image(regions, empty_region="VBLOCK_A"),
+                make_rmap_image(regions, relocate_region="FW_MAIN_A")):
+            with self.assertRaisesRegex(ValidationError, "does not match"):
+                validate_rmap(image, regions, rmap_firmware(image, len(regions)), layout)
+
+    def test_uses_selected_fmap_location_and_accepts_nested_layout(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        image = make_rmap_image(regions, nested=True, decoy=True)
+        validate_rmap(image, regions, rmap_firmware(image, len(regions)),
+                      rmap_layout(image, len(regions)))
+
+    def test_requires_workspace_firmware_volume_in_packaged_payload(self):
+        capsule = make_capsule()
+        firmware_volume = make_fv()
+        validate(capsule, firmware_volume, FMP_GUID, 0, payload=firmware_volume)
+        with self.assertRaisesRegex(ValidationError, "not in the packaged payload"):
+            validate(capsule, firmware_volume, FMP_GUID, 0, payload=make_fv(OTHER_GUID))
+
+    def test_cli_rejects_layout_with_zero_length_vblock(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        layout_image = make_rmap_image(regions)
+        image = make_rmap_image(regions, empty_region="VBLOCK_A")
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            capsule = directory / "capsule.cap"
+            firmware = directory / "firmware.rom"
+            layout = directory / "fmap.fmap"
+            volume = directory / "DXEFV.Fv"
+            payload = directory / "payload"
+            capsule.write_bytes(make_capsule(update_image=image))
+            firmware.write_bytes(rmap_firmware(image, len(regions)))
+            layout.write_bytes(rmap_layout(layout_image, len(regions)))
+            volume.write_bytes(make_fv())
+            payload.write_bytes(make_fv())
+            command = [
+                sys.executable, "util/efi_capsule/validate_capsule.py",
+                "--capsule", str(capsule), "--firmware-volume", str(volume),
+                "--guid", str(FMP_GUID), "--embedded-drivers", "0",
+                "--firmware-rom", str(firmware), "--layout-fmap", str(layout),
+                "--payload", str(payload),
+            ]
+            for region in regions:
+                command.extend(("--rmap-region", region))
+            result = subprocess.run(command, capture_output=True, text=True,
+                                    check=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("does not match", result.stderr)
 
     def test_validates_rmap_from_capsule_payload(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
         image = make_rmap_image(regions)
         validate(make_capsule(update_image=image, authenticated=True), make_fv(),
                  FMP_GUID, 0, expected_rmap_regions=regions,
-                 expected_firmware=rmap_firmware(image, len(regions)))
+                 expected_firmware=rmap_firmware(image, len(regions)),
+                 expected_layout=rmap_layout(image, len(regions)))
 
     def test_rejects_malformed_authenticated_rmap_payload(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
         with self.assertRaisesRegex(ValidationError, "authentication header"):
             validate(make_capsule(update_image=make_rmap_image(regions),
                                   authenticated=True, malformed_auth=True), make_fv(),
-                     FMP_GUID, 0, expected_rmap_regions=regions)
+                     FMP_GUID, 0, expected_rmap_regions=regions,
+                     expected_layout=rmap_layout(make_rmap_image(regions), len(regions)))
 
 
 if __name__ == "__main__":
