@@ -21,6 +21,13 @@
 #include <types.h>
 #include "dw_i2c.h"
 
+#if defined(__TEST__)
+uint32_t dw_i2c_read32_for_test(const volatile void *addr);
+void dw_i2c_write32_for_test(volatile void *addr, uint32_t value);
+#define read32(addr) dw_i2c_read32_for_test(addr)
+#define write32(addr, value) dw_i2c_write32_for_test(addr, value)
+#endif
+
 /* Use a ~10ms timeout for various operations */
 #define DW_I2C_TIMEOUT_US		10000
 /* Timeout for waiting for FIFO to flush */
@@ -314,23 +321,6 @@ static enum cb_err dw_i2c_disable(struct dw_i2c_regs *regs)
 	return CB_SUCCESS;
 }
 
-static enum cb_err dw_i2c_result_with_cleanup(enum cb_err result,
-					       enum cb_err cleanup)
-{
-	if (cleanup != CB_SUCCESS)
-		return CB_ERR;
-
-	return result;
-}
-
-#if defined(__TEST__)
-enum cb_err dw_i2c_result_with_cleanup_for_test(enum cb_err result,
-						enum cb_err cleanup)
-{
-	return dw_i2c_result_with_cleanup(result, cleanup);
-}
-#endif
-
 /* Wait for this I2C controller to go idle for transmit */
 static enum cb_err dw_i2c_wait_for_bus_idle(struct dw_i2c_regs *regs,
 					    struct stopwatch *transfer_sw)
@@ -372,6 +362,10 @@ static enum cb_err dw_i2c_transfer_byte(struct dw_i2c_regs *regs,
 		stopwatch_init_usecs_expire(&local_sw, DW_I2C_TRANSFER_WAIT_US);
 		transfer_sw = &local_sw;
 	}
+	if (stopwatch_expired(transfer_sw)) {
+		printk(BIOS_ERR, "I2C transfer deadline expired\n");
+		return CB_ERR;
+	}
 
 	if (!(segment->flags & I2C_M_RD)) {
 		/* Write op only: Wait for FIFO not full */
@@ -380,6 +374,11 @@ static enum cb_err dw_i2c_transfer_byte(struct dw_i2c_regs *regs,
 				printk(BIOS_ERR, "I2C transmit timeout\n");
 				return CB_ERR;
 			}
+		}
+		/* Readiness may have arrived only after the shared deadline. */
+		if (stopwatch_expired(transfer_sw)) {
+			printk(BIOS_ERR, "I2C transmit timeout\n");
+			return CB_ERR;
 		}
 		cmd = segment->buf[byte];
 	}
@@ -397,6 +396,10 @@ static enum cb_err dw_i2c_transfer_byte(struct dw_i2c_regs *regs,
 				printk(BIOS_ERR, "I2C receive timeout\n");
 				return CB_ERR;
 			}
+		}
+		if (stopwatch_expired(transfer_sw)) {
+			printk(BIOS_ERR, "I2C receive timeout\n");
+			return CB_ERR;
 		}
 		segment->buf[byte] = read32(&regs->cmd_data);
 	}
@@ -575,7 +578,11 @@ static enum cb_err _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segm
 #if ENV_SMM
 	if (dw_i2c_smm_prepare(bus, &regs, &dev, &restore_power_state) != CB_SUCCESS)
 		goto restore_power;
-	/* One SMM transfer gets one budget; progress must not renew it per byte. */
+	/*
+	 * One SMM transfer gets one protocol-work budget; progress must not
+	 * renew it per byte. Preparation and required cleanup have their own
+	 * bounded waits.
+	 */
 	stopwatch_init_usecs_expire(&sw, DW_I2C_TRANSFER_WAIT_US);
 	transfer_sw = &sw;
 #else
@@ -595,9 +602,12 @@ static enum cb_err _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segm
 
 	dw_i2c_enable(regs);
 
-	if (seg_zero_len)
+	if (seg_zero_len) {
+		if (transfer_sw && stopwatch_expired(transfer_sw))
+			goto out;
 		/* stop immediately */
 		write32(&regs->cmd_data, CMD_DATA_STOP);
+	}
 
 	/* Process each segment */
 	while (count--) {
@@ -681,7 +691,8 @@ static enum cb_err _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segm
 
 out:
 	read32(&regs->clear_intr);
-	ret = dw_i2c_result_with_cleanup(ret, dw_i2c_disable(regs));
+	if (dw_i2c_disable(regs) != CB_SUCCESS)
+		ret = CB_ERR;
 #if ENV_SMM
 restore_power:
 	if (restore_power_state)

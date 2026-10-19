@@ -90,10 +90,11 @@ static void one_attempt_failure_has_no_terminal_delay(void **state)
 	assert_int_equal(delay_calls, 0);
 }
 
-static void request_deadline_is_not_renewed_per_attempt(void **state)
+static void deadline_stops_new_attempt_after_bounded_overrun(void **state)
 {
 	struct retry_state retry = { .failures = 3 };
 
+	/* An in-flight operation and its between-attempt delay may cross the deadline. */
 	operation_time_us = 60 * USECS_PER_MSEC;
 	assert_int_equal(starlabs_touchpad_retry_for_test(scripted_operation, &retry,
 		3, 5, 100), -1);
@@ -109,7 +110,8 @@ int main(void)
 		cmocka_unit_test_setup(final_failure_has_only_between_attempt_delays, setup),
 		cmocka_unit_test_setup(success_after_retry_has_expected_delays, setup),
 		cmocka_unit_test_setup(one_attempt_failure_has_no_terminal_delay, setup),
-		cmocka_unit_test_setup(request_deadline_is_not_renewed_per_attempt, setup),
+		cmocka_unit_test_setup(deadline_stops_new_attempt_after_bounded_overrun,
+				       setup),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
