@@ -121,6 +121,10 @@ def make_rmap_image(regions, overlap=False, nested=False, out_of_bounds=False):
                                                   len(regions))
 
 
+def rmap_firmware(image, region_count):
+    return image[:-(region_count * 16 + 8)]
+
+
 class ValidateCapsuleTest(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
@@ -211,7 +215,14 @@ class ValidateCapsuleTest(unittest.TestCase):
 
     def test_accepts_expected_rmap_regions(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
-        validate_rmap(make_rmap_image(regions), regions)
+        image = make_rmap_image(regions)
+        validate_rmap(image, regions, rmap_firmware(image, len(regions)))
+
+    def test_rejects_rmap_for_different_firmware(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        image = make_rmap_image(regions)
+        with self.assertRaisesRegex(ValidationError, "does not match"):
+            validate_rmap(image, regions, b"different firmware")
 
     def test_rejects_missing_or_extra_rmap_regions(self):
         expected = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
@@ -244,8 +255,10 @@ class ValidateCapsuleTest(unittest.TestCase):
 
     def test_validates_rmap_from_capsule_payload(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
-        validate(make_capsule(update_image=make_rmap_image(regions), authenticated=True),
-                 make_fv(), FMP_GUID, 0, expected_rmap_regions=regions)
+        image = make_rmap_image(regions)
+        validate(make_capsule(update_image=image, authenticated=True), make_fv(),
+                 FMP_GUID, 0, expected_rmap_regions=regions,
+                 expected_firmware=rmap_firmware(image, len(regions)))
 
     def test_rejects_malformed_authenticated_rmap_payload(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
