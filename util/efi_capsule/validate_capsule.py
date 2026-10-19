@@ -13,6 +13,20 @@ import uuid
 FMP_CAPSULE_GUID = uuid.UUID("6dcbd5ed-e82d-4c44-bda1-7194199ad92a")
 FV_SIGNATURE = b"_FVH"
 FFS_FILETYPE_DRIVER = 0x07
+RMAP_SIGNATURE = 0x50414D52
+RMAP_VERSION = 1
+RMAP_ENTRY_SIZE = 16
+FMAP_SIGNATURE = b"__FMAP__"
+FMAP_HEADER_SIZE = 56
+FMAP_AREA_SIZE = 42
+FMP_CAPSULE_SUPPORT_AUTHENTICATION = 1
+FMP_CAPSULE_SUPPORT_DEPENDENCY = 2
+FMP_PAYLOAD_HEADER_SIGNATURE = b"MSS1"
+FMP_PAYLOAD_HEADER_SIZE = 16
+WIN_CERTIFICATE_UEFI_GUID_SIZE = 24
+WIN_CERTIFICATE_REVISION = 0x0200
+WIN_CERT_TYPE_EFI_GUID = 0x0EF1
+EFI_CERT_TYPE_PKCS7_GUID = uuid.UUID("4aafd29d-68df-49ee-8aa9-347d375665a7")
 
 
 class ValidationError(ValueError):
@@ -70,6 +84,7 @@ def parse_capsule(data):
         raise ValidationError(f"invalid FMP image header version: {image_version}")
 
     image_header_size = 32
+    image_support = 0
     if image_version >= 2:
         image_header_size += 8
     if image_version >= 3:
@@ -79,6 +94,8 @@ def parse_capsule(data):
     update_image_size, vendor_code_size = struct.unpack_from(
         "<II", data, image_offset + 24
     )
+    if image_version >= 3:
+        image_support = struct.unpack_from("<Q", data, image_offset + 40)[0]
     image_size = image_header_size + update_image_size + vendor_code_size
     if image_offset + image_size != len(data):
         raise ValidationError("FMP image size does not match capsule size")
@@ -87,7 +104,106 @@ def parse_capsule(data):
         data[fmp_offset + item_offsets[i] : fmp_offset + item_offsets[i + 1]]
         for i in range(embedded_count)
     ]
-    return _guid(data, image_offset + 4), embedded
+    image_start = image_offset + image_header_size
+    return (_guid(data, image_offset + 4), embedded,
+            data[image_start : image_start + update_image_size], image_support)
+
+
+def unwrap_update_image(image, support):
+    if support & FMP_CAPSULE_SUPPORT_DEPENDENCY:
+        raise ValidationError("FMP capsule dependencies are unsupported")
+    if support & ~FMP_CAPSULE_SUPPORT_AUTHENTICATION:
+        raise ValidationError("unsupported FMP capsule image support")
+
+    if support & FMP_CAPSULE_SUPPORT_AUTHENTICATION:
+        _require(image, 0, 8 + WIN_CERTIFICATE_UEFI_GUID_SIZE,
+                 "FMP authentication header")
+        certificate_length, revision, certificate_type = struct.unpack_from(
+            "<IHH", image, 8
+        )
+        certificate_guid = _guid(image, 16)
+        if (certificate_length < WIN_CERTIFICATE_UEFI_GUID_SIZE or
+                revision != WIN_CERTIFICATE_REVISION or
+                certificate_type != WIN_CERT_TYPE_EFI_GUID or
+                certificate_guid != EFI_CERT_TYPE_PKCS7_GUID):
+            raise ValidationError("invalid FMP authentication header")
+        _require(image, 8, certificate_length, "FMP authentication certificate")
+        image = image[8 + certificate_length:]
+
+    _require(image, 0, FMP_PAYLOAD_HEADER_SIZE, "FMP payload header")
+    signature, header_size, _, _ = struct.unpack_from("<4sIII", image)
+    if (signature != FMP_PAYLOAD_HEADER_SIGNATURE or
+            header_size < FMP_PAYLOAD_HEADER_SIZE or header_size > len(image)):
+        raise ValidationError("invalid FMP payload header")
+    return image[header_size:]
+
+
+def parse_rmap(image):
+    _require(image, 0, 8, "RMAP trailer")
+    signature, version, count = struct.unpack_from("<IHH", image, len(image) - 8)
+    if signature != RMAP_SIGNATURE or version != RMAP_VERSION or not count:
+        raise ValidationError("missing or invalid RMAP manifest")
+
+    manifest_size = count * RMAP_ENTRY_SIZE + 8
+    _require(image, 0, manifest_size, "RMAP manifest")
+    manifest_offset = len(image) - manifest_size
+    regions = []
+    for offset in range(manifest_offset, len(image) - 8, RMAP_ENTRY_SIZE):
+        entry = image[offset : offset + RMAP_ENTRY_SIZE]
+        name, separator, padding = entry.partition(b"\0")
+        if not name or not separator or padding.strip(b"\0"):
+            raise ValidationError("invalid RMAP region name")
+        try:
+            regions.append(name.decode("ascii"))
+        except UnicodeDecodeError as error:
+            raise ValidationError("non-ASCII RMAP region name") from error
+    if len(set(regions)) != len(regions):
+        raise ValidationError("duplicate RMAP region")
+
+    return image[:manifest_offset], regions
+
+
+def parse_fmap(image):
+    offset = image.find(FMAP_SIGNATURE)
+    if offset < 0:
+        raise ValidationError("missing FMAP")
+    _require(image, offset, FMAP_HEADER_SIZE, "FMAP header")
+    signature, major, _, _, size, _, count = struct.unpack_from(
+        "<8sBBQI32sH", image, offset
+    )
+    if signature != FMAP_SIGNATURE or major != 1 or size != len(image):
+        raise ValidationError("invalid FMAP header")
+    _require(image, offset + FMAP_HEADER_SIZE, count * FMAP_AREA_SIZE, "FMAP areas")
+
+    areas = {}
+    for index in range(count):
+        area_offset = offset + FMAP_HEADER_SIZE + index * FMAP_AREA_SIZE
+        start, length, name, _ = struct.unpack_from("<II32sH", image, area_offset)
+        name = name.split(b"\0", 1)[0]
+        try:
+            name = name.decode("ascii")
+        except UnicodeDecodeError as error:
+            raise ValidationError("non-ASCII FMAP region name") from error
+        if not name or name in areas or start + length > len(image):
+            raise ValidationError("invalid FMAP region")
+        areas[name] = (start, length)
+
+    return areas
+
+
+def validate_rmap(image, expected_regions):
+    image, regions = parse_rmap(image)
+    if regions != expected_regions:
+        raise ValidationError("RMAP regions do not match the vboot update policy")
+    areas = parse_fmap(image)
+    selected = []
+    for region in regions:
+        if region not in areas:
+            raise ValidationError(f"RMAP region '{region}' is not in the FMAP")
+        selected.append(areas[region])
+    for (offset, length), (next_offset, _) in zip(sorted(selected), sorted(selected)[1:]):
+        if offset + length > next_offset:
+            raise ValidationError("overlapping RMAP regions")
 
 
 def parse_ffs_files(data):
@@ -157,8 +273,8 @@ def validate_embedded_driver(driver, module_dir, expected_guid):
 
 
 def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
-             fmp_module_dir=None):
-    capsule_guid, embedded = parse_capsule(capsule)
+             fmp_module_dir=None, expected_rmap_regions=None):
+    capsule_guid, embedded, image, image_support = parse_capsule(capsule)
     embedded_count = len(embedded)
     if capsule_guid != expected_guid:
         raise ValidationError(
@@ -184,6 +300,8 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
             f"firmware volume has {matching_drivers} resident FMP drivers "
             f"with GUID {expected_guid}, expected {'0 or 1' if embedded else '1'}"
         )
+    if expected_rmap_regions is not None:
+        validate_rmap(unwrap_update_image(image, image_support), expected_rmap_regions)
 
 
 def main():
@@ -193,6 +311,8 @@ def main():
     parser.add_argument("--guid", required=True, type=uuid.UUID)
     parser.add_argument("--embedded-drivers", required=True, type=int)
     parser.add_argument("--fmp-module-dir", help="FmpDxe module build directory")
+    parser.add_argument("--rmap-region", action="append", dest="rmap_regions",
+                        help="required RMAP region name")
     args = parser.parse_args()
 
     try:
@@ -201,7 +321,7 @@ def main():
         with open(args.firmware_volume, "rb") as fv_file:
             firmware_volume = fv_file.read()
         validate(capsule, firmware_volume, args.guid, args.embedded_drivers,
-                 args.fmp_module_dir)
+                 args.fmp_module_dir, args.rmap_regions)
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)
         return 1
