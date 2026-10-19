@@ -12,12 +12,15 @@ present in this branch and are not supplied by this PR.
 | StarFighter Mk II (F2) | external release input required | `eef5c7c3-124f-406a-87fe-4b58589fd331` |
 
 The intended image has one signed read-write slot and an immutable recovery
-image. The top-aligned `WP_RO` region is represented by SPI flash
-block-protect bits.
-Intel Fast SPI applies and locks controller protected ranges for all three
-systems. HZ and B8 use Fudan flash; their status register 2 must be provisioned
-and verified with an external programmer. Intel Fast SPI cannot read it, so
-coreboot does not treat a configured value as a readback.
+image. Intel Fast SPI applies and locks a controller protected range for
+`WP_RO`.
+
+F2 and B8 have been hardware validated with this controller-protection flow.
+B8's Fudan status register 2 is provisioned and verified with an external
+programmer. That provisioning evidence is distinct from the runtime controller
+range readback: Fast SPI does not read status register 2, and coreboot does not
+treat configuration as a hardware readback. HZ selects the same controller
+protection policy, but this does not extend the F2/B8 validation to HZ.
 
 B7-U also has layout/policy plumbing. Its release configuration remains
 non-vboot with stock GUID `85584837-7b03-4b6c-940c-8b6186cbf7a1` and capsule
@@ -41,10 +44,9 @@ whose warm-reset path consumes the FADT reset register. coreboot publishes the
 CF9 system reset (`0x06`) there when `HAVE_CF9_RESET` is enabled, as it is for
 all three systems.
 
-Do not substitute a payload or capsule flow that performs only a CPU reset. If
-VCL remains set while the flash controller cannot read all status registers,
-coreboot cannot prove or reprogram the exact `WP_RO` range and the required
-boot-media policy fails closed before launching the payload.
+Do not substitute a payload or capsule flow that performs only a CPU reset. The
+reset must clear VCL so coreboot can program and lock the controller protected
+range before launching the payload.
 
 ## Signing keys
 
