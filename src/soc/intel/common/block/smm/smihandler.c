@@ -50,9 +50,9 @@ __weak const struct smm_save_state_ops *get_smm_save_state_ops(void)
 }
 
 /* Specific SOC SMI handler during ramstage finalize phase */
-__weak void smihandler_soc_at_finalize(void)
+__weak int smihandler_soc_at_finalize(void)
 {
-	/* no-op */
+	return 0;
 }
 
 __weak int smihandler_soc_disable_busmaster(pci_devfn_t dev)
@@ -441,7 +441,8 @@ static int finalize(void)
 		finalize_result = -1;
 
 	/* Specific SOC SMI handler during ramstage finalize phase */
-	smihandler_soc_at_finalize();
+	if (smihandler_soc_at_finalize())
+		finalize_result = -1;
 	finalize_done = 1;
 
 	return finalize_result;
