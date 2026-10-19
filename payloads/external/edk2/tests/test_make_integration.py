@@ -20,6 +20,71 @@ def run(*args, **kwargs):
 
 
 class EDK2MakeIntegrationTest(unittest.TestCase):
+    def test_invalid_capsule_prerequisites_skip_generator(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            payload_dir = directory / "edk2"
+            shutil.copytree(EDK2_DIR, payload_dir)
+            source = payload_dir / "workspace/edk2"
+            source.mkdir(parents=True)
+            run("git", "init", str(source))
+            run("git", "-C", str(source), "config", "user.email", "test@example.com")
+            run("git", "-C", str(source), "config", "user.name", "Test")
+            (source / "file").write_text("test\n")
+            run("git", "-C", str(source), "add", "file")
+            run("git", "-C", str(source), "commit", "-m", "test")
+            revision = run("git", "-C", str(source), "rev-parse", "HEAD").stdout.strip()
+            generator = source / "BaseTools/BinWrappers/PosixLike/GenerateCapsule"
+            generator.parent.mkdir(parents=True)
+            marker = directory / "generator-ran"
+            generator.write_text(f"#!/bin/sh\ntouch {marker}\n")
+            generator.chmod(0o755)
+            rom = directory / "coreboot.rom"
+            layout = directory / "fmap.fmap"
+            capsule = directory / "coreboot.cap"
+            cbfstool = directory / "cbfstool"
+            for path in (rom, layout):
+                path.write_bytes(b"test")
+            capsule.write_bytes(b"old capsule")
+            cbfstool.write_text("#!/bin/sh\nexit 0\n")
+            cbfstool.chmod(0o755)
+            manifest = directory / "AppendRmapManifest.py"
+            manifest.write_text("#!/usr/bin/env python3\n"
+                                "import shutil, sys\n"
+                                "shutil.copyfile(sys.argv[-1], sys.argv[sys.argv.index('-o') + 1])\n")
+            manifest.chmod(0o755)
+            certificates = []
+            for name in ("signer", "other", "trusted"):
+                certificate = directory / name
+                certificate.write_bytes(b"test")
+                certificates.append(certificate)
+            common = [
+                "make", "-C", str(payload_dir), "coreboot_capsule",
+                f"COREBOOT_ROM={rom}", f"COREBOOT_CAPSULE_OUT={capsule}",
+                f"COREBOOT_FMAP_LAYOUT={layout}", f"CBFSTOOL={cbfstool}",
+                "CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y", "CONFIG_VBOOT=y",
+                "CONFIG_CBFS_PREFIX=normal", "CONFIG_EDK2_REPOSITORY=https://example.invalid/edk2",
+                f"CONFIG_EDK2_TAG_OR_REV={revision}",
+                "CONFIG_DRIVERS_EFI_CAPSULE_REGIONS=EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A",
+                "CONFIG_LOCALVERSION=26.09", "CONFIG_DRIVERS_EFI_MAIN_FW_VERSION=0",
+                "CONFIG_DRIVERS_EFI_MAIN_FW_LSV=0", "CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE=n",
+                "CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET=n",
+                f"EDK2_APPEND_RMAP_MANIFEST={manifest}",
+                f"CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT={certificates[0]}",
+                f"CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT={certificates[1]}",
+                f"CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT={certificates[2]}",
+            ]
+            for argument in ("CBFS_ARCH=", "CBFS_ARCH=arm", "COREBOOT_FMAP_LAYOUT=",
+                             f"CBFSTOOL={directory / 'missing'}"):
+                marker.unlink(missing_ok=True)
+                result = subprocess.run((*common, argument), capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(marker.exists())
+                self.assertEqual(capsule.read_bytes(), b"old capsule")
+            marker.unlink(missing_ok=True)
+            result = subprocess.run((*common, "CBFS_ARCH=x86"), capture_output=True, text=True)
+            self.assertTrue(marker.exists(), result.stdout + result.stderr)
+
     def test_parent_configuration_selects_x86_for_both_submakes(self):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
