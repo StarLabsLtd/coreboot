@@ -207,6 +207,18 @@ EDK2_CAPSULE_ARGS = \
 	CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT=$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT) \
 	CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT=$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT)
 
+capsule-firmware-guid := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
+
+ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+ifneq ($(strip $(CAPSULE_GUID)),)
+ifneq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(capsule-firmware-guid)' | tr A-F a-f))
+$(error Star Labs VBOOT capsule GUID must match CONFIG_DRIVERS_EFI_MAIN_FW_GUID)
+endif
+endif
+else ifneq ($(CAPSULE_GUID),)
+EDK2_CAPSULE_ARGS += CAPSULE_GUID=$(CAPSULE_GUID)
+endif
+
 EDK2_PAYLOAD_ARGS = \
 	HOSTCC="$(HOSTCC)" \
 	CC="$(HOSTCC)" \
