@@ -45,8 +45,10 @@ int soc_disable_heci1_using_pcr(void)
 	return p2sb_disable_sideband_access();
 }
 
-static void pch_finalize_script(struct device *dev)
+static int pch_finalize_script(struct device *dev)
 {
+	int ret = 0;
+
 	tco_lockdown();
 
 	/* Display me status before we hide it */
@@ -62,7 +64,7 @@ static void pch_finalize_script(struct device *dev)
 	pch_thermal_configuration();
 
 	if (soc_disable_heci1_at_pre_boot())
-		heci1_disable();
+		ret = heci1_disable();
 
 	/* Hide p2sb device as the OS must not change BAR0. */
 	if (!p2sb_hide())
@@ -70,6 +72,8 @@ static void pch_finalize_script(struct device *dev)
 				   "Unable to change P2SB visibility\n");
 
 	pmc_clear_pmcon_sts();
+
+	return ret;
 }
 
 static void soc_lockdown(struct device *dev)
@@ -97,6 +101,7 @@ static void soc_lockdown(struct device *dev)
 static void soc_finalize(void *unused)
 {
 	struct device *dev;
+	int ret;
 
 	dev = PCH_DEV_PMC;
 
@@ -106,14 +111,29 @@ static void soc_finalize(void *unused)
 
 	printk(BIOS_DEBUG, "Finalizing chipset.\n");
 
-	pch_finalize_script(dev);
+	ret = pch_finalize_script(dev);
 
 	soc_lockdown(dev);
-	apm_control(APM_CNT_FINALIZE);
+	if (apm_control(APM_CNT_FINALIZE) != CB_SUCCESS)
+		ret = -1;
+
+	if (ret) {
+		printk(BIOS_ERR, "Chipset finalization failed.\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Chipset finalization failed\n");
+		printk(BIOS_ERR, "Continuing because fail-closed policy is disabled.\n");
+	}
 
 	/* Indicate finalize step with post code */
 	post_code(POSTCODE_OS_BOOT);
 }
+
+#if defined(__TEST__)
+void skylake_soc_finalize_for_test(void)
+{
+	soc_finalize(NULL);
+}
+#endif
 
 BOOT_STATE_INIT_ENTRY(BS_OS_RESUME, BS_ON_ENTRY, soc_finalize, NULL);
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_LOAD, BS_ON_EXIT, soc_finalize, NULL);
