@@ -236,8 +236,7 @@ static void smm_stub_place_staggered_entry_points(const struct smm_loader_params
  * region. As this might not fit the default SMRAM region, the same region used
  * by the permanent handler can be used during relocation.
  */
-static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
-				 struct smm_loader_params *params)
+static int smm_module_setup_stub(const uintptr_t smm_stub_loc, struct smm_loader_params *params)
 {
 	struct rmodule smm_stub;
 
@@ -253,7 +252,6 @@ static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
 		return -1;
 	}
 
-	const uintptr_t smm_stub_loc = smbase + SMM_ENTRY_OFFSET;
 	if (rmodule_load((void *)smm_stub_loc, &smm_stub)) {
 		printk(BIOS_ERR, "%s: load module failed\n", __func__);
 		return -1;
@@ -286,11 +284,10 @@ static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
 	printk(BIOS_DEBUG, "%s: stack_top = 0x%x\n", __func__, stub_params->stack_top);
 	printk(BIOS_DEBUG, "%s: per cpu stack_size = 0x%x\n", __func__,
 	       stub_params->stack_size);
-	printk(BIOS_DEBUG, "%s: runtime.smm_size = 0x%zx\n", __func__, smm_size);
 
 	smm_stub_place_staggered_entry_points(params);
 
-	printk(BIOS_DEBUG, "SMM Module: stub loaded at %lx. Will call %p\n", smm_stub_loc,
+	printk(BIOS_DEBUG, "SMM Module: stub loaded at %lx will call %p\n", smm_stub_loc,
 	       params->handler);
 	return 0;
 }
@@ -327,7 +324,7 @@ int smm_setup_relocation_handler(struct smm_loader_params *params)
 	params->gdt_base = gdtr.base;
 
 	printk(BIOS_SPEW, "%s: exit\n", __func__);
-	return smm_module_setup_stub(smram, SMM_DEFAULT_SIZE, params);
+	return smm_module_setup_stub(smram + SMM_ENTRY_OFFSET, params);
 }
 
 static void setup_smihandler_params(struct smm_runtime *mod_params,
@@ -648,5 +645,5 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	params->handler = rmodule_entry(&smi_handler);
 	setup_smihandler_params(smihandler_params, params);
 
-	return smm_module_setup_stub(stub_segment_base, smram_size, params);
+	return smm_module_setup_stub(region_offset(&cpus[0].stub_code), params);
 }
