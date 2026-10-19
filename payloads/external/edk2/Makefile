@@ -195,6 +195,7 @@ EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
 EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
+EDK2_PIN_CHECK = ./check-pinned-source.sh
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -318,8 +319,7 @@ $(EDK2_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PATH)" ]; then \
 		git clone --recurse-submodules $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
 	fi
-	cd $(EDK2_PATH); \
-		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
+	cd "$(EDK2_PATH)"; \
 		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
 		origin_url=$$(git config --get remote.origin.url); \
 		if [ "$$origin_url" != "$(EDK2_REPOSITORY)" ]; then \
@@ -339,6 +339,11 @@ $(EDK2_PATH): $(WORKSPACE)
 		else \
 			git fetch --no-recurse-submodules origin || exit 1; \
 		fi; \
+		if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
+			$(EDK2_PIN_CHECK) "$(EDK2_PATH)" "$(CONFIG_EDK2_TAG_OR_REV)" \
+				"$(if $(CONFIG_EDK2_BOOTSPLASH_FILE),MdeModulePkg/Logo/Logo.bmp)"; \
+		else \
+		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
@@ -349,7 +354,8 @@ $(EDK2_PATH): $(WORKSPACE)
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		$(update_submodules)
+		$(update_submodules); \
+		fi
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
@@ -474,6 +480,12 @@ coreboot_capsule: $(EDK2_PATH)
 	test -n "$(COREBOOT_ROM)"
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
+	if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
+		test -n "$(COREBOOT_FMAP_LAYOUT)"; \
+		test -n "$(CBFSTOOL)"; \
+		test -f "$(COREBOOT_FMAP_LAYOUT)"; \
+		test -x "$(CBFSTOOL)"; \
+	fi
 	test -x "$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule"
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
@@ -481,7 +493,8 @@ coreboot_capsule: $(EDK2_PATH)
 	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom.$$$$"; \
 	capsule_tmp="$(COREBOOT_CAPSULE_OUT).$$$$"; \
 	firmware_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rom.$$$$"; \
-	cleanup() { rm -f "$$rmap_rom" "$$capsule_tmp" "$$firmware_rom"; }; \
+	payload="$${COREBOOT_CAPSULE_OUT%.cap}.payload.$$$$"; \
+	cleanup() { rm -f "$$rmap_rom" "$$capsule_tmp" "$$firmware_rom" "$$payload"; }; \
 	trap cleanup EXIT; \
 	set -e; \
 	cp "$(COREBOOT_ROM)" "$$firmware_rom"; \
@@ -521,6 +534,9 @@ coreboot_capsule: $(EDK2_PATH)
 		--trusted-public-cert "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" \
 		"$${embedded_driver_args[@]}" \
 		"$$rmap_rom"; \
+	if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
+		"$(CBFSTOOL)" "$$firmware_rom" extract -n payload -f "$$payload"; \
+	fi; \
 	embedded_driver_count=0; \
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
 		embedded_driver_count=1; \
@@ -531,7 +547,7 @@ coreboot_capsule: $(EDK2_PATH)
 		--guid "$(CAPSULE_GUID)" \
 		--embedded-drivers "$$embedded_driver_count" \
 		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)" \
-		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" $(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)")); \
+		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" --layout-fmap "$(COREBOOT_FMAP_LAYOUT)" --payload "$$payload" $(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)")); \
 	mv -f "$$capsule_tmp" "$(COREBOOT_CAPSULE_OUT)"; \
 	trap - EXIT; \
-	rm -f "$$rmap_rom" "$$firmware_rom"
+	rm -f "$$rmap_rom" "$$firmware_rom" "$$payload"
