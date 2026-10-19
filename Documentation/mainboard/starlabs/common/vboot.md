@@ -36,6 +36,11 @@ previous image's successful-boot result. A newer RW image cannot advance TPM
 rollback state until it has reached ramstage and recorded its own successful
 result.
 
+The release policy requires TPM2-backed vboot secdata, primary flash VBNV and
+measured boot. It rejects mocked secdata, disabled firmware rollback checks
+and the GBB flags
+that force developer boot.
+
 ## Capsule reset requirement
 
 The reset used to hand a capsule back to coreboot must reset the SPI vendor

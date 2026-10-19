@@ -39,6 +39,15 @@ endif
 ifeq ($(CONFIG_VBOOT_MOCK_SECDATA),y)
 $(error Refusing a Star Labs VBOOT image with mocked anti-rollback state)
 endif
+ifneq ($(words $(filter y,$(CONFIG_TPM) $(CONFIG_TPM2) $(CONFIG_TPM_MEASURED_BOOT) \
+	$(CONFIG_VBOOT_VBNV_FLASH) $(CONFIG_VBOOT_VBNV_FLASH_PRIMARY))),5)
+$(error Star Labs VBOOT requires TPM-backed anti-rollback state)
+endif
+ifneq ($(filter y,$(CONFIG_GBB_FLAG_DISABLE_FW_ROLLBACK_CHECK) \
+	$(CONFIG_GBB_FLAG_FORCE_DEV_SWITCH_ON) $(CONFIG_GBB_FLAG_FORCE_DEV_BOOT_USB) \
+	$(CONFIG_GBB_FLAG_FORCE_DEV_BOOT_ALTFW) $(CONFIG_GBB_FLAG_DEFAULT_DEV_BOOT_ALTFW)),)
+$(error Refusing a Star Labs VBOOT image with rollback or developer boot enabled)
+endif
 ifeq ($(strip $(STARLABS_VBOOT_KEY_DIR)),)
 $(error STARLABS_VBOOT_KEY_DIR must name the externally provisioned vboot key directory)
 endif
