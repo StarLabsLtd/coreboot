@@ -5,7 +5,6 @@
 #include <console/console.h>
 #include <fast_spi_def.h>
 #include <intelblocks/fast_spi.h>
-#include <soc/pci_devs.h>
 #include <spi_flash.h>
 #include <string.h>
 #include <timer.h>
@@ -320,11 +319,55 @@ static int fast_spi_flash_status(const struct spi_flash *flash,
 	return ret;
 }
 
+static int fast_spi_flash_read_status(const struct spi_flash *flash,
+				      uint8_t opcode, uint8_t *reg)
+{
+	(void)flash;
+	(void)opcode;
+	(void)reg;
+
+	return E_ARGUMENT;
+}
+
+static int fast_spi_flash_write_status(const struct spi_flash *flash,
+				       uint8_t opcode, const uint8_t *regs,
+				       size_t len)
+{
+	BOILERPLATE_CREATE_CTX(ctx);
+	struct stopwatch sw;
+	uint8_t status;
+	int ret;
+
+	if ((CONFIG(FAST_SPI_DISABLE_WRITE_STATUS) &&
+	     !CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) ||
+	    opcode != SPI_OPMENU_0 || !len || len > sizeof(uint16_t))
+		return E_ARGUMENT;
+
+	fill_xfer_fifo(ctx, regs, len);
+	ret = exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_WR_STATUS, 0, len);
+	if (ret != SUCCESS)
+		return ret;
+
+	stopwatch_init_msecs_expire(&sw, 1000);
+	do {
+		ret = fast_spi_flash_status(flash, &status);
+		if (ret != SUCCESS)
+			return ret;
+		if (!(status & 1))
+			return SUCCESS;
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "SPI status write timed out\n");
+	return E_TIMEOUT;
+}
+
 const struct spi_flash_ops fast_spi_flash_ops = {
 	.read = fast_spi_flash_read,
 	.write = fast_spi_flash_write,
 	.erase = fast_spi_flash_erase,
 	.status = fast_spi_flash_status,
+	.read_status = fast_spi_flash_read_status,
+	.write_status = fast_spi_flash_write_status,
 };
 
 /*
@@ -338,8 +381,11 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 				struct spi_flash *flash)
 {
 	BOILERPLATE_CREATE_CTX(ctx);
+	uint8_t idcode[3];
+	uint32_t component0_size;
 	uint32_t flash_bits;
 	uint32_t ptinx_reg;
+	bool dual_component = false;
 
 	/*
 	 * bytes = (bits + 1) / 8;
@@ -349,6 +395,7 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	ptinx_reg = SPIBAR_PTINX_COMP_0 | SPIBAR_PTINX_HORD_JEDEC | SFDP_PARAM_DENSITY;
 	flash_bits = fast_spi_flash_read_sfdp(ctx, ptinx_reg);
 	flash->size = (flash_bits >> 3) + 1;
+	component0_size = flash->size;
 
 	/*
 	 * Now check if we have a second flash component.
@@ -358,6 +405,7 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	 */
 	ptinx_reg = SPIBAR_PTINX_COMP_1 | SPIBAR_PTINX_HORD_SFDP | SFDP_HDR_SIG;
 	if (fast_spi_flash_read_sfdp(ctx, ptinx_reg) == SFDP_SIGNATURE) {
+		dual_component = true;
 		ptinx_reg = SPIBAR_PTINX_COMP_1 | SPIBAR_PTINX_HORD_JEDEC | SFDP_PARAM_DENSITY;
 		flash_bits = fast_spi_flash_read_sfdp(ctx, ptinx_reg);
 		flash->size += ((flash_bits >> 3) + 1);
@@ -368,6 +416,24 @@ static int fast_spi_flash_probe(const struct spi_slave *dev,
 	/* Can erase both 4 KiB and 64 KiB chunks. Declare the smaller size. */
 	flash->sector_size = 4 * KiB;
 	flash->page_size = 256;
+
+	if (!dual_component &&
+	    exec_sync_hwseq_xfer(ctx, SPIBAR_HSFSTS_CYCLE_RD_ID, 0,
+				   sizeof(idcode)) == SUCCESS) {
+		drain_xfer_fifo(ctx, idcode, sizeof(idcode));
+		if (!spi_flash_fill_from_id(dev, flash, idcode, sizeof(idcode))) {
+			if (flash->size != component0_size) {
+				printk(BIOS_WARNING,
+				       "SFDP and JEDEC flash sizes differ: %#x vs %#x\n",
+				       component0_size, flash->size);
+				flash->part = NULL;
+				flash->prot_ops = NULL;
+			}
+			flash->size = component0_size;
+			flash->sector_size = 4 * KiB;
+			flash->page_size = 256;
+		}
+	}
 	/*
 	 * FIXME: Get erase+cmd, and status_cmd from SFDP.
 	 *
@@ -408,8 +474,9 @@ static int fast_spi_flash_protect(const struct spi_flash *flash,
 				  const struct region *region,
 				  const enum ctrlr_prot_type type)
 {
-	u32 start = region_offset(region);
-	u32 end = start + region_sz(region) - 1;
+	const size_t start = region_offset(region);
+	const size_t size = region_sz(region);
+	size_t end;
 	u32 reg;
 	u32 protect_mask = 0;
 	int fpr;
@@ -417,6 +484,19 @@ static int fast_spi_flash_protect(const struct spi_flash *flash,
 	BOILERPLATE_CREATE_CTX(ctx);
 
 	fpr_base = ctx->mmio_base + SPIBAR_FPR_BASE;
+	if (!size || start > UINT32_MAX || size > UINT32_MAX ||
+	    start > UINT32_MAX - (size - 1) ||
+	    (start & (4 * KiB - 1)) || (size & (4 * KiB - 1))) {
+		printk(BIOS_ERR, "Invalid SPI FPR range\n");
+		return -1;
+	}
+
+	end = start + size - 1;
+	if ((start >> SPI_FPR_SHIFT) > SPI_FPR_MASK ||
+	    (end >> SPI_FPR_SHIFT) > SPI_FPR_MASK) {
+		printk(BIOS_ERR, "SPI FPR range is too large\n");
+		return -1;
+	}
 
 	/* Find first empty FPR */
 	for (fpr = 0; fpr < SPIBAR_FPR_MAX; fpr++) {
@@ -452,13 +532,13 @@ static int fast_spi_flash_protect(const struct spi_flash *flash,
 	/* Set the FPR register and verify it is protected */
 	write32p(fpr_base, reg);
 	reg = read32p(fpr_base);
-	if (!(reg & protect_mask)) {
+	if (reg != (SPI_FPR(start, end) | protect_mask)) {
 		printk(BIOS_ERR, "Unable to set SPI FPR %d\n", fpr);
 		return -1;
 	}
 
 	printk(BIOS_INFO, "%s: FPR %d is enabled for range 0x%08x-0x%08x\n",
-	       __func__, fpr, start, end);
+	       __func__, fpr, (u32)start, (u32)end);
 	return 0;
 }
 

@@ -40,7 +40,8 @@ void vboot_save_data(struct vb2_context *ctx)
 
 	if (ctx->flags & VB2_CONTEXT_NVDATA_CHANGED) {
 		printk(BIOS_INFO, "Saving nvdata\n");
-		save_vbnv(ctx->nvdata);
+		if (save_vbnv(ctx->nvdata))
+			die("VBNV update failed\n");
 		ctx->flags &= ~VB2_CONTEXT_NVDATA_CHANGED;
 	}
 }

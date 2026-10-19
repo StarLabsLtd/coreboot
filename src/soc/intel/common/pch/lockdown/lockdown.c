@@ -14,6 +14,10 @@
 #include <soc/pcr_ids.h>
 #include <soc/soc_chip.h>
 
+void __weak boot_device_wp_status_locked(void)
+{
+}
+
 /*
  * This function will get lockdown config specific to soc.
  *
@@ -63,7 +67,8 @@ static void fast_spi_lockdown_cfg(int chipset_lockdown)
 	fast_spi_set_opcode_menu();
 
 	/* Discrete Lock Flash PR registers */
-	fast_spi_pr_dlock();
+	if (fast_spi_pr_dlock() && CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL))
+		die("Required SPI protected range lockdown failed\n");
 
 	/* Check if SPI transaction is pending */
 	fast_spi_cycle_in_progress();
@@ -76,6 +81,12 @@ static void fast_spi_lockdown_cfg(int chipset_lockdown)
 
 	/* Set Vendor Component Lock (VCL) */
 	fast_spi_vscc0_lock();
+
+	if (CONFIG(BOOTMEDIA_LOCK_CONTROLLER) ||
+	    CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) {
+		/* The configured boot-media protection is now locked. */
+		boot_device_wp_status_locked();
+	}
 
 	/* Set BIOS Interface Lock, BIOS Lock */
 	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT) {

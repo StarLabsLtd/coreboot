@@ -5,12 +5,20 @@ VBOOT_FUTILITY = $(VBOOT_HOST_BUILD)/futility/futility
 
 HOSTPKGCONFIG ?= pkg-config
 
+futility-no-error-option = $(shell \
+	printf '' | $(HOSTCC) -x c -c -o /dev/null -Werror $(1) - 2>/dev/null && \
+	printf '%s' '$(1)')
+futility-pinned-vboot-warning-options := \
+	$(call futility-no-error-option,-Wno-error=discarded-qualifiers) \
+	$(call futility-no-error-option,-Wno-error=incompatible-pointer-types-discards-qualifiers) \
+	$(call futility-no-error-option,-Wno-error=uninitialized-const-pointer)
+
 $(VBOOT_FUTILITY): | check-openssl-presence
 	@printf "    MAKE       $(subst $(objutil)/,,$(@))\n"
 	unset CFLAGS LDFLAGS; $(MAKE) -C $(VBOOT_SOURCE) \
 		BUILD=$(VBOOT_HOST_BUILD) \
 		CC="$(HOSTCC)" \
-		WERROR="-Werror -Wno-deprecated-declarations" \
+		WERROR="-Werror $(futility-pinned-vboot-warning-options) -Wno-deprecated-declarations" \
 		PKG_CONFIG="$(HOSTPKGCONFIG)" \
 		V=$(V) \
 		USE_FLASHROM=0 \

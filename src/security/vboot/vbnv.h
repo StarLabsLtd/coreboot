@@ -7,7 +7,7 @@
 
 /* Generic functions */
 void read_vbnv(uint8_t *vbnv_copy);
-void save_vbnv(const uint8_t *vbnv_copy);
+int save_vbnv(const uint8_t *vbnv_copy);
 int verify_vbnv(uint8_t *vbnv_copy);
 void regen_vbnv_crc(uint8_t *vbnv_copy);
 
@@ -32,7 +32,9 @@ void save_vbnv_cmos(const uint8_t *vbnv_copy);
 
 /* Flash backend */
 void read_vbnv_flash(uint8_t *vbnv_copy);
-void save_vbnv_flash(const uint8_t *vbnv_copy);
+int save_vbnv_flash(const uint8_t *vbnv_copy);
+int vboot_prepare_vbnv_write(void);
+int vboot_finish_vbnv_write(void);
 
 /* EC backend */
 void read_vbnv_ec(uint8_t *vbnv_copy);

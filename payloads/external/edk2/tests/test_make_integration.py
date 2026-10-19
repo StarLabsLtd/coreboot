@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
+
+import os
+import shutil
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+
+
+EDK2_DIR = Path(__file__).parents[1]
+TOP = EDK2_DIR.parents[2]
+CBFSTOOL = TOP / "util/cbfstool/cbfstool"
+FMAPTOOL = TOP / "util/cbfstool/fmaptool"
+
+
+def run(*args, **kwargs):
+    return subprocess.run(args, check=True, capture_output=True, text=True, **kwargs)
+
+
+class EDK2MakeIntegrationTest(unittest.TestCase):
+    def test_invalid_capsule_prerequisites_skip_generator(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            payload_dir = directory / "edk2"
+            shutil.copytree(EDK2_DIR, payload_dir)
+            source = payload_dir / "workspace/edk2"
+            source.mkdir(parents=True)
+            run("git", "init", str(source))
+            run("git", "-C", str(source), "config", "user.email", "test@example.com")
+            run("git", "-C", str(source), "config", "user.name", "Test")
+            (source / "file").write_text("test\n")
+            run("git", "-C", str(source), "add", "file")
+            run("git", "-C", str(source), "commit", "-m", "test")
+            revision = run("git", "-C", str(source), "rev-parse", "HEAD").stdout.strip()
+            generator = source / "BaseTools/BinWrappers/PosixLike/GenerateCapsule"
+            generator.parent.mkdir(parents=True)
+            marker = directory / "generator-ran"
+            generator.write_text(f"#!/bin/sh\ntouch {marker}\n")
+            generator.chmod(0o755)
+            rom = directory / "coreboot.rom"
+            layout = directory / "fmap.fmap"
+            capsule = directory / "coreboot.cap"
+            cbfstool = directory / "cbfstool"
+            for path in (rom, layout):
+                path.write_bytes(b"test")
+            capsule.write_bytes(b"old capsule")
+            cbfstool.write_text("#!/bin/sh\nexit 0\n")
+            cbfstool.chmod(0o755)
+            manifest = directory / "AppendRmapManifest.py"
+            manifest.write_text("#!/usr/bin/env python3\n"
+                                "import shutil, sys\n"
+                                "shutil.copyfile(sys.argv[-1], sys.argv[sys.argv.index('-o') + 1])\n")
+            manifest.chmod(0o755)
+            certificates = []
+            for name in ("signer", "other", "trusted"):
+                certificate = directory / name
+                certificate.write_bytes(b"test")
+                certificates.append(certificate)
+            common = [
+                "make", "-C", str(payload_dir), "coreboot_capsule",
+                f"COREBOOT_ROM={rom}", f"COREBOOT_CAPSULE_OUT={capsule}",
+                f"COREBOOT_FMAP_LAYOUT={layout}", f"CBFSTOOL={cbfstool}",
+                "CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y", "CONFIG_VBOOT=y",
+                "CONFIG_CBFS_PREFIX=normal", "CONFIG_EDK2_REPOSITORY=https://example.invalid/edk2",
+                f"CONFIG_EDK2_TAG_OR_REV={revision}",
+                "CONFIG_DRIVERS_EFI_CAPSULE_REGIONS=EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A",
+                "CONFIG_LOCALVERSION=26.09", "CONFIG_DRIVERS_EFI_MAIN_FW_VERSION=0",
+                "CONFIG_DRIVERS_EFI_MAIN_FW_LSV=0", "CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE=n",
+                "CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET=n",
+                f"EDK2_APPEND_RMAP_MANIFEST={manifest}",
+                f"CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT={certificates[0]}",
+                f"CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT={certificates[1]}",
+                f"CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT={certificates[2]}",
+            ]
+            for argument in ("CBFS_ARCH=", "CBFS_ARCH=arm", "COREBOOT_FMAP_LAYOUT=",
+                             f"CBFSTOOL={directory / 'missing'}"):
+                marker.unlink(missing_ok=True)
+                result = subprocess.run((*common, argument), capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(marker.exists())
+                self.assertEqual(capsule.read_bytes(), b"old capsule")
+            marker.unlink(missing_ok=True)
+            result = subprocess.run((*common, "CBFS_ARCH=x86"), capture_output=True, text=True)
+            self.assertTrue(marker.exists(), result.stdout + result.stderr)
+
+    def test_parent_configuration_selects_x86_for_both_submakes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            config = directory / "config.mk"
+            harness = directory / "Makefile"
+            config.write_text("CONFIG_ARCH_X86=y\n"
+                              "CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y\n"
+                              "CONFIG_VBOOT=y\n"
+                              "CONFIG_EDK2_BOOTSPLASH_FILE=Logo.bmp\n")
+            harness.write_text(f"include {config}\n"
+                               f"include {TOP / 'payloads/external/Makefile.mk'}\n"
+                               "show:\n"
+                               "\t@printf '%s\\n' '$(EDK2_PAYLOAD_ARGS)'\n"
+                               "\t@printf '%s\\n' '$(EDK2_CAPSULE_ARGS)'\n")
+            environment = {key: value for key, value in os.environ.items()
+                           if key not in ("ARCH", "CBFS_ARCH")}
+            result = run("make", "-f", str(harness), "show", env=environment)
+            self.assertEqual(result.stdout.count("CBFS_ARCH=x86"), 2)
+            self.assertEqual(result.stdout.count("CONFIG_EDK2_BOOTSPLASH_FILE=Logo.bmp"), 2)
+
+    def test_release_checkout_uses_payload_checker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            payload_dir = directory / "edk2"
+            shutil.copytree(EDK2_DIR, payload_dir)
+            source = payload_dir / "workspace/edk2"
+            source.mkdir(parents=True)
+            run("git", "init", str(source))
+            run("git", "-C", str(source), "config", "user.email", "test@example.com")
+            run("git", "-C", str(source), "config", "user.name", "Test")
+            (source / "file").write_text("test\n")
+            logo = source / "MdeModulePkg/Logo/Logo.bmp"
+            logo.parent.mkdir(parents=True)
+            logo.write_bytes(b"original")
+            run("git", "-C", str(source), "add", "file", str(logo.relative_to(source)))
+            run("git", "-C", str(source), "commit", "-m", "test")
+            revision = run("git", "-C", str(source), "rev-parse", "HEAD").stdout.strip()
+            logo.write_bytes(b"generated")
+            run("make", "-C", str(payload_dir), str(source),
+                "CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y", "CONFIG_VBOOT=y",
+                "CONFIG_EDK2_REPOSITORY=https://example.invalid/edk2",
+                f"CONFIG_EDK2_TAG_OR_REV={revision}",
+                "CONFIG_DRIVERS_EFI_CAPSULE_REGIONS=EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A",
+                "CONFIG_LOCALVERSION=26.09", "CONFIG_EDK2_BOOTSPLASH_FILE=Logo.bmp")
+
+    def test_release_capsule_extracts_prefixed_rw_payload(self):
+        result = run(
+            "make", "-C", str(EDK2_DIR), "-n", "coreboot_capsule",
+            "COREBOOT_ROM=/tmp/coreboot.rom", "COREBOOT_CAPSULE_OUT=/tmp/coreboot.cap",
+            "COREBOOT_FMAP_LAYOUT=/tmp/fmap.fmap", "CBFSTOOL=/tmp/cbfstool",
+            "CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y", "CONFIG_VBOOT=y",
+            "CONFIG_CBFS_PREFIX=normal", "CBFS_ARCH=x86",
+            "CONFIG_EDK2_REPOSITORY=https://example.invalid/edk2",
+            "CONFIG_EDK2_TAG_OR_REV=0123456789012345678901234567890123456789",
+            "CONFIG_DRIVERS_EFI_MAIN_FW_GUID=b96a6b09-dc2c-4e3a-86ee-47016c7b035a",
+            "CONFIG_LOCALVERSION=26.09",
+            "CONFIG_DRIVERS_EFI_CAPSULE_REGIONS=EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A",
+            "CONFIG_DRIVERS_EFI_MAIN_FW_VERSION=0", "CONFIG_DRIVERS_EFI_MAIN_FW_LSV=0",
+            "CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE=n",
+            "CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET=n",
+            "CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT=key.pem",
+            "CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT=other.pem",
+            "CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT=trusted.pem")
+        self.assertIn('extract -r FW_MAIN_A', result.stdout)
+        self.assertIn('-m "x86"', result.stdout)
+        self.assertIn('-n "normal/payload"', result.stdout)
+
+    @unittest.skipUnless(CBFSTOOL.exists() and FMAPTOOL.exists(), "cbfstool is not built")
+    def test_cbfs_extracts_only_the_prefixed_rw_payload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            fmd = directory / "map.fmd"
+            fmap = directory / "map.fmap"
+            rom = directory / "rom"
+            rw_payload = directory / "rw"
+            recovery_payload = directory / "recovery"
+            extracted = directory / "extracted"
+            fmd.write_text("FLASH 0x40000 {\n\tFMAP 0x1000\n"
+                           "\tFW_MAIN_A(CBFS) 0x1f000\n"
+                           "\tCOREBOOT(CBFS) 0x20000\n}\n")
+            recovery_payload.write_bytes(b"recovery payload")
+            run(str(FMAPTOOL), str(fmd), str(fmap))
+            run(str(CBFSTOOL), str(rom), "create", "-M", str(fmap), "-r",
+                "FW_MAIN_A,COREBOOT")
+            shutil.copyfile("/bin/true", rw_payload)
+            run(str(CBFSTOOL), str(rom), "add-payload", "-r", "FW_MAIN_A", "-n",
+                "normal/payload", "-f", str(rw_payload), "-c", "lz4")
+            run(str(CBFSTOOL), str(rom), "add", "-r", "COREBOOT", "-n",
+                "normal/payload", "-f", str(recovery_payload), "-t", "raw")
+            run(str(CBFSTOOL), str(rom), "extract", "-r", "FW_MAIN_A", "-m", "x86",
+                "-n", "normal/payload", "-f", str(extracted))
+            self.assertTrue(extracted.read_bytes().startswith(b"\x7fELF"))
+            missing = subprocess.run(
+                (str(CBFSTOOL), str(rom), "extract", "-r", "FW_MAIN_A", "-m", "x86", "-n",
+                 "payload", "-f", str(extracted)), capture_output=True, text=True)
+            self.assertNotEqual(missing.returncode, 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,7 +1,14 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config BOOTMEDIA_LOCK_FORCE_CONTROLLER
+	bool
+
 choice
 	prompt "Boot media protection mechanism"
+	default BOOTMEDIA_LOCK_CONTROLLER if BOOTMEDIA_LOCK_FORCE_CONTROLLER
+	default BOOTMEDIA_LOCK_CONTROLLER if BOOTMEDIA_LOCK_FAILURE_FATAL && \
+		SOC_INTEL_COMMON_BLOCK_FAST_SPI && !SPI_FLASH_FUDAN
+	default BOOTMEDIA_LOCK_CHIP if BOOTMEDIA_LOCK_FAILURE_FATAL && SPI_FLASH_FUDAN
 	default BOOTMEDIA_LOCK_NONE
 
 config BOOTMEDIA_LOCK_NONE
@@ -16,6 +23,7 @@ config BOOTMEDIA_LOCK_CONTROLLER
 
 config BOOTMEDIA_LOCK_CHIP
 	bool "Lock boot media using the chip"
+	depends on !BOOTMEDIA_LOCK_FORCE_CONTROLLER
 	help
 	  Select this if you want the chip to lock specific regions.
 	  This only works on some chips, please check the code or search the
@@ -26,6 +34,9 @@ endchoice
 choice
 	prompt "Boot media protected regions"
 	depends on !BOOTMEDIA_LOCK_NONE
+	default BOOTMEDIA_LOCK_WPRO_VBOOT_RO if BOOTMEDIA_LOCK_FAILURE_FATAL && \
+		((BOOTMEDIA_LOCK_CONTROLLER && SOC_INTEL_COMMON_BLOCK_FAST_SPI) || \
+		 (BOOTMEDIA_LOCK_CHIP && SPI_FLASH_FUDAN))
 	default BOOTMEDIA_LOCK_WHOLE_RO
 
 config BOOTMEDIA_LOCK_WHOLE_RO
@@ -96,6 +107,11 @@ config BOOTMEDIA_LOCK_IN_VERSTAGE
 	  ramstage, like the MRC cache for example.
 	  Use this option if you don't trust code running after verstage.
 
+config BOOTMEDIA_LOCK_FAILURE_FATAL
+	bool
+	help
+	  Stop before the payload if boot-media protection cannot be applied.
+
 config BOOTMEDIA_SMM_BWP
 	bool "Boot media only writable in SMM"
 	depends on !CONSOLE_SPI_FLASH
@@ -121,6 +137,9 @@ config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 
 choice
 	prompt "SPI Flash write protection duration"
+	default BOOTMEDIA_SPI_LOCK_PLATFORM if VBOOT && SPI_FLASH_FUDAN && \
+		SOC_INTEL_COMMON_BLOCK_FAST_SPI && SOC_INTEL_COMMON_PCH_LOCKDOWN && \
+		!MRC_WRITE_NV_LATE && !BOOTMEDIA_LOCK_IN_VERSTAGE
 	default BOOTMEDIA_SPI_LOCK_REBOOT
 	depends on BOOTMEDIA_LOCK_CHIP
 	depends on BOOT_DEVICE_SPI_FLASH
@@ -130,6 +149,22 @@ config BOOTMEDIA_SPI_LOCK_REBOOT
 	help
 	  The SPI chip is locked until power is removed and re-applied.
 	  Supported by Winbond parts.
+
+config BOOTMEDIA_SPI_LOCK_PLATFORM
+	bool "Lock SPI status writes using the platform controller"
+	depends on BOOTMEDIA_LOCK_FAILURE_FATAL
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on SOC_INTEL_COMMON_PCH_LOCKDOWN
+	depends on !MRC_WRITE_NV_LATE
+	depends on !BOOTMEDIA_LOCK_IN_VERSTAGE
+	help
+	  Preserve the flash status-register lock bits after setting the block
+	  protection range, then have the platform controller disable further
+	  status writes before handing control to the payload. This permits
+	  chip-level block protection without depending on an asserted WP# pin.
+	  Complete any SPI status-register changes before common chipset lockdown.
+	  This applies whether coreboot or FSP owns BIOS-interface locking and
+	  does not enable SMM-only writes or make the BIOS region read-only.
 
 config BOOTMEDIA_SPI_LOCK_PIN
 	bool "Lock SPI flash using WP# pin"
