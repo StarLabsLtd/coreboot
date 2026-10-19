@@ -77,7 +77,10 @@ int smbios_string_table_len(u8 *start)
 
 int smbios_full_table_len(struct smbios_header *header, u8 *str_table_start)
 {
-	return header->length + smbios_string_table_len(str_table_start);
+	const int len = header->length + smbios_string_table_len(str_table_start);
+
+	printk(BIOS_DEBUG, "SMBIOS type %u: %d bytes\n", header->type, len);
+	return len;
 }
 
 void *smbios_carve_table(unsigned long start, u8 type, u8 length, u16 handle)
