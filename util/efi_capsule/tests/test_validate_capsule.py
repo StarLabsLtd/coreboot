@@ -235,6 +235,13 @@ class ValidateCapsuleTest(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "invalid FMAP"):
             validate_rmap(make_rmap_image(["EC"], out_of_bounds=True), ["EC"])
 
+    def test_rejects_nonempty_rw_nvram(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        image = bytearray(make_rmap_image(regions))
+        image[0x500] = 0
+        with self.assertRaisesRegex(ValidationError, "RW_NVRAM must be erased"):
+            validate_rmap(bytes(image), regions)
+
     def test_validates_rmap_from_capsule_payload(self):
         regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
         validate(make_capsule(update_image=make_rmap_image(regions), authenticated=True),
