@@ -48,6 +48,10 @@ ifneq ($(filter y,$(CONFIG_GBB_FLAG_DISABLE_FW_ROLLBACK_CHECK) \
 	$(CONFIG_GBB_FLAG_FORCE_DEV_BOOT_ALTFW) $(CONFIG_GBB_FLAG_DEFAULT_DEV_BOOT_ALTFW)),)
 $(error Refusing a Star Labs VBOOT image with rollback or developer boot enabled)
 endif
+starlabs-vboot-edk2-revision := $(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))
+ifneq ($(shell printf '%s' '$(starlabs-vboot-edk2-revision)' | grep -Eq '^[0-9a-fA-F]{40}$$' && echo y),y)
+$(error Star Labs VBOOT requires a pinned EDK2 revision)
+endif
 ifeq ($(strip $(STARLABS_VBOOT_KEY_DIR)),)
 $(error STARLABS_VBOOT_KEY_DIR must name the externally provisioned vboot key directory)
 endif
