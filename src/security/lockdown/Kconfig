@@ -1,7 +1,11 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config BOOTMEDIA_LOCK_FORCE_CONTROLLER
+	bool
+
 choice
 	prompt "Boot media protection mechanism"
+	default BOOTMEDIA_LOCK_CONTROLLER if BOOTMEDIA_LOCK_FORCE_CONTROLLER
 	default BOOTMEDIA_LOCK_CONTROLLER if BOOTMEDIA_LOCK_FAILURE_FATAL && \
 		SOC_INTEL_COMMON_BLOCK_FAST_SPI && !SPI_FLASH_FUDAN
 	default BOOTMEDIA_LOCK_CHIP if BOOTMEDIA_LOCK_FAILURE_FATAL && SPI_FLASH_FUDAN
@@ -19,6 +23,7 @@ config BOOTMEDIA_LOCK_CONTROLLER
 
 config BOOTMEDIA_LOCK_CHIP
 	bool "Lock boot media using the chip"
+	depends on !BOOTMEDIA_LOCK_FORCE_CONTROLLER
 	help
 	  Select this if you want the chip to lock specific regions.
 	  This only works on some chips, please check the code or search the
@@ -30,7 +35,7 @@ choice
 	prompt "Boot media protected regions"
 	depends on !BOOTMEDIA_LOCK_NONE
 	default BOOTMEDIA_LOCK_WPRO_VBOOT_RO if BOOTMEDIA_LOCK_FAILURE_FATAL && \
-		((BOOTMEDIA_LOCK_CONTROLLER && SOC_INTEL_COMMON_BLOCK_FAST_SPI && !SPI_FLASH_FUDAN) || \
+		((BOOTMEDIA_LOCK_CONTROLLER && SOC_INTEL_COMMON_BLOCK_FAST_SPI) || \
 		 (BOOTMEDIA_LOCK_CHIP && SPI_FLASH_FUDAN))
 	default BOOTMEDIA_LOCK_WHOLE_RO
 
