@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 
+import os
 import shutil
 from pathlib import Path
 import subprocess
@@ -19,6 +20,26 @@ def run(*args, **kwargs):
 
 
 class EDK2MakeIntegrationTest(unittest.TestCase):
+    def test_parent_configuration_selects_x86_for_both_submakes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            config = directory / "config.mk"
+            harness = directory / "Makefile"
+            config.write_text("CONFIG_ARCH_X86=y\n"
+                              "CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y\n"
+                              "CONFIG_VBOOT=y\n"
+                              "CONFIG_EDK2_BOOTSPLASH_FILE=Logo.bmp\n")
+            harness.write_text(f"include {config}\n"
+                               f"include {TOP / 'payloads/external/Makefile.mk'}\n"
+                               "show:\n"
+                               "\t@printf '%s\\n' '$(EDK2_PAYLOAD_ARGS)'\n"
+                               "\t@printf '%s\\n' '$(EDK2_CAPSULE_ARGS)'\n")
+            environment = {key: value for key, value in os.environ.items()
+                           if key not in ("ARCH", "CBFS_ARCH")}
+            result = run("make", "-f", str(harness), "show", env=environment)
+            self.assertEqual(result.stdout.count("CBFS_ARCH=x86"), 2)
+            self.assertEqual(result.stdout.count("CONFIG_EDK2_BOOTSPLASH_FILE=Logo.bmp"), 2)
+
     def test_release_checkout_uses_payload_checker(self):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)

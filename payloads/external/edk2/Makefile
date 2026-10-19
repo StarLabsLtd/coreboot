@@ -458,6 +458,7 @@ coreboot_capsule: $(EDK2_PATH)
 	if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
 		test -n "$(COREBOOT_FMAP_LAYOUT)"; \
 		test -n "$(CBFSTOOL)"; \
+		test "$(CBFS_ARCH)" = "x86"; \
 		test -f "$(COREBOOT_FMAP_LAYOUT)"; \
 		test -x "$(CBFSTOOL)"; \
 	fi
