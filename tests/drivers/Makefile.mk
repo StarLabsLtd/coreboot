@@ -39,7 +39,8 @@ starlabs-smi-mailbox-test-srcs += src/mainboard/starlabs/common/smihandler.c
 starlabs-smi-mailbox-test-srcs += tests/stubs/console.c
 starlabs-smi-mailbox-test-stage := smm
 starlabs-smi-mailbox-test-config += CONFIG_STARLABS_ACPI_EFI_OPTION_SMI=1 \
-	CONFIG_STARLABS_TOUCHPAD_RUNTIME=0 CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI=0 \
+	CONFIG_STARLABS_TOUCHPAD_RUNTIME=1 CONFIG_STARLABS_TOUCHPAD_PIXART=1 \
+	CONFIG_STARLABS_TOUCHPAD_CST=0 CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI=0 \
 	CONFIG_SOC_AMD_COMMON_BLOCK_ACPIMMIO=0 CONFIG_OPTION_BACKEND_NONE=0 \
 	CONFIG_USE_UEFI_VARIABLE_STORE=1
 starlabs-smi-mailbox-test-cflags += -I src/mainboard/starlabs/common/include
