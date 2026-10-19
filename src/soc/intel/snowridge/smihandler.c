@@ -4,9 +4,10 @@
 #include <intelblocks/smihandler.h>
 #include <soc/pm.h>
 
-void smihandler_soc_at_finalize(void)
+int smihandler_soc_at_finalize(void)
 {
 	fast_spi_enable_wp();
+	return 0;
 }
 
 const smi_handler_t southbridge_smi[SMI_STS_BITS] = {
