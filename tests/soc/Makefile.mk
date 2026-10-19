@@ -7,6 +7,8 @@ tests-y += intel-p2sb-lockdown-test
 tests-y += intel-smm-heci-finalize-test
 tests-y += intel-pcr-sbi-status-test
 tests-y += intel-gpio-lock-readback-test
+tests-y += intel-skylake-finalize-test
+tests-y += intel-skylake-finalize-fail-closed-test
 
 intel-smm-finalize-board-failure-test-srcs += tests/soc/intel-smm-finalize-test.c
 intel-smm-finalize-board-failure-test-srcs += src/soc/intel/common/block/smm/smihandler.c
@@ -128,3 +130,41 @@ intel-gpio-lock-readback-test-config += CONFIG_DEBUG_GPIO=0
 intel-gpio-lock-readback-test-mocks += soc_gpio_get_community
 intel-gpio-lock-readback-test-mocks += pcr_read32 pcr_or32
 intel-gpio-lock-readback-test-mocks += p2sb_unhide p2sb_hide
+
+intel-skylake-finalize-test-srcs += tests/soc/intel-skylake-finalize-test.c
+intel-skylake-finalize-test-srcs += tests/soc/intel-skylake-p2sb.c
+intel-skylake-finalize-test-srcs += src/soc/intel/skylake/finalize.c
+intel-skylake-finalize-test-srcs += src/soc/intel/common/block/cse/disable_heci.c
+intel-skylake-finalize-test-stage := ramstage
+intel-skylake-finalize-test-cflags += -I src/soc/intel/common/block/include
+intel-skylake-finalize-test-cflags += -I src/soc/intel/skylake/include
+intel-skylake-finalize-test-cflags += -I src/soc/intel/common/pch/include
+intel-skylake-finalize-test-cflags += -I src/drivers/intel/fsp2_0/include
+intel-skylake-finalize-test-cflags += -I 3rdparty/fsp/KabylakeFspBinPkg/Include
+intel-skylake-finalize-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include
+intel-skylake-finalize-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32
+intel-skylake-finalize-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/IntelFsp2Pkg/Include
+intel-skylake-finalize-test-config += CONFIG_PCI=1
+intel-skylake-finalize-test-config += CONFIG_OPTION_BACKEND_NONE=0
+intel-skylake-finalize-test-config += CONFIG_USE_CBFS_FILE_OPTION_BACKEND=0
+intel-skylake-finalize-test-config += CONFIG_USE_UEFI_VARIABLE_STORE=0
+intel-skylake-finalize-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_THERMAL_PCI_DEV=1
+intel-skylake-finalize-test-config += CONFIG_DISABLE_HECI1_AT_PRE_BOOT=1
+intel-skylake-finalize-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_HECI1_DISABLE_USING_PCR=1
+intel-skylake-finalize-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_HECI1_DISABLE_USING_PMC_IPC=0
+intel-skylake-finalize-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_HECI1_DISABLE_USING_SBI=0
+intel-skylake-finalize-test-config += CONFIG_USE_INTEL_FSP_MP_INIT=0
+intel-skylake-finalize-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
+intel-skylake-finalize-test-mocks += pcidev_path_on_root_debug get_uint_option
+intel-skylake-finalize-test-mocks += tco_lockdown intel_me_status pch_thermal_configuration
+intel-skylake-finalize-test-mocks += cpu_lt_lock_memory
+intel-skylake-finalize-test-mocks += pcr_or32 p2sb_soc_get_sb_mask
+intel-skylake-finalize-test-mocks += p2sb_dev_unhide p2sb_dev_hide
+intel-skylake-finalize-test-mocks += pmc_clear_pmcon_sts apm_control post_code die
+
+$(eval $(call copy-test,intel-skylake-finalize-test,\
+	intel-skylake-finalize-fail-closed-test))
+intel-skylake-finalize-fail-closed-test-config := $(filter-out \
+	CONFIG_SECURITY_FAIL_CLOSED=0, \
+	$(intel-skylake-finalize-fail-closed-test-config))
+intel-skylake-finalize-fail-closed-test-config += CONFIG_SECURITY_FAIL_CLOSED=1
