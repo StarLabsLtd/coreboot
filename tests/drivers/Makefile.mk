@@ -21,3 +21,11 @@ winbond-sr2-$(1)-test-config += CONFIG_SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE=$
 endef
 
 $(foreach value,$(winbond-sr2-values),$(eval $(call winbond-sr2-test,$(value))))
+
+tests-y += fast-spi-fpr-test
+
+fast-spi-fpr-test-srcs += tests/drivers/fast-spi-fpr-test.c
+fast-spi-fpr-test-srcs += tests/stubs/console.c
+fast-spi-fpr-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI=1
+fast-spi-fpr-test-cflags += -I$(src)/soc/intel/common/block/fast_spi
+fast-spi-fpr-test-cflags += -I$(src)/soc/intel/common/block/include
