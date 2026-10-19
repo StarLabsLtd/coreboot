@@ -10,14 +10,10 @@ configurations select verified boot; selection is not release approval:
 | StarFighter Mk II (F2) | `config.starlabs_starfighter_mtl` | `eef5c7c3-124f-406a-87fe-4b58589fd331` |
 
 Each image has one signed read-write slot and an immutable recovery image. The
-top-aligned `WP_RO` region is intended to be represented by SPI flash
-block-protect bits. HZ/B8 rely on the qualified FM25W128 manufacturing
-invariant that the status-register-2 protection bits are provisioned clear.
-When SR2 cannot be read, the driver accepts that invariant only when the board
-selects `SPI_FLASH_FUDAN_SR2_PROVISIONED_CLEAR` and hardware-sequenced status
-writes are available; otherwise it fails closed. The invariant is not checked
-at runtime. Intel Fast SPI applies the native status-write and controller-lock
-policy after programming the protected range.
+top-aligned `WP_RO` region is represented by SPI flash block-protect bits.
+HZ/B8 read and verify both status registers before changing or accepting the
+protection state. Intel Fast SPI applies the native status-write and
+controller-lock policy after programming the protected range.
 
 B7-U also has layout/policy plumbing. Its release configuration remains
 non-vboot with stock GUID `85584837-7b03-4b6c-940c-8b6186cbf7a1` and capsule
@@ -68,30 +64,6 @@ make defconfig KBUILD_DEFCONFIG=configs/config.starlabs_starfighter_mtl
 make
 ```
 
-## Converting an installed system
+## Existing installations
 
-The verified-boot layouts are incompatible with the earlier single-CBFS
-layouts, so conversion requires one full-BIOS capsule update. The transition
-capsule uses the previous firmware GUID while its image advertises the new
-GUID:
-
-| System | Previous firmware GUID |
-| --- | --- |
-| HZ | `634fefb2-7099-4e5c-8b85-bd458132f51e` |
-| B8 | `41627bd8-70a0-490d-b834-5de90ccfb56d` |
-| F1 | `ac75492e-18ad-477d-a719-710a0ddb6c2c` |
-| F2 | `75b29ff6-e882-41c7-903f-5af89e004113` |
-
-Build the ROM with its new GUID in the board configuration, then override only
-the outer capsule GUID with the previous value. For example, the F2 transition
-capsule is built with:
-
-```bash
-make -B CAPSULE_GUID=75b29ff6-e882-41c7-903f-5af89e004113 capsule
-```
-
-Only offer the transition to an installed firmware whose capsule updater can
-fall back to updating the complete BIOS region when the current and incoming
-FMAP layouts differ. This fallback replaces SMMSTORE and therefore resets EFI
-variables. After conversion, publish ordinary capsules under the new GUID;
-they must contain only the routine update regions from the board configuration.
+Converting an existing non-vboot installation is not supported by this PR.

@@ -187,7 +187,6 @@ static int fudan_set_write_protection(const struct spi_flash *flash,
 	    (mode == SPI_WRITE_PROTECTION_REBOOT ||
 	     mode == SPI_WRITE_PROTECTION_PERMANENT))
 		return -1;
-
 	if (region_sz(region) == 0)
 		bp = 0;
 	else if (region_sz(region) == flash->size)
