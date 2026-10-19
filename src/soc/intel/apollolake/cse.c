@@ -203,10 +203,11 @@ static void dump_cse_state(void)
 #define PCR_PSFX_T0_SHDW_PCIEN		0x1C
 #define PCR_PSFX_T0_SHDW_PCIEN_FUNDIS	(1 << 8)
 
-void soc_disable_heci1_using_pcr(void)
+int soc_disable_heci1_using_pcr(void)
 {
 	pcr_or32(PID_PSF3, PSF3_BASE_ADDRESS + PCR_PSFX_T0_SHDW_PCIEN,
 		 PCR_PSFX_T0_SHDW_PCIEN_FUNDIS);
+	return 0;
 }
 
 void heci_cse_lockdown(void)

@@ -22,9 +22,9 @@
 #define PMC_IPC_MEI_DISABLE_SUBID_DISABLE	1
 
 /* Disable HECI using PCR */
-static void heci1_disable_using_pcr(void)
+static int heci1_disable_using_pcr(void)
 {
-	soc_disable_heci1_using_pcr();
+	return soc_disable_heci1_using_pcr();
 }
 
 bool cse_disable_mei_devices(void)
@@ -43,13 +43,13 @@ bool cse_disable_mei_devices(void)
 }
 
 /* Disable HECI using PMC IPC communication */
-static void heci1_disable_using_pmc(void)
+static int heci1_disable_using_pmc(void)
 {
-	cse_disable_mei_devices();
+	return cse_disable_mei_devices() ? 0 : -1;
 }
 
 /* Disable HECI using Sideband interface communication */
-static void heci1_disable_using_sbi(void)
+static int heci1_disable_using_sbi(void)
 {
 	struct pcr_sbi_msg msg = {
 		.pid = PID_CSME0,
@@ -63,6 +63,7 @@ static void heci1_disable_using_sbi(void)
 	/* Bit 0: Set to make HECI#1 Function disable */
 	uint32_t data32 = 1;
 	uint8_t response;
+	int ret = 0;
 	int status;
 
 	/* unhide p2sb device */
@@ -72,19 +73,24 @@ static void heci1_disable_using_sbi(void)
 
 	/* Send SBI command to make HECI#1 function disable */
 	status = pcr_execute_sideband_msg(PCH_DEV_P2SB, &msg, &data32, &response);
-	if (status || response)
+	if (status || response) {
 		printk(BIOS_ERR, "Fail to make CSME function disable\n");
+		ret = -1;
+	}
 
 	/* Ensure to Lock SBI interface after this command */
-	p2sb_disable_sideband_access();
+	if (p2sb_disable_sideband_access())
+		ret = -1;
 
 	/* hide p2sb device */
 	if (!p2sb_hide())
 		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
 				   "Unable to change P2SB visibility\n");
+
+	return ret;
 }
 
-void heci1_disable(void)
+int heci1_disable(void)
 {
 	if (ENV_SMM && CONFIG(SOC_INTEL_COMMON_BLOCK_HECI1_DISABLE_USING_SBI)) {
 		printk(BIOS_INFO, "Disabling Heci using SBI in SMM mode\n");
@@ -98,5 +104,6 @@ void heci1_disable(void)
 	} else {
 		printk(BIOS_ERR, "%s Error: Unable to make HECI1 function disable!\n",
 				__func__);
+		return -1;
 	}
 }
