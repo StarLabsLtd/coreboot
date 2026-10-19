@@ -223,17 +223,24 @@ void fast_spi_lock_bar(void)
  * Set FAST_SPIBAR + DLOCK (0x0C) register bits to discrete lock the
  * FAST_SPI Protected Range (PR) registers.
  */
-void fast_spi_pr_dlock(void)
+int fast_spi_pr_dlock(void)
 {
 	void *spibar = fast_spi_get_bar();
 	uint32_t dlock;
+	const uint32_t pr_dlock_mask = SPIBAR_DLOCK_PR0LOCKDN |
+		SPIBAR_DLOCK_PR1LOCKDN | SPIBAR_DLOCK_PR2LOCKDN |
+		SPIBAR_DLOCK_PR3LOCKDN | SPIBAR_DLOCK_PR4LOCKDN;
 
 	dlock = read32(spibar + SPIBAR_DLOCK);
-	dlock |= (SPIBAR_DLOCK_PR0LOCKDN | SPIBAR_DLOCK_PR1LOCKDN
-			| SPIBAR_DLOCK_PR2LOCKDN | SPIBAR_DLOCK_PR3LOCKDN
-			| SPIBAR_DLOCK_PR4LOCKDN);
+	dlock |= pr_dlock_mask;
 
 	write32(spibar + SPIBAR_DLOCK, dlock);
+	if ((read32(spibar + SPIBAR_DLOCK) & pr_dlock_mask) != pr_dlock_mask) {
+		printk(BIOS_ERR, "FAST_SPI: protected range lockdown failed\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
