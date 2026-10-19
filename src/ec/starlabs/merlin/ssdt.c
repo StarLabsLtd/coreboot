@@ -1448,6 +1448,11 @@ static void write_shutdown_event(void)
 }
 
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+#define EFI_OPTION_SNAPSHOT_TRACKPAD	BIT(0)
+#define EFI_OPTION_SNAPSHOT_FN_LOCK	BIT(1)
+#define EFI_OPTION_SNAPSHOT_KBL_STATE	BIT(2)
+#define EFI_OPTION_SNAPSHOT_KBL_BRIGHTNESS BIT(3)
+
 static void write_ec_read_path(const char *field)
 {
 	write_method_call(EC_ACPI_METHOD("ECRD"));
@@ -1461,17 +1466,42 @@ static void write_efi_option_get(const char *option)
 	acpigen_emit_namestring(option);
 }
 
-static void write_efi_option_set_ec_read(const char *option, const char *field,
-					 const char *snapshot)
+static void write_ec_get_path(const char *field)
 {
+	write_method_call(EC_ACPI_METHOD("ECGT"));
+	acpigen_emit_byte(REF_OF_OP);
+	acpigen_emit_namestring(field);
+}
+
+static void write_efi_option_capture(const char *option, const char *field,
+				     const char *snapshot, uint8_t valid_bit,
+				     bool normalize_trackpad)
+{
+	/* Local2 contains the status-bearing EC read result. */
 	acpigen_emit_byte(STORE_OP);
-	write_ec_read_path(field);
-	acpigen_emit_namestring(snapshot);
-	acpigen_emit_byte(STORE_OP);
-	write_method_call("EOSV");
-	acpigen_emit_namestring(option);
-	acpigen_emit_namestring(snapshot);
-	acpigen_emit_byte(LOCAL1_OP);
+	write_ec_get_path(field);
+	acpigen_emit_byte(LOCAL2_OP);
+	acpigen_get_package_op_element(LOCAL2_OP, EC_ACPI_STATUS, LOCAL1_OP);
+	acpigen_write_if_lequal_op_int(LOCAL1_OP, EC_ACPI_SUCCESS);
+	{
+		acpigen_get_package_op_element(LOCAL2_OP, EC_ACPI_VALUE, LOCAL0_OP);
+		if (normalize_trackpad) {
+			acpigen_write_if_lequal_op_int(LOCAL0_OP, 0x11);
+			acpigen_write_store_int_to_op(0, LOCAL0_OP);
+			acpigen_write_if_end();
+		}
+		acpigen_write_store_op_to_namestr(LOCAL0_OP, snapshot);
+		acpigen_emit_byte(OR_OP);
+		acpigen_emit_namestring("EOBV");
+		acpigen_write_integer(valid_bit);
+		acpigen_emit_namestring("EOBV");
+		acpigen_emit_byte(STORE_OP);
+		write_method_call("EOSV");
+		acpigen_emit_namestring(option);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_emit_byte(LOCAL1_OP);
+	}
+	acpigen_write_if_end();
 }
 
 static void write_efi_option_field(void)
@@ -1503,6 +1533,7 @@ static void write_efi_option_methods(void)
 	acpigen_write_name_integer("EOKT", STARLABS_EFIOPT_ID_KBL_TIMEOUT);
 	acpigen_write_mutex("EOMX", 0);
 	acpigen_write_name_integer("EOBF", 0);
+	acpigen_write_name_integer("EOBV", 0);
 	/* Ramstage can reset these EC fields before RWAK runs. */
 	acpigen_write_name_integer("EBTP", 0);
 	acpigen_write_name_integer("EBFL", 0);
@@ -1564,30 +1595,24 @@ static void write_efi_option_methods(void)
 static void write_efi_option_suspend(void)
 {
 	acpigen_write_store_int_to_namestr(0, "EOBF");
-	acpigen_emit_byte(STORE_OP);
-	write_ec_read_path(EC_ACPI_FIELD("TPLE"));
-	acpigen_emit_byte(LOCAL0_OP);
-	acpigen_write_if_lequal_op_int(LOCAL0_OP, 0x11);
-	acpigen_write_store_int_to_op(0, LOCAL0_OP);
-	acpigen_write_if_end();
-	acpigen_write_store_op_to_namestr(LOCAL0_OP, "EBTP");
-	acpigen_emit_byte(STORE_OP);
-	write_method_call("EOSV");
-	acpigen_emit_namestring("EOTP");
-	acpigen_emit_byte(LOCAL0_OP);
-	acpigen_emit_byte(LOCAL1_OP);
+	acpigen_write_store_int_to_namestr(0, "EOBV");
+	write_efi_option_capture("EOTP", EC_ACPI_FIELD("TPLE"), "EBTP",
+				 EFI_OPTION_SNAPSHOT_TRACKPAD, true);
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
 	acpigen_write_store_int_to_namestr(1, "EOBF");
 	acpigen_write_if_end();
-	write_efi_option_set_ec_read("EOFL", EC_ACPI_FIELD("FLKE"), "EBFL");
+	write_efi_option_capture("EOFL", EC_ACPI_FIELD("FLKE"), "EBFL",
+				 EFI_OPTION_SNAPSHOT_FN_LOCK, false);
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
 	acpigen_write_store_int_to_namestr(1, "EOBF");
 	acpigen_write_if_end();
-	write_efi_option_set_ec_read("EOKS", EC_ACPI_FIELD("KLSE"), "EBKS");
+	write_efi_option_capture("EOKS", EC_ACPI_FIELD("KLSE"), "EBKS",
+				 EFI_OPTION_SNAPSHOT_KBL_STATE, false);
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
 	acpigen_write_store_int_to_namestr(1, "EOBF");
 	acpigen_write_if_end();
-	write_efi_option_set_ec_read("EOKB", EC_ACPI_FIELD("KLBE"), "EBKB");
+	write_efi_option_capture("EOKB", EC_ACPI_FIELD("KLBE"), "EBKB",
+				 EFI_OPTION_SNAPSHOT_KBL_BRIGHTNESS, false);
 	acpigen_write_if_lgreater_op_int(LOCAL1_OP, 0);
 	acpigen_write_store_int_to_namestr(1, "EOBF");
 	acpigen_write_if_end();
@@ -1605,14 +1630,25 @@ static void write_efi_option_restore_integer(const char *field, uint64_t valid_v
 	acpigen_write_if_end();
 }
 
-static void write_efi_option_restore_value(const char *option, const char *snapshot)
+static void write_efi_option_restore_value(const char *option, const char *snapshot,
+					   uint8_t valid_bit)
 {
-	acpigen_write_if_lequal_namestr_int("EOBF", 1);
-	acpigen_write_store_namestr_to_op(snapshot, LOCAL0_OP);
-	acpigen_write_else();
-	acpigen_emit_byte(STORE_OP);
-	write_efi_option_get(option);
-	acpigen_emit_byte(LOCAL0_OP);
+	/* An invalid snapshot must not restore an old value from a prior cycle. */
+	acpigen_write_store_int_to_op(0xffffffff, LOCAL0_OP);
+	acpigen_write_if();
+	acpigen_emit_byte(AND_OP);
+	acpigen_emit_namestring("EOBV");
+	acpigen_write_integer(valid_bit);
+	acpigen_emit_byte(ZERO_OP);
+	{
+		acpigen_write_if_lequal_namestr_int("EOBF", 1);
+		acpigen_write_store_namestr_to_op(snapshot, LOCAL0_OP);
+		acpigen_write_else();
+		acpigen_emit_byte(STORE_OP);
+		write_efi_option_get(option);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_write_if_end();
+	}
 	acpigen_write_if_end();
 }
 
@@ -1620,16 +1656,17 @@ static void write_efi_option_resume(void)
 {
 	static const uint8_t brightness_values[] = {0xdd, 0xcc, 0xbb, 0xaa};
 
-	write_efi_option_restore_value("EOTP", "EBTP");
+	write_efi_option_restore_value("EOTP", "EBTP", EFI_OPTION_SNAPSHOT_TRACKPAD);
 	write_efi_option_restore_integer(EC_ACPI_FIELD("TPLE"), 0x22);
 
-	write_efi_option_restore_value("EOFL", "EBFL");
+	write_efi_option_restore_value("EOFL", "EBFL", EFI_OPTION_SNAPSHOT_FN_LOCK);
 	write_efi_option_restore_integer(EC_ACPI_FIELD("FLKE"), LOCKED);
 
-	write_efi_option_restore_value("EOKS", "EBKS");
+	write_efi_option_restore_value("EOKS", "EBKS", EFI_OPTION_SNAPSHOT_KBL_STATE);
 	write_efi_option_restore_integer(EC_ACPI_FIELD("KLSE"), 0xdd);
 
-	write_efi_option_restore_value("EOKB", "EBKB");
+	write_efi_option_restore_value("EOKB", "EBKB",
+				       EFI_OPTION_SNAPSHOT_KBL_BRIGHTNESS);
 	for (size_t i = 0; i < ARRAY_SIZE(brightness_values); i++) {
 		acpigen_write_if_lequal_op_int(LOCAL0_OP, brightness_values[i]);
 		write_ec_write_integer(brightness_values[i], EC_ACPI_FIELD("KLBE"));
@@ -1647,6 +1684,7 @@ static void write_efi_option_resume(void)
 		acpigen_emit_namestring(EC_ACPI_FIELD("KLTE"));
 		acpigen_write_if_end();
 	}
+	acpigen_write_store_int_to_namestr(0, "EOBV");
 }
 #endif
 
