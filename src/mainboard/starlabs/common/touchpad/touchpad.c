@@ -234,6 +234,8 @@ static int starlabs_touchpad_get_haptics(unsigned int bus, uint16_t cmd_reg,
 					   payload, sizeof(payload));
 	if (ret != 0)
 		return ret;
+	if (starlabs_touchpad_timed_out())
+		return -1;
 
 	ret = starlabs_touchpad_get_report(bus, cmd_reg, data_reg,
 					   STARLABS_TOUCHPAD_CST_REPORT_ID,
@@ -264,6 +266,8 @@ static int starlabs_touchpad_get_force(unsigned int bus, uint16_t cmd_reg,
 					   payload, sizeof(payload));
 	if (ret != 0)
 		return ret;
+	if (starlabs_touchpad_timed_out())
+		return -1;
 
 	ret = starlabs_touchpad_get_report(bus, cmd_reg, data_reg,
 					   STARLABS_TOUCHPAD_CST_REPORT_ID,
