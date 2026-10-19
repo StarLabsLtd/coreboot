@@ -473,8 +473,8 @@ static int append_and_check_region(const struct region smram,
 #define _GEN_PAGE(a) (_PRES + _RW + _US + _PS + _A +  _D + (a))
 #define PTE_SIZE 8
 
-/* Return the PML4E */
-static uintptr_t install_page_table(const uintptr_t handler_base)
+/* Returns the size of the permanent page table for SMM */
+static size_t smm_permanent_page_table_size(void)
 {
 	const bool one_g_pages = !!(cpuid_edx(0x80000001) & (1 << 26));
 
@@ -484,8 +484,23 @@ static uintptr_t install_page_table(const uintptr_t handler_base)
 	 */
 	const size_t ptes_needed = CONFIG_CPU_PT_ROM_MAP_GB + (one_g_pages ? 0 :
 				   512 * CONFIG_CPU_PT_ROM_MAP_GB);
-	const uintptr_t pages_base = ALIGN_DOWN(handler_base - ptes_needed * PTE_SIZE, 4096);
-	const uintptr_t pml4e = ALIGN_DOWN(pages_base - 8, 4096);
+
+	/* One PML4E entry plus the required PTEs */
+	return 4096 + ALIGN_UP(ptes_needed * PTE_SIZE, 4096);
+}
+
+static size_t smm_permanent_page_table_alignment(void)
+{
+	return 4096;
+}
+
+/* Installs page tables at given base address. Caller has made sure that there is enough space. */
+static void smm_permanent_install_page_table(const uintptr_t pt_base)
+{
+	const bool one_g_pages = !!(cpuid_edx(0x80000001) & (1 << 26));
+
+	const uintptr_t pml4e = ALIGN_DOWN(pt_base, 4096);
+	const uintptr_t pages_base = pml4e + 4096;
 	uintptr_t pdpt;
 
 	if (one_g_pages) {
@@ -503,8 +518,6 @@ static uintptr_t install_page_table(const uintptr_t handler_base)
 
 	for (size_t i = 0; i < DIV_ROUND_UP(CONFIG_CPU_PT_ROM_MAP_GB, 512); i++)
 		write64p(pml4e + i * PTE_SIZE, _GEN_DIR(pdpt + i * 4096));
-
-	return pml4e;
 }
 
 /*
@@ -607,10 +620,16 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 
 	uintptr_t stub_segment_base;
 	if (ENV_X86_64) {
-		uintptr_t pt_base = install_page_table(handler_base);
-		struct region page_tables = region_create(pt_base, handler_base - pt_base);
+		const size_t pt_size = smm_permanent_page_table_size();
+		const size_t pt_alignment = smm_permanent_page_table_alignment();
+		const uintptr_t pt_base =
+			ALIGN_DOWN(handler_base - pt_size, pt_alignment);
+
+		struct region page_tables = region_create(pt_base, pt_size);
 		if (append_and_check_region(smram, page_tables, region_list, "PAGE TABLES"))
 			return -1;
+		smm_permanent_install_page_table(pt_base);
+
 		params->cr3 = pt_base;
 		stub_segment_base = pt_base - SMM_CODE_SEGMENT_SIZE;
 	} else {
