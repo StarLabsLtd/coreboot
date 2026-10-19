@@ -331,84 +331,113 @@ static int starlabs_touchpad_reset_op(void *arg)
 	return starlabs_touchpad_reset(ctx->bus, ctx->cmd_reg);
 }
 
-static int starlabs_touchpad_verify_haptics(const struct starlabs_touchpad_op_ctx *ctx)
+static int starlabs_touchpad_retry_operation(int (*op)(void *arg), void *arg,
+				     int retries, unsigned int delay_ms)
 {
-	uint8_t level = 0;
 	int ret = -1;
-	int attempt;
 
-	const int retries = ENV_SMM ? 2 : STARLABS_TOUCHPAD_VERIFY_RETRIES;
-
-	for (attempt = 0; attempt < retries; attempt++) {
-		ret = starlabs_touchpad_get_haptics(ctx->bus, ctx->cmd_reg,
-						    ctx->data_reg, &level);
-		if (ret == 0 && level == ctx->level)
+	for (int attempt = 0; attempt < retries; attempt++) {
+		ret = op(arg);
+		if (ret == 0)
 			return 0;
-		mdelay(STARLABS_TOUCHPAD_VERIFY_DELAY_MS);
+		if (attempt + 1 < retries)
+			mdelay(delay_ms);
 	}
 
-	return ret == 0 ? -1 : ret;
+	return ret;
+}
+
+#if defined(__TEST__)
+int starlabs_touchpad_retry_for_test(int (*op)(void *arg), void *arg,
+				     int retries, unsigned int delay_ms)
+{
+	return starlabs_touchpad_retry_operation(op, arg, retries, delay_ms);
+}
+#endif
+
+static int starlabs_touchpad_verify_haptics_op(void *arg)
+{
+	const struct starlabs_touchpad_op_ctx *ctx = arg;
+	uint8_t level = 0;
+	int ret;
+
+	ret = starlabs_touchpad_get_haptics(ctx->bus, ctx->cmd_reg, ctx->data_reg, &level);
+	if (ret != 0)
+		return ret;
+
+	return level == ctx->level ? 0 : -1;
+}
+
+static int starlabs_touchpad_verify_haptics(const struct starlabs_touchpad_op_ctx *ctx)
+{
+	const int retries = ENV_SMM ? 2 : STARLABS_TOUCHPAD_VERIFY_RETRIES;
+
+	return starlabs_touchpad_retry_operation(starlabs_touchpad_verify_haptics_op,
+		(void *)ctx, retries, STARLABS_TOUCHPAD_VERIFY_DELAY_MS);
+}
+
+static int starlabs_touchpad_verify_force_op(void *arg)
+{
+	const struct starlabs_touchpad_op_ctx *ctx = arg;
+	uint16_t press = 0;
+	uint16_t release = 0;
+	int ret;
+
+	ret = starlabs_touchpad_get_force(ctx->bus, ctx->cmd_reg, ctx->data_reg,
+					  &press, &release);
+	if (ret != 0)
+		return ret;
+
+	return press == ctx->press && release == ctx->release ? 0 : -1;
 }
 
 static int starlabs_touchpad_verify_force(const struct starlabs_touchpad_op_ctx *ctx)
 {
-	uint16_t press = 0;
-	uint16_t release = 0;
-	int ret = -1;
-	int attempt;
-
 	const int retries = ENV_SMM ? 2 : STARLABS_TOUCHPAD_VERIFY_RETRIES;
 
-	for (attempt = 0; attempt < retries; attempt++) {
-		ret = starlabs_touchpad_get_force(ctx->bus, ctx->cmd_reg,
-						  ctx->data_reg, &press, &release);
-		if (ret == 0 && press == ctx->press && release == ctx->release)
-			return 0;
-		mdelay(STARLABS_TOUCHPAD_VERIFY_DELAY_MS);
-	}
-
-	return ret == 0 ? -1 : ret;
+	return starlabs_touchpad_retry_operation(starlabs_touchpad_verify_force_op,
+		(void *)ctx, retries, STARLABS_TOUCHPAD_VERIFY_DELAY_MS);
 }
 
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
-static int starlabs_touchpad_verify_user_reg(const struct starlabs_touchpad_op_ctx *ctx)
+static int starlabs_touchpad_verify_user_reg_op(void *arg)
 {
+	const struct starlabs_touchpad_op_ctx *ctx = arg;
 	uint8_t bank = 0;
 	uint8_t addr = 0;
 	uint8_t value = 0;
-	int ret = -1;
-	int attempt;
+	int ret;
 
+	ret = starlabs_touchpad_read_user_reg(ctx->bus, ctx->cmd_reg, ctx->data_reg,
+					      &bank, &addr, &value);
+	if (ret != 0)
+		return ret;
+
+	return bank == ctx->bank && addr == ctx->addr && value == ctx->value ? 0 : -1;
+}
+
+static int starlabs_touchpad_verify_user_reg(const struct starlabs_touchpad_op_ctx *ctx)
+{
 	const int retries = ENV_SMM ? 2 : STARLABS_TOUCHPAD_VERIFY_RETRIES;
 
-	for (attempt = 0; attempt < retries; attempt++) {
-		ret = starlabs_touchpad_read_user_reg(ctx->bus, ctx->cmd_reg,
-						      ctx->data_reg, &bank,
-						      &addr, &value);
-		if (ret == 0 && bank == ctx->bank && addr == ctx->addr && value == ctx->value)
-			return 0;
-		mdelay(STARLABS_TOUCHPAD_VERIFY_DELAY_MS);
-	}
-
-	return ret == 0 ? -1 : ret;
+	return starlabs_touchpad_retry_operation(starlabs_touchpad_verify_user_reg_op,
+		(void *)ctx, retries, STARLABS_TOUCHPAD_VERIFY_DELAY_MS);
 }
 #endif
 
+static int starlabs_touchpad_reset_ready_op(void *arg)
+{
+	const struct starlabs_touchpad_op_ctx *ctx = arg;
+	uint8_t level;
+
+	return starlabs_touchpad_get_haptics(ctx->bus, ctx->cmd_reg, ctx->data_reg, &level);
+}
+
 static int starlabs_touchpad_wait_for_reset_ready(const struct starlabs_touchpad_op_ctx *ctx)
 {
-	uint8_t level;
-	int ret = -1;
-	int attempt;
-
-	for (attempt = 0; attempt < STARLABS_TOUCHPAD_RESET_READY_RETRIES; attempt++) {
-		ret = starlabs_touchpad_get_haptics(ctx->bus, ctx->cmd_reg,
-						    ctx->data_reg, &level);
-		if (ret == 0)
-			return 0;
-		mdelay(STARLABS_TOUCHPAD_RESET_READY_DELAY_MS);
-	}
-
-	return ret == 0 ? -1 : ret;
+	return starlabs_touchpad_retry_operation(starlabs_touchpad_reset_ready_op,
+		(void *)ctx, STARLABS_TOUCHPAD_RESET_READY_RETRIES,
+		STARLABS_TOUCHPAD_RESET_READY_DELAY_MS);
 }
 
 #if ENV_RAMSTAGE
@@ -451,18 +480,10 @@ static void starlabs_touchpad_init_ctx(struct starlabs_touchpad_op_ctx *ctx)
 
 static int starlabs_touchpad_retry(int (*op)(void *arg), void *arg)
 {
-	int ret;
-	int attempt;
 	const int retries = ENV_SMM ? 1 : STARLABS_TOUCHPAD_RETRIES;
 
-	for (attempt = 0; attempt < retries; attempt++) {
-		ret = op(arg);
-		if (ret == 0)
-			return 0;
-		mdelay(STARLABS_TOUCHPAD_RETRY_DELAY_MS);
-	}
-
-	return ret;
+	return starlabs_touchpad_retry_operation(op, arg, retries,
+		STARLABS_TOUCHPAD_RETRY_DELAY_MS);
 }
 
 #if ENV_RAMSTAGE
