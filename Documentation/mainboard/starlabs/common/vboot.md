@@ -28,9 +28,10 @@ span, with an 8 MiB top-aligned `WP_RO`. HAS_WPS describes a capability, not
 provisioned-clear status. No B7-U WPS_PROVISIONED_CLEAR assertion is made.
 
 Routine capsules update only the EC, flash-backed VBNV and signed read-write
-tuple. Including `RW_NVRAM` clears the previous image's successful-boot result,
-so installing a newer RW image cannot advance TPM rollback state until the new
-image has reached ramstage and recorded its own successful result.
+tuple. The capsule check requires an erased `RW_NVRAM` image, which clears the
+previous image's successful-boot result. A newer RW image cannot advance TPM
+rollback state until it has reached ramstage and recorded its own successful
+result.
 
 ## Capsule reset requirement
 
