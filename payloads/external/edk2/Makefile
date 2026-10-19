@@ -478,15 +478,20 @@ coreboot_capsule: $(EDK2_PATH)
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
-	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
+	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom.$$$$"; \
+	capsule_tmp="$(COREBOOT_CAPSULE_OUT).$$$$"; \
+	firmware_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rom.$$$$"; \
+	cleanup() { rm -f "$$rmap_rom" "$$capsule_tmp" "$$firmware_rom"; }; \
+	trap cleanup EXIT; \
 	set -e; \
+	cp "$(COREBOOT_ROM)" "$$firmware_rom"; \
 	if [ "$(CONFIG_VBOOT)" = "y" ]; then \
 		test -n "$(EDK2_APPEND_RMAP_MANIFEST)"; \
-		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
+		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
 	elif [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
-		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
+		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
 	else \
-		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
+		cp "$$firmware_rom" "$$rmap_rom"; \
 	fi; \
 	embedded_driver_args=(); \
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
@@ -507,7 +512,7 @@ coreboot_capsule: $(EDK2_PATH)
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)" = "y" ]; then \
 		capflags+=( --capflag InitiateReset ); \
 	fi; \
-	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$(COREBOOT_CAPSULE_OUT)" \
+	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$$capsule_tmp" \
 		--guid "$(CAPSULE_GUID)" \
 		"$${capflags[@]}" \
 		--fw-version $$fw_version --lsv $$lsv \
@@ -521,9 +526,12 @@ coreboot_capsule: $(EDK2_PATH)
 		embedded_driver_count=1; \
 	fi; \
 	python3 "$(CAPSULE_VALIDATOR)" \
-		--capsule "$(COREBOOT_CAPSULE_OUT)" \
+		--capsule "$$capsule_tmp" \
 		--firmware-volume "$(EDK2_DXE_FV)" \
 		--guid "$(CAPSULE_GUID)" \
 		--embedded-drivers "$$embedded_driver_count" \
 		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)" \
-		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),$(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)"))
+		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" $(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)")); \
+	mv -f "$$capsule_tmp" "$(COREBOOT_CAPSULE_OUT)"; \
+	trap - EXIT; \
+	rm -f "$$rmap_rom" "$$firmware_rom"
