@@ -85,6 +85,7 @@ int __weak vboot_finish_vbnv_write(void)
 void boot_device_wp_status_locked(void)
 {
 	struct vb2_context *ctx = vboot_get_context();
+	int ret;
 
 	if (vboot_prepare_vbnv_write())
 		die("VBNV flash write is disabled\n");
@@ -96,12 +97,12 @@ void boot_device_wp_status_locked(void)
 	    !(ctx->flags & VB2_CONTEXT_RECOVERY_MODE))
 		vb2_nv_set(ctx, VB2_NV_FW_RESULT, VB2_FW_RESULT_SUCCESS);
 
-	if (save_vbnv(ctx->nvdata))
-		die("Required VBNV update failed\n");
-	ctx->flags &= ~VB2_CONTEXT_NVDATA_CHANGED;
-
+	ret = save_vbnv(ctx->nvdata);
 	if (vboot_finish_vbnv_write())
 		die("Failed to restore VBNV flash write protection\n");
+	if (ret)
+		die("Required VBNV update failed\n");
+	ctx->flags &= ~VB2_CONTEXT_NVDATA_CHANGED;
 }
 #endif
 
