@@ -82,8 +82,9 @@ static void fast_spi_lockdown_cfg(int chipset_lockdown)
 	/* Set Vendor Component Lock (VCL) */
 	fast_spi_vscc0_lock();
 
-	if (CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) {
-		/* The flash status and controller policy are now immutable. */
+	if (CONFIG(BOOTMEDIA_LOCK_CONTROLLER) ||
+	    CONFIG(BOOTMEDIA_SPI_LOCK_PLATFORM)) {
+		/* The configured boot-media protection is now locked. */
 		boot_device_wp_status_locked();
 	}
 
