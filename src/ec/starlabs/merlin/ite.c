@@ -277,7 +277,7 @@ static void merlin_restore_options(void *unused)
 
 	/* Only "Always" powers on for an ordinary adapter connection. */
 	if (CONFIG(STARLABS_AUTOMATIC_START)) {
-		const unsigned int automatic_start[] = {
+		const uint8_t automatic_start[] = {
 			AUTOMATIC_START_ALWAYS,
 			AUTOMATIC_START_AFTER_FAILURE,
 			AUTOMATIC_START_NEVER,
@@ -289,7 +289,7 @@ static void merlin_restore_options(void *unused)
 						  ARRAY_SIZE(automatic_start)) ==
 				 AUTOMATIC_START_ALWAYS);
 	} else if (CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)) {
-		const unsigned int power_on_ac[] = {0, 1};
+		const uint8_t power_on_ac[] = {0, 1};
 
 		ec_write(ECRAM_POWER_ON_AC,
 			 get_ec_value_from_option("power_on_ac", ADAPTER_AUTO_POWER_ON_DEFAULT,
