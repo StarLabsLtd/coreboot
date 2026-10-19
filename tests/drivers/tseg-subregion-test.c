@@ -5,6 +5,7 @@
 
 static uintptr_t region_base;
 static size_t region_size;
+static bool die_called;
 
 void smm_region(uintptr_t *start, size_t *size)
 {
@@ -14,6 +15,7 @@ void smm_region(uintptr_t *start, size_t *size)
 
 void __noreturn die(const char *message, ...)
 {
+	die_called = true;
 	mock_assert(0, message, __FILE__, __LINE__);
 	__builtin_unreachable();
 }
@@ -54,20 +56,28 @@ static void reject_invalid_layout(void **state)
 	/* The configured subregions do not fit in a complete 4 MiB TSEG. */
 	region_base = 0x7bc00000;
 	region_size = 0x400000;
+	die_called = false;
 	expect_assert_failure(smm_subregion(SMM_SUBREGION_HANDLER, &base, &size));
+	assert_true(die_called);
 	assert_int_equal(base, 0);
 	assert_int_equal(size, 0);
 
 	/* Equality still leaves no room for the SMM handler. */
 	region_base = 0;
 	region_size = 0x601000;
+	die_called = false;
 	expect_assert_failure(smm_subregion(SMM_SUBREGION_HANDLER, &base, &size));
+	assert_true(die_called);
 
 	region_base = 0x7b000001;
 	region_size = 0x1000000;
+	die_called = false;
 	expect_assert_failure(smm_subregion(SMM_SUBREGION_HANDLER, &base, &size));
+	assert_true(die_called);
 	region_size = 0;
+	die_called = false;
 	expect_assert_failure(smm_subregion(SMM_SUBREGION_HANDLER, &base, &size));
+	assert_true(die_called);
 }
 
 int main(void)
