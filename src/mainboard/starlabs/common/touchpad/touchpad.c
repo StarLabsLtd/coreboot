@@ -11,12 +11,29 @@
 #endif
 #include <option.h>
 #include <string.h>
+#include <timer.h>
 
 #include <common/touchpad.h>
 
 #if ENV_RAMSTAGE
 static struct starlabs_touchpad_op_ctx starlabs_touchpad_cached_ctx;
 static int starlabs_touchpad_cached_ctx_valid;
+#endif
+
+#if ENV_SMM
+static struct stopwatch starlabs_touchpad_deadline;
+static bool starlabs_touchpad_deadline_active;
+
+static bool starlabs_touchpad_timed_out(void)
+{
+	return starlabs_touchpad_deadline_active &&
+		stopwatch_expired(&starlabs_touchpad_deadline);
+}
+#else
+static bool starlabs_touchpad_timed_out(void)
+{
+	return false;
+}
 #endif
 
 static void buf_set_le16(uint8_t *buf, size_t offset, uint16_t value)
@@ -337,9 +354,13 @@ static int starlabs_touchpad_retry_operation(int (*op)(void *arg), void *arg,
 	int ret = -1;
 
 	for (int attempt = 0; attempt < retries; attempt++) {
+		if (starlabs_touchpad_timed_out())
+			return -1;
 		ret = op(arg);
-		if (ret == 0)
+		if (ret == 0 && !starlabs_touchpad_timed_out())
 			return 0;
+		if (starlabs_touchpad_timed_out())
+			return -1;
 		if (attempt + 1 < retries)
 			mdelay(delay_ms);
 	}
@@ -349,9 +370,18 @@ static int starlabs_touchpad_retry_operation(int (*op)(void *arg), void *arg,
 
 #if defined(__TEST__)
 int starlabs_touchpad_retry_for_test(int (*op)(void *arg), void *arg,
-				     int retries, unsigned int delay_ms)
+				     int retries, unsigned int delay_ms,
+				     unsigned int timeout_ms)
 {
-	return starlabs_touchpad_retry_operation(op, arg, retries, delay_ms);
+	int ret;
+
+	if (timeout_ms) {
+		stopwatch_init_msecs_expire(&starlabs_touchpad_deadline, timeout_ms);
+		starlabs_touchpad_deadline_active = true;
+	}
+	ret = starlabs_touchpad_retry_operation(op, arg, retries, delay_ms);
+	starlabs_touchpad_deadline_active = false;
+	return ret;
 }
 #endif
 
@@ -501,10 +531,12 @@ static int starlabs_touchpad_wake(const struct starlabs_touchpad_op_ctx *ctx)
 {
 	uint8_t wake_byte;
 
+	if (starlabs_touchpad_timed_out())
+		return -1;
 	(void)i2c_read_raw(ctx->bus, STARLABS_TOUCHPAD_I2C_ADDR, &wake_byte, 1);
 	mdelay(STARLABS_TOUCHPAD_WAKE_DELAY_MS);
 
-	return 0;
+	return starlabs_touchpad_timed_out() ? -1 : 0;
 }
 
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
@@ -512,7 +544,8 @@ static int starlabs_touchpad_ensure_user_reg(const struct starlabs_touchpad_op_c
 {
 	int ret;
 
-	ret = starlabs_touchpad_verify_user_reg(ctx);
+	ret = ENV_SMM ? starlabs_touchpad_verify_user_reg_op((void *)ctx) :
+		starlabs_touchpad_verify_user_reg(ctx);
 	if (ret == 0)
 		return 0;
 
@@ -528,7 +561,8 @@ static int starlabs_touchpad_ensure_force(const struct starlabs_touchpad_op_ctx 
 {
 	int ret;
 
-	ret = starlabs_touchpad_verify_force(ctx);
+	ret = ENV_SMM ? starlabs_touchpad_verify_force_op((void *)ctx) :
+		starlabs_touchpad_verify_force(ctx);
 	if (ret == 0)
 		return 0;
 
@@ -590,7 +624,8 @@ static enum cb_err starlabs_touchpad_apply_ctx(const struct starlabs_touchpad_op
 {
 	int ret;
 
-	starlabs_touchpad_wake(ctx);
+	if (starlabs_touchpad_wake(ctx) != 0)
+		return CB_ERR;
 
 	if (starlabs_touchpad_ensure_settings(ctx) != CB_SUCCESS)
 		return CB_ERR;
@@ -634,7 +669,7 @@ static enum cb_err starlabs_touchpad_apply_ctx(const struct starlabs_touchpad_op
 	       ctx->press, ctx->release);
 #endif
 
-	return CB_SUCCESS;
+	return starlabs_touchpad_timed_out() ? CB_ERR : CB_SUCCESS;
 }
 
 enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
@@ -643,12 +678,15 @@ enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
 	struct starlabs_touchpad_op_ctx ctx;
 
 #if ENV_SMM
-	if (!dw_i2c_smm_bus_is_runtime_suspended(STARLABS_TOUCHPAD_I2C_BUS)) {
+	if (!starlabs_touchpad_runtime_available()) {
 		printk(BIOS_WARNING,
 		       "Touchpad settings: I2C%u active; refusing SMM runtime apply\n",
 		       STARLABS_TOUCHPAD_I2C_BUS);
 		return CB_ERR;
 	}
+	stopwatch_init_msecs_expire(&starlabs_touchpad_deadline,
+				    STARLABS_TOUCHPAD_SMM_TIMEOUT_MS);
+	starlabs_touchpad_deadline_active = true;
 #endif
 
 	ctx = (struct starlabs_touchpad_op_ctx) {
@@ -662,8 +700,19 @@ enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
 		.addr = STARLABS_TOUCHPAD_USER_REG_ADDR_RATE,
 		.value = rate,
 	};
-	return starlabs_touchpad_apply_ctx(&ctx);
+	const enum cb_err ret = starlabs_touchpad_apply_ctx(&ctx);
+#if ENV_SMM
+	starlabs_touchpad_deadline_active = false;
+#endif
+	return ret;
 }
+
+#if ENV_SMM
+bool starlabs_touchpad_runtime_available(void)
+{
+	return dw_i2c_smm_bus_is_runtime_suspended(STARLABS_TOUCHPAD_I2C_BUS);
+}
+#endif
 
 #if ENV_RAMSTAGE
 static void starlabs_touchpad_prepare_settings(void *arg)

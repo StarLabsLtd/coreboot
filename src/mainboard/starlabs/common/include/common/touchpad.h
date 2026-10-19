@@ -101,6 +101,8 @@
 #define STARLABS_TOUCHPAD_VERIFY_DELAY_MS	5
 #define STARLABS_TOUCHPAD_RESET_READY_RETRIES	24
 #define STARLABS_TOUCHPAD_RESET_READY_DELAY_MS	5
+/* Eight 10 ms SMM transfers plus the bounded wake/verification delays. */
+#define STARLABS_TOUCHPAD_SMM_TIMEOUT_MS		100
 
 #define I2C_HID_OPCODE_RESET			0x01
 #define I2C_HID_OPCODE_GET_REPORT		0x02
@@ -130,5 +132,8 @@ struct starlabs_touchpad_op_ctx {
 
 enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
 					    uint16_t release, uint8_t rate);
+#if ENV_SMM
+bool starlabs_touchpad_runtime_available(void);
+#endif
 
 #endif /* _STARLABS_CMN_TOUCHPAD_H_ */

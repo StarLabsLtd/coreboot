@@ -5,6 +5,7 @@ tests-y += starlabs-touchpad-cst-retry-test
 tests-y += starlabs-touchpad-pixart-retry-test
 tests-y += dw-i2c-smm-test
 tests-y += starlabs-smi-mailbox-test
+tests-y += starlabs-smi-mailbox-pixart-test
 
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c
@@ -20,7 +21,8 @@ starlabs-touchpad-cst-retry-test-srcs += tests/drivers/starlabs-touchpad-retry.c
 starlabs-touchpad-cst-retry-test-srcs += src/mainboard/starlabs/common/touchpad/touchpad.c
 starlabs-touchpad-cst-retry-test-stage := smm
 starlabs-touchpad-cst-retry-test-config += CONFIG_STARLABS_TOUCHPAD_CST=1 \
-	CONFIG_STARLABS_TOUCHPAD_PIXART=0 CONFIG_STARLABS_TOUCHPAD_RUNTIME=1
+	CONFIG_STARLABS_TOUCHPAD_PIXART=0 CONFIG_STARLABS_TOUCHPAD_RUNTIME=1 \
+	CONFIG_HAVE_MONOTONIC_TIMER=1
 starlabs-touchpad-cst-retry-test-cflags += -I src/mainboard/starlabs/common/include
 
 $(eval $(call copy-test,starlabs-touchpad-cst-retry-test,starlabs-touchpad-pixart-retry-test))
@@ -39,11 +41,15 @@ starlabs-smi-mailbox-test-srcs += src/mainboard/starlabs/common/smihandler.c
 starlabs-smi-mailbox-test-srcs += tests/stubs/console.c
 starlabs-smi-mailbox-test-stage := smm
 starlabs-smi-mailbox-test-config += CONFIG_STARLABS_ACPI_EFI_OPTION_SMI=1 \
-	CONFIG_STARLABS_TOUCHPAD_RUNTIME=1 CONFIG_STARLABS_TOUCHPAD_PIXART=1 \
-	CONFIG_STARLABS_TOUCHPAD_CST=0 CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI=0 \
+	CONFIG_STARLABS_TOUCHPAD_RUNTIME=1 CONFIG_STARLABS_TOUCHPAD_PIXART=0 \
+	CONFIG_STARLABS_TOUCHPAD_CST=1 CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI=0 \
 	CONFIG_SOC_AMD_COMMON_BLOCK_ACPIMMIO=0 CONFIG_OPTION_BACKEND_NONE=0 \
 	CONFIG_USE_UEFI_VARIABLE_STORE=1
 starlabs-smi-mailbox-test-cflags += -I src/mainboard/starlabs/common/include
 starlabs-smi-mailbox-test-cflags += -I src/soc/intel/common/block/include
 starlabs-smi-mailbox-test-cflags += -I src/soc/intel/apollolake/include
 starlabs-smi-mailbox-test-cflags += -I src/ec/starlabs/merlin/variants/merlin
+
+$(eval $(call copy-test,starlabs-smi-mailbox-test,starlabs-smi-mailbox-pixart-test))
+starlabs-smi-mailbox-pixart-test-config += CONFIG_STARLABS_TOUCHPAD_CST=0 \
+	CONFIG_STARLABS_TOUCHPAD_PIXART=1

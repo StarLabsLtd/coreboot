@@ -617,6 +617,8 @@ static enum cb_err apply_stored_efiopt(enum starlabs_efiopt_id id)
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
 #endif
+		if (!starlabs_touchpad_runtime_available())
+			return CB_ERR;
 		return apply_touchpad_efiopts();
 	default:
 		break;
@@ -697,8 +699,6 @@ int mainboard_smi_apmc(u8 data)
 		status = set_uint_option(opt->name, value);
 		if (wp_enabled)
 			chipset_enable_wp();
-		if (status == CB_SUCCESS)
-			status = apply_runtime_efiopt(id, value);
 		break;
 	}
 	default:
