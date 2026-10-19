@@ -26,15 +26,11 @@ endif
 ifneq ($(CONFIG_VBOOT_KEYBLOCK_VERSION),$(starlabs-vboot-release-version))
 $(error Star Labs VBOOT version $(CONFIG_VBOOT_KEYBLOCK_VERSION) does not match CONFIG_LOCALVERSION $(CONFIG_LOCALVERSION))
 endif
-ifeq ($(CONFIG_SPI_FLASH_FUDAN),y)
-$(error Star Labs Fudan VBOOT is unsupported: Intel Fast SPI cannot read Fudan SR2)
-else
 ifneq ($(words $(filter y,$(CONFIG_BOOTMEDIA_LOCK_CONTROLLER) \
 	$(CONFIG_BOOTMEDIA_LOCK_WPRO_VBOOT_RO) \
 	$(CONFIG_BOOTMEDIA_LOCK_FAILURE_FATAL) \
 	$(CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI))),4)
-$(error Star Labs Winbond VBOOT requires fail-closed Intel controller WP_RO locking)
-endif
+$(error Star Labs VBOOT requires fail-closed Intel controller WP_RO locking)
 endif
 ifneq ($(words $(filter y,$(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN) \
 	$(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN))),2)
