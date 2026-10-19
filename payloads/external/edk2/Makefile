@@ -441,18 +441,7 @@ coreboot_capsule: $(EDK2_PATH)
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
 	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
 	set -e; \
-	if [ "$(CAPSULE_LAYOUT_TRANSITION)" = "1" ]; then \
-		capsule_guid=$$(printf '%s' "$(CAPSULE_GUID)" | tr A-F a-f); \
-		firmware_guid=$$(printf '%s' "$(FIRMWARE_GUID)" | tr A-F a-f); \
-		if [ "$$capsule_guid" = "$$firmware_guid" ]; then \
-			echo "ERROR: layout-transition capsule requires distinct installed and target firmware GUIDs"; \
-			exit 1; \
-		fi; \
-		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
-	elif [ "$(CAPSULE_GUID)" != "$(FIRMWARE_GUID)" ]; then \
-		echo "ERROR: capsule GUID override requires CAPSULE_LAYOUT_TRANSITION=1"; \
-		exit 1; \
-	elif [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
+	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
 		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
 	else \
 		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
