@@ -367,8 +367,8 @@ enum cse_tx_rx_status heci_send_receive(const void *snd_msg, size_t snd_sz, void
  * Returns 0 on failure and 1 on success.
  */
 int heci_reset(void);
-/* Disable HECI1 using Sideband interface communication */
-void heci1_disable(void);
+/* Disable HECI1 using the configured interface. Returns 0 on success. */
+int heci1_disable(void);
 
 /* Reads config value from a specified offset in the CSE PCI Config space. */
 uint32_t me_read_config32(int offset);
@@ -621,7 +621,7 @@ void cse_late_finalize(void);
  * Allow SoC to implement heci1 disable override due to PSF registers being
  * different across SoC generation.
  */
-void soc_disable_heci1_using_pcr(void);
+int soc_disable_heci1_using_pcr(void);
 
 /*
  * SoC override API to identify if ISH Firmware existed inside CSE FPT.
