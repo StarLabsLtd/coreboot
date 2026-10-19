@@ -308,12 +308,6 @@ static void winbond_bpbits_to_region(const size_t granularity,
 	*out = region_create(tb ? 0 : flash_size - protected_size, protected_size);
 }
 
-static bool winbond_sr2_unreadable(const struct spi_flash *flash)
-{
-	return flash->ops->write_status &&
-		CONFIG(SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE) <= 0xff;
-}
-
 static int winbond_read_status_regs(const struct spi_flash *flash,
 				    struct status_regs *regs,
 				    struct status_regs_valid *valid)
@@ -325,12 +319,13 @@ static int winbond_read_status_regs(const struct spi_flash *flash,
 	if (ret)
 		return ret;
 
-	if (winbond_sr2_unreadable(flash)) {
-		regs->reg2.u = CONFIG(SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE);
-	} else {
-		ret = spi_flash_read_status(flash, CMD_W25_RDSR2, &regs->reg2.u);
-		if (ret)
+	ret = spi_flash_read_status(flash, CMD_W25_RDSR2, &regs->reg2.u);
+	if (ret) {
+		if (CONFIG_SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE > 0xff)
 			return ret;
+
+		regs->reg2.u = CONFIG_SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE;
+	} else {
 		valid->reg2 = true;
 	}
 
@@ -339,8 +334,7 @@ static int winbond_read_status_regs(const struct spi_flash *flash,
 
 	ret = spi_flash_read_status(flash, CMD_W25_RDSR3, &regs->reg3.u);
 	if (ret) {
-		if (!flash->ops->write_status ||
-		    !CONFIG(SPI_FLASH_WINBOND_WPS_PROVISIONED_CLEAR))
+		if (!CONFIG(SPI_FLASH_WINBOND_WPS_PROVISIONED_CLEAR))
 			return ret;
 
 		regs->reg3.u = 0;
@@ -582,8 +576,7 @@ static int winbond_check_wps(const struct spi_flash *flash)
 		return 0;
 
 	ret = spi_flash_read_status(flash, CMD_W25_RDSR3, &value);
-	if (ret && (!flash->ops->write_status ||
-		    !CONFIG(SPI_FLASH_WINBOND_WPS_PROVISIONED_CLEAR)))
+	if (ret && !CONFIG(SPI_FLASH_WINBOND_WPS_PROVISIONED_CLEAR))
 		return ret;
 	if (ret)
 		return 0;

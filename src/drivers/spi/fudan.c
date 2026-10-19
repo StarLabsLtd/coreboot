@@ -45,23 +45,12 @@ static size_t fudan_protected_size(const struct spi_flash *flash, u8 bp)
 	return flash->size >> (7 - bp);
 }
 
-static bool fudan_sr2_unreadable(const struct spi_flash *flash)
-{
-	return flash->ops->write_status &&
-		CONFIG(SPI_FLASH_FUDAN_SR2_PROVISIONED_CLEAR);
-}
-
 static int fudan_read_status(const struct spi_flash *flash, u8 *sr1, u8 *sr2)
 {
 	int ret = spi_flash_status(flash, sr1);
 
 	if (ret)
 		return ret;
-
-	if (fudan_sr2_unreadable(flash)) {
-		*sr2 = 0;
-		return 0;
-	}
 
 	return spi_flash_read_status(flash, CMD_FM25_RDSR2, sr2);
 }
@@ -80,8 +69,8 @@ static void fudan_bp_to_region(const struct spi_flash *flash, u8 bp, bool tb,
 				protected_size);
 }
 
-static int fudan_get_write_protection(const struct spi_flash *flash,
-				      const struct region *region)
+static int fudan_get_write_protection_common(const struct spi_flash *flash,
+					     const struct region *region, bool exact)
 {
 	struct region wp_region;
 	u8 sr1, sr2, bp;
@@ -108,7 +97,23 @@ static int fudan_get_write_protection(const struct spi_flash *flash,
 	printk(BIOS_DEBUG, "FUDAN: flash protected range 0x%08zx-0x%08zx\n",
 	       region_offset(&wp_region), region_last(&wp_region));
 
+	if (exact)
+		return region_offset(&wp_region) == region_offset(region) &&
+			region_sz(&wp_region) == region_sz(region);
+
 	return region_is_subregion(&wp_region, region);
+}
+
+static int fudan_get_write_protection(const struct spi_flash *flash,
+				      const struct region *region)
+{
+	return fudan_get_write_protection_common(flash, region, false);
+}
+
+static int fudan_get_write_protection_exact(const struct spi_flash *flash,
+					    const struct region *region)
+{
+	return fudan_get_write_protection_common(flash, region, true);
 }
 
 static int fudan_write_status(const struct spi_flash *flash, u8 sr1, u8 sr2)
@@ -153,9 +158,6 @@ static int fudan_write_status(const struct spi_flash *flash, u8 sr1, u8 sr2)
 		return -1;
 	}
 
-	if (fudan_sr2_unreadable(flash))
-		return 0;
-
 	ret = spi_flash_read_status(flash, CMD_FM25_RDSR2, &verify_sr2);
 	if (ret)
 		return ret;
@@ -183,11 +185,6 @@ static int fudan_set_write_protection(const struct spi_flash *flash,
 		printk(BIOS_ERR, "FUDAN: complement protection is unavailable\n");
 		return -1;
 	}
-	if (fudan_sr2_unreadable(flash) &&
-	    (mode == SPI_WRITE_PROTECTION_REBOOT ||
-	     mode == SPI_WRITE_PROTECTION_PERMANENT))
-		return -1;
-
 	if (region_sz(region) == 0)
 		bp = 0;
 	else if (region_sz(region) == flash->size)
@@ -246,6 +243,7 @@ static int fudan_set_write_protection(const struct spi_flash *flash,
 
 static const struct spi_flash_protection_ops spi_flash_protection_ops = {
 	.get_write = fudan_get_write_protection,
+	.get_write_exact = fudan_get_write_protection_exact,
 	.set_write = fudan_set_write_protection,
 };
 
