@@ -538,7 +538,7 @@ coreboot_capsule: $(EDK2_PATH)
 		"$$rmap_rom"; \
 	if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
 		"$(CBFSTOOL)" "$$firmware_rom" extract -r FW_MAIN_A \
-			-n "$(CBFS_PAYLOAD_NAME)" -f "$$payload"; \
+			-m "$(CBFS_ARCH)" -n "$(CBFS_PAYLOAD_NAME)" -f "$$payload"; \
 	fi; \
 	embedded_driver_count=0; \
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
