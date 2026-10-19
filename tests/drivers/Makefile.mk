@@ -18,6 +18,12 @@ tseg-subregion-overflow-test-config += CONFIG_SMM_TSEG=1 CONFIG_SMM_ASEG=0 \
 	CONFIG_IED_REGION_SIZE=0x80000000 CONFIG_SMM_RESERVED_SIZE=0x80000000 \
 	CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE=0
 
+tests-y += smm-module-page-table-test
+smm-module-page-table-test-srcs += tests/drivers/smm-module-page-table-test.c
+smm-module-page-table-test-srcs += tests/stubs/console.c
+smm-module-page-table-test-srcs += src/commonlib/region.c
+smm-module-page-table-test-config += CONFIG_CPU_PT_ROM_MAP_GB=1
+
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c
 efivars-test-srcs += tests/stubs/console.c
