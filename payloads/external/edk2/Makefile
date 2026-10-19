@@ -159,6 +159,12 @@ CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
 COREBOOT_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
 CAPSULE_LOCALVERSION := $(COREBOOT_LOCALVERSION)
 ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+ifneq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(FIRMWARE_GUID)' | tr A-F a-f))
+$(error Star Labs VBOOT capsule GUID must match the configured firmware GUID)
+endif
+ifneq ($(CAPSULE_REGIONS),EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
+$(error Star Labs VBOOT capsules must update EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
+endif
 ifneq ($(CAPSULE_LOCALVERSION),$(COREBOOT_LOCALVERSION))
 $(error Star Labs VBOOT capsule version must match CONFIG_LOCALVERSION)
 endif
@@ -490,4 +496,5 @@ coreboot_capsule: $(EDK2_PATH)
 		--firmware-volume "$(EDK2_DXE_FV)" \
 		--guid "$(CAPSULE_GUID)" \
 		--embedded-drivers "$$embedded_driver_count" \
-		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)"
+		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)" \
+		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),$(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)"))

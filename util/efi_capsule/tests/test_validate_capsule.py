@@ -9,7 +9,9 @@ import uuid
 
 from util.efi_capsule.validate_capsule import (
     FMP_CAPSULE_GUID,
+    RMAP_SIGNATURE,
     ValidationError,
+    validate_rmap,
     validate,
 )
 
@@ -18,18 +20,36 @@ FMP_GUID = uuid.UUID("85584837-7b03-4b6c-940c-8b6186cbf7a1")
 OTHER_GUID = uuid.UUID("83335bd5-ec9e-4a78-8931-223d990f5b44")
 
 
-def make_capsule(image_guid=FMP_GUID, embedded_count=0, item_offset=None):
+def make_authenticated_update(image, malformed=False):
+    certificate = struct.pack(
+        "<IHH16s", 24, 0x0200, 0x0EF1,
+        uuid.UUID("4aafd29d-68df-49ee-8aa9-347d375665a7").bytes_le,
+    )
+    if malformed:
+        certificate = b"\0" * len(certificate)
+    return struct.pack("<Q", 0) + certificate + image
+
+
+def make_fmp_payload(image):
+    return struct.pack("<4sIII", b"MSS1", 16, 1, 1) + image
+
+
+def make_capsule(image_guid=FMP_GUID, embedded_count=0, item_offset=None,
+                 update_image=b"\0", authenticated=False, malformed_auth=False):
     embedded_items = [b"MZ" for _ in range(embedded_count)]
+    update_image = make_fmp_payload(update_image)
+    if authenticated:
+        update_image = make_authenticated_update(update_image, malformed_auth)
     image = struct.pack(
         "<I16sB3xIIQQ",
         3,
         image_guid.bytes_le,
         1,
-        1,
+        len(update_image),
         0,
         0,
-        0,
-    ) + b"\0"
+        int(authenticated),
+    ) + update_image
     items = embedded_items + [image]
 
     table_size = 8 + len(items) * 8
@@ -78,6 +98,27 @@ def make_fv(file_guid=FMP_GUID, file_type=0x07, duplicate=False):
     if duplicate:
         add_file(next_offset)
     return bytes(fv)
+
+
+def make_rmap_image(regions, overlap=False, nested=False, out_of_bounds=False):
+    image = bytearray(b"\xff" * 0x1000)
+    fmap_offset = 0x100
+    struct.pack_into("<8sBBQI32sH", image, fmap_offset, b"__FMAP__", 1, 1,
+                     0, len(image), b"test\0", len(regions) + nested)
+    for index, name in enumerate(regions):
+        offset = 0x400 + index * 0x100
+        if overlap and index:
+            offset -= 0x80
+        if out_of_bounds and index == 0:
+            offset = len(image) - 0x80
+        struct.pack_into("<II32sH", image, fmap_offset + 56 + index * 42,
+                         offset, 0x100, name.encode() + b"\0", 0)
+    if nested:
+        struct.pack_into("<II32sH", image, fmap_offset + 56 + len(regions) * 42,
+                         0x300, 0x600, b"RW_SECTION_A\0", 0)
+    entries = b"".join(name.encode().ljust(16, b"\0") for name in regions)
+    return bytes(image) + entries + struct.pack("<IHH", RMAP_SIGNATURE, 1,
+                                                  len(regions))
 
 
 class ValidateCapsuleTest(unittest.TestCase):
@@ -167,6 +208,44 @@ class ValidateCapsuleTest(unittest.TestCase):
     def test_rejects_invalid_item_offset(self):
         with self.assertRaisesRegex(ValidationError, "invalid FMP item offset"):
             validate(make_capsule(item_offset=8), make_fv(), FMP_GUID, 0)
+
+    def test_accepts_expected_rmap_regions(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        validate_rmap(make_rmap_image(regions), regions)
+
+    def test_rejects_missing_or_extra_rmap_regions(self):
+        expected = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        with self.assertRaisesRegex(ValidationError, "do not match"):
+            validate_rmap(make_rmap_image(["EC", "FW_MAIN_A"]), expected)
+        with self.assertRaisesRegex(ValidationError, "do not match"):
+            validate_rmap(make_rmap_image(expected + ["WP_RO"]), expected)
+
+    def test_rejects_overlapping_rmap_regions(self):
+        regions = ["EC", "RW_NVRAM"]
+        with self.assertRaisesRegex(ValidationError, "overlapping RMAP"):
+            validate_rmap(make_rmap_image(regions, overlap=True), regions)
+
+    def test_accepts_nested_unselected_fmap_regions(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        validate_rmap(make_rmap_image(regions, nested=True), regions)
+
+    def test_rejects_duplicate_or_out_of_bounds_rmap_regions(self):
+        with self.assertRaisesRegex(ValidationError, "duplicate RMAP"):
+            validate_rmap(make_rmap_image(["EC", "EC"]), ["EC", "EC"])
+        with self.assertRaisesRegex(ValidationError, "invalid FMAP"):
+            validate_rmap(make_rmap_image(["EC"], out_of_bounds=True), ["EC"])
+
+    def test_validates_rmap_from_capsule_payload(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        validate(make_capsule(update_image=make_rmap_image(regions), authenticated=True),
+                 make_fv(), FMP_GUID, 0, expected_rmap_regions=regions)
+
+    def test_rejects_malformed_authenticated_rmap_payload(self):
+        regions = ["EC", "RW_NVRAM", "FW_MAIN_A", "RW_FWID_A", "VBLOCK_A"]
+        with self.assertRaisesRegex(ValidationError, "authentication header"):
+            validate(make_capsule(update_image=make_rmap_image(regions),
+                                  authenticated=True, malformed_auth=True), make_fv(),
+                     FMP_GUID, 0, expected_rmap_regions=regions)
 
 
 if __name__ == "__main__":
