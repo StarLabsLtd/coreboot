@@ -1,23 +1,23 @@
 # Star Labs verified boot
 
-The verified-boot policy has layout plumbing for HZ, B8 and F2. F2 is the
-only current release candidate; selection is not release approval. The
-historical `config.starlabs_*` release configurations are not present in this
-branch and are not supplied by this PR.
+The verified-boot policy has layout plumbing for HZ, B8 and F2. Their release
+configurations require external signing input; selection is not release
+approval. The historical `config.starlabs_*` release configurations are not
+present in this branch and are not supplied by this PR.
 
 | System | Configuration | Firmware GUID |
 | --- | --- | --- |
-| StarBook Horizon (HZ) | blocked | `b96a6b09-dc2c-4e3a-86ee-47016c7b035a` |
-| StarBook Mk VIII (B8) | blocked | `581c8874-50e1-4231-af48-04cff1c4668f` |
+| StarBook Horizon (HZ) | external release input required | `b96a6b09-dc2c-4e3a-86ee-47016c7b035a` |
+| StarBook Mk VIII (B8) | external release input required | `581c8874-50e1-4231-af48-04cff1c4668f` |
 | StarFighter Mk II (F2) | external release input required | `eef5c7c3-124f-406a-87fe-4b58589fd331` |
 
 The intended image has one signed read-write slot and an immutable recovery
 image. The top-aligned `WP_RO` region is represented by SPI flash
 block-protect bits.
-Intel Fast SPI applies and locks controller protected ranges for F2. HZ and B8
-use Fudan flash, but Intel Fast SPI cannot read Fudan status register 2. Their
-vboot builds are therefore blocked until a verifiable protection mechanism is
-available.
+Intel Fast SPI applies and locks controller protected ranges for all three
+systems. HZ and B8 use Fudan flash; their status register 2 must be provisioned
+and verified with an external programmer. Intel Fast SPI cannot read it, so
+coreboot does not treat a configured value as a readback.
 
 B7-U also has layout/policy plumbing. Its release configuration remains
 non-vboot with stock GUID `85584837-7b03-4b6c-940c-8b6186cbf7a1` and capsule
