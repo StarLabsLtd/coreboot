@@ -458,8 +458,8 @@ static int append_and_check_region(const struct region smram,
 #define _GEN_PAGE(a) (_PRES + _RW + _US + _PS + _A +  _D + (a))
 #define PTE_SIZE 8
 
-/* Return the PML4E */
-static uintptr_t install_page_table(const uintptr_t handler_base)
+/* Return the PML4E without writing the page tables. */
+static int page_table_base(const uintptr_t handler_base, uintptr_t *pml4e)
 {
 	const bool one_g_pages = !!(cpuid_edx(0x80000001) & (1 << 26));
 
@@ -467,10 +467,28 @@ static uintptr_t install_page_table(const uintptr_t handler_base)
 	 * CONFIG_CPU_PT_ROM_MAP_GB 1G pages or
 	 * CONFIG_CPU_PT_ROM_MAP_GB PDPE entries with 512 * 2M pages
 	 */
-	const size_t ptes_needed = CONFIG_CPU_PT_ROM_MAP_GB + (one_g_pages ? 0 :
-				   512 * CONFIG_CPU_PT_ROM_MAP_GB);
-	const uintptr_t pages_base = ALIGN_DOWN(handler_base - ptes_needed * PTE_SIZE, 4096);
-	const uintptr_t pml4e = ALIGN_DOWN(pages_base - 8, 4096);
+	if (!one_g_pages && CONFIG_CPU_PT_ROM_MAP_GB > SIZE_MAX / 513)
+		return -1;
+	const size_t ptes_needed = one_g_pages ? CONFIG_CPU_PT_ROM_MAP_GB :
+		513 * CONFIG_CPU_PT_ROM_MAP_GB;
+	if (ptes_needed > SIZE_MAX / PTE_SIZE)
+		return -1;
+	const size_t page_table_size = ptes_needed * PTE_SIZE;
+
+	if (handler_base < page_table_size || handler_base - page_table_size < 8)
+		return -1;
+
+	const uintptr_t pages_base = ALIGN_DOWN(handler_base - page_table_size, 4096);
+	*pml4e = ALIGN_DOWN(pages_base - 8, 4096);
+	return 0;
+}
+
+static void install_page_table(const uintptr_t handler_base, const uintptr_t pml4e)
+{
+	const bool one_g_pages = !!(cpuid_edx(0x80000001) & (1 << 26));
+	const uintptr_t pages_base = ALIGN_UP(pml4e + 8, 4096);
+	const size_t page_entries = one_g_pages ? CONFIG_CPU_PT_ROM_MAP_GB :
+		512 * CONFIG_CPU_PT_ROM_MAP_GB;
 	uintptr_t pdpt;
 
 	if (one_g_pages) {
@@ -478,7 +496,7 @@ static uintptr_t install_page_table(const uintptr_t handler_base)
 			write64p(pages_base + i * PTE_SIZE, _GEN_PAGE(1ull * GiB * i));
 		pdpt = pages_base;
 	} else {
-		for (size_t i = 0; i < 512 * CONFIG_CPU_PT_ROM_MAP_GB; i++)
+		for (size_t i = 0; i < page_entries; i++)
 			write64p(pages_base + i * PTE_SIZE, _GEN_PAGE(2ull * MiB * i));
 
 		pdpt = pages_base + 4096 * CONFIG_CPU_PT_ROM_MAP_GB;
@@ -489,7 +507,6 @@ static uintptr_t install_page_table(const uintptr_t handler_base)
 	for (size_t i = 0; i < DIV_ROUND_UP(CONFIG_CPU_PT_ROM_MAP_GB, 512); i++)
 		write64p(pml4e + i * PTE_SIZE, _GEN_DIR(pdpt + i * 4096));
 
-	return pml4e;
 }
 
 /*
@@ -555,10 +572,13 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 
 	uintptr_t stub_segment_base;
 	if (ENV_X86_64) {
-		uintptr_t pt_base = install_page_table(handler_base);
+		uintptr_t pt_base;
+		if (page_table_base(handler_base, &pt_base))
+			return -1;
 		struct region page_tables = region_create(pt_base, handler_base - pt_base);
 		if (append_and_check_region(smram, page_tables, region_list, "PAGE TABLES"))
 			return -1;
+		install_page_table(handler_base, pt_base);
 		params->cr3 = pt_base;
 		stub_segment_base = pt_base - SMM_CODE_SEGMENT_SIZE;
 	} else {
