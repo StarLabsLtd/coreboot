@@ -474,11 +474,14 @@ static int page_table_base(const uintptr_t handler_base, const bool one_g_pages,
 		return -1;
 	const size_t page_table_size = ptes_needed * PTE_SIZE;
 
-	if (handler_base < page_table_size || handler_base - page_table_size < 8)
+	if (handler_base < page_table_size)
 		return -1;
 
 	const uintptr_t pages_base = ALIGN_DOWN(handler_base - page_table_size, 4096);
-	*pml4e = ALIGN_DOWN(pages_base - 8, 4096);
+	if (pages_base < PTE_SIZE)
+		return -1;
+
+	*pml4e = ALIGN_DOWN(pages_base - PTE_SIZE, 4096);
 	return 0;
 }
 

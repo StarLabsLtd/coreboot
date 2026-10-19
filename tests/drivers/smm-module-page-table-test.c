@@ -135,6 +135,31 @@ static void test_rejects_page_table_underflow(void **state)
 	assert_int_equal(page_table_base(0, one_g_pages, &pt_base), -1);
 }
 
+static void test_page_table_base_alignment(void **state)
+{
+	const bool one_g_pages = (uintptr_t)*state;
+	const size_t page_table_size = one_g_pages ? PTE_SIZE : 513 * PTE_SIZE;
+	const uintptr_t rejected_remainders[] = { 0, PTE_SIZE - 1, PTE_SIZE, 0x10, 4095 };
+	uintptr_t pt_base;
+
+	pt_base = UINTPTR_MAX;
+	assert_int_equal(page_table_base(page_table_size - 1, one_g_pages, &pt_base), -1);
+	assert_int_equal(pt_base, UINTPTR_MAX);
+
+	for (size_t i = 0; i < ARRAY_SIZE(rejected_remainders); i++) {
+		pt_base = UINTPTR_MAX;
+		assert_int_equal(page_table_base(page_table_size + rejected_remainders[i],
+						one_g_pages, &pt_base), -1);
+		assert_int_equal(pt_base, UINTPTR_MAX);
+	}
+
+	assert_int_equal(page_table_base(page_table_size + 4096, one_g_pages, &pt_base), 0);
+	assert_int_equal(pt_base, 0);
+
+	assert_int_equal(page_table_base(0x7b000000, one_g_pages, &pt_base), 0);
+	assert_int_equal(pt_base, one_g_pages ? 0x7affe000 : 0x7affd000);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -152,6 +177,8 @@ int main(void)
 		cmocka_unit_test_prestate(test_installs_page_tables_with_space, (void *)false),
 		cmocka_unit_test_prestate(test_rejects_page_table_underflow, (void *)true),
 		cmocka_unit_test_prestate(test_rejects_page_table_underflow, (void *)false),
+		cmocka_unit_test_prestate(test_page_table_base_alignment, (void *)true),
+		cmocka_unit_test_prestate(test_page_table_base_alignment, (void *)false),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
