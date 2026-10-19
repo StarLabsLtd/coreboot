@@ -508,6 +508,30 @@ static void efi_test_batch_validates_tail_after_matches(void **state)
 					    &option, 1), CB_EFI_VS_CORRUPTED_INVALID);
 }
 
+static void efi_test_batch_prefers_added_over_transition(void **state)
+{
+	AUTHENTICATED_VARIABLE_HEADER *old_header;
+	char value[sizeof("is awesome")];
+	struct efi_fv_option option = {
+		.name = name,
+		.data = value,
+		.size = sizeof(value),
+	};
+
+	mock_rdev(true);
+	assert_int_equal(efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid, name,
+					   "is awesome", sizeof("is awesome")), CB_SUCCESS);
+	old_header = (void *)(flash_buffer + sizeof(EFI_FIRMWARE_VOLUME_HEADER) +
+		sizeof(EFI_FV_BLOCK_MAP_ENTRY) + sizeof(VARIABLE_STORE_HEADER));
+	old_header->State = VAR_IN_DELETED_TRANSITION & VAR_ADDED;
+	mock_rdev(false);
+
+	assert_int_equal(efi_fv_get_options(&flash_rdev_rw, &EficorebootNvDataGuid,
+					    &option, 1), CB_SUCCESS);
+	assert_int_equal(option.result, CB_SUCCESS);
+	assert_string_equal(value, "is awesome");
+}
+
 static void efi_test_find_zero_length_variable(void **state)
 {
 	AUTHENTICATED_VARIABLE_HEADER *header;
@@ -880,6 +904,7 @@ int main(void)
 		cmocka_unit_test(efi_test_batch_reads_validate_store_once),
 		cmocka_unit_test(efi_test_batch_distinguishes_missing_and_malformed),
 		cmocka_unit_test(efi_test_batch_validates_tail_after_matches),
+		cmocka_unit_test(efi_test_batch_prefers_added_over_transition),
 		cmocka_unit_test(efi_test_find_zero_length_variable),
 		cmocka_unit_test(efi_test_prefer_added_over_transition),
 		cmocka_unit_test(efi_test_skip_incomplete_variable),
