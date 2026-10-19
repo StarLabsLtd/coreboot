@@ -1579,6 +1579,11 @@ static void write_efi_option_methods(void)
 	acpigen_write_store_op_to_namestr(ARG1_OP, "EOVL");
 	acpigen_write_store_int_to_namestr(0xffffffff, "EORS");
 	acpigen_write_store_namestr_to_namestr("EOAP", EC_ACPI_FIELD("SMB2"));
+#if defined(__TEST__)
+	acpigen_write_store_namestr_to_namestr("EOTR", "EORS");
+	acpigen_emit_byte(INCREMENT_OP);
+	acpigen_emit_namestring("EOCT");
+#endif
 	acpigen_write_store_namestr_to_op("EORS", LOCAL0_OP);
 	acpigen_write_release("EOMX");
 	acpigen_write_return_op(LOCAL0_OP);
@@ -1679,6 +1684,75 @@ static void write_efi_option_resume(void)
 	}
 	acpigen_write_store_int_to_namestr(0, "EOBV");
 }
+
+#if defined(__TEST__)
+void starlabs_write_efi_option_sleep_aml_for_test(void)
+{
+	static const struct opregion dnvs_region =
+		OPREGION("DNVS", SYSTEMMEMORY, 0x100000, sizeof(struct starlabs_dnvs_efiopt));
+
+	acpigen_write_opregion(&dnvs_region);
+	acpigen_write_scope("\\_SB");
+	acpigen_write_device("PCI0");
+	acpigen_write_device("LPCB");
+	acpigen_write_device("EC");
+	acpigen_write_name_integer("SMB2", 0);
+	acpigen_write_name_integer("TPLE", 0);
+	acpigen_write_name_integer("FLKE", 0);
+	acpigen_write_name_integer("KLSE", 0);
+	acpigen_write_name_integer("KLBE", 0);
+	acpigen_write_name_integer("KLTE", 0);
+	acpigen_write_name_integer("EOTR", 0);
+	acpigen_write_name_integer("EOCT", 0);
+
+	/* A UINT32_MAX field value injects a failed status-bearing EC read. */
+	acpigen_write_method_serialized("ECGT", 1);
+	acpigen_emit_byte(STORE_OP);
+	acpigen_emit_byte(DEREF_OP);
+	acpigen_emit_byte(ARG0_OP);
+	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_write_if_lequal_op_int(LOCAL0_OP, UINT32_MAX);
+	acpigen_emit_byte(RETURN_OP);
+	acpigen_write_package(EC_ACPI_RESULT_SIZE);
+	acpigen_write_integer(EC_ACPI_ERROR);
+	acpigen_write_integer(0);
+	acpigen_write_package_end();
+	acpigen_write_if_end();
+	acpigen_emit_byte(STORE_OP);
+	acpigen_write_package(EC_ACPI_RESULT_SIZE);
+	acpigen_write_integer(EC_ACPI_SUCCESS);
+	acpigen_write_integer(0);
+	acpigen_write_package_end();
+	acpigen_emit_byte(LOCAL1_OP);
+	acpigen_emit_byte(STORE_OP);
+	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_emit_byte(INDEX_OP);
+	acpigen_emit_byte(LOCAL1_OP);
+	acpigen_write_integer(EC_ACPI_VALUE);
+	acpigen_emit_byte(ZERO_OP);
+	acpigen_write_return_op(LOCAL1_OP);
+	acpigen_write_method_end();
+
+	acpigen_write_method_serialized("ECWR", 2);
+	acpigen_write_store_ops(ARG0_OP, ARG1_OP);
+	acpigen_write_return_integer(EC_ACPI_SUCCESS);
+	acpigen_write_method_end();
+
+	write_efi_option_methods();
+	acpigen_write_method_serialized("RPTS", 1);
+	write_efi_option_suspend();
+	acpigen_write_return_op(ARG0_OP);
+	acpigen_write_method_end();
+	acpigen_write_method_serialized("RWAK", 1);
+	write_efi_option_resume();
+	acpigen_write_return_op(ARG0_OP);
+	acpigen_write_method_end();
+	acpigen_write_device_end();
+	acpigen_write_device_end();
+	acpigen_write_device_end();
+	acpigen_write_scope_end();
+}
+#endif
 #endif
 
 static void write_sleep_methods(void)
@@ -1689,7 +1763,8 @@ static void write_sleep_methods(void)
 
 /*
  *	RPTS snapshots live EC options through EOSV before clearing OSFG.
- *	RWAK sets OSFG and restores saved options through EOGT.
+ *	RWAK restores valid snapshots directly after a save failure, otherwise
+ *	through EOGT.
  *	The option methods use the SMM backend when configured.
  */
 	acpigen_write_method_serialized("RPTS", 1);
