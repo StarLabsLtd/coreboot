@@ -201,7 +201,9 @@ EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
 EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
-EDK2_PIN_CHECK = ./check-pinned-source.sh
+EDK2_PIN_CHECK = $(abspath check-pinned-source.sh)
+CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
+CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -508,7 +510,8 @@ coreboot_capsule: $(EDK2_PATH)
 		"$${embedded_driver_args[@]}" \
 		"$$rmap_rom"; \
 	if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
-		"$(CBFSTOOL)" "$$firmware_rom" extract -n payload -f "$$payload"; \
+		"$(CBFSTOOL)" "$$firmware_rom" extract -r FW_MAIN_A \
+			-n "$(CBFS_PAYLOAD_NAME)" -f "$$payload"; \
 	fi; \
 	embedded_driver_count=0; \
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
