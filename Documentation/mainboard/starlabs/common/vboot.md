@@ -3,7 +3,9 @@
 The verified-boot policy has layout plumbing for HZ, B8 and F2. Their release
 configurations require external signing input; selection is not release
 approval. The historical `config.starlabs_*` release configurations are not
-present in this branch and are not supplied by this PR.
+present in this branch and are not supplied by this PR. A release
+configuration must pin `CONFIG_EDK2_TAG_OR_REV` to the selected 40-character
+EDK2 commit.
 
 | System | Configuration | Firmware GUID |
 | --- | --- | --- |
