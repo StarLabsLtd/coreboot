@@ -93,6 +93,7 @@ static struct region_device fault_root_rdev;
 static uint8_t flash_buffer[0x40000];
 static size_t read_failure_offset;
 static size_t write_failure_offset = SIZE_MAX;
+static size_t fv_header_reads;
 
 static ssize_t fault_readat(const struct region_device *rdev, void *buffer, size_t offset,
 			    size_t size)
@@ -115,6 +116,19 @@ static ssize_t fault_writeat(const struct region_device *rdev, const void *buffe
 static const struct region_device_ops fault_rdev_ops = {
 	.readat = fault_readat,
 	.writeat = fault_writeat,
+};
+
+static ssize_t counting_readat(const struct region_device *rdev, void *buffer,
+			       size_t offset, size_t size)
+{
+	if (!offset && size == sizeof(EFI_FIRMWARE_VOLUME_HEADER))
+		fv_header_reads++;
+	memcpy(buffer, flash_buffer + offset, size);
+	return size;
+}
+
+static const struct region_device_ops counting_rdev_ops = {
+	.readat = counting_readat,
 };
 
 static const char *name = "coreboot";
@@ -431,6 +445,67 @@ static void efi_test_validate_tail_after_match(void **state)
 
 	ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid, name, value, &size);
 	assert_int_equal(ret, CB_EFI_VS_CORRUPTED_INVALID);
+}
+
+static void efi_test_batch_reads_validate_store_once(void **state)
+{
+	struct region_device root;
+	char value[16] = { 0 };
+	uint32_t missing = 0;
+	struct efi_fv_option options[] = {
+		{ .name = name, .data = value, .size = sizeof("is great") },
+		{ .name = "missing", .data = &missing, .size = sizeof(missing) },
+	};
+
+	mock_rdev(true);
+	fv_header_reads = 0;
+	region_device_init(&root, &counting_rdev_ops, 0, sizeof(flash_buffer));
+	assert_int_equal(rdev_chain(&flash_rdev_rw, &root, 0, sizeof(flash_buffer)), 0);
+	assert_int_equal(efi_fv_get_options(&flash_rdev_rw, &EficorebootNvDataGuid,
+					    options, ARRAY_SIZE(options)), CB_SUCCESS);
+	assert_int_equal(fv_header_reads, 1);
+	assert_int_equal(options[0].result, CB_SUCCESS);
+	assert_string_equal(value, "is great");
+	assert_int_equal(options[1].result, CB_EFI_OPTION_NOT_FOUND);
+}
+
+static void efi_test_batch_distinguishes_missing_and_malformed(void **state)
+{
+	uint32_t malformed = 0;
+	uint32_t missing = 0;
+	struct efi_fv_option options[] = {
+		{ .name = name, .data = &malformed, .size = sizeof(malformed) },
+		{ .name = "missing", .data = &missing, .size = sizeof(missing) },
+	};
+
+	mock_rdev(true);
+	assert_int_equal(efi_fv_get_options(&flash_rdev_rw, &EficorebootNvDataGuid,
+					    options, ARRAY_SIZE(options)), CB_SUCCESS);
+	assert_int_equal(options[0].result, CB_EFI_ACCESS_ERROR);
+	assert_int_equal(options[1].result, CB_EFI_OPTION_NOT_FOUND);
+}
+
+static void efi_test_batch_validates_tail_after_matches(void **state)
+{
+	AUTHENTICATED_VARIABLE_HEADER *header;
+	char value[sizeof("is great")];
+	struct efi_fv_option option = {
+		.name = name,
+		.data = value,
+		.size = sizeof(value),
+	};
+	size_t variable_offset, variable_size;
+
+	mock_rdev(true);
+	variable_offset = sizeof(EFI_FIRMWARE_VOLUME_HEADER) +
+		sizeof(EFI_FV_BLOCK_MAP_ENTRY) + sizeof(VARIABLE_STORE_HEADER);
+	header = (void *)(flash_buffer + variable_offset);
+	variable_size = ALIGN_UP(sizeof(*header) + header->NameSize + header->DataSize,
+		HEADER_ALIGNMENT);
+	flash_buffer[variable_offset + variable_size] = 0;
+
+	assert_int_equal(efi_fv_get_options(&flash_rdev_rw, &EficorebootNvDataGuid,
+					    &option, 1), CB_EFI_VS_CORRUPTED_INVALID);
 }
 
 static void efi_test_find_zero_length_variable(void **state)
@@ -802,6 +877,9 @@ int main(void)
 		cmocka_unit_test(efi_test_reject_non_erased_terminator),
 		cmocka_unit_test(efi_test_ignore_uncommitted_variable),
 		cmocka_unit_test(efi_test_validate_tail_after_match),
+		cmocka_unit_test(efi_test_batch_reads_validate_store_once),
+		cmocka_unit_test(efi_test_batch_distinguishes_missing_and_malformed),
+		cmocka_unit_test(efi_test_batch_validates_tail_after_matches),
 		cmocka_unit_test(efi_test_find_zero_length_variable),
 		cmocka_unit_test(efi_test_prefer_added_over_transition),
 		cmocka_unit_test(efi_test_skip_incomplete_variable),

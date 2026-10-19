@@ -4,6 +4,7 @@
 #include <common/touchpad.h>
 #include <cpu/x86/smm.h>
 #include <drivers/option/cfr_runtime.h>
+#include <drivers/efi/option.h>
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
 #include <drivers/i2c/designware/dw_i2c.h>
 #endif
@@ -437,26 +438,74 @@ static enum cb_err get_stored_efiopt_value(enum starlabs_efiopt_id id, uint32_t 
 }
 
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
-static enum cb_err apply_touchpad_efiopts(void)
-{
+struct touchpad_efiopts {
 	uint32_t haptics;
 	uint32_t press;
 	uint32_t release;
-	uint32_t rate = STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT;
+	uint32_t rate;
+};
 
-	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS, &haptics))
-		return CB_ERR_ARG;
-
-	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS, &press) ||
-	    get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE, &release))
-		return CB_ERR_ARG;
-
+static enum cb_err collect_touchpad_efiopts(struct touchpad_efiopts *settings)
+{
+	struct efi_uint_option options[] = {
+		{ .name = "touchpad_haptics" },
+		{ .name = "touchpad_force_press" },
+		{ .name = "touchpad_force_release" },
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
-	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE, &rate))
-		return CB_ERR_ARG;
+		{ .name = "touchpad_report_rate" },
 #endif
+	};
+	const enum starlabs_efiopt_id ids[] = {
+		STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS,
+		STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS,
+		STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE,
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+		STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE,
+#endif
+	};
+	uint32_t values[ARRAY_SIZE(options)];
+	enum cb_err ret;
 
-	return starlabs_touchpad_runtime_apply(haptics, press, release, rate);
+	ret = efi_option_get_uints(options, ARRAY_SIZE(options));
+	if (ret != CB_SUCCESS)
+		return ret;
+
+	for (size_t i = 0; i < ARRAY_SIZE(options); i++) {
+		const struct starlabs_efiopt_entry *opt = find_efiopt(ids[i]);
+
+		if (options[i].result == CB_EFI_OPTION_NOT_FOUND)
+			values[i] = opt->fallback;
+		else if (options[i].result == CB_SUCCESS)
+			values[i] = options[i].value;
+		else
+			return options[i].result;
+
+		const uint32_t stored = values[i];
+		if (normalize_value(ids[i], &values[i]) != CB_SUCCESS || values[i] != stored)
+			return CB_ERR_ARG;
+	}
+
+	settings->haptics = values[0];
+	settings->press = values[1];
+	settings->release = values[2];
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	settings->rate = values[3];
+#else
+	settings->rate = STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT;
+#endif
+	return CB_SUCCESS;
+}
+
+static enum cb_err apply_touchpad_efiopts(void)
+{
+	struct touchpad_efiopts settings;
+	enum cb_err ret = collect_touchpad_efiopts(&settings);
+
+	if (ret != CB_SUCCESS)
+		return ret;
+
+	return starlabs_touchpad_runtime_apply(settings.haptics, settings.press,
+					       settings.release, settings.rate);
 }
 #endif
 
@@ -560,6 +609,20 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 
 static enum cb_err apply_stored_efiopt(enum starlabs_efiopt_id id)
 {
+#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+	switch (id) {
+	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
+#if CONFIG(STARLABS_TOUCHPAD_PIXART)
+	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
+#endif
+		return apply_touchpad_efiopts();
+	default:
+		break;
+	}
+#endif
+
 	uint32_t value;
 	enum cb_err ret = get_stored_efiopt_value(id, &value);
 
@@ -586,57 +649,65 @@ int mainboard_smi_apmc(u8 data)
 
 	const enum starlabs_efiopt_cmd cmd = dnvs->cmd;
 	const enum starlabs_efiopt_id id = dnvs->id;
+	const uint32_t request_value = dnvs->value;
 	const struct starlabs_efiopt_entry *opt = NULL;
+	uint32_t response_value = request_value;
+	enum cb_err status = CB_ERR_ARG;
 
 	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED)
 		opt = find_efiopt(id);
 
 	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED && !opt) {
-		dnvs->status = CB_ERR_ARG;
+		dnvs->value = response_value;
+		dnvs->status = status;
 		return 1;
 	}
 
 	switch (cmd) {
 	case STARLABS_EFIOPT_CMD_GET_SUPPORTED:
-		dnvs->value = get_supported_efiopts();
-		dnvs->status = CB_SUCCESS;
+		response_value = get_supported_efiopts();
+		status = CB_SUCCESS;
 		break;
 	case STARLABS_EFIOPT_CMD_GET: {
 		unsigned int value;
 
-		dnvs->status = get_uint_option_status(opt->name, opt->fallback, &value);
-		if (dnvs->status == CB_EFI_OPTION_NOT_FOUND) {
-			dnvs->value = opt->fallback;
-			dnvs->status = CB_SUCCESS;
-		} else if (dnvs->status == CB_SUCCESS) {
+		status = get_uint_option_status(opt->name, opt->fallback, &value);
+		if (status == CB_EFI_OPTION_NOT_FOUND) {
+			response_value = opt->fallback;
+			status = CB_SUCCESS;
+		} else if (status == CB_SUCCESS) {
 			const unsigned int stored = value;
 
-			dnvs->status = normalize_value(id, &value);
+			status = normalize_value(id, &value);
 			if (value != stored)
-				dnvs->status = CB_ERR_ARG;
-			if (dnvs->status == CB_SUCCESS)
-				dnvs->value = value;
+				status = CB_ERR_ARG;
+			if (status == CB_SUCCESS)
+				response_value = value;
 		}
 		break;
 	}
 	case STARLABS_EFIOPT_CMD_SET: {
-		uint32_t value = dnvs->value;
-		dnvs->status = normalize_value(id, &value);
-		if (dnvs->status != CB_SUCCESS)
+		uint32_t value = request_value;
+		status = normalize_value(id, &value);
+		if (status != CB_SUCCESS)
 			break;
+		response_value = value;
 
 		const bool wp_enabled = chipset_disable_wp();
-		dnvs->status = set_uint_option(opt->name, value);
+		status = set_uint_option(opt->name, value);
 		if (wp_enabled)
 			chipset_enable_wp();
-		if (dnvs->status == CB_SUCCESS)
-			dnvs->status = apply_runtime_efiopt(id, value);
+		if (status == CB_SUCCESS)
+			status = apply_runtime_efiopt(id, value);
 		break;
 	}
 	default:
-		dnvs->status = CB_ERR_ARG;
 		break;
 	}
+
+	/* Publish the reply only after all decisions have used local state. */
+	dnvs->value = response_value;
+	dnvs->status = status;
 
 	return 1;
 }
