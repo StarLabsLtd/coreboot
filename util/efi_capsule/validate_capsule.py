@@ -163,16 +163,22 @@ def parse_rmap(image):
     return image[:manifest_offset], regions
 
 
-def parse_fmap(image):
-    offset = image.find(FMAP_SIGNATURE)
-    if offset < 0:
-        raise ValidationError("missing FMAP")
+def parse_fmap(image, offset, image_size=None):
+    """Parse the FMAP header at the caller-selected location.
+
+    The generated fmap.fmap is an FMAP table, while the capsule ROM embeds the
+    same table at the FMAP area's location.  Keeping the location selection out
+    of this parser prevents a decoy signature elsewhere in the ROM from
+    becoming the map used for update policy.
+    """
     _require(image, offset, FMAP_HEADER_SIZE, "FMAP header")
-    signature, major, _, _, size, _, count = struct.unpack_from(
+    signature, major, minor, base, size, fmap_name, count = struct.unpack_from(
         "<8sBBQI32sH", image, offset
     )
-    if signature != FMAP_SIGNATURE or major != 1 or size != len(image):
+    if signature != FMAP_SIGNATURE or major != 1:
         raise ValidationError("invalid FMAP header")
+    if image_size is not None and size != image_size:
+        raise ValidationError("FMAP size does not match the firmware image")
     _require(image, offset + FMAP_HEADER_SIZE, count * FMAP_AREA_SIZE, "FMAP areas")
 
     areas = {}
@@ -184,28 +190,59 @@ def parse_fmap(image):
             name = name.decode("ascii")
         except UnicodeDecodeError as error:
             raise ValidationError("non-ASCII FMAP region name") from error
-        if not name or name in areas or start + length > len(image):
+        if not name or name in areas or start + length > size:
             raise ValidationError("invalid FMAP region")
         areas[name] = (start, length)
 
-    return areas
+    return (base, size, fmap_name.rstrip(b"\0"), areas)
 
 
-def validate_rmap(image, expected_regions, expected_firmware=None):
+def _overlaps(first, second):
+    first_start, first_size = first
+    second_start, second_size = second
+    return first_start < second_start + second_size and second_start < first_start + first_size
+
+
+def validate_rmap(image, expected_regions, expected_firmware=None,
+                  expected_layout=None):
     image, regions = parse_rmap(image)
     if regions != expected_regions:
         raise ValidationError("RMAP regions do not match the vboot update policy")
     if expected_firmware is not None and image != expected_firmware:
         raise ValidationError("RMAP payload does not match the packaged firmware")
-    areas = parse_fmap(image)
+    if expected_layout is None:
+        raise ValidationError("RMAP validation requires the selected FMAP layout")
+    _, _, _, layout_areas = parse_fmap(expected_layout, 0)
+    if "FMAP" not in layout_areas:
+        raise ValidationError("selected FMAP layout has no FMAP area")
+    fmap_offset, fmap_size = layout_areas["FMAP"]
+    if fmap_size < FMAP_HEADER_SIZE:
+        raise ValidationError("selected FMAP area is too small")
+    candidate = parse_fmap(image, fmap_offset, len(image))
+    parse_fmap(expected_layout, 0)
+    layout_count = struct.unpack_from("<H", expected_layout, 54)[0]
+    fmap_table_size = FMAP_HEADER_SIZE + layout_count * FMAP_AREA_SIZE
+    _require(image, fmap_offset, fmap_table_size, "firmware FMAP")
+    if image[fmap_offset:fmap_offset + fmap_table_size] != expected_layout[:fmap_table_size]:
+        raise ValidationError("firmware FMAP does not match the selected layout")
+    areas = candidate[3]
     selected = []
     for region in regions:
         if region not in areas:
             raise ValidationError(f"RMAP region '{region}' is not in the FMAP")
+        if not areas[region][1]:
+            raise ValidationError(f"RMAP region '{region}' is empty")
         selected.append(areas[region])
     for (offset, length), (next_offset, _) in zip(sorted(selected), sorted(selected)[1:]):
         if offset + length > next_offset:
             raise ValidationError("overlapping RMAP regions")
+    if "WP_RO" not in areas or not areas["WP_RO"][1]:
+        raise ValidationError("selected FMAP layout has no usable WP_RO area")
+    for region, extent in zip(regions, selected):
+        if _overlaps(extent, areas["WP_RO"]):
+            raise ValidationError(f"RMAP region '{region}' overlaps immutable WP_RO")
+    if "RW_NVRAM" not in areas:
+        raise ValidationError("RMAP policy has no RW_NVRAM region")
     nvram_offset, nvram_size = areas["RW_NVRAM"]
     if image[nvram_offset:nvram_offset + nvram_size] != b"\xff" * nvram_size:
         raise ValidationError("RW_NVRAM must be erased in a vboot capsule")
@@ -250,6 +287,27 @@ def parse_ffs_files(data):
         offset = (offset + file_size + 7) & ~7
 
 
+def find_firmware_volumes(data):
+    """Return structurally valid firmware volumes contained in a payload."""
+    volumes = []
+    offset = 0
+    while True:
+        offset = data.find(FV_SIGNATURE, offset)
+        if offset < 0:
+            return volumes
+        start = offset - 40
+        if start >= 0:
+            try:
+                _require(data, start, 56, "firmware volume header")
+                length = struct.unpack_from("<Q", data, start + 32)[0]
+                if length and start + length <= len(data):
+                    list(parse_ffs_files(data[start:start + length]))
+                    volumes.append(data[start:start + length])
+            except ValidationError:
+                pass
+        offset += len(FV_SIGNATURE)
+
+
 def validate_embedded_driver(driver, module_dir, expected_guid):
     if module_dir is None:
         raise ValidationError("embedded FMP build metadata is required")
@@ -279,7 +337,7 @@ def validate_embedded_driver(driver, module_dir, expected_guid):
 
 def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
              fmp_module_dir=None, expected_rmap_regions=None,
-             expected_firmware=None):
+             expected_firmware=None, expected_layout=None, payload=None):
     capsule_guid, embedded, image, image_support = parse_capsule(capsule)
     embedded_count = len(embedded)
     if capsule_guid != expected_guid:
@@ -297,6 +355,11 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
             raise ValidationError("expected at most one embedded FMP driver")
         validate_embedded_driver(embedded[0], fmp_module_dir, expected_guid)
 
+    if payload is not None:
+        packaged_volumes = find_firmware_volumes(payload)
+        if firmware_volume not in packaged_volumes:
+            raise ValidationError("expected DXE firmware volume is not in the packaged payload")
+
     matching_drivers = sum(
         file_guid == expected_guid and file_type == FFS_FILETYPE_DRIVER
         for file_guid, file_type in parse_ffs_files(firmware_volume)
@@ -308,7 +371,7 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
         )
     if expected_rmap_regions is not None:
         validate_rmap(unwrap_update_image(image, image_support), expected_rmap_regions,
-                      expected_firmware)
+                      expected_firmware, expected_layout)
 
 
 def main():
@@ -321,6 +384,8 @@ def main():
     parser.add_argument("--rmap-region", action="append", dest="rmap_regions",
                         help="required RMAP region name")
     parser.add_argument("--firmware-rom", help="firmware image used to build the capsule")
+    parser.add_argument("--layout-fmap", help="FMAP generated for the selected board")
+    parser.add_argument("--payload", help="payload extracted from the packaged firmware")
     args = parser.parse_args()
 
     try:
@@ -328,14 +393,22 @@ def main():
             capsule = capsule_file.read()
         with open(args.firmware_volume, "rb") as fv_file:
             firmware_volume = fv_file.read()
-        if args.rmap_regions and args.firmware_rom is None:
-            raise ValidationError("RMAP validation requires the packaged firmware image")
+        if args.rmap_regions and (args.firmware_rom is None or args.layout_fmap is None):
+            raise ValidationError("RMAP validation requires the packaged firmware image and layout")
         firmware = None
         if args.firmware_rom is not None:
             with open(args.firmware_rom, "rb") as firmware_file:
                 firmware = firmware_file.read()
+        layout = None
+        if args.layout_fmap is not None:
+            with open(args.layout_fmap, "rb") as layout_file:
+                layout = layout_file.read()
+        payload = None
+        if args.payload is not None:
+            with open(args.payload, "rb") as payload_file:
+                payload = payload_file.read()
         validate(capsule, firmware_volume, args.guid, args.embedded_drivers,
-                 args.fmp_module_dir, args.rmap_regions, firmware)
+                 args.fmp_module_dir, args.rmap_regions, firmware, layout, payload)
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)
         return 1
