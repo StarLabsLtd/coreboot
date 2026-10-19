@@ -470,7 +470,10 @@ coreboot_capsule: $(EDK2_PATH)
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
 	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
 	set -e; \
-	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
+	if [ "$(CONFIG_VBOOT)" = "y" ]; then \
+		test -n "$(EDK2_APPEND_RMAP_MANIFEST)"; \
+		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
+	elif [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
 		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
 	else \
 		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
