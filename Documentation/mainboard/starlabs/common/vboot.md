@@ -1,17 +1,37 @@
 # Star Labs verified boot
 
-The verified-boot policy has layout plumbing for HZ, B8 and F2. Their release
-configurations require external signing input; selection is not release
-approval. The historical `config.starlabs_*` release configurations are not
-present in this branch and are not supplied by this PR. A release
-configuration must pin `CONFIG_EDK2_TAG_OR_REV` to the selected 40-character
-EDK2 commit.
+The verified-boot policy has opt-in configuration fragments for HZ, B8 and F2.
+They establish the board, vboot, TPM2, EDK2 capsule and firmware-identity
+settings. They deliberately omit release-specific inputs, so a fragment alone
+is not a release configuration.
 
 | System | Configuration | Firmware GUID |
 | --- | --- | --- |
-| StarBook Horizon (HZ) | external release input required | `b96a6b09-dc2c-4e3a-86ee-47016c7b035a` |
-| StarBook Mk VIII (B8) | external release input required | `581c8874-50e1-4231-af48-04cff1c4668f` |
-| StarFighter Mk II (F2) | external release input required | `eef5c7c3-124f-406a-87fe-4b58589fd331` |
+| StarBook Horizon (HZ) | `configs/config.starlabs_adl_horizon_vboot` | `b96a6b09-dc2c-4e3a-86ee-47016c7b035a` |
+| StarBook Mk VIII (B8) | `configs/config.starlabs_starbook_rpl_u_vboot` | `581c8874-50e1-4231-af48-04cff1c4668f` |
+| StarFighter Mk II (F2) | `configs/config.starlabs_starfighter_mtl_vboot` | `eef5c7c3-124f-406a-87fe-4b58589fd331` |
+
+Start with the selected fragment and run `make olddefconfig`. The resulting
+configuration selects the board's `vboot.fmd`, TPM-backed anti-rollback,
+primary-flash VBNV, measured boot, controller protection, the post-lockdown
+VBNV completion callbacks and the routine capsule region set:
+
+```
+EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A
+```
+
+Before a release build, supply the approved 40-character EDK2 commit through
+`CONFIG_EDK2_TAG_OR_REV`, the matching release `CONFIG_LOCALVERSION` and
+signing/keyblock version, the board's FSP, descriptor, ME and EC blobs, and
+the signing-key directory below. This branch contains no approved EDK2 commit
+or matching signing-version input for these fragments, so it cannot itself
+produce a release image. The release policy rejects a moving EDK2 reference,
+mocked secdata, disabled rollback protection and unsafe developer GBB flags.
+
+The release checkout check accepts a dirty EDK2 tree only when its sole tracked
+change is the configured generated `MdeModulePkg/Logo/Logo.bmp`; every other
+tracked source change or submodule revision mismatch is rejected. The logo is
+an explicit build input, rather than an exception for arbitrary local edits.
 
 The intended image has one signed read-write slot and an immutable recovery
 image. Intel Fast SPI applies and locks a controller protected range for
@@ -74,9 +94,7 @@ development image, explicitly set `STARLABS_VBOOT_ALLOW_TEST_KEYS=1`; never use
 that override for a release image.
 
 Set `STARLABS_VBOOT_KEY_DIR` to the directory holding these files before a
-release build. The build rejects in-tree development keys by default. A
-development image may explicitly set `STARLABS_VBOOT_ALLOW_TEST_KEYS=1`; it is
-not a release configuration.
+release build.
 
 ## Existing installations
 
