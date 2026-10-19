@@ -191,10 +191,12 @@ def parse_fmap(image):
     return areas
 
 
-def validate_rmap(image, expected_regions):
+def validate_rmap(image, expected_regions, expected_firmware=None):
     image, regions = parse_rmap(image)
     if regions != expected_regions:
         raise ValidationError("RMAP regions do not match the vboot update policy")
+    if expected_firmware is not None and image != expected_firmware:
+        raise ValidationError("RMAP payload does not match the packaged firmware")
     areas = parse_fmap(image)
     selected = []
     for region in regions:
@@ -276,7 +278,8 @@ def validate_embedded_driver(driver, module_dir, expected_guid):
 
 
 def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
-             fmp_module_dir=None, expected_rmap_regions=None):
+             fmp_module_dir=None, expected_rmap_regions=None,
+             expected_firmware=None):
     capsule_guid, embedded, image, image_support = parse_capsule(capsule)
     embedded_count = len(embedded)
     if capsule_guid != expected_guid:
@@ -304,7 +307,8 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
             f"with GUID {expected_guid}, expected {'0 or 1' if embedded else '1'}"
         )
     if expected_rmap_regions is not None:
-        validate_rmap(unwrap_update_image(image, image_support), expected_rmap_regions)
+        validate_rmap(unwrap_update_image(image, image_support), expected_rmap_regions,
+                      expected_firmware)
 
 
 def main():
@@ -316,6 +320,7 @@ def main():
     parser.add_argument("--fmp-module-dir", help="FmpDxe module build directory")
     parser.add_argument("--rmap-region", action="append", dest="rmap_regions",
                         help="required RMAP region name")
+    parser.add_argument("--firmware-rom", help="firmware image used to build the capsule")
     args = parser.parse_args()
 
     try:
@@ -323,8 +328,14 @@ def main():
             capsule = capsule_file.read()
         with open(args.firmware_volume, "rb") as fv_file:
             firmware_volume = fv_file.read()
+        if args.rmap_regions and args.firmware_rom is None:
+            raise ValidationError("RMAP validation requires the packaged firmware image")
+        firmware = None
+        if args.firmware_rom is not None:
+            with open(args.firmware_rom, "rb") as firmware_file:
+                firmware = firmware_file.read()
         validate(capsule, firmware_volume, args.guid, args.embedded_drivers,
-                 args.fmp_module_dir, args.rmap_regions)
+                 args.fmp_module_dir, args.rmap_regions, firmware)
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)
         return 1
