@@ -9,6 +9,15 @@ tseg-subregion-test-config += CONFIG_SMM_TSEG=1 CONFIG_SMM_ASEG=0 \
 	CONFIG_SMM_TSEG_SIZE=0x1000000 CONFIG_IED_REGION_SIZE=0x400000 \
 	CONFIG_SMM_RESERVED_SIZE=0x200000 CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE=0x1000
 
+tests-y += tseg-subregion-overflow-test
+tseg-subregion-overflow-test-srcs += tests/drivers/tseg-subregion-overflow-test.c
+tseg-subregion-overflow-test-srcs += src/cpu/x86/smm/tseg_region.c
+tseg-subregion-overflow-test-no_test_framework := 1
+tseg-subregion-overflow-test-cflags += -m32
+tseg-subregion-overflow-test-config += CONFIG_SMM_TSEG=1 CONFIG_SMM_ASEG=0 \
+	CONFIG_IED_REGION_SIZE=0x80000000 CONFIG_SMM_RESERVED_SIZE=0x80000000 \
+	CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE=0
+
 efivars-test-srcs += tests/drivers/efivars.c
 efivars-test-srcs += src/drivers/efi/efivars.c
 efivars-test-srcs += tests/stubs/console.c
