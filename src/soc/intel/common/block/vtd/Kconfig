@@ -19,3 +19,10 @@ config ENABLE_EARLY_DMA_PROTECTION
 	  work.
 
 	  If unsure, say N.
+
+config INTEL_VTD_FIXED
+	bool
+	depends on SOC_INTEL_ALDERLAKE || SOC_INTEL_METEORLAKE
+	help
+	  Keep VT-d enabled regardless of mutable runtime settings and suppress
+	  the corresponding firmware option.

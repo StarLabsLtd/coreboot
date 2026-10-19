@@ -252,6 +252,9 @@ struct gpio_lock_config {
  */
 int gpio_lock_pad(const gpio_t pad, enum gpio_lock_action lock_action);
 
+/* Return true when all requested lock bits are set for a GPIO pad. */
+bool gpio_pad_is_locked(const gpio_t pad, enum gpio_lock_action lock_action);
+
 /*
  * gpio_lock_pads() can be used to lock an array of gpio pads, avoiding
  * the p2sb_unhide() and p2sb_hide() calls between each gpio lock that would

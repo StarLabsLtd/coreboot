@@ -425,7 +425,8 @@ static void fill_fsps_chipset_lockdown_params(FSP_S_CONFIG *s_cfg,
 	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
 	s_cfg->PchLockDownGlobalSmi = lockdown_by_fsp;
 	s_cfg->PchLockDownBiosInterface = lockdown_by_fsp;
-	s_cfg->PchUnlockGpioPads = !lockdown_by_fsp;
+	/* Preserve board-programmed pad locks when debug egress is prohibited. */
+	s_cfg->PchUnlockGpioPads = !lockdown_by_fsp && !CONFIG(NO_DEBUG_EGRESS);
 	s_cfg->RtcMemoryLock = lockdown_by_fsp;
 	s_cfg->SkipPamLock = !lockdown_by_fsp;
 
@@ -862,6 +863,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	arch_silicon_init_params(s_arch_cfg);
 	soc_silicon_init_params(s_cfg, config);
 	mainboard_silicon_init_params(s_cfg);
+	if (CONFIG(NO_DEBUG_EGRESS))
+		s_arch_cfg->FspEventHandler = 0;
 }
 
 /*

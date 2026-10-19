@@ -34,6 +34,7 @@ int recv_ec_data_timeout(int timeout);
 void ec_clear_out_queue(void);
 u8 ec_status(void);
 u8 ec_query(void);
+int ec_read_checked(u8 addr, u8 *data);
 u8 ec_read(u8 addr);
 int ec_write(u8 addr, u8 data);
 void ec_set_bit(u8 addr, u8 bit);

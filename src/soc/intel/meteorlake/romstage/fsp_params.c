@@ -511,6 +511,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 			m_cfg->SerialDebugMrcLevel = 0;
 		}
 	}
+
 	config = config_of_soc();
 
 	soc_memory_init_params(m_cfg, config);
@@ -519,6 +520,23 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(m_cfg, arch_upd);
 
 	mainboard_memory_init_params(mupd);
+	if (CONFIG(NO_DEBUG_EGRESS)) {
+		m_cfg->PlatformDebugOption = 0;
+		m_cfg->PcdSerialDebugLevel = 0;
+		m_cfg->SerialDebugMrcLevel = 0;
+		arch_upd->FspEventHandler = 0;
+	}
+	if (CONFIG(INTEL_VTD_FIXED)) {
+		mupd->FspmConfig.VtdDisable = 0;
+		mupd->FspmConfig.VtdIopEnable = 1;
+	}
+
+	/* DSP firmware authentication requires ME, even after board overrides. */
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+
+	/* TCSS xDCI requires its xHCI parent. */
+	m_cfg->TcssXdciEn &= !!m_cfg->TcssXhciEn;
+
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)

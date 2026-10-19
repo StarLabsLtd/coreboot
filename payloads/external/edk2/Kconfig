@@ -261,7 +261,7 @@ config EDK2_SERIAL_SUPPORT
 	bool "Enable serial console"
 	default y if EDK2_DEBUG
 	default n
-	depends on !EDK2_CBMEM_LOGGING
+	depends on !EDK2_CBMEM_LOGGING && !NO_DEBUG_EGRESS
 	select CONSOLE_SERIAL
 	help
 	  Enable serial consule support in edk2. Serial output limits the performance of edk2's

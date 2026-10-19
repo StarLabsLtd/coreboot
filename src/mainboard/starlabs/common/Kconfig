@@ -14,6 +14,8 @@ config DEVICETREE
 
 config EC_STARLABS_ITE_BIN_PATH
 	string
+	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/ec-secure.bin" if \
+		EC_STARLABS_SECURE_MODE_REQUIRED
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/ec.bin" if \
 		BOARD_STARLABS_ADL_SERIES || BOARD_STARLABS_CEZANNE_SERIES || \
 		BOARD_STARLABS_STARBOOK_SERIES || BOARD_STARLABS_STARFIGHTER_SERIES
@@ -58,12 +60,28 @@ config STARLABS_MEMORY_SETTINGS_VERSION
 
 menu "Star Labs Settings"
 
+config STARLABS_DAVE
+	bool "Enable the Star Labs DAVE security profile"
+	depends on BOARD_STARLABS_STARFIGHTER_MTL
+	default n
+	select BOOTMEDIA_SMM_BWP
+	select BOOTMEDIA_SMM_BWP_FIXED
+	select EC_STARLABS_ADD_ITE_BIN if EC_STARLABS_MERLIN
+	select EC_STARLABS_SECURE_MODE_REQUIRED if EC_STARLABS_MERLIN
+	select INTEL_VTD_FIXED
+	select NO_DEBUG_EGRESS if !EDK2_DEBUG && !EDK2_CBMEM_LOGGING
+	help
+	  Select the Device Attestation and Verification Engine profile.
+	  This profile only selects existing security-policy options; feature
+	  implementations must remain owned by their generic Kconfig symbols.
+
 config BOOTMEDIA_SMM_BWP
 	bool
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
 
 config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 	bool
+	depends on !BOOTMEDIA_SMM_BWP_FIXED
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
 
 config USE_LEGACY_8254_TIMER
