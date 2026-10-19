@@ -302,7 +302,6 @@ bool cse_is_me_operational(void)
 	return cse_is_hfs1_cws_normal() && cse_is_hfs1_com_normal();
 }
 
-#if ENV_RAMSTAGE
 bool cse_is_me_state_requested_enabled(void)
 {
 	const unsigned int me_state_default = CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED);
@@ -311,6 +310,17 @@ bool cse_is_me_state_requested_enabled(void)
 	return me_state == 0;
 }
 
+bool cse_get_audio_dsp_enable(bool enable)
+{
+	if (enable && !cse_is_me_state_requested_enabled()) {
+		printk(BIOS_INFO, "Disabling audio DSP because ME is disabled.\n");
+		return false;
+	}
+
+	return enable;
+}
+
+#if ENV_RAMSTAGE
 bool cse_is_me_enabled(void)
 {
 	return cse_is_me_state_requested_enabled() && cse_is_me_operational();
@@ -322,6 +332,12 @@ bool cse_get_s0ix_enable_state(bool fallback)
 
 	if (!enable)
 		return false;
+
+	if (get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER))) {
+		printk(BIOS_WARNING, "S0ix disabled: the enabled legacy 8254 timer "
+		       "disables clock gating necessary for S0ix.\n");
+		return false;
+	}
 
 	if (cse_is_me_enabled())
 		return true;
