@@ -851,7 +851,8 @@ void pciexp_dev_read_resources(struct device *dev)
 		return;
 
 	numvfs = pci_read_config16(dev, sriovpos + PCIE_EXT_CAP_SRIOV_TOTAL_VFS);
-	printk(BIOS_DEBUG, "%s: supports %d SR-IOV VFs\n", dev_path(dev), numvfs);
+	printk(BIOS_DEBUG, "%s: SR-IOV capability at 0x%lx supports %u total VFs\n",
+		dev_path(dev), sriovpos, numvfs);
 
 	/* The spec allows this to be 0 for some reason.  Nothing to do. */
 	if (numvfs == 0)

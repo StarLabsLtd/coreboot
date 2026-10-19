@@ -562,8 +562,8 @@ void report_resource_stored(struct device *dev, const struct resource *resource,
 			 dev->downstream->secondary);
 	}
 	printk(BIOS_DEBUG, "%s %02lx <- [0x%016llx - 0x%016llx] size 0x%08llx "
-	       "gran 0x%02x %s%s%s\n", dev_path(dev), resource->index,
-		base, end, resource->size, resource->gran, buf,
+	       "gran 0x%02x align 2^%u %s%s%s\n", dev_path(dev), resource->index,
+		base, end, resource->size, resource->gran, resource->align, buf,
 		resource_type(resource), comment);
 }
 

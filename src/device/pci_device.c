@@ -196,6 +196,10 @@ struct resource *pci_get_resource(struct device *dev, unsigned long index)
 	if (resource->limit > limit)
 		resource->limit = limit;
 
+	if (resource->flags)
+		printk(BIOS_DEBUG, "%s BAR %02lx: probed size 0x%llx, alignment 2^%u\n",
+			dev_path(dev), index, resource->size, resource->align);
+
 	return resource;
 }
 
@@ -1220,8 +1224,9 @@ struct device *pci_probe_dev(struct device *dev, struct bus *bus,
 		dev->ops->enable(dev);
 
 	/* Display the device. */
-	printk(BIOS_DEBUG, "%s [%04x/%04x] %s%s\n", dev_path(dev),
-	       dev->vendor, dev->device, dev->enabled ? "enabled" : "disabled",
+	printk(BIOS_DEBUG, "%s [%04x/%04x] header %02x %s%s\n", dev_path(dev),
+	       dev->vendor, dev->device, dev->hdr_type,
+	       dev->enabled ? "enabled" : "disabled",
 	       dev->ops ? "" : " No operations");
 
 	return dev;
