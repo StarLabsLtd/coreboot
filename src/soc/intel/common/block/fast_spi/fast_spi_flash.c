@@ -5,7 +5,6 @@
 #include <console/console.h>
 #include <fast_spi_def.h>
 #include <intelblocks/fast_spi.h>
-#include <soc/pci_devs.h>
 #include <spi_flash.h>
 #include <string.h>
 #include <timer.h>
@@ -475,8 +474,9 @@ static int fast_spi_flash_protect(const struct spi_flash *flash,
 				  const struct region *region,
 				  const enum ctrlr_prot_type type)
 {
-	u32 start = region_offset(region);
-	u32 end = start + region_sz(region) - 1;
+	const size_t start = region_offset(region);
+	const size_t size = region_sz(region);
+	size_t end;
 	u32 reg;
 	u32 protect_mask = 0;
 	int fpr;
@@ -484,6 +484,19 @@ static int fast_spi_flash_protect(const struct spi_flash *flash,
 	BOILERPLATE_CREATE_CTX(ctx);
 
 	fpr_base = ctx->mmio_base + SPIBAR_FPR_BASE;
+	if (!size || start > UINT32_MAX || size > UINT32_MAX ||
+	    start > UINT32_MAX - (size - 1) ||
+	    (start & (4 * KiB - 1)) || (size & (4 * KiB - 1))) {
+		printk(BIOS_ERR, "Invalid SPI FPR range\n");
+		return -1;
+	}
+
+	end = start + size - 1;
+	if ((start >> SPI_FPR_SHIFT) > SPI_FPR_MASK ||
+	    (end >> SPI_FPR_SHIFT) > SPI_FPR_MASK) {
+		printk(BIOS_ERR, "SPI FPR range is too large\n");
+		return -1;
+	}
 
 	/* Find first empty FPR */
 	for (fpr = 0; fpr < SPIBAR_FPR_MAX; fpr++) {
@@ -519,13 +532,13 @@ static int fast_spi_flash_protect(const struct spi_flash *flash,
 	/* Set the FPR register and verify it is protected */
 	write32p(fpr_base, reg);
 	reg = read32p(fpr_base);
-	if (!(reg & protect_mask)) {
+	if (reg != (SPI_FPR(start, end) | protect_mask)) {
 		printk(BIOS_ERR, "Unable to set SPI FPR %d\n", fpr);
 		return -1;
 	}
 
 	printk(BIOS_INFO, "%s: FPR %d is enabled for range 0x%08x-0x%08x\n",
-	       __func__, fpr, start, end);
+	       __func__, fpr, (u32)start, (u32)end);
 	return 0;
 }
 
