@@ -32,6 +32,15 @@ static void apmc_log(const char *fn, u8 cmd)
 	}
 }
 
+#if defined(__TEST__)
+u32 apm_control_call_smm(u8 cmd);
+#else
+static u32 apm_control_call_smm(u8 cmd)
+{
+	return call_smm(cmd, 0, NULL);
+}
+#endif
+
 enum cb_err apm_control(u8 cmd)
 {
 	/* Never proceed inside SMI handler or without one. */
@@ -41,8 +50,8 @@ enum cb_err apm_control(u8 cmd)
 	apmc_log(__func__, cmd);
 
 	/* Now raise the SMI. */
-	u32 ret = call_smm(cmd, 0, NULL);
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) &&
+	u32 ret = apm_control_call_smm(cmd);
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) &&
 	    cmd == APM_CNT_FINALIZE && ret) {
 		printk(BIOS_ERR, "APMC command 0x%02x failed.\n", cmd);
 		if (CONFIG(SECURITY_FAIL_CLOSED))
