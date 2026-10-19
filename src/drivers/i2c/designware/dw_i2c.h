@@ -100,7 +100,7 @@ enum cb_err dw_i2c_init(unsigned int bus, const struct dw_i2c_bus_config *bcfg);
 
 #if ENV_SMM
 /* Authorize one controller during the one-shot firmware SMM finalization. */
-void dw_i2c_smm_init(unsigned int bus);
+enum cb_err dw_i2c_smm_init(unsigned int bus);
 bool dw_i2c_smm_bus_is_runtime_suspended(unsigned int bus);
 #endif
 

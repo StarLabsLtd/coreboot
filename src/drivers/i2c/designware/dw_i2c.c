@@ -398,23 +398,33 @@ static uintptr_t smm_i2c_base;
 static uint32_t smm_i2c_bar;
 static bool smm_i2c_initialized;
 
+#if defined(__TEST__)
+void dw_i2c_smm_reset_for_test(void)
+{
+	smm_i2c_dev = 0;
+	smm_i2c_base = 0;
+	smm_i2c_bar = 0;
+	smm_i2c_initialized = false;
+}
+#endif
+
 /* Called once during firmware finalization, before the OS can change BARs. */
-void dw_i2c_smm_init(unsigned int bus)
+enum cb_err dw_i2c_smm_init(unsigned int bus)
 {
 	pci_devfn_t dev;
 	uint32_t bar;
 	uint64_t base;
 
 	if (smm_i2c_initialized)
-		return;
+		return smm_i2c_base ? CB_SUCCESS : CB_ERR;
 	smm_i2c_initialized = true;
 
 	if (dw_i2c_smm_get_dev(bus, &dev) != CB_SUCCESS)
-		return;
+		return CB_ERR;
 
 	bar = pci_s_read_config32(dev, PCI_BASE_ADDRESS_0);
 	if ((bar & PCI_BASE_ADDRESS_SPACE) != PCI_BASE_ADDRESS_SPACE_MEMORY)
-		return;
+		return CB_ERR;
 	base = bar & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK;
 	switch (bar & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) {
 	case PCI_BASE_ADDRESS_MEM_LIMIT_32:
@@ -423,17 +433,18 @@ void dw_i2c_smm_init(unsigned int bus)
 		base |= (uint64_t)pci_s_read_config32(dev, PCI_BASE_ADDRESS_1) << 32;
 		break;
 	default:
-		return;
+		return CB_ERR;
 	}
 
 	/* Cover the DesignWare registers and the LPSS reset register. */
 	if (!base || base > UINTPTR_MAX - (DW_I2C_LPSS_MMIO_MIN_SIZE - 1) ||
 	    smm_points_to_smram((void *)(uintptr_t)base, DW_I2C_LPSS_MMIO_MIN_SIZE))
-		return;
+		return CB_ERR;
 
 	smm_i2c_dev = dev;
 	smm_i2c_base = base;
 	smm_i2c_bar = bar;
+	return CB_SUCCESS;
 }
 
 static enum cb_err dw_i2c_smm_get_regs(pci_devfn_t dev, struct dw_i2c_regs **regs)
