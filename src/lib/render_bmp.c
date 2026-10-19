@@ -450,20 +450,28 @@ struct logo_coordinates calculate_logo_coordinates(
 static void copy_logo_to_framebuffer(
 	uintptr_t framebuffer_base, uint32_t bytes_per_scanline,
 	uintptr_t logo_buffer, uint32_t logo_width, uint32_t logo_height,
-	uint32_t dest_x, uint32_t dest_y, bool bottom_up)
+	uint32_t dest_x, uint32_t dest_y, unsigned int scale)
 {
 	size_t pixel_size = sizeof(struct blt_pixel);
-	size_t bytes_per_logo_line = (size_t)logo_width * pixel_size;
+	size_t bytes_per_logo_line = (size_t)(logo_width / scale) * pixel_size;
 	uint8_t *framebuffer_offset = (uint8_t *)framebuffer_base + (size_t)dest_y * bytes_per_scanline
 					 + (size_t)dest_x * pixel_size;
 	uint8_t *dst_row_address = framebuffer_offset;
 	uint8_t *src_row_address = (uint8_t *)logo_buffer;
 	for (uint32_t i = 0; i < logo_height; i++) {
-		uint32_t source_row = bottom_up ? logo_height - i - 1U : i;
+		struct blt_pixel *destination = (void *)(dst_row_address +
+			(size_t)i * bytes_per_scanline);
+		const struct blt_pixel *source = (const void *)(src_row_address +
+			(size_t)(i / scale) * bytes_per_logo_line);
 
-		memcpy(dst_row_address + (size_t)i * bytes_per_scanline,
-		       src_row_address + (size_t)source_row * bytes_per_logo_line,
-		       bytes_per_logo_line);
+		if (scale == 1) {
+			memcpy(destination, source, bytes_per_logo_line);
+			continue;
+		}
+		for (uint32_t column = 0; column < logo_width / scale; column++) {
+			destination[2U * column] = source[column];
+			destination[2U * column + 1U] = source[column];
+		}
 	}
 }
 
@@ -550,7 +558,6 @@ static int load_and_render_logo_to_framebuffer(
 	uint32_t logo_height, logo_width;
 	unsigned int scale = 1;
 	bool retain_pixels;
-	uintptr_t display_pixels;
 	struct logo_coordinates logo_coords;
 	enum fw_splash_horizontal_alignment halignment;
 	enum fw_splash_vertical_alignment valignment;
@@ -626,7 +633,6 @@ static int load_and_render_logo_to_framebuffer(
 		goto out;
 	}
 
-	display_pixels = blt_buffer;
 	retain_pixels = CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) &&
 		logo_type == BOOTSPLASH_CENTER &&
 		(config->panel_orientation != LB_FB_ORIENTATION_NORMAL || scale != 1);
@@ -635,10 +641,9 @@ static int load_and_render_logo_to_framebuffer(
 			logo_width / scale, logo_height / scale, scale, &logo_size);
 		if (!logo)
 			goto out;
-		display_pixels = logo + sizeof(struct bmp_image_header);
 	}
 	copy_logo_to_framebuffer(config->framebuffer_base, config->bytes_per_scanline,
-		display_pixels, logo_width, logo_height, logo_coords.x, logo_coords.y, retain_pixels);
+		blt_buffer, logo_width, logo_height, logo_coords.x, logo_coords.y, scale);
 	if (CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) && logo_type == BOOTSPLASH_CENTER) {
 		if (!bootsplash_publish_handoff(config->framebuffer_base,
 			config->horizontal_resolution, config->vertical_resolution,

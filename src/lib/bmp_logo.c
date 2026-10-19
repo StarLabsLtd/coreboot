@@ -147,7 +147,7 @@ void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
 	if (!blt || !width || !height || (scale != 1 && scale != 2) ||
 	    width > INT32_MAX / scale || height > INT32_MAX / scale)
 		return NULL;
-	row_size = (uint64_t)width * scale * sizeof(struct blt_pixel);
+	row_size = ALIGN_UP((uint64_t)width * scale * 3U, 4U);
 	pixel_bytes = row_size * height * scale;
 	if (pixel_bytes > 1 * MiB - sizeof(*header) ||
 	    (uint64_t)width * height * sizeof(struct blt_pixel) - 1U >
@@ -166,23 +166,24 @@ void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
 		.CharB = 'B', .CharM = 'M', .Size = sizeof(*header) + pixel_bytes,
 		.ImageOffset = sizeof(*header), .HeaderSize = 40,
 		.PixelWidth = width * scale, .PixelHeight = height * scale,
-		.Planes = 1, .BitPerPixel = 32,
+		.Planes = 1, .BitPerPixel = 24,
 		.ImageSize = pixel_bytes,
 	};
 	for (uint32_t row = 0; row < height * scale; row++) {
-		struct blt_pixel *destination = (void *)((uint8_t *)(header + 1) +
-			(size_t)row * row_size);
+		uint8_t *destination = (uint8_t *)(header + 1) +
+			(size_t)row * row_size;
 		const struct blt_pixel *source = (const struct blt_pixel *)blt +
 			(size_t)(height - row / scale - 1U) * width;
 
-		if (scale == 1) {
-			memcpy(destination, source, row_size);
-			continue;
+		for (uint32_t column = 0; column < width * scale; column++) {
+			const struct blt_pixel *pixel = &source[column / scale];
+
+			destination[3U * column] = pixel->Blue;
+			destination[3U * column + 1U] = pixel->Green;
+			destination[3U * column + 2U] = pixel->Red;
 		}
-		for (uint32_t column = 0; column < width; column++) {
-			destination[2U * column] = source[column];
-			destination[2U * column + 1U] = source[column];
-		}
+		memset(destination + (size_t)width * scale * 3U, 0,
+			row_size - (size_t)width * scale * 3U);
 	}
 	*bmp_size = header->Size;
 	return header;
