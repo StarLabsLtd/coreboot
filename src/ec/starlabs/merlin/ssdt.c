@@ -1453,13 +1453,6 @@ static void write_shutdown_event(void)
 #define EFI_OPTION_SNAPSHOT_KBL_STATE	BIT(2)
 #define EFI_OPTION_SNAPSHOT_KBL_BRIGHTNESS BIT(3)
 
-static void write_ec_read_path(const char *field)
-{
-	write_method_call(EC_ACPI_METHOD("ECRD"));
-	acpigen_emit_byte(REF_OF_OP);
-	acpigen_emit_namestring(field);
-}
-
 static void write_efi_option_get(const char *option)
 {
 	write_method_call("EOGT");

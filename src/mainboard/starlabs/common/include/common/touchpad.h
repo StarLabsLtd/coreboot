@@ -101,8 +101,8 @@
 #define STARLABS_TOUCHPAD_VERIFY_DELAY_MS	5
 #define STARLABS_TOUCHPAD_RESET_READY_RETRIES	24
 #define STARLABS_TOUCHPAD_RESET_READY_DELAY_MS	5
-/* Eight 10 ms SMM transfers plus the bounded wake/verification delays. */
-#define STARLABS_TOUCHPAD_SMM_TIMEOUT_MS		100
+/* Thirteen 10 ms CST transfers plus bounded wake/verification delays. */
+#define STARLABS_TOUCHPAD_SMM_TIMEOUT_MS		150
 
 #define I2C_HID_OPCODE_RESET			0x01
 #define I2C_HID_OPCODE_GET_REPORT		0x02
