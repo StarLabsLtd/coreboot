@@ -204,6 +204,9 @@ def validate_rmap(image, expected_regions):
     for (offset, length), (next_offset, _) in zip(sorted(selected), sorted(selected)[1:]):
         if offset + length > next_offset:
             raise ValidationError("overlapping RMAP regions")
+    nvram_offset, nvram_size = areas["RW_NVRAM"]
+    if image[nvram_offset:nvram_offset + nvram_size] != b"\xff" * nvram_size:
+        raise ValidationError("RW_NVRAM must be erased in a vboot capsule")
 
 
 def parse_ffs_files(data):
