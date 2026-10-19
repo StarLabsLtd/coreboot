@@ -41,7 +41,7 @@ void fast_spi_lock_bar(void);
  * Set FAST_SPIBAR + DLOCK (0x0C) register bits to discrete lock the
  * FAST_SPI Protected Range (PR) registers.
  */
-void fast_spi_pr_dlock(void);
+int fast_spi_pr_dlock(void);
 /*
  * Set FAST_SPIBAR + VSCC0 (0xC4) register VCL (bit 30).
  */
