@@ -324,7 +324,7 @@ static int winbond_read_status_regs(const struct spi_flash *flash,
 		if (CONFIG_SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE > 0xff)
 			return ret;
 
-		regs->reg2.u = CONFIG_SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE;
+		regs->reg2.u = (u8)CONFIG_SPI_FLASH_WINBOND_SR2_PROVISIONED_VALUE;
 	} else {
 		valid->reg2 = true;
 	}

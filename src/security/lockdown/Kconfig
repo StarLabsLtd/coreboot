@@ -147,7 +147,7 @@ config BOOTMEDIA_SPI_LOCK_REBOOT
 
 config BOOTMEDIA_SPI_LOCK_PLATFORM
 	bool "Lock SPI status writes using the platform controller"
-	select BOOTMEDIA_LOCK_FAILURE_FATAL
+	depends on BOOTMEDIA_LOCK_FAILURE_FATAL
 	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
 	depends on SOC_INTEL_COMMON_PCH_LOCKDOWN
 	depends on !MRC_WRITE_NV_LATE
