@@ -491,6 +491,7 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 #endif
 }
 
+/* Page table */
 #define _PRES (1ULL << 0)
 #define _RW   (1ULL << 1)
 #define _US   (1ULL << 2)
@@ -502,7 +503,7 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 #define PTE_SIZE 8
 
 /* Returns the size of the permanent page table for SMM */
-static size_t smm_permanent_page_table_size(void)
+__maybe_unused static enum cb_err smm_permanent_page_table_size(const struct region *smram_free, size_t *size, size_t *alignment)
 {
 	const bool one_g_pages = !!(cpuid_edx(0x80000001) & (1 << 26));
 
@@ -514,20 +515,17 @@ static size_t smm_permanent_page_table_size(void)
 				   512 * CONFIG_CPU_PT_ROM_MAP_GB);
 
 	/* One PML4E entry plus the required PTEs */
-	return 4096 + ALIGN_UP(ptes_needed * PTE_SIZE, 4096);
-}
-
-static size_t smm_permanent_page_table_alignment(void)
-{
-	return 4096;
+	*size = 4096 + ALIGN_UP(ptes_needed * PTE_SIZE, 4096);
+	*alignment = 4096;
+	return CB_SUCCESS;
 }
 
 /* Installs page tables at given base address. Caller has made sure that there is enough space. */
-static void smm_permanent_install_page_table(const uintptr_t pt_base)
+__maybe_unused static enum cb_err smm_permanent_install_page_table(const struct region *region, struct smm_loader_params *params)
 {
 	const bool one_g_pages = !!(cpuid_edx(0x80000001) & (1 << 26));
 
-	const uintptr_t pml4e = ALIGN_DOWN(pt_base, 4096);
+	const uintptr_t pml4e = region_offset(region);
 	const uintptr_t pages_base = pml4e + 4096;
 	uintptr_t pdpt;
 
@@ -546,6 +544,29 @@ static void smm_permanent_install_page_table(const uintptr_t pt_base)
 
 	for (size_t i = 0; i < DIV_ROUND_UP(CONFIG_CPU_PT_ROM_MAP_GB, 512); i++)
 		write64p(pml4e + i * PTE_SIZE, _GEN_DIR(pdpt + i * 4096));
+
+	params->cr3 = pml4e;
+	return CB_SUCCESS;
+}
+
+/* STM */
+__maybe_unused static enum cb_err smm_stm_get_size_and_alignment(const struct region *smram_free,
+								 size_t *size, size_t *alignment)
+{
+	*size = CONFIG_MSEG_SIZE + CONFIG_BIOS_RESOURCE_LIST_SIZE;
+	*alignment = 1;
+	return CB_SUCCESS;
+}
+
+__maybe_unused static enum cb_err smm_stm_install(const struct region *region,
+						  struct smm_loader_params *params)
+{
+	(void)region; (void)params;
+
+	printk(BIOS_DEBUG, "MSEG size     0x%x\n", CONFIG_MSEG_SIZE);
+	printk(BIOS_DEBUG, "BIOS res list 0x%x\n", CONFIG_BIOS_RESOURCE_LIST_SIZE);
+
+	return CB_SUCCESS;
 }
 
 /* GDT */
@@ -575,20 +596,80 @@ static const struct gdt_entry permanent_gdt[] = {
 	},
 };
 
-static size_t smm_permanent_gdt_size(void)
+static enum cb_err smm_permanent_gdt_size(const struct region *smram_free,
+					  size_t *size, size_t *alignment)
 {
-	return sizeof(permanent_gdt);
+	*size = sizeof(permanent_gdt);
+	*alignment = 8;
+	return CB_SUCCESS;
 }
 
-static size_t smm_permanent_gdt_alignment(void)
+static enum cb_err smm_install_permanent_gdt(const struct region *region,
+					     struct smm_loader_params *params)
 {
-	return 8;
+	memcpy((void *)(uintptr_t)region_offset(region), permanent_gdt, sizeof(permanent_gdt));
+
+	params->gdt_base = region_offset(region);
+	params->gdt_limit = region_sz(region) - 1;
+	return CB_SUCCESS;
 }
 
-static void smm_install_permanent_gdt(const uintptr_t permanent_gdt_base)
+/* Permanent SMI handler */
+struct rmodule smi_handler;
+static enum cb_err smm_handler_get_size_and_alignment(const struct region *smram_free,
+						      size_t *size, size_t *alignment)
 {
-	memcpy((void *)permanent_gdt_base, permanent_gdt, sizeof(permanent_gdt));
+	if (rmodule_parse(&_binary_smm_start, &smi_handler))
+		return CB_ERR;
+
+	*size = rmodule_memory_size(&smi_handler);
+	*alignment = rmodule_load_alignment(&smi_handler);
+
+	return CB_SUCCESS;
 }
+
+static enum cb_err smm_handler_install_handler(const struct region *region,
+					       struct smm_loader_params *params)
+{
+	if (rmodule_load((void *)region_offset(region), &smi_handler))
+		return -1;
+	params->handler = rmodule_entry(&smi_handler);
+
+	return CB_SUCCESS;
+}
+
+static const struct smram_regions {
+	const char *name;
+	enum cb_err (* get_size_and_alignment)(const struct region *smram_free,
+					       size_t *size, size_t *alignment);
+	enum cb_err (* install)(const struct region *region,
+				struct smm_loader_params *params);
+} regions[] = {
+#if CONFIG(STM)
+	{
+		.name = "STM",
+		.get_size_and_alignment = smm_stm_get_size_and_alignment,
+		.install = smm_stm_install,
+	},
+#endif
+	{
+		.name = "GDT",
+		.get_size_and_alignment = smm_permanent_gdt_size,
+		.install = smm_install_permanent_gdt,
+	},
+#if ENV_X86_64
+	{
+		.name = "PERMANENT PAGE TABLES",
+		.get_size_and_alignment = smm_permanent_page_table_size,
+		.install = smm_permanent_install_page_table,
+	},
+#endif
+	{
+		.name = "HANDLER",
+		.get_size_and_alignment = smm_handler_get_size_and_alignment,
+		.install = smm_handler_install_handler,
+	}
+};
 
 /*
  *The SMM module is placed within the provided region in the following
@@ -622,70 +703,31 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 	const struct region smram = region_create(smram_base, smram_size);
 	struct region smram_free = smram;
 
-	if (CONFIG(STM)) {
-		const size_t stm_size = CONFIG_MSEG_SIZE + CONFIG_BIOS_RESOURCE_LIST_SIZE;
-
-		struct region stm;
-		if (smm_smram_carve_top(&smram_free, stm_size, 1, "STM", &stm) != CB_SUCCESS)
+	/* Collect regions and allocate them */
+	for (size_t i = 0; i < ARRAY_SIZE(regions); i++) {
+		struct region region = {};
+		size_t size = 0, alignment = 0;
+		if (regions[i].get_size_and_alignment(&smram_free, &size, &alignment) != CB_SUCCESS)
 			return -1;
-		printk(BIOS_DEBUG, "MSEG size     0x%x\n", CONFIG_MSEG_SIZE);
-		printk(BIOS_DEBUG, "BIOS res list 0x%x\n", CONFIG_BIOS_RESOURCE_LIST_SIZE);
-	}
-
-	/* Install GDT */
-	{
-		struct region r_gdt;
-		const size_t size = smm_permanent_gdt_size();
-		const size_t alignment = smm_permanent_gdt_alignment();
-		if (smm_smram_carve_top(&smram_free, size, alignment, "GDT", &r_gdt) != CB_SUCCESS)
+		if (smm_smram_carve_top(&smram_free, size, alignment, regions[i].name, &region) != CB_SUCCESS)
 			return -1;
-		smm_install_permanent_gdt(region_offset(&r_gdt));
-		params->gdt_base = region_offset(&r_gdt);
-		params->gdt_limit = region_sz(&r_gdt) - 1;
-	}
-
-	/* Parse the SMI handler module */
-	struct rmodule smi_handler;
-	struct region handler;
-	if (rmodule_parse(&_binary_smm_start, &smi_handler))
-		return -1;
-	{
-		const size_t size = rmodule_memory_size(&smi_handler);
-		const size_t alignment = rmodule_load_alignment(&smi_handler);
-
-		if (smm_smram_carve_top(&smram_free, size, alignment, "HANDLER", &handler) != CB_SUCCESS)
+		if (regions[i].install(&region, params) != CB_SUCCESS)
 			return -1;
 	}
 
-	/* Page tables for the SMM permanent code segment */
-	if (ENV_X86_64) {
-		const size_t size = smm_permanent_page_table_size();
-		const size_t alignment = smm_permanent_page_table_alignment();
-		struct region pt;
-
-		if (smm_smram_carve_top(&smram_free, size, alignment, "PAGE TABLES", &pt) != CB_SUCCESS)
-			return -1;
-
-		smm_permanent_install_page_table(region_offset(&pt));
-
-		params->cr3 = region_offset(&pt);
-	}
-
+	/* Fill in save states and stub code into cpus array */
 	if (!smm_create_map(&smram_free, params->num_cpus, params->cpu_save_state_size)) {
 		printk(BIOS_ERR, "%s: Error creating CPU map\n", __func__);
 		return -1;
 	}
 
+	/* Check if there is enough space for SMM module stacks */
 	if (region_sz(&smram_free) < params->num_concurrent_save_states * CONFIG_SMM_MODULE_STACK_SIZE) {
 		printk(BIOS_ERR, "%s: Not enough SMRAM for SMM module stacks\n", __func__);
 		return -1;
 	}
 
-	if (rmodule_load((void *)region_offset(&handler), &smi_handler))
-		return -1;
-
 	struct smm_runtime *smihandler_params = rmodule_parameters(&smi_handler);
-	params->handler = rmodule_entry(&smi_handler);
 	setup_smihandler_params(smihandler_params, params);
 
 	return smm_module_setup_stub(region_offset(&cpus[0].stub_code), params);
