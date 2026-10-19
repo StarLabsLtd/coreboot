@@ -298,6 +298,14 @@ bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	    !logo || logo_size < sizeof(*header) || logo_size - 1U > UINTPTR_MAX - logo ||
 	    orientation < LB_FB_ORIENTATION_NORMAL || orientation > LB_FB_ORIENTATION_RIGHT_UP)
 		return false;
+	printk(BIOS_DEBUG, "BMP source: %ux%u, %u bits/pixel\n", header->PixelWidth,
+	       header->PixelHeight, header->BitPerPixel);
+	printk(BIOS_DEBUG, "BMP source: file %u bytes, DIB header %u bytes\n",
+	       header->Size, header->HeaderSize);
+	printk(BIOS_DEBUG, "BMP source: pixels at %#x, declared data %u bytes\n",
+	       header->ImageOffset, header->ImageSize);
+	printk(BIOS_DEBUG, "BMP source: supplied %zu bytes, compression %#x, %u planes\n",
+	       logo_size, header->CompressionType, header->Planes);
 	/* Validate the complete source layout before allocating or reading pixels. */
 	if (header->CharB != 'B' || header->CharM != 'M' ||
 	    header->Size != logo_size || header->ImageOffset > logo_size ||
@@ -305,8 +313,10 @@ bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	    header->HeaderSize != sizeof(*header) - offsetof(struct bmp_image_header, HeaderSize) ||
 	    header->Planes != 1 || header->CompressionType != 0 ||
 	    !header->PixelWidth || !header->PixelHeight ||
-	    header->PixelWidth > INT32_MAX || header->PixelHeight > INT32_MAX)
+	    header->PixelWidth > INT32_MAX || header->PixelHeight > INT32_MAX) {
+		printk(BIOS_DEBUG, "BMP source header is invalid\n");
 		return false;
+	}
 
 	switch (header->BitPerPixel) {
 	case 1:
@@ -316,14 +326,17 @@ bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 			1U << header->BitPerPixel;
 		if (palette_size > (1U << header->BitPerPixel) ||
 		    palette_size > (header->ImageOffset - sizeof(*header)) /
-				sizeof(struct bmp_color_map))
+				sizeof(struct bmp_color_map)) {
+			printk(BIOS_DEBUG, "BMP palette exceeds source header bounds\n");
 			return false;
+		}
 		break;
 	case 24:
 	case 32:
 		palette_size = 0;
 		break;
 	default:
+		printk(BIOS_DEBUG, "Unsupported BMP pixel format\n");
 		return false;
 	}
 
@@ -333,11 +346,17 @@ bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	if (row_bytes > SIZE_MAX || buffer_bytes > SIZE_MAX ||
 	    pixel_bytes > logo_size - header->ImageOffset ||
 	    (header->ImageSize && (header->ImageSize < pixel_bytes ||
-				header->ImageSize > logo_size - header->ImageOffset)))
+				header->ImageSize > logo_size - header->ImageOffset))) {
+		printk(BIOS_DEBUG, "BMP layout rejected: row %llu bytes, pixels %llu bytes, "
+		       "BGRX %llu bytes\n",
+		       (unsigned long long)row_bytes, (unsigned long long)pixel_bytes,
+		       (unsigned long long)buffer_bytes);
 		return false;
+	}
 	row_size = row_bytes;
 	buffer_size = buffer_bytes;
 
+	printk(BIOS_DEBUG, "BMP BGRX allocation: %zu bytes\n", buffer_size);
 	buffer = (uintptr_t)fill_blt_buffer(header, logo, buffer_size, row_size,
 					  palette_size, orientation);
 	if (!buffer)
