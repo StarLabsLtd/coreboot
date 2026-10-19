@@ -14,6 +14,8 @@ static int bus_devfn;
 static bool overlaps_smram;
 
 void dw_i2c_smm_reset_for_test(void);
+enum cb_err dw_i2c_result_with_cleanup_for_test(enum cb_err result,
+						enum cb_err cleanup);
 
 int dw_i2c_soc_bus_to_devfn(unsigned int bus)
 {
@@ -88,6 +90,14 @@ static void changed_bar_and_disabled_decoding_are_rejected(void **state)
 	assert_false(dw_i2c_smm_bus_is_runtime_suspended(0));
 }
 
+static void cleanup_failure_cannot_report_transfer_success(void **state)
+{
+	assert_int_equal(dw_i2c_result_with_cleanup_for_test(CB_SUCCESS, CB_SUCCESS),
+			 CB_SUCCESS);
+	assert_int_equal(dw_i2c_result_with_cleanup_for_test(CB_ERR, CB_SUCCESS), CB_ERR);
+	assert_int_equal(dw_i2c_result_with_cleanup_for_test(CB_SUCCESS, CB_ERR), CB_ERR);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -95,6 +105,7 @@ int main(void)
 		cmocka_unit_test_setup(invalid_and_protected_bar_ranges_are_rejected, setup),
 		cmocka_unit_test_setup(active_controller_is_refused, setup),
 		cmocka_unit_test_setup(changed_bar_and_disabled_decoding_are_rejected, setup),
+		cmocka_unit_test(cleanup_failure_cannot_report_transfer_success),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);

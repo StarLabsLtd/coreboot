@@ -314,6 +314,23 @@ static enum cb_err dw_i2c_disable(struct dw_i2c_regs *regs)
 	return CB_SUCCESS;
 }
 
+static enum cb_err dw_i2c_result_with_cleanup(enum cb_err result,
+					       enum cb_err cleanup)
+{
+	if (cleanup != CB_SUCCESS)
+		return CB_ERR;
+
+	return result;
+}
+
+#if defined(__TEST__)
+enum cb_err dw_i2c_result_with_cleanup_for_test(enum cb_err result,
+						enum cb_err cleanup)
+{
+	return dw_i2c_result_with_cleanup(result, cleanup);
+}
+#endif
+
 /* Wait for this I2C controller to go idle for transmit */
 static enum cb_err dw_i2c_wait_for_bus_idle(struct dw_i2c_regs *regs,
 					    struct stopwatch *transfer_sw)
@@ -664,8 +681,7 @@ static enum cb_err _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segm
 
 out:
 	read32(&regs->clear_intr);
-	if (dw_i2c_disable(regs) != CB_SUCCESS)
-		ret = CB_ERR;
+	ret = dw_i2c_result_with_cleanup(ret, dw_i2c_disable(regs));
 #if ENV_SMM
 restore_power:
 	if (restore_power_state)
