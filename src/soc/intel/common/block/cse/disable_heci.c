@@ -26,6 +26,12 @@
 static void heci1_disable_using_pcr(void)
 {
 	soc_disable_heci1_using_pcr();
+#if ENV_RAMSTAGE
+	struct device *device = pcidev_path_on_root(PCH_DEVFN_CSE);
+
+	if (device && !is_cse_enabled())
+		device->hidden = true;
+#endif
 }
 
 bool cse_disable_mei_devices(void)
