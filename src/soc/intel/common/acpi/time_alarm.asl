@@ -4,8 +4,8 @@
 
 #define AWAC_GPE		0x72
 #define AWAC_WADT_AC		0x1800
-#define AWAC_GCP_S4		0xb7
-#define AWAC_GCP_S5		0x1f7
+#define AWAC_GCP		0x07
+#define AWAC_LOWEST_SLEEP_STATE	3
 #define AWAC_AC_STATUS		1
 #define AWAC_DC_STATUS		2
 #define RTC_DISABLED		0xffffffff
@@ -14,13 +14,11 @@
 #define RTC_UIP_POLL_US		10
 #define RTC_UIP_TIMEOUT_US	3000
 
-#if CONFIG(SOC_INTEL_COMMON_ACPI_TIME_ALARM_S5)
-#define AWAC_LOWEST_SLEEP_STATE	5
-#define AWAC_GCP		AWAC_GCP_S5
-#else
-#define AWAC_LOWEST_SLEEP_STATE	4
-#define AWAC_GCP		AWAC_GCP_S4
-#endif
+/*
+ * WADT uses RTC_DISABLED for both a disabled timer and an expired timer.
+ * The arm mask in GNVS survives S3 but not the non-S3 CBMEM initialization,
+ * so S4/S5 wake status cannot be reported reliably.
+ */
 
 Scope (\_SB.PCI0.LPCB.RTC)
 {
