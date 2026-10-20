@@ -371,6 +371,27 @@ pcie_rtd3_acpi_method_status(const struct soc_intel_common_block_pcie_rtd3_confi
 	acpigen_pop_len(); /* Method */
 }
 
+#if ENV_TEST
+void pcie_rtd3_acpi_test_emit(const struct soc_intel_common_block_pcie_rtd3_config *config,
+			      bool trigger_opal_s3_unlock)
+{
+	struct device parent = {0};
+	struct bus upstream = {.dev = &parent};
+	struct device dev = {.upstream = &upstream};
+
+	acpigen_write_scope("\\_SB.PCI0.RP01");
+	if (config->use_rp_mutex)
+		acpigen_write_mutex(RP_MUTEX_NAME, 0);
+	acpigen_write_power_res("RTD3", 0, 0, NULL, 0);
+	acpigen_write_name_integer("APMC", 0);
+	pcie_rtd3_acpi_method_status(config);
+	pcie_rtd3_acpi_method_on(0, config, PCIE_RP_CPU, &dev, trigger_opal_s3_unlock);
+	pcie_rtd3_acpi_method_off(0, config, PCIE_RP_CPU, &dev);
+	acpigen_pop_len();
+	acpigen_write_scope_end();
+}
+#endif
+
 static void write_modphy_opregion(unsigned int pcie_rp)
 {
 	/* The register containing the Power Gate enable sequence bits is at
