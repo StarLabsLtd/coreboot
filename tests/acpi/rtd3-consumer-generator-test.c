@@ -21,6 +21,8 @@ extern char *getenv(const char *name);
 #define ENABLE_PAD      10
 #define RESET_PAD       11
 #define DIRECT_PAD      12
+#define CNVI_ENABLE_PAD 13
+#define CNVI_SELECT_PAD 14
 
 void pcie_rtd3_acpi_test_emit(const struct soc_intel_common_block_pcie_rtd3_config *config,
 			      bool trigger_opal_s3_unlock);
@@ -51,27 +53,44 @@ void acpi_device_intel_bt_pldr_reset(void)
 	fail_msg("unexpected CNVi PLDR generation");
 }
 
-static void write_test_get_method(const char *name, const char *error_name)
+static void write_test_get_method(const char *name, const char *counter)
 {
 	acpigen_write_method(name, 1);
 	acpigen_emit_byte(INCREMENT_OP);
-	acpigen_emit_namestring("GCNT");
-	acpigen_write_if_lequal_namestr_int(error_name, 1);
-	acpigen_write_return_integer(ACPI_GPIO_OUTPUT_ERROR);
-	acpigen_pop_len();
+	acpigen_emit_namestring(counter);
 	acpigen_emit_byte(RETURN_OP);
 	acpigen_emit_namestring("TVAL");
 	acpigen_pop_len();
 }
 
-static void write_test_set_method(const char *name, unsigned int value)
+static void write_event(unsigned int value)
+{
+	acpigen_emit_byte(MULTIPLY_OP);
+	acpigen_emit_namestring("EVTS");
+	acpigen_write_integer(256);
+	acpigen_emit_namestring("EVTS");
+	acpigen_emit_byte(MULTIPLY_OP);
+	acpigen_emit_byte(ARG0_OP);
+	acpigen_write_integer(2);
+	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_emit_byte(ADD_OP);
+	acpigen_emit_namestring("EVTS");
+	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_emit_namestring("EVTS");
+	acpigen_emit_byte(ADD_OP);
+	acpigen_emit_namestring("EVTS");
+	acpigen_write_integer(value);
+	acpigen_emit_namestring("EVTS");
+}
+
+static void write_test_set_method(const char *name, unsigned int value, const char *counter)
 {
 	acpigen_write_method(name, 1);
 	acpigen_emit_byte(INCREMENT_OP);
-	acpigen_emit_namestring("SCNT");
-	acpigen_write_store_int_to_namestr(value, "LEVT");
-	acpigen_emit_byte(RETURN_OP);
-	acpigen_emit_namestring("SERR");
+	acpigen_emit_namestring(counter);
+	write_event(value);
+	acpigen_write_store_int_to_namestr(value, "TVAL");
+	acpigen_write_return_integer(0);
 	acpigen_pop_len();
 }
 
@@ -79,9 +98,9 @@ static void write_direct_set_method(const char *name, unsigned int value)
 {
 	acpigen_write_method(name, 1);
 	acpigen_emit_byte(INCREMENT_OP);
-	acpigen_emit_namestring("SCNT");
+	acpigen_emit_namestring("DCNT");
+	write_event(value);
 	acpigen_write_store_int_to_namestr(value, "TVAL");
-	acpigen_write_store_int_to_namestr(value, "LEVT");
 	acpigen_pop_len();
 }
 
@@ -90,16 +109,15 @@ static void write_test_namespace(void)
 	acpigen_write_scope("\\_SB");
 	acpigen_write_device("PCI0");
 	acpigen_write_name_integer("TVAL", 0);
-	acpigen_write_name_integer("PERR", 0);
-	acpigen_write_name_integer("DERR", 0);
-	acpigen_write_name_integer("SERR", 0);
-	acpigen_write_name_integer("GCNT", 0);
-	acpigen_write_name_integer("SCNT", 0);
-	acpigen_write_name_integer("LEVT", 0xff);
-	write_test_get_method("PGTX", "PERR");
-	write_test_set_method("PSTX", 1);
-	write_test_set_method("PCTX", 0);
-	write_test_get_method("GTXS", "DERR");
+	acpigen_write_name_integer("PGCT", 0);
+	acpigen_write_name_integer("DGCT", 0);
+	acpigen_write_name_integer("PCNT", 0);
+	acpigen_write_name_integer("DCNT", 0);
+	acpigen_write_name_integer("EVTS", 0);
+	write_test_get_method("PGTX", "PGCT");
+	write_test_set_method("PSTX", 1, "PCNT");
+	write_test_set_method("PCTX", 0, "PCNT");
+	write_test_get_method("GTXS", "DGCT");
 	write_direct_set_method("STXS", 1);
 	write_direct_set_method("CTXS", 0);
 	acpigen_write_device("RP01");
@@ -121,20 +139,30 @@ static uint8_t checksum(const uint8_t *data, size_t length)
 }
 
 static void write_table(const char *directory, const char *name,
-			const struct soc_intel_common_block_pcie_rtd3_config *config)
+			const struct soc_intel_common_block_pcie_rtd3_config *config,
+			bool optional_cnvi)
 {
 	uint8_t buffer[AML_BUFFER_SIZE] = {0};
 	acpi_header_t *header = (acpi_header_t *)buffer;
 	char path[256];
 	FILE *file;
+	const struct acpi_gpio cnvi_enable = {
+		.pin_count = optional_cnvi,
+		.pins = {CNVI_ENABLE_PAD},
+	};
+	const struct acpi_gpio cnvi_select = {
+		.pin_count = optional_cnvi,
+		.pins = {CNVI_SELECT_PAD},
+	};
 
 	acpigen_set_current((char *)buffer + sizeof(*header));
 	write_test_namespace();
 	pcie_rtd3_acpi_test_emit(config, true);
 	acpi_device_intel_bt_common(&config->enable_gpio, &config->reset_gpio);
 	acpigen_write_scope("\\_SB.PCI0.RP01.BT00");
-	acpi_device_intel_bt(&config->enable_gpio, &config->reset_gpio, NULL, NULL, false,
-			     false);
+	acpi_device_intel_bt(&config->enable_gpio, &config->reset_gpio,
+			     optional_cnvi ? &cnvi_enable : NULL,
+			     optional_cnvi ? &cnvi_select : NULL, false, false);
 	acpigen_write_scope_end();
 
 	memcpy(header->signature, "SSDT", 4);
@@ -175,24 +203,25 @@ static void test_generate_rtd3_aml(void **state)
 		.pin_count = 1,
 		.pins = {RESET_PAD},
 	};
-	write_table(directory, "enable-high", &config);
+	write_table(directory, "enable-high", &config, false);
+	write_table(directory, "bt-optional", &config, true);
 
 	config.enable_gpio.active_low = true;
-	write_table(directory, "enable-low", &config);
+	write_table(directory, "enable-low", &config, false);
 
 	config.enable_gpio.pin_count = 0;
 	config.reset_gpio.active_low = false;
-	write_table(directory, "reset-high", &config);
+	write_table(directory, "reset-high", &config, false);
 
 	config.reset_gpio.active_low = true;
-	write_table(directory, "reset-low", &config);
+	write_table(directory, "reset-low", &config, false);
 
 	config.enable_gpio = (struct acpi_gpio){
 		.pin_count = 1,
 		.pins = {DIRECT_PAD},
 	};
 	config.reset_gpio = (struct acpi_gpio){0};
-	write_table(directory, "direct", &config);
+	write_table(directory, "direct", &config, false);
 }
 
 int main(void)
