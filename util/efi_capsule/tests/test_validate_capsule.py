@@ -110,6 +110,18 @@ def make_payload(firmware_volume):
     return bytes(payload)
 
 
+def make_elf_payload(payload):
+    offset = 0x100
+    elf = bytearray(offset + len(payload))
+    elf[:16] = b"\x7fELF\x01\x01\x01" + b"\0" * 9
+    struct.pack_into("<HHIIIIIHHHHHH", elf, 16, 2, 3, 1, 0, 52, 0, 0,
+                     52, 32, 1, 0, 0, 0)
+    struct.pack_into("<IIIIIIII", elf, 52, 1, offset, 0, 0, len(payload),
+                     len(payload), 7, 0x1000)
+    elf[offset:] = payload
+    return bytes(elf)
+
+
 class ValidateCapsuleTest(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
@@ -124,6 +136,9 @@ class ValidateCapsuleTest(unittest.TestCase):
 
     def test_matching_capsule_and_resident_driver(self):
         validate(make_capsule(), make_payload(make_fv()), FMP_GUID, 0)
+
+    def test_matching_elf_wrapped_payload_and_resident_driver(self):
+        validate(make_capsule(), make_elf_payload(make_payload(make_fv())), FMP_GUID, 0)
 
     def test_rejects_driver_only_in_unrelated_workspace_volume(self):
         with self.assertRaisesRegex(ValidationError, "0 resident FMP drivers"):

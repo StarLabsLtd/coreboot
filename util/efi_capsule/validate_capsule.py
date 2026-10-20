@@ -132,6 +132,27 @@ def parse_ffs_files(data):
 
 def parse_payload_fvs(data):
     """Yield firmware volumes embedded in an EDK2 UEFI payload."""
+    if data[:4] == b"\x7fELF":
+        _require(data, 0, 52, "ELF header")
+        if data[4:6] != b"\x01\x01":
+            raise ValidationError("unsupported payload ELF")
+        phoff = struct.unpack_from("<I", data, 28)[0]
+        phentsize, phnum = struct.unpack_from("<HH", data, 42)
+        if phentsize != 32:
+            raise ValidationError("invalid payload ELF program header size")
+        _require(data, phoff, phentsize * phnum, "ELF program headers")
+        segments = []
+        for index in range(phnum):
+            offset = phoff + index * phentsize
+            p_type, p_offset, _, _, p_filesz = struct.unpack_from("<IIIII", data, offset)
+            if p_type == 1:
+                _require(data, p_offset, p_filesz, "ELF load segment")
+                segment = data[p_offset : p_offset + p_filesz]
+                if len(segment) >= 44 and segment[40:44] == FV_SIGNATURE:
+                    segments.append(segment)
+        if len(segments) != 1:
+            raise ValidationError("expected one EFI firmware volume in payload ELF")
+        data = segments[0]
     volumes = [data]
     for volume in volumes:
         _require(volume, 0, 56, "firmware volume header")
