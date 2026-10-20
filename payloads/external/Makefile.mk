@@ -207,10 +207,11 @@ cdk2-force:
 
 $(CDK2_CONFIG): $(CDK2_PAYLOAD)
 
-$(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(objutil)/kconfig/conf $(CDK2_CAPSULE_TRUST)
+$(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(obj)/config.h $(objutil)/kconfig/conf $(CDK2_CAPSULE_TRUST)
 	+$(MAKE) -C $(CDK2_SOURCE) coreboot-stage \
 		COREBOOT_SOURCE="$(abspath .)" \
 		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+		COREBOOT_CONFIG_HEADER="$(abspath $(obj)/config.h)" \
 		COREBOOT_OUTPUT_DIR="$(abspath $(CDK2_OUTPUT))" \
 		CDK2_CAPSULE_TRUST_SOURCE="$(abspath $(CDK2_CAPSULE_TRUST))" \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
