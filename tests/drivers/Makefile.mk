@@ -13,6 +13,8 @@ efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Pi/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include/
 
 tests-y += intel-smm-gpio-test
+tests-y += starlabs-starbook-smm-gpio-allowlist-test
+tests-y += starlabs-starfighter-smm-gpio-allowlist-test
 
 intel-smm-gpio-test-stage := smm
 intel-smm-gpio-test-srcs += tests/drivers/intel-smm-gpio.c
@@ -23,6 +25,27 @@ intel-smm-gpio-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
 intel-smm-gpio-test-config += CONFIG_PCR_COMMON_IOSF_1_0=0
 intel-smm-gpio-test-cflags += -I src/soc/intel/common/block/include
 intel-smm-gpio-test-cflags += -I src/soc/intel/meteorlake/include
+
+starlabs-starbook-smm-gpio-allowlist-test-stage := smm
+starlabs-starbook-smm-gpio-allowlist-test-srcs += tests/drivers/starlabs-smm-gpio-allowlist.c
+starlabs-starbook-smm-gpio-allowlist-test-srcs += \
+	src/mainboard/starlabs/starbook/variants/mtl/gpio.c
+starlabs-starbook-smm-gpio-allowlist-test-cflags += \
+	-I src/mainboard/starlabs/starbook/include
+starlabs-starbook-smm-gpio-allowlist-test-cflags += \
+	-I src/mainboard/starlabs/common/include \
+	-I src/soc/intel/common/block/include -I src/soc/intel/meteorlake/include
+
+$(eval $(call copy-test,starlabs-starbook-smm-gpio-allowlist-test,\
+	starlabs-starfighter-smm-gpio-allowlist-test))
+starlabs-starfighter-smm-gpio-allowlist-test-srcs := \
+	tests/drivers/starlabs-smm-gpio-allowlist.c \
+	src/mainboard/starlabs/starfighter/variants/mtl/gpio.c
+starlabs-starfighter-smm-gpio-allowlist-test-cflags := \
+	-I src/mainboard/starlabs/starfighter/include \
+	-I src/mainboard/starlabs/common/include \
+	-I src/soc/intel/common/block/include -I src/soc/intel/meteorlake/include
+starlabs-starfighter-smm-gpio-allowlist-test-cflags += -DTEST_STARFIGHTER
 
 tests-y += intel-gpio-sbi-test
 tests-y += intel-gpio-sbi-fail-closed-test

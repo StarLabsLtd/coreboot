@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#define CONFIG(option) 1
 DefinitionBlock ("", "SSDT", 2, "COREv4", "SMMGPIO", 1)
 {
 	Scope (\_SB)

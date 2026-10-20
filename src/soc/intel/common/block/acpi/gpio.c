@@ -18,10 +18,12 @@ static int acpigen_soc_gpio_op(const char *op, unsigned int gpio_num)
 
 static int acpigen_soc_gpio_op_status(const char *op, unsigned int gpio_num, uint8_t status_op)
 {
+	int ret;
+
 	acpigen_write_store();
-	acpigen_soc_gpio_op(op, gpio_num);
+	ret = acpigen_soc_gpio_op(op, gpio_num);
 	acpigen_emit_byte(status_op);
-	return 0;
+	return ret;
 }
 
 static int acpigen_soc_get_gpio_state(const char *op, unsigned int gpio_num)

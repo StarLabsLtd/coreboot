@@ -8,6 +8,7 @@ out="$2"
 mkdir -p "$out"
 
 cc -E -P -x c \
+	'-DCONFIG(option)=1' \
 	-I "$top/src/soc/intel/common/block/include" \
 	"$top/tests/acpi/smm-gpio.asl" -o "$out/smm-gpio.asl"
 # Mock only the hardware SMI boundary; the methods remain the production ASL.
