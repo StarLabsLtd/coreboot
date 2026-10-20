@@ -1515,7 +1515,7 @@ void cse_late_finalize(void)
 
 static void intel_cse_get_rw_version(void)
 {
-	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD) || CONFIG(OPTION_BACKEND_NONE))
+	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD))
 		return;
 
 	struct cse_specific_info *info = cbmem_find(CBMEM_ID_CSE_INFO);
