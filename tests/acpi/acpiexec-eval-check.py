@@ -6,6 +6,9 @@ import sys
 
 
 EVALUATING = re.compile(r"^Evaluating (\\[^ ]+)$")
+RETURNED = re.compile(r"^Evaluation of (\\[^ ]+) returned object .+$")
+NO_OBJECT = re.compile(r"^No object was returned from evaluation of (\\[^ ]+)$")
+TOP_OBJECT = re.compile(r"^  \[([A-Za-z]+)\](?: = ([0-9A-Fa-f]+))?.*$")
 INTEGER = re.compile(r"^\s*\[Integer\] = ([0-9A-Fa-f]+)\s*$")
 ERROR = re.compile(
     r"AE_[A-Z_]+|ACPI (?:Error|Exception)|failed with status|"
@@ -24,18 +27,48 @@ def parse(transcript):
     for line in transcript.splitlines():
         match = EVALUATING.match(line)
         if match:
-            current = {"path": match.group(1), "integers": [], "none": False}
+            current = {
+                "path": match.group(1),
+                "completion": None,
+                "type": None,
+                "value": None,
+            }
             evaluations.append(current)
             continue
         if ERROR.search(line):
             raise TranscriptError(f"unexpected interpreter error: {line}")
         if current is None:
             continue
-        match = INTEGER.match(line)
+
+        match = RETURNED.match(line)
         if match:
-            current["integers"].append(int(match.group(1), 16))
-        elif line == f"No object was returned from evaluation of {current['path']}":
-            current["none"] = True
+            if match.group(1) != current["path"]:
+                raise TranscriptError(
+                    f"completion names {match.group(1)}, active evaluation is {current['path']}"
+                )
+            if current["completion"] is not None:
+                raise TranscriptError(f"{current['path']}: ambiguous completion")
+            current["completion"] = "object"
+            continue
+
+        match = NO_OBJECT.match(line)
+        if match:
+            if match.group(1) != current["path"]:
+                raise TranscriptError(
+                    f"completion names {match.group(1)}, active evaluation is {current['path']}"
+                )
+            if current["completion"] is not None:
+                raise TranscriptError(f"{current['path']}: ambiguous completion")
+            current["completion"] = "none"
+            continue
+
+        match = TOP_OBJECT.match(line)
+        if match:
+            if current["completion"] != "object" or current["type"] is not None:
+                raise TranscriptError(f"{current['path']}: unexpected or ambiguous result dump")
+            current["type"] = match.group(1)
+            if match.group(2) is not None:
+                current["value"] = int(match.group(2), 16)
     return evaluations
 
 
@@ -48,10 +81,17 @@ def check(transcript, expected):
         if actual["path"] != path:
             raise TranscriptError(f"evaluation {index}: expected {path}, found {actual['path']}")
         if kind == "none":
-            if not actual["none"] or actual["integers"]:
+            if actual["completion"] != "none" or actual["type"] is not None:
                 raise TranscriptError(f"{path}: expected successful completion without a result")
-        elif actual["none"] or actual["integers"] != [value]:
-            raise TranscriptError(f"{path}: expected integer {value}, found {actual['integers']}")
+        elif (actual["completion"], actual["type"], actual["value"]) != (
+            "object",
+            "Integer",
+            value,
+        ):
+            raise TranscriptError(
+                f"{path}: expected scalar integer {value}, found "
+                f"{actual['completion']}/{actual['type']}/{actual['value']}"
+            )
 
 
 def decode(spec):
@@ -95,6 +135,28 @@ Evaluation of \\_SB.TARG returned object 0x1, external buffer length 18
     no_result = """Evaluating \\_SB.OPER
 No object was returned from evaluation of \\_SB.OPER
 """
+    package = """Evaluating \\_SB.TARG
+Evaluation of \\_SB.TARG returned object 0x1, external buffer length 30
+  [Package] Contains 1 Elements:
+    [Integer] = 0000000000000000
+"""
+    nested_package = """Evaluating \\_SB.TARG
+Evaluation of \\_SB.TARG returned object 0x2, external buffer length 50
+  [Package] Contains 1 Elements:
+    [Package] Contains 1 Elements:
+      [Integer] = 0000000000000000
+"""
+    string_result = """Evaluating \\_SB.TARG
+Evaluation of \\_SB.TARG returned object 0x3, external buffer length 24
+  [String] Value: Test
+"""
+    dump_without_completion = """Evaluating \\_SB.TARG
+  [Integer] = 0000000000000000
+"""
+    wrong_completion = """Evaluating \\_SB.TARG
+Evaluation of \\_SB.OTHR returned object 0x4, external buffer length 18
+  [Integer] = 0000000000000000
+"""
 
     check(success, [("\\_SB.TEST", "integer", 1)])
     check(no_result, [("\\_SB.OPER", "none", None)])
@@ -103,6 +165,11 @@ No object was returned from evaluation of \\_SB.OPER
         (missing_operation, [("\\_SB.OPER", "none", None), ("\\_SB.CNTR", "integer", 0)]),
         (wrong_then_unrelated, [("\\_SB.TARG", "integer", 0), ("\\_SB.OTHR", "integer", 0)]),
         (truncated, [("\\_SB.TARG", "integer", 0)]),
+        (package, [("\\_SB.TARG", "integer", 0)]),
+        (nested_package, [("\\_SB.TARG", "integer", 0)]),
+        (string_result, [("\\_SB.TARG", "integer", 0)]),
+        (dump_without_completion, [("\\_SB.TARG", "integer", 0)]),
+        (wrong_completion, [("\\_SB.TARG", "integer", 0)]),
     )
     for transcript, expected in rejected:
         try:
