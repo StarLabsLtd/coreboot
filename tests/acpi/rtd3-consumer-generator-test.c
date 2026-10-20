@@ -5,6 +5,7 @@
 #include <acpi/acpi_device.h>
 #include <intelblocks/smm_gpio.h>
 #include <soc/intel/common/block/pcie/rtd3/chip.h>
+#include <drivers/usb/acpi/chip.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <tests/test.h>
@@ -43,6 +44,11 @@ void pmc_ipc_acpi_set_pci_clock(unsigned int pcie_rp, unsigned int clk_pin, bool
 {
 	fail_msg("unexpected PCI clock generation: RP%u pin%u enable=%d", pcie_rp, clk_pin,
 		 enable);
+}
+
+void acpi_device_intel_bt_pldr_reset(void)
+{
+	fail_msg("unexpected CNVi PLDR generation");
 }
 
 static void write_test_get_method(const char *name)
@@ -96,6 +102,8 @@ static void write_test_namespace(void)
 	write_direct_set_method("STXS", 1);
 	write_direct_set_method("CTXS", 0);
 	acpigen_write_device("RP01");
+	acpigen_write_device("BT00");
+	acpigen_pop_len();
 	acpigen_pop_len();
 	acpigen_pop_len();
 	acpigen_pop_len();
@@ -122,6 +130,11 @@ static void write_table(const char *directory, const char *name,
 	acpigen_set_current((char *)buffer + sizeof(*header));
 	write_test_namespace();
 	pcie_rtd3_acpi_test_emit(config, true);
+	acpi_device_intel_bt_common(&config->enable_gpio, &config->reset_gpio);
+	acpigen_write_scope("\\_SB.PCI0.RP01.BT00");
+	acpi_device_intel_bt(&config->enable_gpio, &config->reset_gpio, NULL, NULL, false,
+			     false);
+	acpigen_write_scope_end();
 
 	memcpy(header->signature, "SSDT", 4);
 	header->length = acpigen_get_current() - (char *)buffer;

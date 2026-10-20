@@ -55,5 +55,9 @@ output=$(acpiexec -b 'set N \_SB.PCI0.TVAL 0; set N \_SB.PCI0.SERR 1; execute \_
 printf '%s\n' "$output" | grep -F 'Evaluation of \_SB.PCI0.RP01.RTD3._ON returned object' >/dev/null
 printf '%s\n' "$output" | grep -F '[Integer] = 0000000000000000' >/dev/null
 
+# Production Bluetooth AML stops on failed status/reset operations and releases CNMT.
+expect enable-high 'set N \_SB.PCI0.GERR 1; execute \_SB.PCI0.RP01.BT00.BTRT._ON; execute \_SB.PCI0.SCNT' 0
+expect enable-high 'set N \_SB.PCI0.SERR 1; execute \_SB.PCI0.RP01.BT00.BTRT._RST; set N \_SB.PCI0.SERR 0; execute \_SB.PCI0.RP01.BT00.BTRT._RST; execute \_SB.PCI0.SCNT' 3
+
 # The unaffected direct GPIO route remains functional.
 expect direct 'set N \_SB.PCI0.TVAL 1; execute \_SB.PCI0.RP01.RTD3._STA' 1
