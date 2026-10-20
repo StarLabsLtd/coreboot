@@ -512,14 +512,14 @@ void *gpio_dwx_address(const gpio_t pad)
 bool gpio_input_address(gpio_t pad, uintptr_t *address)
 {
 	const struct pad_community *comm = gpio_find_community(pad);
-	const uint32_t mask = PAD_CFG0_MODE_MASK | PAD_CFG0_RX_DISABLE |
+	const uint32_t input_mask = PAD_CFG0_MODE_MASK | PAD_CFG0_RX_DISABLE |
 		PAD_CFG0_TX_DISABLE | PAD_CFG0_TRIG_MASK;
 	uint16_t offset;
 
 	if (!comm || !address)
 		return false;
 	offset = pad_config_offset(comm, pad);
-	if ((pcr_read32(comm->port, offset) & mask) != PAD_CFG0_TX_DISABLE)
+	if ((pcr_read32(comm->port, offset) & input_mask) != PAD_CFG0_TX_DISABLE)
 		return false;
 	*address = (uintptr_t)pcr_reg_address(comm->port, offset);
 	return true;
