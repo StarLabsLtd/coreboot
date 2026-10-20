@@ -792,7 +792,9 @@ void efi_parse_capsules(void)
 		return;
 	}
 
-	if (CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT) && efi_is_disk_capsules_boot()) {
+	/* Disk requests wait for a normal boot; valid RAM capsules retain priority. */
+	if (get_boot_mode() != LB_BOOT_MODE_S4_RESUME &&
+	    CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT) && efi_is_disk_capsules_boot()) {
 		set_boot_mode(LB_BOOT_MODE_FLASH_UPDATE);
 		return;
 	}

@@ -979,6 +979,8 @@ enum boot_mode_t {
 	 * to run in this boot mode.
 	 */
 	LB_BOOT_MODE_FLASH_UPDATE,
+	/* Software resume from ACPI S4, not the S3 hardware resume path. */
+	LB_BOOT_MODE_S4_RESUME,
 };
 
 /*
