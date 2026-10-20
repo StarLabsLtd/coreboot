@@ -25,8 +25,9 @@ bool fw_config_probe_mainboard_override(const struct fw_config *match, bool *res
 	/* Check if this is a storage-related probe */
 	if (match->field_name) {
 		/* Read CFR option; if unset, use fw_config setting */
-		uint8_t storage_selection =
-			get_uint_option("storage_device", storage_default_from_fw_config());
+		uint8_t storage_selection = get_uint_option_checked(
+			"storage_device", storage_default_from_fw_config(),
+			OPTION_RANGE(STORAGE_NVME, STORAGE_EMMC));
 		if (strcmp(match->field_name, "BOOT_NVME_MASK") == 0) {
 			/* NVMe is enabled if storage selection is NVMe */
 			*result = (storage_selection == STORAGE_NVME);

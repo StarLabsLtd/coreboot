@@ -52,5 +52,5 @@ bool h8_has_bdc(void)
  */
 bool h8_bluetooth_nv_enable(void)
 {
-	return get_uint_option("bluetooth", true);
+	return get_uint_option_checked("bluetooth", true, OPTION_BOOL);
 }
