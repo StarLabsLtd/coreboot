@@ -135,15 +135,6 @@ static void p2sb_acpi_set_pci_clock(u8 srcclk_pin, bool enable)
 	acpigen_write_if_end();
 }
 
-static void pcie_rtd3_return_on_gpio_error(const struct device *parent, bool use_rp_mutex)
-{
-	acpigen_write_if_lnotequal_op_int(LOCAL7_OP, 0);
-	if (use_rp_mutex)
-		acpigen_write_release(acpi_device_path_join(parent, RP_MUTEX_NAME));
-	acpigen_write_return_integer(0);
-	acpigen_pop_len();
-}
-
 static void
 pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 			 const struct soc_intel_common_block_pcie_rtd3_config *config,
@@ -162,15 +153,12 @@ pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 	if (config->skip_on_off_support)
 		acpigen_write_if_lequal_namestr_int("ONSK", 0);
 
-	/* PSTA preserves read errors that the public Boolean _STA cannot expose.
-	 * Skip _ON if the device is already on or its state could not be read.
+	/* The _STA returns current power status of device, so we can skip _ON
+	 * if _STA returns 1.
 	 */
 	acpigen_write_store();
-	acpigen_emit_namestring("PSTA");
+	acpigen_emit_namestring(acpi_device_path_join(parent, "RTD3._STA"));
 	acpigen_emit_byte(LOCAL0_OP);
-	acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
-	acpigen_write_return_integer(0);
-	acpigen_pop_len();
 	acpigen_write_if_lequal_op_int(LOCAL0_OP, ONE_OP);
 	/*
 	 * If _ON is called while the power resource is already ON (common during
@@ -193,8 +181,7 @@ pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 
 	/* Assert enable GPIO to turn on device power. */
 	if (config->enable_gpio.pin_count) {
-		acpigen_enable_tx_gpio_status(&config->enable_gpio, LOCAL7_OP);
-		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
+		acpigen_enable_tx_gpio(&config->enable_gpio);
 		if (config->enable_delay_ms)
 			acpigen_write_sleep(config->enable_delay_ms);
 	}
@@ -209,8 +196,7 @@ pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 
 	/* De-assert reset GPIO to bring device out of reset. */
 	if (config->reset_gpio.pin_count) {
-		acpigen_disable_tx_gpio_status(&config->reset_gpio, LOCAL7_OP);
-		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
+		acpigen_disable_tx_gpio(&config->reset_gpio);
 		if (config->reset_delay_ms)
 			acpigen_write_sleep(config->reset_delay_ms);
 	}
@@ -275,8 +261,7 @@ pcie_rtd3_acpi_method_off(int pcie_rp,
 
 	/* Assert reset GPIO to place device into reset. */
 	if (config->reset_gpio.pin_count) {
-		acpigen_enable_tx_gpio_status(&config->reset_gpio, LOCAL7_OP);
-		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
+		acpigen_enable_tx_gpio(&config->reset_gpio);
 		if (config->reset_off_delay_ms)
 			acpigen_write_sleep(config->reset_off_delay_ms);
 	}
@@ -295,8 +280,7 @@ pcie_rtd3_acpi_method_off(int pcie_rp,
 
 	/* De-assert enable GPIO to turn off device power. */
 	if (config->enable_gpio.pin_count) {
-		acpigen_disable_tx_gpio_status(&config->enable_gpio, LOCAL7_OP);
-		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
+		acpigen_disable_tx_gpio(&config->enable_gpio);
 		if (config->enable_off_delay_ms)
 			acpigen_write_sleep(config->enable_off_delay_ms);
 	}
@@ -328,8 +312,7 @@ pcie_rtd3_acpi_method_status(const struct soc_intel_common_block_pcie_rtd3_confi
 {
 	const struct acpi_gpio *gpio;
 
-	/* Private status: zero/one are valid states; ACPI_GPIO_OUTPUT_ERROR is failure. */
-	acpigen_write_method("PSTA", 0);
+	acpigen_write_method("_STA", 0);
 	/*
 	 * Depending on the board configuration we use either the "enable" or
 	 * the "reset" pin to detect the status of the device. The logic for
@@ -361,48 +344,11 @@ pcie_rtd3_acpi_method_status(const struct soc_intel_common_block_pcie_rtd3_confi
 		gpio = &config->reset_gpio;
 		/* Read current GPIO state into Local0. */
 		acpigen_get_tx_gpio(gpio);
-		acpigen_write_if();
-		acpigen_emit_byte(LLESS_OP);
-		acpigen_emit_byte(LOCAL0_OP);
-		acpigen_write_integer(ACPI_GPIO_OUTPUT_ERROR);
-		acpigen_write_xor(LOCAL0_OP, 1, LOCAL0_OP);
-		acpigen_pop_len();
+		acpigen_write_not(LOCAL0_OP, LOCAL0_OP);
 	}
 	acpigen_write_return_op(LOCAL0_OP);
 	acpigen_pop_len(); /* Method */
-
-	/* Power Resource _STA is Boolean and cannot expose the private failure value. */
-	acpigen_write_method("_STA", 0);
-	acpigen_write_store();
-	acpigen_emit_namestring("PSTA");
-	acpigen_emit_byte(LOCAL0_OP);
-	acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
-	acpigen_write_return_integer(0);
-	acpigen_pop_len();
-	acpigen_write_return_op(LOCAL0_OP);
-	acpigen_pop_len(); /* Method */
 }
-
-#if ENV_TEST
-void pcie_rtd3_acpi_test_emit(const struct soc_intel_common_block_pcie_rtd3_config *config,
-			      bool trigger_opal_s3_unlock)
-{
-	struct device parent = {0};
-	struct bus upstream = {.dev = &parent};
-	struct device dev = {.upstream = &upstream};
-
-	acpigen_write_scope("\\_SB.PCI0.RP01");
-	if (config->use_rp_mutex)
-		acpigen_write_mutex(RP_MUTEX_NAME, 0);
-	acpigen_write_power_res("RTD3", 0, 0, NULL, 0);
-	acpigen_write_name_integer("APMC", 0);
-	pcie_rtd3_acpi_method_status(config);
-	pcie_rtd3_acpi_method_on(0, config, PCIE_RP_CPU, &dev, trigger_opal_s3_unlock);
-	pcie_rtd3_acpi_method_off(0, config, PCIE_RP_CPU, &dev);
-	acpigen_pop_len();
-	acpigen_write_scope_end();
-}
-#endif
 
 static void write_modphy_opregion(unsigned int pcie_rp)
 {

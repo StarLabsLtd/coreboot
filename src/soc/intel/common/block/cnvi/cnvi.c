@@ -231,9 +231,6 @@ static void cnvw_fill_ssdt(const struct device *dev)
 				acpigen_emit_namestring("\\_SB.PCI0.CNVS");
 				acpigen_emit_byte(LOCAL0_OP);
 
-				acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
-				acpigen_write_return_integer(0);
-				acpigen_pop_len();
 				acpigen_write_return_op(LOCAL0_OP);
 			}
 			acpigen_write_else();
@@ -253,20 +250,14 @@ static void cnvw_fill_ssdt(const struct device *dev)
 				acpigen_emit_namestring("\\_SB.PCI0.CNVS");
 				acpigen_emit_byte(LOCAL0_OP);
 
-				acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
-				acpigen_write_return_integer(0);
-				acpigen_pop_len();
-
 				acpigen_write_if_lequal_op_int(LOCAL0_OP, 1);
 				{
 					acpigen_write_return_integer(1);
 				}
 				acpigen_pop_len();
 
-				acpigen_write_store();
 				acpigen_emit_namestring("\\_SB.PCI0.CNVC");
 				acpigen_emit_byte(1);
-				acpigen_emit_byte(LOCAL0_OP);
 			}
 			acpigen_pop_len();
 		}
@@ -276,10 +267,8 @@ static void cnvw_fill_ssdt(const struct device *dev)
 		{
 			acpigen_write_if_cond_ref_of("\\_SB.PCI0.CNVC");
 			{
-				acpigen_write_store();
 				acpigen_emit_namestring("\\_SB.PCI0.CNVC");
 				acpigen_emit_byte(0);
-				acpigen_emit_byte(LOCAL0_OP);
 			}
 			acpigen_pop_len();
 		}
@@ -315,26 +304,10 @@ static void cnvw_fill_ssdt(const struct device *dev)
 						acpigen_write_store_int_to_op(0, LOCAL2_OP);
 						acpigen_write_if_cond_ref_of("\\_SB.PCI0.GBTR");
 						{
-							acpigen_write_store();
-							acpigen_emit_namestring("\\_SB.PCI0.GBTR");
-							acpigen_emit_byte(LOCAL4_OP);
-							acpigen_write_if_lgreater_op_int(LOCAL4_OP, 1);
-							acpigen_write_store_int_to_namestr(CNVI_PLDR_NOT_COMPLETE, "PRRS");
-							acpigen_write_release("\\_SB.PCI0.CNMT");
-							acpigen_write_return_integer(0);
-							acpigen_pop_len();
-
-							acpigen_write_if_lequal_op_int(LOCAL4_OP, 1);
+							acpigen_write_if_lequal_namestr_int("\\_SB.PCI0.GBTR", 1);
 							{
-								acpigen_write_store();
 								acpigen_emit_namestring("\\_SB.PCI0.BTRK");
 								acpigen_emit_byte(0);
-								acpigen_emit_byte(LOCAL4_OP);
-								acpigen_write_if_lnotequal_op_int(LOCAL4_OP, 0);
-								acpigen_write_store_int_to_namestr(CNVI_PLDR_NOT_COMPLETE, "PRRS");
-								acpigen_write_release("\\_SB.PCI0.CNMT");
-								acpigen_write_return_integer(0);
-								acpigen_pop_len();
 
 								acpigen_write_sleep(160);
 
@@ -382,15 +355,8 @@ static void cnvw_fill_ssdt(const struct device *dev)
 
 								acpigen_write_if_lequal_op_int(LOCAL2_OP, 1);
 								{
-									acpigen_write_store();
 									acpigen_emit_namestring("\\_SB.PCI0.BTRK");
 									acpigen_emit_byte(1);
-									acpigen_emit_byte(LOCAL4_OP);
-									acpigen_write_if_lnotequal_op_int(LOCAL4_OP, 0);
-									acpigen_write_store_int_to_namestr(CNVI_PLDR_NOT_COMPLETE, "PRRS");
-									acpigen_write_release("\\_SB.PCI0.CNMT");
-									acpigen_write_return_integer(0);
-									acpigen_pop_len();
 									acpigen_write_sleep(160);
 								}
 								acpigen_pop_len();
@@ -400,10 +366,8 @@ static void cnvw_fill_ssdt(const struct device *dev)
 						acpigen_write_else();
 						{
 							acpigen_write_store_int_to_namestr(CNVI_PLDR_TIMEOUT, "PRRS");
-							acpigen_write_store();
 							acpigen_emit_namestring("\\_SB.PCI0.BTRK");
 							acpigen_emit_byte(1);
-							acpigen_emit_byte(LOCAL4_OP);
 						}
 						acpigen_pop_len();
 					}

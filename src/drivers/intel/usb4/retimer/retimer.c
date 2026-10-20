@@ -39,7 +39,7 @@ static void usb4_retimer_execute_ec_cmd(uint8_t port, uint8_t cmd, uint8_t expec
 	/* If RFWU has return value 0xfe, return error -1 */
 	if (RFWU) {
 		acpigen_write_if_lequal_namestr_int(RFWU, USB_RETIMER_FW_UPDATE_ERROR);
-		acpigen_disable_tx_gpio_status(power_gpio, LOCAL4_OP);
+		acpigen_disable_tx_gpio(power_gpio);
 		acpigen_write_return_integer(-1);
 		acpigen_pop_len(); /* If */
 	}
@@ -73,7 +73,7 @@ static void usb4_retimer_execute_ec_cmd(uint8_t port, uint8_t cmd, uint8_t expec
 			acpigen_emit_byte(LEQUAL_OP);
 			acpigen_emit_byte(LOCAL3_OP);
 			acpigen_emit_byte(0);
-			acpigen_disable_tx_gpio_status(power_gpio, LOCAL4_OP);
+			acpigen_disable_tx_gpio(power_gpio);
 			acpigen_write_return_integer(-1);
 			acpigen_pop_len(); /* If */
 		} else if (cmd == USB_RETIMER_FW_UPDATE_SET_TBT) {
@@ -98,7 +98,7 @@ static void usb4_retimer_execute_ec_cmd(uint8_t port, uint8_t cmd, uint8_t expec
 	 * Return: -1 if timeout error occurring
 	 */
 	acpigen_write_if_lequal_op_int(LOCAL2_OP, 0);
-	acpigen_disable_tx_gpio_status(power_gpio, LOCAL4_OP);
+	acpigen_disable_tx_gpio(power_gpio);
 	acpigen_write_return_integer(-1);
 	acpigen_pop_len(); /* If */
 }
@@ -118,10 +118,7 @@ static void enable_retimer_online_state(uint8_t port, struct acpi_gpio *power_gp
 	 */
 
 	/* Force power on for the retimer on the port */
-	acpigen_enable_tx_gpio_status(power_gpio, LOCAL4_OP);
-	acpigen_write_if_lnotequal_op_int(LOCAL4_OP, 0);
-	acpigen_write_return_integer(-1);
-	acpigen_pop_len();
+	acpigen_enable_tx_gpio(power_gpio);
 
 	/*
 	 * Get MUX mode state
@@ -199,10 +196,7 @@ static void disable_retimer_online_state(uint8_t port, struct acpi_gpio *power_g
 					power_gpio);
 
 	/* Force power off */
-	acpigen_disable_tx_gpio_status(power_gpio, LOCAL4_OP);
-	acpigen_write_if_lnotequal_op_int(LOCAL4_OP, 0);
-	acpigen_write_return_integer(-1);
-	acpigen_pop_len();
+	acpigen_disable_tx_gpio(power_gpio);
 }
 
 /*
@@ -295,12 +289,12 @@ static void usb4_retimer_cb_set_power_state(uint8_t port, void *arg)
 	acpigen_emit_byte(LGREATER_OP);
 	acpigen_emit_namestring(PWR);
 	acpigen_emit_byte(0);
-	acpigen_write_if_lequal_namestr_int(PWR, 1);
-	disable_retimer_online_state(port, power_gpio);
-	acpigen_pop_len();
-	/* Record the new state only after any required hardware sequence succeeds. */
+	/* PWR-- */
 	acpigen_emit_byte(DECREMENT_OP);
 	acpigen_emit_namestring(PWR);
+	acpigen_write_if_lequal_namestr_int(PWR, 0); /* If (PWR == 0) */
+	disable_retimer_online_state(port, power_gpio);
+	acpigen_pop_len(); /* If (PWR == 0) */
 
 	/*
 	 * Else If ((Local1 == 1) && (PWR == 0)) {

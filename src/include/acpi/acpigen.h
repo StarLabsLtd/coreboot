@@ -663,17 +663,6 @@ int acpigen_soc_set_tx_gpio(unsigned int gpio_num);
 /* Generate ACPI AML code to set Tx value of GPIO to 0. */
 int acpigen_soc_clear_tx_gpio(unsigned int gpio_num);
 
-/* Status returned by a protected Tx read; valid GPIO values are zero and one. */
-#define ACPI_GPIO_OUTPUT_ERROR 2
-
-/*
- * Generate a Tx operation and leave its runtime completion status in status_op.
- * SoCs without a status-bearing GPIO service report success after emitting the
- * normal operation.
- */
-int acpigen_soc_set_tx_gpio_status(unsigned int gpio_num, uint8_t status_op);
-int acpigen_soc_clear_tx_gpio_status(unsigned int gpio_num, uint8_t status_op);
-
 /*
  * Helper functions for enabling/disabling Tx GPIOs based on the GPIO
  * polarity. These functions end up calling acpigen_soc_{set,clear}_tx_gpio to
@@ -683,8 +672,6 @@ int acpigen_soc_clear_tx_gpio_status(unsigned int gpio_num, uint8_t status_op);
  */
 int acpigen_enable_tx_gpio(const struct acpi_gpio *gpio);
 int acpigen_disable_tx_gpio(const struct acpi_gpio *gpio);
-int acpigen_enable_tx_gpio_status(const struct acpi_gpio *gpio, uint8_t status_op);
-int acpigen_disable_tx_gpio_status(const struct acpi_gpio *gpio, uint8_t status_op);
 
 /*
  *  Helper function for getting a RX GPIO value based on the GPIO polarity.

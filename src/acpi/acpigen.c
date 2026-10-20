@@ -2249,38 +2249,6 @@ int acpigen_disable_tx_gpio(const struct acpi_gpio *gpio)
 		return acpigen_soc_clear_tx_gpio(gpio->pins[0]);
 }
 
-int __weak acpigen_soc_set_tx_gpio_status(unsigned int gpio_num, uint8_t status_op)
-{
-	const int ret = acpigen_soc_set_tx_gpio(gpio_num);
-
-	acpigen_write_store_int_to_op(ret ? 1 : 0, status_op);
-	return ret;
-}
-
-int __weak acpigen_soc_clear_tx_gpio_status(unsigned int gpio_num, uint8_t status_op)
-{
-	const int ret = acpigen_soc_clear_tx_gpio(gpio_num);
-
-	acpigen_write_store_int_to_op(ret ? 1 : 0, status_op);
-	return ret;
-}
-
-int acpigen_enable_tx_gpio_status(const struct acpi_gpio *gpio, uint8_t status_op)
-{
-	if (gpio->active_low)
-		return acpigen_soc_clear_tx_gpio_status(gpio->pins[0], status_op);
-
-	return acpigen_soc_set_tx_gpio_status(gpio->pins[0], status_op);
-}
-
-int acpigen_disable_tx_gpio_status(const struct acpi_gpio *gpio, uint8_t status_op)
-{
-	if (gpio->active_low)
-		return acpigen_soc_set_tx_gpio_status(gpio->pins[0], status_op);
-
-	return acpigen_soc_clear_tx_gpio_status(gpio->pins[0], status_op);
-}
-
 void acpigen_get_rx_gpio(const struct acpi_gpio *gpio)
 {
 	acpigen_soc_read_rx_gpio(gpio->pins[0]);
@@ -2293,15 +2261,8 @@ void acpigen_get_tx_gpio(const struct acpi_gpio *gpio)
 {
 	acpigen_soc_get_tx_gpio(gpio->pins[0]);
 
-	if (gpio->active_low) {
-		/* Preserve status values outside the valid GPIO value range. */
-		acpigen_write_if();
-		acpigen_emit_byte(LLESS_OP);
-		acpigen_emit_byte(LOCAL0_OP);
-		acpigen_write_integer(ACPI_GPIO_OUTPUT_ERROR);
+	if (gpio->active_low)
 		acpigen_write_xor(LOCAL0_OP, 1, LOCAL0_OP);
-		acpigen_pop_len();
-	}
 }
 
 /* refer to ACPI 6.4.3.5.3 Word Address Space Descriptor section for details */
