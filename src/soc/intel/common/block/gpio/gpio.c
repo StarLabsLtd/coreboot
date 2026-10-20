@@ -541,12 +541,11 @@ bool gpio_ioapic_input_address(unsigned int irq, uintptr_t *address)
 			uint32_t config = pcr_read32(comm->port, offset);
 			uintptr_t input_address;
 
-			if ((config & PAD_CFG0_ROUTE_MASK) != PAD_CFG0_ROUTE_IOAPIC ||
+			if (!(config & PAD_CFG0_ROUTE_IOAPIC) ||
 			    (pcr_read32(comm->port, PAD_CFG1_OFFSET(offset)) &
-			     PAD_CFG1_IRQ_MASK) != irq ||
-			    !gpio_input_address(pad, &input_address))
+			     PAD_CFG1_IRQ_MASK) != irq)
 				continue;
-			if (match)
+			if (match || !gpio_input_address(pad, &input_address))
 				return false;
 			match = input_address;
 		}
