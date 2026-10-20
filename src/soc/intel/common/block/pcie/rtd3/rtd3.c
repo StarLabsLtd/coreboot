@@ -162,12 +162,15 @@ pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 	if (config->skip_on_off_support)
 		acpigen_write_if_lequal_namestr_int("ONSK", 0);
 
-	/* The _STA returns current power status of device, so we can skip _ON
-	 * if _STA returns 1.
+	/* PSTA preserves read errors that the public Boolean _STA cannot expose.
+	 * Skip _ON if the device is already on or its state could not be read.
 	 */
 	acpigen_write_store();
-	acpigen_emit_namestring(acpi_device_path_join(parent, "RTD3._STA"));
+	acpigen_emit_namestring("PSTA");
 	acpigen_emit_byte(LOCAL0_OP);
+	acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
+	acpigen_write_return_integer(0);
+	acpigen_pop_len();
 	acpigen_write_if_lequal_op_int(LOCAL0_OP, ONE_OP);
 	/*
 	 * If _ON is called while the power resource is already ON (common during
@@ -325,7 +328,8 @@ pcie_rtd3_acpi_method_status(const struct soc_intel_common_block_pcie_rtd3_confi
 {
 	const struct acpi_gpio *gpio;
 
-	acpigen_write_method("_STA", 0);
+	/* Private status: zero/one are valid states; ACPI_GPIO_OUTPUT_ERROR is failure. */
+	acpigen_write_method("PSTA", 0);
 	/*
 	 * Depending on the board configuration we use either the "enable" or
 	 * the "reset" pin to detect the status of the device. The logic for
@@ -361,9 +365,17 @@ pcie_rtd3_acpi_method_status(const struct soc_intel_common_block_pcie_rtd3_confi
 		acpigen_emit_byte(LLESS_OP);
 		acpigen_emit_byte(LOCAL0_OP);
 		acpigen_write_integer(ACPI_GPIO_OUTPUT_ERROR);
-		acpigen_write_not(LOCAL0_OP, LOCAL0_OP);
+		acpigen_write_xor(LOCAL0_OP, 1, LOCAL0_OP);
 		acpigen_pop_len();
 	}
+	acpigen_write_return_op(LOCAL0_OP);
+	acpigen_pop_len(); /* Method */
+
+	/* Power Resource _STA is Boolean and cannot expose the private failure value. */
+	acpigen_write_method("_STA", 0);
+	acpigen_write_store();
+	acpigen_emit_namestring("PSTA");
+	acpigen_emit_byte(LOCAL0_OP);
 	acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
 	acpigen_write_return_integer(0);
 	acpigen_pop_len();

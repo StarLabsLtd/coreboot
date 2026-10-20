@@ -45,9 +45,15 @@ expect enable-high 'set N \_SB.PCI0.GERR 1; execute \_SB.PCI0.RP01.RTD3._STA' 0
 # A failed initial status read must not start either GPIO operation or OPAL unlock.
 expect enable-high 'set N \_SB.PCI0.GERR 1; execute \_SB.PCI0.RP01.RTD3._ON; execute \_SB.PCI0.SCNT' 0
 expect enable-high 'set N \_SB.PCI0.GERR 1; execute \_SB.PCI0.RP01.RTD3._ON; execute \_SB.PCI0.RP01.RTD3.APMC' 0
+expect enable-high 'set N \_SB.PCI0.GERR 1; execute \_SB.PCI0.RP01.RTD3._ON; set N \_SB.PCI0.GERR 0; set N \_SB.PCI0.TVAL 0; execute \_SB.PCI0.RP01.RTD3._ON; execute \_SB.PCI0.SCNT' 2
 
 # A failed first setter stops the sequence; a subsequent invocation still acquires the mutex.
 expect enable-high 'set N \_SB.PCI0.TVAL 0; set N \_SB.PCI0.SERR 1; execute \_SB.PCI0.RP01.RTD3._ON; set N \_SB.PCI0.SERR 0; execute \_SB.PCI0.RP01.RTD3._ON; execute \_SB.PCI0.SCNT' 3
+
+# Standard _ON still completes normally and returns an ignored Integer on GPIO failure.
+output=$(acpiexec -b 'set N \_SB.PCI0.TVAL 0; set N \_SB.PCI0.SERR 1; execute \_SB.PCI0.RP01.RTD3._ON' "$out/enable-high.aml" 2>&1)
+printf '%s\n' "$output" | grep -F 'Evaluation of \_SB.PCI0.RP01.RTD3._ON returned object' >/dev/null
+printf '%s\n' "$output" | grep -F '[Integer] = 0000000000000000' >/dev/null
 
 # The unaffected direct GPIO route remains functional.
 expect direct 'set N \_SB.PCI0.TVAL 1; execute \_SB.PCI0.RP01.RTD3._STA' 1
