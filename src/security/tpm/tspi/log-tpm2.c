@@ -158,11 +158,20 @@ static int tpm2_log_uses_fixed_entries(const struct tpm_2_log_table *tclt)
 static const uint8_t *tpm2_log_get_entry_at(const struct tpm_2_log_table *tclt,
 					    uint16_t entry_idx)
 {
+	if (le16toh(tclt->vendor.num_entries) > le16toh(tclt->vendor.max_entries))
+		return NULL;
+
 	if (tpm2_log_uses_fixed_entries(tclt)) {
+		const uint8_t *entry;
+
 		if (entry_idx >= le16toh(tclt->vendor.max_entries))
 			return NULL;
 
-		return (const uint8_t *)&tclt->entries[entry_idx];
+		entry = (const uint8_t *)&tclt->entries[entry_idx];
+		if (!tpm2_log_entry_size(entry))
+			return NULL;
+
+		return entry;
 	}
 
 	if (!ENV_HAS_CBMEM || !tpm2_log_uses_packed_entries(tclt))
@@ -478,14 +487,14 @@ void tpm2_preram_log_clear(void)
 	tclt->vendor.entry_size = htole32(sizeof(struct tpm_2_log_entry));
 }
 
-void tpm2_log_copy_entries(const void *from, void *to)
+int tpm2_log_copy_entries(const void *from, void *to)
 {
 	const struct tpm_2_log_table *from_log = from;
 	struct tpm_2_log_table *to_log = to;
 	int i;
 
 	if (!ENV_HAS_CBMEM)
-		return;
+		return -1;
 
 	for (i = 0; i < le16toh(from_log->vendor.num_entries); i++) {
 		const uint8_t *from_entry = tpm2_log_get_entry_at(from_log, i);
@@ -495,8 +504,7 @@ void tpm2_log_copy_entries(const void *from, void *to)
 
 		if (!from_entry) {
 			printk(BIOS_WARNING, "TPM LOG: malformed entry\n");
-			to_log->vendor.num_entries = htole16(le16toh(to_log->vendor.max_entries) + 1);
-			return;
+			return -1;
 		}
 
 		pcr = tpm2_log_read_le32(from_entry, offsetof(struct tpm_2_log_entry, pcr));
@@ -508,10 +516,7 @@ void tpm2_log_copy_entries(const void *from, void *to)
 						  tpm2_log_entry_digest(from_entry),
 						  vb2_digest_size(TPM_MEASURE_ALGO),
 						  tpm2_log_entry_data(from_entry), data_length))
-			goto malformed;
+			return -1;
 	}
-	return;
-
-malformed:
-	to_log->vendor.num_entries = htole16(le16toh(to_log->vendor.max_entries) + 1);
+	return 0;
 }
