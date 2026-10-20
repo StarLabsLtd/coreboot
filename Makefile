@@ -237,7 +237,8 @@ real-all: site-local-target real-target
 .NOTINTERMEDIATE: $(objutil)/kconfig/conf
 
 # Switching DOTCONFIG can select an older file in an existing output directory.
-$(obj)/config.source: FORCE
+PHONY += config-source-force
+$(obj)/config.source: config-source-force
 	@mkdir -p $(dir $@)
 	@set -e; temporary=$$(mktemp "$@.XXXXXX"); \
 		trap 'rm -f "$$temporary"' EXIT HUP INT TERM; \
