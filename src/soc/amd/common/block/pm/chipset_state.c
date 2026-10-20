@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <acpi/acpi_pm.h>
 #include <amdblocks/acpi.h>
 #include <amdblocks/gpio.h>
 #include <amdblocks/pmlib.h>
 #include <bootmode.h>
 #include <cbmem.h>
 #include <elog.h>
+#include <soc/southbridge.h>
 #include <string.h>
 
 static struct chipset_power_state chipset_state;
