@@ -18,7 +18,6 @@ static bool revision4_published;
 static uint64_t revision4_generation;
 static struct lb_header *handoff_header;
 static struct lb_payload_resource_handoff *handoff_record;
-static struct lb_prh_pci_topology *handoff_topology;
 
 __weak enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial)
 {
@@ -776,7 +775,8 @@ static enum cb_err validate_framebuffer(const struct lb_framebuffer *framebuffer
 	return assignment_matches == 1 ? CB_SUCCESS : CB_ERR;
 }
 
-enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
+static enum cb_err write_payload_resource_handoff(struct lb_header *header,
+	struct lb_payload_resource_handoff *reserved)
 {
 	struct lb_payload_resource_handoff *handoff;
 	struct lb_payload_resource_section *root_section, *assignment_section;
@@ -805,11 +805,6 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	bool revision4;
 	bool serial_available;
 
-	revision4_published = false;
-	revision4_generation = 0;
-	handoff_header = NULL;
-	handoff_record = NULL;
-	handoff_topology = NULL;
 	if (!header)
 		return CB_ERR;
 	if (count_records(&root_count, &assignment_count) != CB_SUCCESS)
@@ -840,9 +835,21 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		printk(BIOS_ERR, "PRH: native payload requires assigned PCI topology\n");
 		return CB_ERR;
 	}
-	if ((revision4 ? quiesce_topology_devices(snapshot) : quiesce_assigned_devices()) !=
-	    CB_SUCCESS)
+	if (reserved) {
+		for (size_t index = 0; index < snapshot->count; index++) {
+			device = snapshot->devices[index];
+			snapshot->commands[index] = payload_resource_read_command(device);
+			if ((device->class >> 8) != PCI_CLASS_BRIDGE_HOST &&
+			    (snapshot->commands[index] & PCI_COMMAND_MASTER)) {
+				printk(BIOS_ERR, "PRH: bus mastering active at handoff for %s\n",
+				       dev_path(device));
+				return CB_ERR;
+			}
+		}
+	} else if ((revision4 ? quiesce_topology_devices(snapshot) :
+		    quiesce_assigned_devices()) != CB_SUCCESS) {
 		return CB_ERR;
+	}
 	serial_available = fill_lb_serial_capability(&serial) == CB_SUCCESS;
 	i2c_hid_count = fill_lb_i2c_hid(i2c_hid, ARRAY_SIZE(i2c_hid));
 	if (i2c_hid_count > ARRAY_SIZE(i2c_hid))
@@ -860,7 +867,15 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	    (revision4 && (snapshot->count > UINT32_MAX || snapshot->boot_count > UINT32_MAX)))
 		return CB_ERR;
 
-	handoff = (void *)lb_new_record(header);
+	if (reserved) {
+		if (record_size > reserved->size)
+			return CB_ERR;
+		/* Keep following coreboot records at their original addresses. */
+		record_size = reserved->size;
+		handoff = reserved;
+	} else {
+		handoff = (void *)lb_new_record(header);
+	}
 	handoff->size = record_size;
 	memset(handoff, 0, handoff->size);
 	handoff->tag = LB_TAG_PAYLOAD_RESOURCE_HANDOFF;
@@ -981,8 +996,9 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 			roots[root_index].bus_start = bus->secondary;
 			roots[root_index].bus_end = bus->subordinate;
 			roots[root_index].flags = LB_PRH_PCI_ROOT_TOPOLOGY_ONLY;
-			printk(BIOS_INFO, "PRH RootBridge: segment %u, Bus: %x - %x\n",
-			       bus->segment_group, bus->secondary, bus->subordinate);
+			if (!reserved)
+				printk(BIOS_INFO, "PRH RootBridge: segment %u, Bus: %x - %x\n",
+				       bus->segment_group, bus->secondary, bus->subordinate);
 			root_index++;
 		}
 		if (!device->enabled || device->path.type != DEVICE_PATH_PCI)
@@ -1007,9 +1023,10 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 				LB_PRH_PCI_ASSIGNMENT_64BIT : 0;
 			output->base = resource->base;
 			output->length = resource->size;
-			printk(BIOS_INFO, "PRH PCI %02x:%02x.%x BAR %x type %u: %llx + %llx\n",
-			       output->bus, output->device, output->function, output->bar,
-			       output->resource_type, resource->base, resource->size);
+			if (!reserved)
+				printk(BIOS_INFO, "PRH PCI %02x:%02x.%x BAR %x type %u: %llx + %llx\n",
+				       output->bus, output->device, output->function, output->bar,
+				       output->resource_type, resource->base, resource->size);
 		}
 	}
 	if (revision4) {
@@ -1102,9 +1119,17 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		revision4_generation = handoff->producer_generation;
 		handoff_header = header;
 		handoff_record = handoff;
-		handoff_topology = topology;
 	}
 	return CB_SUCCESS;
+}
+
+enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
+{
+	revision4_published = false;
+	revision4_generation = 0;
+	handoff_header = NULL;
+	handoff_record = NULL;
+	return write_payload_resource_handoff(header, NULL);
 }
 
 enum cb_err lb_finalize_payload_resource_handoff(void)
@@ -1112,24 +1137,9 @@ enum cb_err lb_finalize_payload_resource_handoff(void)
 	if (!revision4_published)
 		return CB_SUCCESS;
 
-	/* Platform finalizers can change decode while leaving assignments intact. */
-	for (size_t index = 0; index < revision4_snapshot.count; index++) {
-		const struct device *device = revision4_snapshot.devices[index];
-		uint16_t command = payload_resource_read_command(device);
-
-		if ((device->class >> 8) != PCI_CLASS_BRIDGE_HOST &&
-		    (command & PCI_COMMAND_MASTER)) {
-			printk(BIOS_ERR, "PRH: bus mastering active at handoff for %s\n",
-			       dev_path(device));
-			return CB_ERR;
-		}
-		if (command != handoff_topology[index].command)
-			printk(BIOS_DEBUG, "PRH: final PCI command for %s: %#x -> %#x\n",
-			       dev_path(device), handoff_topology[index].command, command);
-		revision4_snapshot.commands[index] = command;
-		handoff_topology[index].command = command;
-	}
-	handoff_record->crc32 = handoff_crc32(handoff_record);
+	/* Finalizers can change decode or remove firmware-owned functions. */
+	if (write_payload_resource_handoff(handoff_header, handoff_record) != CB_SUCCESS)
+		return CB_ERR;
 	handoff_header->table_checksum = ipchksum((uint8_t *)handoff_header +
 		handoff_header->header_bytes, handoff_header->table_bytes);
 	handoff_header->header_checksum = 0;

@@ -4,6 +4,7 @@
 
 #include <commonlib/helpers.h>
 #include <console/console.h>
+#include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <intelblocks/cse.h>
@@ -37,6 +38,16 @@ bool cse_disable_mei_devices(void)
 	if (pmc_send_ipc_cmd(cmd, &req, &rsp) != CB_SUCCESS) {
 		printk(BIOS_ERR, "CSE: Failed to disable MEI devices\n");
 		return false;
+	}
+
+	if (ENV_RAMSTAGE) {
+		for (int i = 0; i < CONFIG_MAX_HECI_DEVICES; i++) {
+			struct device *device =
+				pcidev_path_on_root(PCI_DEVFN(PCH_DEV_SLOT_CSE, i));
+
+			if (device)
+				device->hidden = true;
+		}
 	}
 
 	return true;
