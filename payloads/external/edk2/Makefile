@@ -288,7 +288,7 @@ $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 				exit 1; \
 			fi; \
 		else \
-			git fetch origin || exit 1; \
+			git fetch --no-recurse-submodules origin || exit 1; \
 		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) is not a valid git reference"; \
@@ -325,7 +325,7 @@ $(EDK2_PATH): $(WORKSPACE)
 				exit 1; \
 			fi; \
 		else \
-			git fetch origin || exit 1; \
+			git fetch --no-recurse-submodules origin || exit 1; \
 		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
