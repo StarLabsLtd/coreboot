@@ -1484,12 +1484,13 @@ bool payload_resource_firmware_owned(const struct device *device)
 		return false;
 	if (device->hidden)
 		return true;
-	if (CONFIG(SOC_INTEL_CSE_SEND_EOP_BY_PAYLOAD) ||
-	    CONFIG(USE_FSP_NOTIFY_PHASE_READY_TO_BOOT) ||
-	    device != pcidev_path_on_root(PCH_DEVFN_CSE))
+	if (CONFIG(SOC_INTEL_CSE_SEND_EOP_BY_PAYLOAD))
 		return false;
-	/* Resource tables precede the finalizer that removes HECI1 from PCI. */
-	return cse_should_hide_heci1();
+	/* Finalization idles HECI and clears its decode after resource tables. */
+	for (int i = 0; i < CONFIG_MAX_HECI_DEVICES; i++)
+		if (device == pcidev_path_on_root(PCI_DEVFN(PCH_DEV_SLOT_CSE, i)))
+			return true;
+	return false;
 }
 #endif
 
