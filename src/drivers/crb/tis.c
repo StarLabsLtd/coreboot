@@ -94,7 +94,8 @@ static void crb_tpm_fill_ssdt(const struct device *dev)
 
 	acpi_device_write_uid(dev);
 
-	if (tpm_is_expected_absent() || (CONFIG(HAVE_INTEL_PTT) && !ptt_active()))
+	if (tpm_is_expected_absent() || (CONFIG(HAVE_INTEL_PTT) && !ptt_active()) ||
+	    (CONFIG(ACPI_TPM_TABLES_REQUIRE_PROBE) && tlcl_lib_init() != TPM_SUCCESS))
 		acpigen_write_STA(ACPI_STATUS_DEVICE_ALL_OFF);
 	else
 		acpigen_write_STA(ACPI_STATUS_DEVICE_ALL_ON);
