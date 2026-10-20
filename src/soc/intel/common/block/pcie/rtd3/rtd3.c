@@ -79,9 +79,10 @@ pcie_rtd3_acpi_wifi_pldr(const struct device *wifi, const struct device *parent,
 		FIELDLIST_NAMESTR("WIFR", 1),
 	};
 
-	if (!pcie_cap || !config->reset_gpio.pin_count) {
+	if (!pcie_cap || !(pci_read_config32(wifi, pcie_cap + PCI_EXP_DEVCAP) &
+			  PCI_EXP_DEVCAP_FLR) || !config->reset_gpio.pin_count) {
 		printk(BIOS_ERR,
-		       "%s: Wi-Fi PLDR requires a PCIe capability and reset GPIO\n",
+		       "%s: Wi-Fi PLDR requires FLR capability and reset GPIO\n",
 		       __func__);
 		return;
 	}
