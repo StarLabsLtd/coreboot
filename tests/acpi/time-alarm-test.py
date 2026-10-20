@@ -54,7 +54,9 @@ DefinitionBlock ("", "SSDT", 2, "TEST", "AWACTEST", 0)
 				      str(asl.with_suffix(".aml"))], cwd=TOP, capture_output=True).stdout
 
 	values = re.findall(r"\[Integer\] = [0-9A-F]{8}([0-9A-F]{8})", output)
-	if values != ["00000007", "00000072", "00000003"]:
+	expected = (["000000B7", "00000072", "00000004"] if s5 == 0 else
+		    ["000001F7", "00000072", "00000005"])
+	if values != expected:
 		raise RuntimeError(f"unexpected AWAC capability data: {values}")
 
 

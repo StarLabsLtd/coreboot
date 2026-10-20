@@ -121,10 +121,8 @@ config SOC_INTEL_COMMON_ACPI_TIME_ALARM
 	depends on SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
 	depends on HAVE_ACPI_TABLES
 	help
-	  Preserve an OS-armed Intel WADT wake source across sleep
-	  entry for ACPI Time and Alarm users. The ACPI Time and Alarm device
-	  advertises wake support through S3 because its GNVS arm mask is not
-	  retained across a non-S3 boot.
+	  Preserve an OS-armed Intel WADT wake source across S3/S4 sleep
+	  entry for ACPI Time and Alarm users.
 
 config SOC_INTEL_COMMON_ACPI_TIME_ALARM_S5
 	bool
