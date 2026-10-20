@@ -35,18 +35,13 @@ export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
-EDK2_UNIVERSAL_PAYLOAD_OUT ?= ../../../build/UniversalPayload.fit
 
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
-endif
 BUILD_STR += -t GCC
 BUILD_STR += -D BOOTLOADER=COREBOOT
 ifneq ($(V),1)
 BUILD_STR += -q
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -s
-endif
 endif
 
 #
@@ -182,8 +177,12 @@ EDK2_APPEND_RMAP_MANIFEST = $(firstword $(wildcard \
 	$(EDK2_PATH)/BaseTools/Scripts/AppendRmapManifest.py \
 ))
 
-# If FmpDxe is built, edk2 also places it in the top-level X64 output dir.
-EDK2_FMP_DXE = $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/X64/FmpDxe.efi
+EDK2_BUILD_ARCH := X64
+EDK2_BUILD_DIR = $(WORKSPACE)/Build/UefiPayloadPkg$(EDK2_BUILD_ARCH)/$(RELEASE_STR)_GCC
+EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
+EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
+EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
+CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -260,22 +259,48 @@ all: UefiPayloadPkg
 $(WORKSPACE):
 	mkdir $(WORKSPACE)
 
+# Read each parent's new .gitmodules before updating its children.
+define update_submodules
+git submodule sync && \
+git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout && \
+git submodule foreach --recursive \
+	'git submodule sync && git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout'
+endef
+
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
 		git clone --recurse-submodules $(CONFIG_EDK2_PLATFORMS_REPOSITORY) $(EDK2_PLATFORMS_PATH) -j5; \
 	fi
 	cd $(EDK2_PLATFORMS_PATH); \
+		origin_url=$$(git config --get remote.origin.url); \
+		if [ "$$origin_url" != "$(EDK2_PLATFORMS_REPOSITORY)" ]; then \
+			if [ -n "$$origin_url" ]; then \
+				git remote set-url origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
+			else \
+				git remote add origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
+			fi; \
+			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
+				if [ -n "$$origin_url" ]; then \
+					git remote set-url origin "$$origin_url"; \
+				else \
+					git remote remove origin; \
+				fi; \
+				exit 1; \
+			fi; \
+		else \
+			git fetch --no-recurse-submodules origin || exit 1; \
+		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=dirty | grep -q "nothing to commit, working tree clean"; then \
+		if git status --ignore-submodules=all | grep -q "nothing to commit, working tree clean"; then \
 			echo "    Checking out edk2-platforms revision $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f; \
+			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f || exit 1; \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout
+		$(update_submodules)
 
 $(EDK2_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PATH)" ]; then \
@@ -284,19 +309,35 @@ $(EDK2_PATH): $(WORKSPACE)
 	cd $(EDK2_PATH); \
 		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
 		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
-		git fetch origin 2>/dev/null; \
+		origin_url=$$(git config --get remote.origin.url); \
+		if [ "$$origin_url" != "$(EDK2_REPOSITORY)" ]; then \
+			if [ -n "$$origin_url" ]; then \
+				git remote set-url origin "$(EDK2_REPOSITORY)" || exit 1; \
+			else \
+				git remote add origin "$(EDK2_REPOSITORY)" || exit 1; \
+			fi; \
+			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
+				if [ -n "$$origin_url" ]; then \
+					git remote set-url origin "$$origin_url"; \
+				else \
+					git remote remove origin; \
+				fi; \
+				exit 1; \
+			fi; \
+		else \
+			git fetch --no-recurse-submodules origin || exit 1; \
+		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=dirty | grep -q -e clean -e "nothing added"; then \
+		if git status --ignore-submodules=all | grep -q -e clean -e "nothing added"; then \
 			echo "    Checking out $(project_name) revision $(CONFIG_EDK2_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f; \
-			git submodule update --checkout --recursive; \
+			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f || exit 1; \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout --recursive
+		$(update_submodules)
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
@@ -390,37 +431,30 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 		fi
 		echo "Success!"; \
 
-$(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit: \
-	prep print
-	cd $(WORKSPACE); \
-		source $(EDK2_PATH)/edksetup.sh; \
-		echo -n "EDK2: Building... "; \
-		bash $(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR) \
-			-D BUILD_ARCH=IA32 --Fit \
-			--pcd gUefiPayloadPkgTokenSpaceGuid.PcdHandOffFdtEnable=TRUE
-		if [ ! -f $@ ]; then \
-			echo "Failed!"; \
-			exit 1; \
-		fi
-		echo "Success!"; \
-
 UefiPayloadPkg: $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd
 	mkdir -p $(dir $(EDK2_UEFIPAYLOAD_OUT))
 	mv $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd \
 		$(EDK2_UEFIPAYLOAD_OUT)
 
-UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
-	mkdir -p $(dir $(EDK2_UNIVERSAL_PAYLOAD_OUT))
-	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
-		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
-
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
 distclean:
-	rm -rf $(WORKSPACE)
+	if [ -L "$(WORKSPACE)" ]; then rm -f "$(WORKSPACE)"; exit; fi; \
+	if [ ! -d "$(WORKSPACE)" ]; then exit 0; fi; \
+	shopt -s dotglob nullglob; \
+	for path in "$(WORKSPACE)"/*; do \
+		if [ -L "$$path" ] || [ -L "$$path/.git" ] || [ ! -d "$$path/.git" ]; then \
+			rm -rf "$$path" || exit 1; \
+			continue; \
+		fi; \
+		git -C "$$path" -c submodule.recurse=false reset --hard && \
+		git -C "$$path" submodule foreach --recursive \
+			'git -c submodule.recurse=false reset --hard && git clean -xffd' && \
+		git -C "$$path" clean -xffd || exit 1; \
+	done
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo UefiPayloadPkg clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
@@ -428,12 +462,17 @@ coreboot_capsule: $(EDK2_PATH)
 	test -n "$(COREBOOT_ROM)"
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
+	test -n "$(CBFSTOOL)"
+	test -x "$(CBFSTOOL)"
+	test -n "$(CBFS_PAYLOAD_NAME)"
 	test -x "$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule"
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
 	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
+	payload="$${COREBOOT_CAPSULE_OUT%.cap}.payload"; \
 	set -e; \
+	"$(CBFSTOOL)" "$(COREBOOT_ROM)" extract -m x86 -n "$(CBFS_PAYLOAD_NAME)" -f "$$payload"; \
 	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
 		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
 	else \
@@ -466,4 +505,14 @@ coreboot_capsule: $(EDK2_PATH)
 		--other-public-cert "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)" \
 		--trusted-public-cert "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" \
 		"$${embedded_driver_args[@]}" \
-		"$$rmap_rom"
+		"$$rmap_rom"; \
+	embedded_driver_count=0; \
+	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
+		embedded_driver_count=1; \
+	fi; \
+	python3 "$(CAPSULE_VALIDATOR)" \
+		--capsule "$(COREBOOT_CAPSULE_OUT)" \
+		--payload "$$payload" \
+		--guid "$(CAPSULE_GUID)" \
+		--embedded-drivers "$$embedded_driver_count" \
+		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)"
