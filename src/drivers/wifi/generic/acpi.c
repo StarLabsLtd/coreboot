@@ -1426,13 +1426,14 @@ static void write_cnvi_control(const struct acpi_gpio *gpio)
 	{
 		acpigen_write_if_lequal_op_int(ARG0_OP, 1);
 		{
-			acpigen_enable_tx_gpio(gpio);
+			acpigen_enable_tx_gpio_status(gpio, LOCAL0_OP);
 		}
 		acpigen_write_else();
 		{
-			acpigen_disable_tx_gpio(gpio);
+			acpigen_disable_tx_gpio_status(gpio, LOCAL0_OP);
 		}
 		acpigen_pop_len();
+		acpigen_write_return_op(LOCAL0_OP);
 	}
 	acpigen_pop_len();
 

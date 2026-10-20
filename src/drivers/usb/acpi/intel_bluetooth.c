@@ -178,6 +178,9 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
 				acpigen_emit_byte(LOCAL0_OP);
 
+				acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
+				acpigen_write_return_integer(0);
+				acpigen_pop_len();
 				acpigen_write_return_op(LOCAL0_OP);
 			} else {
 				acpigen_write_return_integer(1);
@@ -192,14 +195,20 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 				acpigen_emit_namestring("\\_SB.PCI0.GBTE");
 				acpigen_emit_byte(LOCAL0_OP);
 
+				acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
+				acpigen_write_return_integer(0);
+				acpigen_pop_len();
+
 				acpigen_write_if_lequal_op_int(LOCAL0_OP, 1);
 				{
 					acpigen_write_return_integer(1);
 				}
 				acpigen_pop_len();
 
+				acpigen_write_store();
 				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
 				acpigen_emit_byte(1);
+				acpigen_emit_byte(LOCAL0_OP);
 			}
 		}
 		acpigen_pop_len();
@@ -207,8 +216,10 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 		acpigen_write_method("_OFF", 0);
 		{
 			if (enable_gpio->pin_count) {
+				acpigen_write_store();
 				acpigen_emit_namestring("\\_SB.PCI0.SBTE");
 				acpigen_emit_byte(0);
+				acpigen_emit_byte(LOCAL0_OP);
 			}
 		}
 		acpigen_pop_len();
@@ -222,6 +233,15 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 
 				acpigen_write_if_lequal_op_int(LOCAL0_OP, 0);
 				{
+					acpigen_write_store();
+					acpigen_emit_namestring("\\_SB.PCI0.BTRK");
+					acpigen_emit_byte(0);
+					acpigen_emit_byte(LOCAL1_OP);
+					acpigen_write_if_lnotequal_op_int(LOCAL1_OP, 0);
+					acpigen_write_release("\\_SB.PCI0.CNMT");
+					acpigen_write_return_integer(0);
+					acpigen_pop_len();
+
 					/* Pulse optional CNVi BTEN / BT_IF_SELECT with reset. */
 					if (cnvi_bt_en_gpio && cnvi_bt_en_gpio->pin_count)
 						acpigen_disable_tx_gpio(cnvi_bt_en_gpio);
@@ -229,20 +249,23 @@ void acpi_device_intel_bt(const struct acpi_gpio *enable_gpio,
 					    cnvi_bt_if_select_gpio->pin_count)
 						acpigen_disable_tx_gpio(cnvi_bt_if_select_gpio);
 
-					acpigen_emit_namestring("\\_SB.PCI0.BTRK");
-					acpigen_emit_byte(0);
-
 					acpigen_emit_ext_op(SLEEP_OP);
 					acpigen_emit_namestring("RDLY");
+
+					acpigen_write_store();
+					acpigen_emit_namestring("\\_SB.PCI0.BTRK");
+					acpigen_emit_byte(1);
+					acpigen_emit_byte(LOCAL1_OP);
+					acpigen_write_if_lnotequal_op_int(LOCAL1_OP, 0);
+					acpigen_write_release("\\_SB.PCI0.CNMT");
+					acpigen_write_return_integer(0);
+					acpigen_pop_len();
 
 					if (cnvi_bt_en_gpio && cnvi_bt_en_gpio->pin_count)
 						acpigen_enable_tx_gpio(cnvi_bt_en_gpio);
 					if (cnvi_bt_if_select_gpio &&
 					    cnvi_bt_if_select_gpio->pin_count)
 						acpigen_enable_tx_gpio(cnvi_bt_if_select_gpio);
-
-					acpigen_emit_namestring("\\_SB.PCI0.BTRK");
-					acpigen_emit_byte(1);
 
 					acpigen_emit_ext_op(SLEEP_OP);
 					acpigen_emit_namestring("RDLY");
@@ -368,13 +391,16 @@ void acpi_device_intel_bt_common(const struct acpi_gpio *enable_gpio,
 		if (enable_gpio->pin_count) {
 			acpigen_write_if_lequal_op_int(ARG0_OP, 1);
 			{
-				acpigen_enable_tx_gpio(enable_gpio);
+				acpigen_enable_tx_gpio_status(enable_gpio, LOCAL0_OP);
 			}
 			acpigen_write_else();
 			{
-				acpigen_disable_tx_gpio(enable_gpio);
+				acpigen_disable_tx_gpio_status(enable_gpio, LOCAL0_OP);
 			}
 			acpigen_pop_len();
+			acpigen_write_return_op(LOCAL0_OP);
+		} else {
+			acpigen_write_return_integer(0);
 		}
 	}
 	acpigen_pop_len();
@@ -413,14 +439,17 @@ void acpi_device_intel_bt_common(const struct acpi_gpio *enable_gpio,
 			acpigen_write_if_lequal_op_int(ARG0_OP, 1);
 			{
 				/* De-assert reset */
-				acpigen_disable_tx_gpio(reset_gpio);
+				acpigen_disable_tx_gpio_status(reset_gpio, LOCAL0_OP);
 			}
 			acpigen_write_else();
 			{
 				/* Assert Reset */
-				acpigen_enable_tx_gpio(reset_gpio);
+				acpigen_enable_tx_gpio_status(reset_gpio, LOCAL0_OP);
 			}
 			acpigen_pop_len();
+			acpigen_write_return_op(LOCAL0_OP);
+		} else {
+			acpigen_write_return_integer(0);
 		}
 	}
 	acpigen_pop_len();
@@ -438,7 +467,12 @@ void acpi_device_intel_bt_common(const struct acpi_gpio *enable_gpio,
 		if (reset_gpio->pin_count) {
 			/* Return 1 if not in reset */
 			acpigen_get_tx_gpio(reset_gpio);
+			acpigen_write_if();
+			acpigen_emit_byte(LLESS_OP);
+			acpigen_emit_byte(LOCAL0_OP);
+			acpigen_write_integer(ACPI_GPIO_OUTPUT_ERROR);
 			acpigen_write_xor(LOCAL0_OP, 1, LOCAL0_OP);
+			acpigen_pop_len();
 			acpigen_write_return_op(LOCAL0_OP);
 		} else {
 			acpigen_write_return_op(0);

@@ -135,6 +135,15 @@ static void p2sb_acpi_set_pci_clock(u8 srcclk_pin, bool enable)
 	acpigen_write_if_end();
 }
 
+static void pcie_rtd3_return_on_gpio_error(const struct device *parent, bool use_rp_mutex)
+{
+	acpigen_write_if_lnotequal_op_int(LOCAL7_OP, 0);
+	if (use_rp_mutex)
+		acpigen_write_release(acpi_device_path_join(parent, RP_MUTEX_NAME));
+	acpigen_write_return_integer(0);
+	acpigen_pop_len();
+}
+
 static void
 pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 			 const struct soc_intel_common_block_pcie_rtd3_config *config,
@@ -181,7 +190,8 @@ pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 
 	/* Assert enable GPIO to turn on device power. */
 	if (config->enable_gpio.pin_count) {
-		acpigen_enable_tx_gpio(&config->enable_gpio);
+		acpigen_enable_tx_gpio_status(&config->enable_gpio, LOCAL7_OP);
+		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
 		if (config->enable_delay_ms)
 			acpigen_write_sleep(config->enable_delay_ms);
 	}
@@ -196,7 +206,8 @@ pcie_rtd3_acpi_method_on(unsigned int pcie_rp,
 
 	/* De-assert reset GPIO to bring device out of reset. */
 	if (config->reset_gpio.pin_count) {
-		acpigen_disable_tx_gpio(&config->reset_gpio);
+		acpigen_disable_tx_gpio_status(&config->reset_gpio, LOCAL7_OP);
+		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
 		if (config->reset_delay_ms)
 			acpigen_write_sleep(config->reset_delay_ms);
 	}
@@ -261,7 +272,8 @@ pcie_rtd3_acpi_method_off(int pcie_rp,
 
 	/* Assert reset GPIO to place device into reset. */
 	if (config->reset_gpio.pin_count) {
-		acpigen_enable_tx_gpio(&config->reset_gpio);
+		acpigen_enable_tx_gpio_status(&config->reset_gpio, LOCAL7_OP);
+		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
 		if (config->reset_off_delay_ms)
 			acpigen_write_sleep(config->reset_off_delay_ms);
 	}
@@ -280,7 +292,8 @@ pcie_rtd3_acpi_method_off(int pcie_rp,
 
 	/* De-assert enable GPIO to turn off device power. */
 	if (config->enable_gpio.pin_count) {
-		acpigen_disable_tx_gpio(&config->enable_gpio);
+		acpigen_disable_tx_gpio_status(&config->enable_gpio, LOCAL7_OP);
+		pcie_rtd3_return_on_gpio_error(parent, config->use_rp_mutex);
 		if (config->enable_off_delay_ms)
 			acpigen_write_sleep(config->enable_off_delay_ms);
 	}
@@ -344,8 +357,16 @@ pcie_rtd3_acpi_method_status(const struct soc_intel_common_block_pcie_rtd3_confi
 		gpio = &config->reset_gpio;
 		/* Read current GPIO state into Local0. */
 		acpigen_get_tx_gpio(gpio);
+		acpigen_write_if();
+		acpigen_emit_byte(LLESS_OP);
+		acpigen_emit_byte(LOCAL0_OP);
+		acpigen_write_integer(ACPI_GPIO_OUTPUT_ERROR);
 		acpigen_write_not(LOCAL0_OP, LOCAL0_OP);
+		acpigen_pop_len();
 	}
+	acpigen_write_if_lgreater_op_int(LOCAL0_OP, 1);
+	acpigen_write_return_integer(0);
+	acpigen_pop_len();
 	acpigen_write_return_op(LOCAL0_OP);
 	acpigen_pop_len(); /* Method */
 }
