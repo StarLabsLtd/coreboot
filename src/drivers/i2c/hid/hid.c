@@ -10,6 +10,15 @@
 #include <gpio.h>
 #include <console/console.h>
 
+#if CONFIG(DRIVERS_I2C_DESIGNWARE) && CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO)
+#include <boot/coreboot_tables.h>
+#include <device/pci_def.h>
+#include <device/resource.h>
+#include <drivers/i2c/designware/dw_i2c.h>
+#include <intelblocks/gpio.h>
+#include <string.h>
+#endif
+
 #if CONFIG(HAVE_ACPI_TABLES)
 static void i2c_hid_fill_dsm(const struct device *dev)
 {
@@ -97,3 +106,76 @@ struct chip_operations drivers_i2c_hid_ops = {
 	.name = "I2C HID Device",
 	.enable_dev = i2c_hid_enable
 };
+
+#if CONFIG(DRIVERS_I2C_DESIGNWARE) && CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO)
+size_t fill_lb_i2c_hid(struct lb_prh_i2c_hid *devices, size_t capacity)
+{
+	size_t count = 0;
+
+	for (const struct device *dev = all_devices; dev; dev = dev->next) {
+		const struct drivers_i2c_hid_config *config;
+		const struct device *controller;
+		const struct resource *resource;
+		const struct acpi_irq *irq;
+		uintptr_t ready_address;
+		struct lb_prh_i2c_hid *output;
+
+		if (!dev->enabled || dev->chip_ops != &drivers_i2c_hid_ops ||
+		    dev->path.type != DEVICE_PATH_I2C || !dev->chip_info ||
+		    !dev->upstream || !dev->upstream->dev)
+			continue;
+		config = dev->chip_info;
+		controller = dev->upstream->dev;
+		if (!controller->enabled || controller->hidden || !controller->ops ||
+		    controller->path.type != DEVICE_PATH_PCI ||
+		    controller->ops->ops_i2c_bus != &dw_i2c_bus_ops ||
+		    dev->path.i2c.mode_10bit || dev->path.i2c.device == 0 ||
+		    dev->path.i2c.device > 0x7f)
+			continue;
+		irq = config->generic.irq_gpio.pin_count ?
+			&config->generic.irq_gpio.irq : &config->generic.irq;
+		if (irq->mode != ACPI_IRQ_LEVEL_TRIGGERED ||
+		    irq->polarity == ACPI_IRQ_ACTIVE_BOTH)
+			continue;
+		resource = probe_resource(controller, PCI_BASE_ADDRESS_0);
+		if (!resource || !resource->base || resource->size < 0x100 ||
+		    resource->base > UINTPTR_MAX - (resource->size - 1) ||
+		    resource->size > UINT32_MAX ||
+		    (resource->flags & IORESOURCE_TYPE_MASK) != IORESOURCE_MEM ||
+		    !(resource->flags & IORESOURCE_ASSIGNED) ||
+		    !(resource->flags & (IORESOURCE_STORED | IORESOURCE_FIXED)) ||
+		    (resource->flags & (IORESOURCE_BRIDGE | IORESOURCE_CACHEABLE |
+				IORESOURCE_RESERVE | IORESOURCE_SUBTRACTIVE)))
+			continue;
+		if (config->generic.irq_gpio.pin_count) {
+			if (config->generic.irq_gpio.pin_count != 1 ||
+			    config->generic.irq_gpio.type != ACPI_GPIO_TYPE_INTERRUPT ||
+			    config->generic.irq_gpio.resource ||
+			    !gpio_input_address(config->generic.irq_gpio.pins[0], &ready_address))
+				continue;
+		} else if (!gpio_ioapic_input_address(irq->pin, &ready_address)) {
+			printk(BIOS_INFO, "%s: no unique GPIO input for payload\n", dev_path(dev));
+			continue;
+		}
+		if (count == capacity) {
+			printk(BIOS_WARNING, "I2C HID payload inventory is full\n");
+			break;
+		}
+		output = &devices[count++];
+		memset(output, 0, sizeof(*output));
+		output->revision = LB_PRH_I2C_HID_REVISION;
+		output->family = LB_PRH_I2C_HID_DESIGNWARE;
+		output->controller_base = resource->base;
+		output->controller_size = resource->size;
+		output->ready_address = ready_address;
+		output->ready_mask = PAD_CFG0_RX_STATE;
+		output->ready_value = irq->polarity == ACPI_IRQ_ACTIVE_LOW ?
+			0 : PAD_CFG0_RX_STATE;
+		output->descriptor_register = config->hid_desc_reg_offset;
+		output->address = dev->path.i2c.device;
+		printk(BIOS_INFO, "I2C HID payload device %s at %llx, address %02x\n",
+		       dev_path(dev), resource->base, output->address);
+	}
+	return count;
+}
+#endif

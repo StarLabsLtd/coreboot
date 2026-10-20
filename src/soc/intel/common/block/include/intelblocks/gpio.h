@@ -331,6 +331,10 @@ void block_gpio_enable(struct device *dev);
  */
 bool gpio_routes_ioapic_irq(unsigned int irq);
 
+/* Find an unambiguous, level-triggered GPIO input routed to this GSI. */
+bool gpio_ioapic_input_address(unsigned int irq, uintptr_t *address);
+bool gpio_input_address(gpio_t pad, uintptr_t *address);
+
 size_t gpio_get_index_in_group(gpio_t pad);
 
 /*

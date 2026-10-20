@@ -217,6 +217,28 @@ struct lb_ec_battery_descriptor {
 #define LB_PRH_SECTION_FRAMEBUFFER      7
 #define LB_PRH_SECTION_PCI_TOPOLOGY     8
 #define LB_PRH_SECTION_SERIAL_CAPABILITY 9
+#define LB_PRH_SECTION_I2C_HID 10
+
+#define LB_PRH_I2C_HID_REVISION 1
+#define LB_PRH_I2C_HID_DESIGNWARE 1
+#define LB_PRH_I2C_HID_MAX_DEVICES 16
+
+/* The ready register is read-only: (value & ready_mask) == ready_value. */
+struct lb_prh_i2c_hid {
+	uint16_t revision;
+	uint16_t family;
+	lb_uint64_t controller_base;
+	uint32_t controller_size;
+	lb_uint64_t ready_address;
+	uint32_t ready_mask;
+	uint32_t ready_value;
+	uint16_t descriptor_register;
+	uint8_t address;
+	uint8_t reserved;
+} __packed;
+
+_Static_assert(sizeof(struct lb_prh_i2c_hid) == 36,
+	       "unexpected I2C HID capability size");
 
 #define LB_PRH_SERIAL_CAPABILITY_REVISION 1
 #define LB_PRH_SERIAL_FAMILY_INTEL_LPSS 1

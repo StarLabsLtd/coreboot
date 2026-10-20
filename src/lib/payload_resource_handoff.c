@@ -22,6 +22,13 @@ __weak enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *se
 	return CB_ERR;
 }
 
+__weak size_t fill_lb_i2c_hid(struct lb_prh_i2c_hid *devices, size_t capacity)
+{
+	(void)devices;
+	(void)capacity;
+	return 0;
+}
+
 bool payload_resource_revision4_published(void)
 {
 	return revision4_published;
@@ -773,6 +780,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	struct lb_payload_resource_section *memory_section = NULL, *framebuffer_section = NULL;
 	struct lb_payload_resource_section *serial_section;
 	struct lb_prh_serial_capability serial = { 0 };
+	struct lb_prh_i2c_hid i2c_hid[LB_PRH_I2C_HID_MAX_DEVICES];
 	struct lb_prh_pci_root_bridge *roots;
 	struct lb_prh_pci_assignment *assignments;
 	struct lb_prh_pci_topology *topology = NULL;
@@ -786,6 +794,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	size_t root_count, assignment_count, root_index = 0, assignment_index = 0;
 	size_t section_index, section_count;
 	size_t record_size;
+	size_t i2c_hid_count;
 	uint16_t framebuffer_topology_index = LB_PRH_PCI_TOPOLOGY_PARENT_ROOT;
 	uint8_t framebuffer_bar;
 	uint64_t framebuffer_length;
@@ -828,13 +837,17 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	    CB_SUCCESS)
 		return CB_ERR;
 	serial_available = fill_lb_serial_capability(&serial) == CB_SUCCESS;
-	section_count = 2 + (revision4 ? 2 : 0) + (framebuffer ? 2 : 0) + serial_available;
+	i2c_hid_count = fill_lb_i2c_hid(i2c_hid, ARRAY_SIZE(i2c_hid));
+	if (i2c_hid_count > ARRAY_SIZE(i2c_hid))
+		i2c_hid_count = 0;
+	section_count = 2 + (revision4 ? 2 : 0) + (framebuffer ? 2 : 0) +
+		serial_available + (i2c_hid_count != 0);
 	record_size = sizeof(*handoff) + section_count * sizeof(*root_section) +
 		root_count * sizeof(*roots) + assignment_count * sizeof(*assignments) +
 		(revision4 ? snapshot->count * sizeof(*topology) +
 		 snapshot->boot_count * sizeof(*boot_intent) : 0) +
 		(framebuffer ? sizeof(*memory) + sizeof(*framebuffer_output) : 0) +
-		(serial_available ? sizeof(serial) : 0);
+		(serial_available ? sizeof(serial) : 0) + i2c_hid_count * sizeof(i2c_hid[0]);
 	if (record_size > UINT32_MAX || root_count > UINT32_MAX ||
 	    assignment_count > UINT32_MAX ||
 	    (revision4 && (snapshot->count > UINT32_MAX || snapshot->boot_count > UINT32_MAX)))
@@ -1052,7 +1065,7 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		const struct lb_payload_resource_section *previous =
 			&handoff->sections[section_index - 1];
 
-		serial_section = &handoff->sections[section_index];
+		serial_section = &handoff->sections[section_index++];
 		serial_section->type = LB_PRH_SECTION_SERIAL_CAPABILITY;
 		serial_section->flags = LB_PRH_SECTION_FLAG_AUTHORITATIVE;
 		serial_section->header_length = sizeof(*serial_section);
@@ -1061,6 +1074,20 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 		serial_section->offset = previous->offset + previous->length;
 		serial_section->length = sizeof(serial);
 		memcpy((uint8_t *)handoff + serial_section->offset, &serial, sizeof(serial));
+	}
+	if (i2c_hid_count) {
+		const struct lb_payload_resource_section *previous =
+			&handoff->sections[section_index - 1];
+		struct lb_payload_resource_section *section = &handoff->sections[section_index];
+
+		section->type = LB_PRH_SECTION_I2C_HID;
+		section->flags = LB_PRH_SECTION_FLAG_AUTHORITATIVE;
+		section->header_length = sizeof(*section);
+		section->entry_size = sizeof(i2c_hid[0]);
+		section->entry_count = i2c_hid_count;
+		section->offset = previous->offset + previous->length;
+		section->length = i2c_hid_count * sizeof(i2c_hid[0]);
+		memcpy((uint8_t *)handoff + section->offset, i2c_hid, section->length);
 	}
 	handoff->crc32 = handoff_crc32(handoff);
 	revision4_published = revision4;

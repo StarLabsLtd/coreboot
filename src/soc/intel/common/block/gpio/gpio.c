@@ -509,6 +509,54 @@ void *gpio_dwx_address(const gpio_t pad)
 	return pcr_reg_address(comm->port, config_offset);
 }
 
+bool gpio_input_address(gpio_t pad, uintptr_t *address)
+{
+	const struct pad_community *comm = gpio_find_community(pad);
+	const uint32_t mask = PAD_CFG0_MODE_MASK | PAD_CFG0_RX_DISABLE |
+		PAD_CFG0_TX_DISABLE | PAD_CFG0_TRIG_MASK;
+	uint16_t offset;
+
+	if (!comm || !address)
+		return false;
+	offset = pad_config_offset(comm, pad);
+	if ((pcr_read32(comm->port, offset) & mask) != PAD_CFG0_TX_DISABLE)
+		return false;
+	*address = (uintptr_t)pcr_reg_address(comm->port, offset);
+	return true;
+}
+
+bool gpio_ioapic_input_address(unsigned int irq, uintptr_t *address)
+{
+	size_t count;
+	const struct pad_community *communities = soc_gpio_get_community(&count);
+	uintptr_t match = 0;
+
+	if (!irq || irq > PAD_CFG1_IRQ_MASK || !address)
+		return false;
+	for (size_t index = 0; index < count; index++) {
+		const struct pad_community *comm = &communities[index];
+
+		for (gpio_t pad = comm->first_pad; pad <= comm->last_pad; pad++) {
+			uint16_t offset = pad_config_offset(comm, pad);
+			uint32_t config = pcr_read32(comm->port, offset);
+			uintptr_t input_address;
+
+			if ((config & PAD_CFG0_ROUTE_MASK) != PAD_CFG0_ROUTE_IOAPIC ||
+			    (pcr_read32(comm->port, PAD_CFG1_OFFSET(offset)) &
+			     PAD_CFG1_IRQ_MASK) != irq ||
+			    !gpio_input_address(pad, &input_address))
+				continue;
+			if (match)
+				return false;
+			match = input_address;
+		}
+	}
+	if (!match)
+		return false;
+	*address = match;
+	return true;
+}
+
 uint8_t gpio_get_pad_portid(const gpio_t pad)
 {
 	/* Get the port id of given pad

@@ -34,6 +34,8 @@ enum cb_err lb_add_ec_battery_descriptor(struct lb_header *header,
 /* Optional initialized UART contract; unavailable controllers remain undeclared. */
 enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial);
 
+size_t fill_lb_i2c_hid(struct lb_prh_i2c_hid *devices, size_t capacity);
+
 /* Adds an authoritative payload-resource PCI root-bridge handoff. */
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
 uint16_t payload_resource_read_command(const struct device *device);
