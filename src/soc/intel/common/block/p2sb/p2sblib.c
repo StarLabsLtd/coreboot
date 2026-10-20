@@ -32,7 +32,7 @@ bool p2sb_dev_is_hidden(pci_devfn_t dev)
 	return true;
 }
 
-static void p2sb_dev_set_hide_bit(pci_devfn_t dev, int hide)
+static bool p2sb_dev_set_hide_bit(pci_devfn_t dev, bool hide)
 {
 	const uint16_t reg = P2SBC + 1;
 	const uint8_t mask = P2SBC_HIDE_BIT;
@@ -43,24 +43,28 @@ static void p2sb_dev_set_hide_bit(pci_devfn_t dev, int hide)
 	if (hide)
 		val |= mask;
 	pci_write_config8(dev, reg, val);
+
+	return pci_read_config16(dev, PCI_VENDOR_ID) == (hide ? 0xffff : PCI_VID_INTEL);
 }
 
-void p2sb_dev_unhide(pci_devfn_t dev)
+bool p2sb_dev_unhide(pci_devfn_t dev)
 {
-	p2sb_dev_set_hide_bit(dev, 0);
+	if (!p2sb_dev_set_hide_bit(dev, false)) {
+		printk(BIOS_ERR, "Unable to unhide the P2SB device!\n");
+		return false;
+	}
 
-	if (p2sb_dev_is_hidden(dev))
-		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
-				"Unable to unhide the P2SB device!\n");
+	return true;
 }
 
-void p2sb_dev_hide(pci_devfn_t dev)
+bool p2sb_dev_hide(pci_devfn_t dev)
 {
-	p2sb_dev_set_hide_bit(dev, 1);
+	if (!p2sb_dev_set_hide_bit(dev, true)) {
+		printk(BIOS_ERR, "Unable to hide the P2SB device!\n");
+		return false;
+	}
 
-	if (!p2sb_dev_is_hidden(dev))
-		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
-				"Unable to hide the P2SB device!\n");
+	return true;
 }
 
 static void p2sb_send_sideband_msg(pci_devfn_t dev, uint8_t cmd, uint8_t pid,
@@ -87,12 +91,16 @@ static void p2sb_execute_sbi_in_smm(pci_devfn_t dev, uint8_t cmd, uint8_t pid,
 						uint16_t reg, uint32_t *data)
 {
 	/* Unhide the P2SB device */
-	p2sb_dev_unhide(dev);
+	if (!p2sb_dev_unhide(dev))
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	p2sb_send_sideband_msg(dev, cmd, pid, reg, data);
 
 	/* Hide the P2SB device */
-	p2sb_dev_hide(dev);
+	if (!p2sb_dev_hide(dev))
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 }
 
 static void p2sb_execute_sideband_access(pci_devfn_t dev, uint8_t cmd, uint8_t pid,
