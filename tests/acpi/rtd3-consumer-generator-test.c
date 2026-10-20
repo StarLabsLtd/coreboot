@@ -182,6 +182,48 @@ static void write_table(const char *directory, const char *name,
 	assert_int_equal(fclose(file), 0);
 }
 
+static void write_gpio_get_method(const char *name, bool active_low)
+{
+	const struct acpi_gpio gpio = {
+		.pin_count = 1,
+		.pins = {ENABLE_PAD},
+		.active_low = active_low,
+	};
+
+	acpigen_write_method(name, 0);
+	acpigen_get_tx_gpio(&gpio);
+	acpigen_write_return_op(LOCAL0_OP);
+	acpigen_pop_len();
+}
+
+static void write_gpio_helper_table(const char *path)
+{
+	uint8_t buffer[AML_BUFFER_SIZE] = {0};
+	acpi_header_t *header = (acpi_header_t *)buffer;
+	FILE *file;
+
+	acpigen_set_current((char *)buffer + sizeof(*header));
+	acpigen_write_scope("\\_SB.PCI0");
+	write_gpio_get_method("TGHI", false);
+	write_gpio_get_method("TGLO", true);
+	acpigen_pop_len();
+
+	memcpy(header->signature, "SSDT", 4);
+	header->length = acpigen_get_current() - (char *)buffer;
+	header->revision = 2;
+	memcpy(header->oem_id, "COREv4", 6);
+	memcpy(header->oem_table_id, "GPIOHELP", 8);
+	header->oem_revision = 1;
+	memcpy(header->asl_compiler_id, "CORE", 4);
+	header->asl_compiler_revision = 1;
+	header->checksum = checksum(buffer, header->length);
+
+	file = fopen(path, "wb");
+	assert_non_null(file);
+	assert_int_equal(fwrite(buffer, 1, header->length, file), header->length);
+	assert_int_equal(fclose(file), 0);
+}
+
 static void test_generate_rtd3_aml(void **state)
 {
 	const char *directory = getenv("RTD3_AML_DIR");
@@ -224,10 +266,22 @@ static void test_generate_rtd3_aml(void **state)
 	write_table(directory, "direct", &config, false);
 }
 
+static void test_generate_gpio_helper_aml(void **state)
+{
+	const char *path = getenv("SMM_GPIO_HELPER_AML");
+
+	(void)state;
+	if (!path)
+		skip();
+
+	write_gpio_helper_table(path);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_generate_rtd3_aml),
+		cmocka_unit_test(test_generate_gpio_helper_aml),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);

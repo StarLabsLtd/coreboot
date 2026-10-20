@@ -26,8 +26,9 @@ rtd3-consumer-generator-no-smm-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_
 tests-y += rtd3-consumer-generator-no-smm-test
 
 .PHONY: smm-gpio-aml-test
-smm-gpio-aml-test:
-	$(Q)tests/acpi/smm-gpio-aml-test.sh $(top) $(obj)/tests/acpi/smm-gpio-aml
+smm-gpio-aml-test: build-tests/acpi/rtd3-consumer-generator-test
+	$(Q)tests/acpi/smm-gpio-aml-test.sh $(top) $(obj)/tests/acpi/smm-gpio-aml \
+		$(testobj)/tests/acpi/rtd3-consumer-generator-test/run
 
 .PHONY: rtd3-consumer-aml-test
 rtd3-consumer-aml-test: rtd3-consumer-aml-runner-test \
