@@ -39,4 +39,4 @@ rtd3-consumer-aml-test: rtd3-consumer-aml-runner-test \
 
 .PHONY: rtd3-consumer-aml-runner-test
 rtd3-consumer-aml-runner-test:
-	$(Q)tests/acpi/acpiexec-eval-check.py --self-test
+	$(Q)python3 tests/acpi/acpiexec-eval-check.py --self-test

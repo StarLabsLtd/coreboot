@@ -23,7 +23,7 @@ run_eval()
 		cat "$transcript" >&2
 		return 1
 	fi
-	if ! "$top/tests/acpi/acpiexec-eval-check.py" "$transcript" "$@"; then
+	if ! python3 "$top/tests/acpi/acpiexec-eval-check.py" "$transcript" "$@"; then
 		cat "$transcript" >&2
 		return 1
 	fi
