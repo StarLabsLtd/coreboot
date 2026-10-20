@@ -207,8 +207,15 @@ tpm_result_t tspi_measure_cache_to_pcr(void)
 	}
 
 	printk(BIOS_DEBUG, "TPM: Write digests cached in TPM log to PCR\n");
-	i = 0;
-	while (!tpm_log_get(i++, &pcr, &digest_data, &digest_algo, &event_name)) {
+	for (i = 0;; i++) {
+		int log_rc = tpm_log_get(i, &pcr, &digest_data, &digest_algo, &event_name);
+
+		if (log_rc > 0)
+			break;
+		if (log_rc < 0) {
+			printk(BIOS_ERR, "TPM: malformed measurement log\n");
+			return TPM_CB_FAIL;
+		}
 		printk(BIOS_DEBUG, "TPM: Write digest for %s into PCR %d\n", event_name, pcr);
 		tpm_result_t rc = tlcl_extend(pcr, digest_data, digest_algo);
 		if (rc != TPM_SUCCESS) {

@@ -443,14 +443,14 @@ int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 
 	tclt = tpm_log_init();
 	if (!tclt)
-		return 1;
+		return -1;
 
 	if (entry_idx < 0 || entry_idx >= le16toh(tclt->vendor.num_entries))
 		return 1;
 
 	entry = tpm2_log_get_entry_at(tclt, entry_idx);
 	if (!entry)
-		return 1;
+		return -1;
 
 	*pcr = tpm2_log_read_le32(entry, offsetof(struct tpm_2_log_entry, pcr));
 	*digest_data = tpm2_log_entry_digest(entry);
@@ -495,6 +495,7 @@ void tpm2_log_copy_entries(const void *from, void *to)
 
 		if (!from_entry) {
 			printk(BIOS_WARNING, "TPM LOG: malformed entry\n");
+			to_log->vendor.num_entries = htole16(le16toh(to_log->vendor.max_entries) + 1);
 			return;
 		}
 
@@ -507,6 +508,10 @@ void tpm2_log_copy_entries(const void *from, void *to)
 						  tpm2_log_entry_digest(from_entry),
 						  vb2_digest_size(TPM_MEASURE_ALGO),
 						  tpm2_log_entry_data(from_entry), data_length))
-			return;
+			goto malformed;
 	}
+	return;
+
+malformed:
+	to_log->vendor.num_entries = htole16(le16toh(to_log->vendor.max_entries) + 1);
 }
