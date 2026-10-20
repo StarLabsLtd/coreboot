@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <program_loading.h>
+#include <boot/coreboot_tables.h>
+#include <console/console.h>
 #include <types.h>
 
 /* For each segment of a program loaded this function is called*/
@@ -25,6 +27,10 @@ void __weak arch_segment_loaded(uintptr_t start, size_t size,
 void prog_run(struct prog *prog)
 {
 	platform_prog_run(prog);
+	if (ENV_RAMSTAGE && CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
+	    prog_type(prog) == PROG_PAYLOAD &&
+	    lb_finalize_payload_resource_handoff() != CB_SUCCESS)
+		die("Payload resource handoff finalization failed\n");
 	arch_prog_run(prog);
 }
 

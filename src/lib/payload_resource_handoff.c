@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/coreboot_tables.h>
+#include <commonlib/bsd/ipchksum.h>
 #include <commonlib/helpers.h>
 #include <console/console.h>
 #include <crc_byte.h>
@@ -15,6 +16,9 @@
 
 static bool revision4_published;
 static uint64_t revision4_generation;
+static struct lb_header *handoff_header;
+static struct lb_payload_resource_handoff *handoff_record;
+static struct lb_prh_pci_topology *handoff_topology;
 
 __weak enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial)
 {
@@ -803,6 +807,9 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 
 	revision4_published = false;
 	revision4_generation = 0;
+	handoff_header = NULL;
+	handoff_record = NULL;
+	handoff_topology = NULL;
 	if (!header)
 		return CB_ERR;
 	if (count_records(&root_count, &assignment_count) != CB_SUCCESS)
@@ -1091,7 +1098,41 @@ enum cb_err lb_add_payload_resource_handoff(struct lb_header *header)
 	}
 	handoff->crc32 = handoff_crc32(handoff);
 	revision4_published = revision4;
-	if (revision4)
+	if (revision4) {
 		revision4_generation = handoff->producer_generation;
+		handoff_header = header;
+		handoff_record = handoff;
+		handoff_topology = topology;
+	}
+	return CB_SUCCESS;
+}
+
+enum cb_err lb_finalize_payload_resource_handoff(void)
+{
+	if (!revision4_published)
+		return CB_SUCCESS;
+
+	/* Platform finalizers can change decode while leaving assignments intact. */
+	for (size_t index = 0; index < revision4_snapshot.count; index++) {
+		const struct device *device = revision4_snapshot.devices[index];
+		uint16_t command = payload_resource_read_command(device);
+
+		if ((device->class >> 8) != PCI_CLASS_BRIDGE_HOST &&
+		    (command & PCI_COMMAND_MASTER)) {
+			printk(BIOS_ERR, "PRH: bus mastering active at handoff for %s\n",
+			       dev_path(device));
+			return CB_ERR;
+		}
+		if (command != handoff_topology[index].command)
+			printk(BIOS_DEBUG, "PRH: final PCI command for %s: %#x -> %#x\n",
+			       dev_path(device), handoff_topology[index].command, command);
+		revision4_snapshot.commands[index] = command;
+		handoff_topology[index].command = command;
+	}
+	handoff_record->crc32 = handoff_crc32(handoff_record);
+	handoff_header->table_checksum = ipchksum((uint8_t *)handoff_header +
+		handoff_header->header_bytes, handoff_header->table_bytes);
+	handoff_header->header_checksum = 0;
+	handoff_header->header_checksum = ipchksum(handoff_header, sizeof(*handoff_header));
 	return CB_SUCCESS;
 }

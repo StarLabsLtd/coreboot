@@ -38,6 +38,7 @@ size_t fill_lb_i2c_hid(struct lb_prh_i2c_hid *devices, size_t capacity);
 
 /* Adds an authoritative payload-resource PCI root-bridge handoff. */
 enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
+enum cb_err lb_finalize_payload_resource_handoff(void);
 uint16_t payload_resource_read_command(const struct device *device);
 void payload_resource_write_command(const struct device *device, uint16_t command);
 uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar);
