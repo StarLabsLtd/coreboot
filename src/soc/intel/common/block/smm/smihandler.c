@@ -20,6 +20,8 @@
 #include <intelblocks/oc_wdt.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/smihandler.h>
+#include <intelblocks/smm_gpio.h>
+#include <intelblocks/smm_gpio_defs.h>
 #include <intelblocks/tco.h>
 #include <intelblocks/uart.h>
 #include <intelblocks/wadt_wake.h>
@@ -446,6 +448,12 @@ void smihandler_southbridge_apmc(
 		break;
 	case APM_CNT_FINALIZE:
 		finalize();
+		break;
+	case APM_CNT_GPIO:
+		if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)) {
+			smm_gpio_handler();
+			return;
+		}
 		break;
 	}
 

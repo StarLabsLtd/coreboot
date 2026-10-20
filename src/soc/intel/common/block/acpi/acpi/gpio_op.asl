@@ -1,5 +1,68 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#include <intelblocks/gpio_defs.h>
+#include <intelblocks/smm_gpio_defs.h>
+
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)
+OperationRegion (APMP, SystemIO, SMM_GPIO_APM_PORT, 1)
+Field (APMP, ByteAcc, NoLock, Preserve)
+{
+	APMC, 8,
+}
+
+Mutex (GPMX, 0)
+
+Method (PGTX, 1, Serialized)
+{
+	If (Acquire (GPMX, 0xffff))
+	{
+		/* Legacy GET has no error channel; its documented fallback is raw low. */
+		Return (Zero)
+	}
+	GPAD = Arg0
+	GPOP = SMM_GPIO_GET
+	GPVL = 0
+	GPST = 1
+	APMC = APM_CNT_GPIO
+	Local0 = GPST
+	Local1 = GPVL
+	Release (GPMX)
+	/* Only a successful single-bit response is valid for the legacy GET API. */
+	If (Local0 || Local1 > One)
+	{
+		Return (Zero)
+	}
+	Return (Local1)
+}
+
+Method (PSTX, 1, Serialized)
+{
+	If (Acquire (GPMX, 0xffff))
+	{
+		Return (1)
+	}
+	GPAD = Arg0
+	GPOP = SMM_GPIO_SET
+	GPST = 1
+	APMC = APM_CNT_GPIO
+	Local0 = GPST
+	Release (GPMX)
+	Return (Local0)
+}
+
+Method (PCTX, 1, Serialized)
+{
+	If (Acquire (GPMX, 0xffff))
+	{
+		Return (1)
+	}
+	GPAD = Arg0
+	GPOP = SMM_GPIO_CLEAR
+	GPST = 1
+	APMC = APM_CNT_GPIO
+	Local0 = GPST
+	Release (GPMX)
+	Return (Local0)
+}
+#endif
 
 /*
  * Get GPIO Value
