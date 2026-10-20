@@ -35,6 +35,13 @@ ifneq ($(strip $(call strip_quotes,$(CONFIG_PAYLOAD_OPTIONS))),)
       ADDITIONAL_PAYLOAD_CONFIG+=$(strip $(call strip_quotes,$(CONFIG_PAYLOAD_OPTIONS)))
 endif
 
+ifeq ($(CONFIG_PAYLOAD_CDK2),y)
+CDK2_OUTPUT := $(obj)/cdk2
+CDK2_PAYLOAD := $(CDK2_OUTPUT)/native/cdk2-coreboot-image.elf
+# The native payload is built in this output tree, never supplied by a caller.
+override CONFIG_PAYLOAD_FILE := $(CDK2_PAYLOAD)
+endif
+
 cbfs-files-y += $(CONFIG_CBFS_PREFIX)/payload
 $(CONFIG_CBFS_PREFIX)/payload-file := $(CONFIG_PAYLOAD_FILE)
 ifeq ($(CONFIG_PAYLOAD_IS_FLAT_BINARY),y)
@@ -162,8 +169,6 @@ payloads/external/depthcharge/depthcharge/build/depthcharge.elf depthcharge: $(D
 
 ifeq ($(CONFIG_PAYLOAD_CDK2),y)
 CDK2_SOURCE := payloads/external/cdk2/cdk2
-CDK2_PAYLOAD := $(call strip_quotes,$(CONFIG_PAYLOAD_FILE))
-CDK2_OUTPUT := $(patsubst %/native/,%,$(dir $(CDK2_PAYLOAD)))
 CDK2_CONFIG := $(CDK2_OUTPUT)/.config
 
 ifeq ($(CONFIG_CDK2_NATIVE_SYSTEM_FMP),y)
