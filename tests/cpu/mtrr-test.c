@@ -9,6 +9,7 @@ static msr_t test_rdmsr(unsigned int index);
 static void test_wrmsr(unsigned int index, msr_t msr);
 static void test_disable_cache(void);
 static void test_enable_cache(void);
+static void *mtrr_test_malloc(size_t size);
 
 #define rdmsr test_rdmsr
 #define wrmsr test_wrmsr
@@ -20,11 +21,16 @@ static void test_enable_cache(void);
 #undef wrmsr
 #undef rdmsr
 
+#define malloc mtrr_test_malloc
+#include "lib/memrange.c"
+#undef malloc
+
 #include <device/device.h>
 #include <device/pci_ids.h>
 
 static msr_t msrs[0x400];
 static unsigned int write_count;
+static unsigned int allocation_count;
 
 static uint64_t msr_value(msr_t msr)
 {
@@ -35,15 +41,37 @@ static int mtrr_type_at(uint64_t address)
 {
 	const uint64_t phys_mask = (1ULL << 48) - 1;
 	int type = msrs[MTRR_DEF_TYPE_MSR].lo & MTRR_DEF_TYPE_MASK;
+	bool found = false;
 
 	for (int i = 0; i < total_mtrrs; i++) {
 		const uint64_t mask = msr_value(msrs[MTRR_PHYS_MASK(i)]);
 		const uint64_t base = msr_value(msrs[MTRR_PHYS_BASE(i)]);
 		const uint64_t address_mask = mask & phys_mask & ~((1ULL << RANGE_SHIFT) - 1);
+		const int mtrr_type = base & MTRR_TAG_MASK;
 
-		if ((mask & MTRR_PHYS_MASK_VALID) &&
-		    (address & address_mask) == (base & address_mask))
-			return base & MTRR_TAG_MASK;
+		if (!(mask & MTRR_PHYS_MASK_VALID) ||
+		    (address & address_mask) != (base & address_mask))
+			continue;
+
+		if (!found) {
+			type = mtrr_type;
+			found = true;
+			continue;
+		}
+
+		if (type == mtrr_type)
+			continue;
+		if (type == MTRR_TYPE_UNCACHEABLE || mtrr_type == MTRR_TYPE_UNCACHEABLE) {
+			type = MTRR_TYPE_UNCACHEABLE;
+			continue;
+		}
+		if ((type == MTRR_TYPE_WRBACK && mtrr_type == MTRR_TYPE_WRTHROUGH) ||
+		    (type == MTRR_TYPE_WRTHROUGH && mtrr_type == MTRR_TYPE_WRBACK)) {
+			type = MTRR_TYPE_WRTHROUGH;
+			continue;
+		}
+
+		fail_msg("undefined MTRR overlap at 0x%llx", (unsigned long long)address);
 	}
 
 	return type;
@@ -115,6 +143,12 @@ static void test_wrmsr(unsigned int index, msr_t msr)
 {
 	msrs[index] = msr;
 	write_count++;
+}
+
+static void *mtrr_test_malloc(size_t size)
+{
+	allocation_count++;
+	return malloc(size);
 }
 
 static void test_disable_cache(void)
@@ -220,6 +254,7 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	msr_t original_base[NUM_MTRR_STATIC_STORAGE];
 	msr_t original_mask[NUM_MTRR_STATIC_STORAGE];
 	msr_t original_default;
+	unsigned int allocations;
 
 	(void)state;
 	resources[0].next = &resources[1];
@@ -228,7 +263,16 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	total_mtrrs = 8;
 	memset(msrs, 0, sizeof(msrs));
 	memset(temp_ranges, 0, sizeof(temp_ranges));
+	allocation_count = 0;
 	put_back_original_solution = false;
+	set_original_solution();
+
+	/* UC wins when variable MTRRs overlap. */
+	msrs[MTRR_PHYS_BASE(7)] = (msr_t) {
+		.lo = 3ULL * GiB | MTRR_TYPE_UNCACHEABLE,
+	};
+	assert_true(msr_value(msrs[MTRR_PHYS_MASK(7)]) & MTRR_PHYS_MASK_VALID);
+	assert_int_equal(mtrr_type_at(3ULL * GiB), MTRR_TYPE_UNCACHEABLE);
 	set_original_solution();
 	save_solution(original_base, original_mask, &original_default);
 
@@ -237,6 +281,13 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	mtrr_use_temp_range(3ULL * GiB, 256 * MiB, MTRR_TYPE_WRCOMB);
 	assert_int_equal(write_count, 2 * total_mtrrs + 1);
 	assert_int_equal(mtrr_type_at(3ULL * GiB), MTRR_TYPE_WRCOMB);
+	restore_original_solution(original_base, original_mask, &original_default);
+
+	/* Teardown retains nodes, so an identical request needs no new allocations. */
+	assert_true(allocation_count > 0);
+	allocations = allocation_count;
+	mtrr_use_temp_range(3ULL * GiB, 256 * MiB, MTRR_TYPE_WRCOMB);
+	assert_int_equal(allocation_count, allocations);
 	restore_original_solution(original_base, original_mask, &original_default);
 
 	/* The WC overlay and protected flash range fit in the seventh slot. */
@@ -279,9 +330,9 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	restore_original_solution(original_base, original_mask, &original_default);
 
 	write_count = 0;
-	assert_int_equal(temp_ranges[5].size, 0);
+	assert_int_equal(temp_ranges[6].size, 0);
 	mtrr_use_temp_range(0, 0, MTRR_TYPE_WRPROT);
-	assert_int_equal(temp_ranges[5].size, 0);
+	assert_int_equal(temp_ranges[6].size, 0);
 	assert_int_equal(write_count, 0);
 
 	/* A nonzero budget still rejects a request when all candidates exceed it. */
@@ -289,7 +340,7 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	assert_int_equal(write_count, 0);
 	assert_solution_restored(original_base, original_mask, &original_default);
 
-	for (size_t i = 6; i < ARRAY_SIZE(temp_ranges); i++)
+	for (size_t i = 7; i < ARRAY_SIZE(temp_ranges); i++)
 		mtrr_use_temp_range(0xe0000000 - i * MiB, MiB, MTRR_TYPE_WRPROT);
 	assert_int_not_equal(temp_ranges[ARRAY_SIZE(temp_ranges) - 1].size, 0);
 	const struct temp_range last = temp_ranges[ARRAY_SIZE(temp_ranges) - 1];
