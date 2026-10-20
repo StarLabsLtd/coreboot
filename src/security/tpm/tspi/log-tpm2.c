@@ -78,6 +78,16 @@ static size_t tpm2_log_capacity(const struct tpm_2_log_table *tclt)
 	return le16toh(tclt->vendor.max_entries) * sizeof(struct tpm_2_log_entry);
 }
 
+static uint16_t tpm2_preram_log_capacity(void)
+{
+	const size_t log_size = REGION_SIZE(tpm_log);
+
+	if (log_size <= sizeof(struct tpm_2_log_table))
+		return 0;
+
+	return (log_size - sizeof(struct tpm_2_log_table)) / sizeof(struct tpm_2_log_entry);
+}
+
 static const uint8_t *tpm2_log_entry_offset(const struct tpm_2_log_table *tclt,
 					    uint16_t entry_idx)
 {
@@ -463,7 +473,7 @@ void tpm2_preram_log_clear(void)
 	 * packed CBMEM log when CBMEM is created.
 	 */
 	struct tpm_2_log_table *tclt = (struct tpm_2_log_table *)_tpm_log;
-	tclt->vendor.max_entries = htole16(MAX_PRERAM_TPM_LOG_ENTRIES);
+	tclt->vendor.max_entries = htole16(tpm2_preram_log_capacity());
 	tclt->vendor.num_entries = htole16(0);
 	tclt->vendor.entry_size = htole32(sizeof(struct tpm_2_log_entry));
 }
