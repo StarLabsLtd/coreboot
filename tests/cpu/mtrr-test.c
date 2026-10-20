@@ -311,6 +311,12 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	assert_int_equal(mtrr_type_at(4ULL * GiB), MTRR_TYPE_WRBACK);
 	restore_original_solution(original_base, original_mask, &original_default);
 
+	/* The no-WC fallback also reuses its retained free-list nodes. */
+	allocations = allocation_count;
+	mtrr_use_temp_range(0xfc300000, 3 * MiB, MTRR_TYPE_WRPROT);
+	assert_int_equal(allocation_count, allocations);
+	restore_original_solution(original_base, original_mask, &original_default);
+
 	/* Only the below-4-GiB WC candidate fits after an above-4-GiB request. */
 	assert_next_counts(8ULL * GiB + MiB, MiB, MTRR_TYPE_WRPROT, 10, 9, 8, 7);
 	write_count = 0;
@@ -330,9 +336,9 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	restore_original_solution(original_base, original_mask, &original_default);
 
 	write_count = 0;
-	assert_int_equal(temp_ranges[6].size, 0);
+	assert_int_equal(temp_ranges[7].size, 0);
 	mtrr_use_temp_range(0, 0, MTRR_TYPE_WRPROT);
-	assert_int_equal(temp_ranges[6].size, 0);
+	assert_int_equal(temp_ranges[7].size, 0);
 	assert_int_equal(write_count, 0);
 
 	/* A nonzero budget still rejects a request when all candidates exceed it. */
@@ -340,7 +346,7 @@ static void test_temporary_mtrr_fallbacks(void **state)
 	assert_int_equal(write_count, 0);
 	assert_solution_restored(original_base, original_mask, &original_default);
 
-	for (size_t i = 7; i < ARRAY_SIZE(temp_ranges); i++)
+	for (size_t i = 8; i < ARRAY_SIZE(temp_ranges); i++)
 		mtrr_use_temp_range(0xe0000000 - i * MiB, MiB, MTRR_TYPE_WRPROT);
 	assert_int_not_equal(temp_ranges[ARRAY_SIZE(temp_ranges) - 1].size, 0);
 	const struct temp_range last = temp_ranges[ARRAY_SIZE(temp_ranges) - 1];
