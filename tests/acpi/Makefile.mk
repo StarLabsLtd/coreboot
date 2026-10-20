@@ -20,15 +20,22 @@ rtd3-consumer-generator-test-cflags += -I src/soc/intel/common/block/include
 rtd3-consumer-generator-test-cflags += -I src/soc/intel/meteorlake/include
 rtd3-consumer-generator-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_GPIO=1
 
+rtd3-consumer-generator-no-smm-test-srcs := $(rtd3-consumer-generator-test-srcs)
+rtd3-consumer-generator-no-smm-test-cflags := $(rtd3-consumer-generator-test-cflags)
+rtd3-consumer-generator-no-smm-test-config += CONFIG_SOC_INTEL_COMMON_BLOCK_SMM_GPIO=0
+tests-y += rtd3-consumer-generator-no-smm-test
+
 .PHONY: smm-gpio-aml-test
 smm-gpio-aml-test:
 	$(Q)tests/acpi/smm-gpio-aml-test.sh $(top) $(obj)/tests/acpi/smm-gpio-aml
 
 .PHONY: rtd3-consumer-aml-test
 rtd3-consumer-aml-test: rtd3-consumer-aml-runner-test \
-		build-tests/acpi/rtd3-consumer-generator-test
+		build-tests/acpi/rtd3-consumer-generator-test \
+		build-tests/acpi/rtd3-consumer-generator-no-smm-test
 	$(Q)tests/acpi/rtd3-consumer-aml-test.sh $(top) $(obj)/tests/acpi/rtd3-consumer-aml \
-		$(testobj)/tests/acpi/rtd3-consumer-generator-test/run
+		$(testobj)/tests/acpi/rtd3-consumer-generator-test/run \
+		$(testobj)/tests/acpi/rtd3-consumer-generator-no-smm-test/run
 
 .PHONY: rtd3-consumer-aml-runner-test
 rtd3-consumer-aml-runner-test:

@@ -51,12 +51,12 @@ void acpi_device_intel_bt_pldr_reset(void)
 	fail_msg("unexpected CNVi PLDR generation");
 }
 
-static void write_test_get_method(const char *name)
+static void write_test_get_method(const char *name, const char *error_name)
 {
 	acpigen_write_method(name, 1);
 	acpigen_emit_byte(INCREMENT_OP);
 	acpigen_emit_namestring("GCNT");
-	acpigen_write_if_lequal_namestr_int("GERR", 1);
+	acpigen_write_if_lequal_namestr_int(error_name, 1);
 	acpigen_write_return_integer(ACPI_GPIO_OUTPUT_ERROR);
 	acpigen_pop_len();
 	acpigen_emit_byte(RETURN_OP);
@@ -90,15 +90,16 @@ static void write_test_namespace(void)
 	acpigen_write_scope("\\_SB");
 	acpigen_write_device("PCI0");
 	acpigen_write_name_integer("TVAL", 0);
-	acpigen_write_name_integer("GERR", 0);
+	acpigen_write_name_integer("PERR", 0);
+	acpigen_write_name_integer("DERR", 0);
 	acpigen_write_name_integer("SERR", 0);
 	acpigen_write_name_integer("GCNT", 0);
 	acpigen_write_name_integer("SCNT", 0);
 	acpigen_write_name_integer("LEVT", 0xff);
-	write_test_get_method("PGTX");
+	write_test_get_method("PGTX", "PERR");
 	write_test_set_method("PSTX", 1);
 	write_test_set_method("PCTX", 0);
-	write_test_get_method("GTXS");
+	write_test_get_method("GTXS", "DERR");
 	write_direct_set_method("STXS", 1);
 	write_direct_set_method("CTXS", 0);
 	acpigen_write_device("RP01");
