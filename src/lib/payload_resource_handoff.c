@@ -831,7 +831,7 @@ static enum cb_err write_payload_resource_handoff(struct lb_header *header,
 			revision4 = false;
 		}
 	}
-	if (CONFIG(PAYLOAD_CDK2) && !revision4) {
+	if ((CONFIG(PAYLOAD_CDK2) || reserved) && !revision4) {
 		printk(BIOS_ERR, "PRH: native payload requires assigned PCI topology\n");
 		return CB_ERR;
 	}
