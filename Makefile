@@ -236,9 +236,18 @@ real-all: site-local-target real-target
 # date on a subsequent no-op build. Mark it as not intermediate to prevent this
 .NOTINTERMEDIATE: $(objutil)/kconfig/conf
 
-$(KCONFIG_AUTOHEADER): $(KCONFIG_CONFIG) $(objutil)/kconfig/conf
+# Switching DOTCONFIG can select an older file in an existing output directory.
+$(obj)/config.source: FORCE
+	@mkdir -p $(dir $@)
+	@set -e; temporary=$$(mktemp "$@.XXXXXX"); \
+		trap 'rm -f "$$temporary"' EXIT HUP INT TERM; \
+		printf '%s\n' '$(abspath $(KCONFIG_CONFIG))' > "$$temporary"; \
+		if ! cmp -s "$$temporary" "$@"; then mv "$$temporary" "$@"; fi
+
+$(KCONFIG_AUTOHEADER): $(KCONFIG_CONFIG) $(objutil)/kconfig/conf $(obj)/config.source
 	$(MAKE) olddefconfig
 	$(MAKE) syncconfig
+	@touch $@
 
 $(KCONFIG_AUTOCONFIG): $(KCONFIG_AUTOHEADER)
 	true
