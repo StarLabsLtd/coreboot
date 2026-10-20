@@ -27,7 +27,6 @@ static const uint8_t kek_name[] = { 'K', 0, 'E', 0, 'K', 0, 0, 0 };
 #define SECURE_BOOT_VARIABLE_ATTRIBUTES \
 	(PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE | \
 	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS | \
-	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS | \
 	 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH)
 
 #ifdef PAYLOAD_MM_AUTH_TEST
@@ -296,7 +295,9 @@ static enum payload_mm_verify_status verify_with_signer(
 			status = PAYLOAD_MM_VERIFY_REJECTED;
 			continue;
 		}
-		if (entry->attributes != SECURE_BOOT_VARIABLE_ATTRIBUTES)
+		/* Fixed policy can hide signer keys at runtime without disabling dbx updates. */
+		if ((entry->attributes & ~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_RUNTIME_ACCESS) !=
+		    SECURE_BOOT_VARIABLE_ATTRIBUTES)
 			return PAYLOAD_MM_VERIFY_MALFORMED;
 		data = payload_mm_authvar_store_data(index, entry);
 		if (!data)
