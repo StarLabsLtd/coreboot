@@ -80,6 +80,36 @@ def make_fv(file_guid=FMP_GUID, file_type=0x07, duplicate=False):
     return bytes(fv)
 
 
+def make_payload(firmware_volume):
+    size = 0x2000
+    while size < 72 + 24 + 4 + len(firmware_volume):
+        size *= 2
+    payload = bytearray(b"\xff" * size)
+    payload[:0x1000] = make_fv(OTHER_GUID)
+    struct.pack_into("<Q", payload, 32, size)
+    offset = 72
+    section_header_size = 4 if len(firmware_volume) + 4 < 0xffffff else 8
+    section = offset + 24
+    file_size = 24 + section_header_size + len(firmware_volume)
+    payload[offset + 18] = 0x0b
+    if file_size >= 0xffffff:
+        payload[offset + 19] = 0x01
+        payload[offset + 20 : offset + 23] = b"\0\0\0"
+        struct.pack_into("<Q", payload, offset + 24, file_size + 8)
+        section += 8
+        file_size += 8
+    else:
+        payload[offset + 20 : offset + 23] = file_size.to_bytes(3, "little")
+    if section_header_size == 8:
+        payload[section : section + 3] = b"\xff\xff\xff"
+        struct.pack_into("<I", payload, section + 4, section_header_size + len(firmware_volume))
+    else:
+        payload[section : section + 3] = (section_header_size + len(firmware_volume)).to_bytes(3, "little")
+    payload[section + 3] = 0x17
+    payload[section + section_header_size : section + section_header_size + len(firmware_volume)] = firmware_volume
+    return bytes(payload)
+
+
 class ValidateCapsuleTest(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
@@ -93,7 +123,11 @@ class ValidateCapsuleTest(unittest.TestCase):
         (self.output / "FmpDxe.efi").write_bytes(b"MZ")
 
     def test_matching_capsule_and_resident_driver(self):
-        validate(make_capsule(), make_fv(), FMP_GUID, 0)
+        validate(make_capsule(), make_payload(make_fv()), FMP_GUID, 0)
+
+    def test_rejects_driver_only_in_unrelated_workspace_volume(self):
+        with self.assertRaisesRegex(ValidationError, "0 resident FMP drivers"):
+            validate(make_capsule(), make_payload(make_fv(OTHER_GUID)), FMP_GUID, 0)
 
     def test_extended_ffs_header(self):
         fv = bytearray(make_fv())
@@ -105,35 +139,35 @@ class ValidateCapsuleTest(unittest.TestCase):
         fv[offset + 19] = 0x01
         fv[offset + 20 : offset + 23] = b"\0" * 3
         struct.pack_into("<Q", fv, offset + 24, file_size)
-        validate(make_capsule(), bytes(fv), FMP_GUID, 0)
+        validate(make_capsule(), make_payload(bytes(fv)), FMP_GUID, 0)
         fv[offset + 20] = 1
         with self.assertRaisesRegex(ValidationError, "nonzero size field"):
-            validate(make_capsule(), bytes(fv), FMP_GUID, 0)
+            validate(make_capsule(), make_payload(bytes(fv)), FMP_GUID, 0)
 
     def test_matching_embedded_driver_count(self):
-        validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 1,
+        validate(make_capsule(embedded_count=1), make_payload(make_fv()), FMP_GUID, 1,
                  self.module_dir)
 
     def test_embedded_only_driver(self):
-        validate(make_capsule(embedded_count=1), make_fv(OTHER_GUID), FMP_GUID, 1,
+        validate(make_capsule(embedded_count=1), make_payload(make_fv(OTHER_GUID)), FMP_GUID, 1,
                  self.module_dir)
 
     def test_rejects_missing_embedded_metadata(self):
         with self.assertRaisesRegex(ValidationError, "metadata is required"):
-            validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 1)
+            validate(make_capsule(embedded_count=1), make_payload(make_fv()), FMP_GUID, 1)
 
     def test_rejects_embedded_identity_mismatch(self):
         (self.output / "FmpDxe.inf").write_text(
             f"[Defines]\n FILE_GUID = {OTHER_GUID}\n"
         )
         with self.assertRaisesRegex(ValidationError, "matching embedded FMP"):
-            validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 1,
+            validate(make_capsule(embedded_count=1), make_payload(make_fv()), FMP_GUID, 1,
                      self.module_dir)
 
     def test_rejects_stale_embedded_binary(self):
         (self.output / "FmpDxe.efi").write_bytes(b"old build")
         with self.assertRaisesRegex(ValidationError, "differs from"):
-            validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 1,
+            validate(make_capsule(embedded_count=1), make_payload(make_fv()), FMP_GUID, 1,
                      self.module_dir)
 
     def test_rejects_duplicate_build_descriptors(self):
@@ -141,32 +175,32 @@ class ValidateCapsuleTest(unittest.TestCase):
         output.mkdir(parents=True)
         (output / "FmpDxe.inf").write_bytes((self.output / "FmpDxe.inf").read_bytes())
         with self.assertRaisesRegex(ValidationError, "one matching embedded FMP"):
-            validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 1,
+            validate(make_capsule(embedded_count=1), make_payload(make_fv()), FMP_GUID, 1,
                      self.module_dir)
 
     def test_rejects_capsule_image_guid_mismatch(self):
         with self.assertRaisesRegex(ValidationError, "does not match"):
-            validate(make_capsule(OTHER_GUID), make_fv(), FMP_GUID, 0)
+            validate(make_capsule(OTHER_GUID), make_payload(make_fv()), FMP_GUID, 0)
 
     def test_rejects_embedded_driver_count_mismatch(self):
         with self.assertRaisesRegex(ValidationError, "embedded drivers"):
-            validate(make_capsule(embedded_count=1), make_fv(), FMP_GUID, 0)
+            validate(make_capsule(embedded_count=1), make_payload(make_fv()), FMP_GUID, 0)
 
     def test_rejects_missing_resident_driver(self):
         with self.assertRaisesRegex(ValidationError, "0 resident FMP drivers"):
-            validate(make_capsule(), make_fv(OTHER_GUID), FMP_GUID, 0)
+            validate(make_capsule(), make_payload(make_fv(OTHER_GUID)), FMP_GUID, 0)
 
     def test_rejects_duplicate_resident_driver(self):
         with self.assertRaisesRegex(ValidationError, "2 resident FMP drivers"):
-            validate(make_capsule(), make_fv(duplicate=True), FMP_GUID, 0)
+            validate(make_capsule(), make_payload(make_fv(duplicate=True)), FMP_GUID, 0)
 
     def test_rejects_matching_non_driver_ffs_file(self):
         with self.assertRaisesRegex(ValidationError, "0 resident FMP drivers"):
-            validate(make_capsule(), make_fv(file_type=0x09), FMP_GUID, 0)
+            validate(make_capsule(), make_payload(make_fv(file_type=0x09)), FMP_GUID, 0)
 
     def test_rejects_invalid_item_offset(self):
         with self.assertRaisesRegex(ValidationError, "invalid FMP item offset"):
-            validate(make_capsule(item_offset=8), make_fv(), FMP_GUID, 0)
+            validate(make_capsule(item_offset=8), make_payload(make_fv()), FMP_GUID, 0)
 
 
 if __name__ == "__main__":

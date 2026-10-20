@@ -13,6 +13,7 @@ import uuid
 FMP_CAPSULE_GUID = uuid.UUID("6dcbd5ed-e82d-4c44-bda1-7194199ad92a")
 FV_SIGNATURE = b"_FVH"
 FFS_FILETYPE_DRIVER = 0x07
+EFI_SECTION_FIRMWARE_VOLUME_IMAGE = 0x17
 
 
 class ValidationError(ValueError):
@@ -129,6 +130,53 @@ def parse_ffs_files(data):
         offset = (offset + file_size + 7) & ~7
 
 
+def parse_payload_fvs(data):
+    """Yield firmware volumes embedded in an EDK2 UEFI payload."""
+    volumes = [data]
+    for volume in volumes:
+        _require(volume, 0, 56, "firmware volume header")
+        fv_length = struct.unpack_from("<Q", volume, 32)[0]
+        header_length = struct.unpack_from("<H", volume, 48)[0]
+        if volume[40:44] != FV_SIGNATURE or fv_length > len(volume):
+            raise ValidationError("payload is not an EFI firmware volume")
+        offset = (header_length + 7) & ~7
+        while offset + 24 <= fv_length:
+            if volume[offset : offset + 24] == b"\xff" * 24:
+                break
+            file_type = volume[offset + 18]
+            file_size = int.from_bytes(volume[offset + 20 : offset + 23], "little")
+            file_attributes = volume[offset + 19]
+            file_header_size = 24
+            if file_attributes & 0x01:
+                _require(volume, offset, 32, "large FFS file header")
+                file_size = struct.unpack_from("<Q", volume, offset + 24)[0]
+                file_header_size = 32
+            if file_size < file_header_size or offset + file_size > fv_length:
+                raise ValidationError(f"invalid FFS file size at offset {offset:#x}")
+            if file_type != 0x0b:
+                offset = (offset + file_size + 7) & ~7
+                continue
+            section = offset + file_header_size
+            end = offset + file_size
+            while section + 4 <= end:
+                section_size = int.from_bytes(volume[section : section + 3], "little")
+                section_type = volume[section + 3]
+                section_header_size = 4
+                if section_size == 0xffffff:
+                    _require(volume, section, 8, "large section header")
+                    section_size = struct.unpack_from("<I", volume, section + 4)[0]
+                    section_header_size = 8
+                if section_size < section_header_size or section + section_size > end:
+                    raise ValidationError(f"invalid section size at offset {section:#x}")
+                if section_type == EFI_SECTION_FIRMWARE_VOLUME_IMAGE:
+                    nested = volume[section + section_header_size : section + section_size]
+                    if len(nested) >= 44 and nested[40:44] == FV_SIGNATURE:
+                        volumes.append(nested)
+                section = (section + section_size + 3) & ~3
+            offset = (offset + file_size + 7) & ~7
+        yield volume
+
+
 def validate_embedded_driver(driver, module_dir, expected_guid):
     if module_dir is None:
         raise ValidationError("embedded FMP build metadata is required")
@@ -156,7 +204,7 @@ def validate_embedded_driver(driver, module_dir, expected_guid):
         raise ValidationError("embedded FMP differs from its identified build artifact")
 
 
-def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
+def validate(capsule, payload, expected_guid, expected_embedded_count,
              fmp_module_dir=None):
     capsule_guid, embedded = parse_capsule(capsule)
     embedded_count = len(embedded)
@@ -177,7 +225,8 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
 
     matching_drivers = sum(
         file_guid == expected_guid and file_type == FFS_FILETYPE_DRIVER
-        for file_guid, file_type in parse_ffs_files(firmware_volume)
+        for volume in parse_payload_fvs(payload)
+        for file_guid, file_type in parse_ffs_files(volume)
     )
     if matching_drivers > 1 or (not embedded and matching_drivers != 1):
         raise ValidationError(
@@ -189,7 +238,7 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capsule", required=True, help="generated FMP capsule")
-    parser.add_argument("--firmware-volume", required=True, help="EDK2 DXE FV")
+    parser.add_argument("--payload", required=True, help="EDK2 payload from the ROM")
     parser.add_argument("--guid", required=True, type=uuid.UUID)
     parser.add_argument("--embedded-drivers", required=True, type=int)
     parser.add_argument("--fmp-module-dir", help="FmpDxe module build directory")
@@ -198,9 +247,9 @@ def main():
     try:
         with open(args.capsule, "rb") as capsule_file:
             capsule = capsule_file.read()
-        with open(args.firmware_volume, "rb") as fv_file:
-            firmware_volume = fv_file.read()
-        validate(capsule, firmware_volume, args.guid, args.embedded_drivers,
+        with open(args.payload, "rb") as payload_file:
+            payload = payload_file.read()
+        validate(capsule, payload, args.guid, args.embedded_drivers,
                  args.fmp_module_dir)
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)

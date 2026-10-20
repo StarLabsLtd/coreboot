@@ -325,7 +325,7 @@ $(EDK2_PATH): $(WORKSPACE)
 				exit 1; \
 			fi; \
 		else \
-			git fetch origin; \
+			git fetch origin || exit 1; \
 		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
@@ -462,12 +462,17 @@ coreboot_capsule: $(EDK2_PATH)
 	test -n "$(COREBOOT_ROM)"
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
+	test -n "$(CBFSTOOL)"
+	test -x "$(CBFSTOOL)"
+	test -n "$(CBFS_PAYLOAD_NAME)"
 	test -x "$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule"
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
 	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
+	payload="$${COREBOOT_CAPSULE_OUT%.cap}.payload"; \
 	set -e; \
+	"$(CBFSTOOL)" "$(COREBOOT_ROM)" extract -m x86 -n "$(CBFS_PAYLOAD_NAME)" -f "$$payload"; \
 	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
 		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
 	else \
@@ -507,7 +512,7 @@ coreboot_capsule: $(EDK2_PATH)
 	fi; \
 	python3 "$(CAPSULE_VALIDATOR)" \
 		--capsule "$(COREBOOT_CAPSULE_OUT)" \
-		--firmware-volume "$(EDK2_DXE_FV)" \
+		--payload "$$payload" \
 		--guid "$(CAPSULE_GUID)" \
 		--embedded-drivers "$$embedded_driver_count" \
 		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)"
