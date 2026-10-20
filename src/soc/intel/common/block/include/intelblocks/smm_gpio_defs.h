@@ -10,7 +10,4 @@
 #define SMM_GPIO_SET	1
 #define SMM_GPIO_CLEAR	2
 
-/* PGTX returns GPIO values 0/1, so errors must remain outside that range. */
-#define SMM_GPIO_ERROR	2
-
 #endif

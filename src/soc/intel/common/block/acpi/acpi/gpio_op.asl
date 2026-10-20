@@ -14,7 +14,8 @@ Method (PGTX, 1, Serialized)
 {
 	If (Acquire (GPMX, 0xffff))
 	{
-		Return (SMM_GPIO_ERROR)
+		/* Legacy GET has no error channel; its documented fallback is raw low. */
+		Return (Zero)
 	}
 	GPAD = Arg0
 	GPOP = SMM_GPIO_GET
@@ -24,9 +25,10 @@ Method (PGTX, 1, Serialized)
 	Local0 = GPST
 	Local1 = GPVL
 	Release (GPMX)
-	If (Local0)
+	/* Only a successful single-bit response is valid for the legacy GET API. */
+	If (Local0 || Local1 > One)
 	{
-		Return (SMM_GPIO_ERROR)
+		Return (Zero)
 	}
 	Return (Local1)
 }
