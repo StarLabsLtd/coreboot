@@ -40,15 +40,15 @@ bool cse_disable_mei_devices(void)
 		return false;
 	}
 
-	if (ENV_RAMSTAGE) {
-		for (int i = 0; i < CONFIG_MAX_HECI_DEVICES; i++) {
-			struct device *device =
-				pcidev_path_on_root(PCI_DEVFN(PCH_DEV_SLOT_CSE, i));
+#if ENV_RAMSTAGE
+	for (int i = 0; i < CONFIG_MAX_HECI_DEVICES; i++) {
+		struct device *device =
+			pcidev_path_on_root(PCI_DEVFN(PCH_DEV_SLOT_CSE, i));
 
-			if (device)
-				device->hidden = true;
-		}
+		if (device)
+			device->hidden = true;
 	}
+#endif
 
 	return true;
 }
