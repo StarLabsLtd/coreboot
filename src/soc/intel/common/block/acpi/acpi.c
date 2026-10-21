@@ -121,8 +121,12 @@ void acpi_fill_fadt(acpi_fadt_t *fadt)
 	fill_fadt_extended_pm_io(fadt);
 
 	fadt->flags |= ACPI_FADT_WBINVD | ACPI_FADT_C1_SUPPORTED |
-			ACPI_FADT_SLEEP_BUTTON |
-			ACPI_FADT_SEALED_CASE | ACPI_FADT_S4_RTC_WAKE;
+			ACPI_FADT_SLEEP_BUTTON | ACPI_FADT_SEALED_CASE;
+
+	if (CONFIG(SOC_INTEL_COMMON_ACPI_RTC_WAKE))
+		fadt->flags |= ACPI_FADT_S4_RTC_WAKE;
+	else
+		fadt->flags |= ACPI_FADT_FIXED_RTC;
 
 	if (CONFIG(USE_PM_ACPI_TIMER))
 		fadt->flags |= ACPI_FADT_PLATFORM_CLOCK;
