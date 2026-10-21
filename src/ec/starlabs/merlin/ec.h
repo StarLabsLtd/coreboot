@@ -13,6 +13,22 @@ struct device;
 
 void merlin_fill_ssdt(const struct device *dev);
 
+enum ec_acpi_status {
+	EC_ACPI_SUCCESS = 0,
+	EC_ACPI_ERROR = 1,
+};
+
+enum ec_acpi_result {
+	EC_ACPI_STATUS,
+	EC_ACPI_VALUE,
+	EC_ACPI_RESULT_SIZE,
+};
+
+#define EC_MUTEX_ACQUIRED	0
+#define EC_MUTEX_TIMEOUT_MS	1000
+#define EC_WRITE_RETRY_DELAY_MS	1
+#define EC_WRITE_RETRY_COUNT	3
+
 /*
  * Define the expected value of the PNP base address that is fixed through
  * the BADRSEL register controlled within the EC domain by the EC Firmware.
@@ -106,6 +122,11 @@ void merlin_fill_ssdt(const struct device *dev);
 #define SPEED_0_5C		0x01
 #define SPEED_0_2C		0x02
 
+/* Charging Policy */
+#define CHARGING_POLICY_AUTO		0x00
+#define CHARGING_POLICY_CHARGING	0xaa
+#define CHARGING_POLICY_PERFORMANCE	0xbb
+
 /* Lid Switch */
 #define SWITCH_NORMAL		0x00
 #define SWITCH_SLEEP_ONLY	0x01
@@ -118,6 +139,19 @@ void merlin_fill_ssdt(const struct device *dev);
 
 /* Adapter auto power-on */
 #define ADAPTER_AUTO_POWER_ON_DEFAULT	CONFIG(SYSTEM_TYPE_MINIPC)
+
+enum automatic_start {
+	AUTOMATIC_START_ALWAYS = 0,
+	AUTOMATIC_START_AFTER_FAILURE = 1,
+	AUTOMATIC_START_NEVER = 2,
+};
+
+#define AUTOMATIC_START_DEFAULT	(CONFIG(SYSTEM_TYPE_MINIPC) ? AUTOMATIC_START_ALWAYS : \
+				 AUTOMATIC_START_NEVER)
+
+/* Power reporting */
+#define POWER_REPORTING_TRUTHFUL	0x00
+#define POWER_REPORTING_QUIET		0x01
 
 uint16_t ec_get_version(void);
 

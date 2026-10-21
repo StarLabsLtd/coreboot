@@ -384,10 +384,9 @@ void acpigen_get_package_op_element(uint8_t package_op, unsigned int element, ui
 
 void acpigen_set_package_op_element_int(uint8_t package_op, unsigned int element, uint64_t src)
 {
-	/* DeRefOf (<package>[<element>]) = <src> */
+	/* Store (<src>, Index (<package>, <element>)) */
 	acpigen_write_store();
 	acpigen_write_integer(src);
-	acpigen_emit_byte(DEREF_OP);
 	acpigen_emit_byte(INDEX_OP);
 	acpigen_emit_byte(package_op);
 	acpigen_write_integer(element);

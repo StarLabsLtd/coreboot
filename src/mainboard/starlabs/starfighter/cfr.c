@@ -77,6 +77,7 @@ void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
 
 #if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
 static const struct sm_object firmware_enable_amp = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "firmware_enable_amp",
 	.ui_name	= "Firmware Enables AMP",
 	.ui_helptext	= "Enabled: assert LINE2 EAPD and drive GPIO2 high "
@@ -104,10 +105,21 @@ static struct sm_obj_form battery_group = {
 		#if CONFIG(EC_STARLABS_CHARGING_SPEED)
 		&charging_speed,
 		#endif
+		#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+		&charging_policy,
+		#endif
 		&max_charge,
+		#if CONFIG(STARLABS_AUTOMATIC_START)
+		&automatic_start,
+		#endif
+		#if CONFIG(EC_STARLABS_POWER_REPORTING)
+		&power_reporting,
+		#endif
+		#if !CONFIG(STARLABS_AUTOMATIC_START)
 		&power_on_after_fail_bool,
 		#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 		&power_on_ac,
+		#endif
 		#endif
 		NULL
 	},

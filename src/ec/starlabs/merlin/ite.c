@@ -58,9 +58,11 @@ static void merlin_restore_options(void *unused)
 	 * kbl_brightness
 	 * kbl_state
 	 * charging_speed
+	 * charging_policy
 	 * lid_switch
 	 * power_led
 	 * power_on_ac
+	 * power_reporting
 	 */
 
 	/*
@@ -207,6 +209,26 @@ static void merlin_restore_options(void *unused)
 						  ARRAY_SIZE(charging_speed)));
 
 	/*
+	 * Charging Policy
+	 *
+	 * Setting:	charging_policy
+	 *
+	 * Values:	Automatic, Charging, Performance
+	 * Default:	Automatic
+	 *
+	 */
+	const uint8_t charging_policy[] = {
+		CHARGING_POLICY_AUTO,
+		CHARGING_POLICY_CHARGING,
+		CHARGING_POLICY_PERFORMANCE,
+	};
+
+	if (CONFIG(EC_STARLABS_CHARGING_POLICY))
+		ec_write(ECRAM_CHARGING_POLICY,
+			 get_ec_value_from_option("charging_policy", CHARGING_POLICY_AUTO,
+						  charging_policy, ARRAY_SIZE(charging_policy)));
+
+	/*
 	 * Lid Switch
 	 *
 	 * Setting:	lid_switch
@@ -253,22 +275,42 @@ static void merlin_restore_options(void *unused)
 			 get_ec_value_from_option("charge_led", LED_NORMAL, led_brightness,
 						  ARRAY_SIZE(led_brightness)));
 
+	/* Only "Always" powers on for an ordinary adapter connection. */
+	if (CONFIG(STARLABS_AUTOMATIC_START)) {
+		const uint8_t automatic_start[] = {
+			AUTOMATIC_START_ALWAYS,
+			AUTOMATIC_START_AFTER_FAILURE,
+			AUTOMATIC_START_NEVER,
+		};
+
+		ec_write(ECRAM_POWER_ON_AC,
+			 get_ec_value_from_option("automatic_start", AUTOMATIC_START_DEFAULT,
+						  automatic_start,
+						  ARRAY_SIZE(automatic_start)) ==
+				 AUTOMATIC_START_ALWAYS);
+	} else if (CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)) {
+		const uint8_t power_on_ac[] = {0, 1};
+
+		ec_write(ECRAM_POWER_ON_AC,
+			 get_ec_value_from_option("power_on_ac", ADAPTER_AUTO_POWER_ON_DEFAULT,
+						  power_on_ac, ARRAY_SIZE(power_on_ac)));
+	}
+
 	/*
-	 * Power on when adapter is connected
+	 * Power Reporting
 	 *
-	 * Setting:	power_on_ac
+	 * Setting:	power_reporting
 	 *
-	 * Values:	Enabled, Disabled
-	 * Default:	Enabled on Mini PC systems, disabled otherwise
+	 * Values:	Truthful, Quiet
+	 * Default:	Truthful
 	 *
 	 */
-	const uint8_t power_on_ac[] = {0, 1};
+	const uint8_t power_reporting[] = {POWER_REPORTING_TRUTHFUL, POWER_REPORTING_QUIET};
 
-	if (CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON))
-		ec_write(ECRAM_POWER_ON_AC,
-			 get_ec_value_from_option("power_on_ac",
-						  ADAPTER_AUTO_POWER_ON_DEFAULT,
-						  power_on_ac, ARRAY_SIZE(power_on_ac)));
+	if (CONFIG(EC_STARLABS_POWER_REPORTING))
+		ec_write(ECRAM_POWER_REPORTING,
+			 get_ec_value_from_option("power_reporting", POWER_REPORTING_TRUTHFUL,
+						  power_reporting, ARRAY_SIZE(power_reporting)));
 }
 BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_ENTRY, merlin_restore_options, NULL);
 

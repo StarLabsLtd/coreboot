@@ -3,7 +3,7 @@
 #ifndef _STARLABS_CMN_TOUCHPAD_H_
 #define _STARLABS_CMN_TOUCHPAD_H_
 
-#include <stdint.h>
+#include <types.h>
 
 #if CONFIG(STARLABS_TOUCHPAD_CST)
 #define STARLABS_TOUCHPAD_HAPTICS_MIN			1
@@ -101,6 +101,12 @@
 #define STARLABS_TOUCHPAD_VERIFY_DELAY_MS	5
 #define STARLABS_TOUCHPAD_RESET_READY_RETRIES	24
 #define STARLABS_TOUCHPAD_RESET_READY_DELAY_MS	5
+/*
+ * Deadline for starting or continuing touchpad protocol work. An in-flight
+ * DesignWare transfer and required cleanup retain their independently bounded
+ * waits.
+ */
+#define STARLABS_TOUCHPAD_SMM_TIMEOUT_MS		150
 
 #define I2C_HID_OPCODE_RESET			0x01
 #define I2C_HID_OPCODE_GET_REPORT		0x02
@@ -127,5 +133,11 @@ struct starlabs_touchpad_op_ctx {
 	uint8_t value;
 	uint8_t level;
 };
+
+enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
+					    uint16_t release, uint8_t rate);
+#if ENV_SMM
+bool starlabs_touchpad_runtime_available(void);
+#endif
 
 #endif /* _STARLABS_CMN_TOUCHPAD_H_ */

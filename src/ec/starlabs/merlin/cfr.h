@@ -5,17 +5,23 @@
  */
 
 #include <drivers/option/cfr_frontend.h>
+#include <starlabs/efi_option_smi.h>
 #include "ec.h"
 
 /*
  * Keyboard Backlight Timeout
  */
 static const struct sm_object kbl_timeout = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "kbl_timeout",
 	.ui_name	= "Keyboard Backlight Timeout",
 	.ui_helptext	= "Set the amount of time before the keyboard backlight turns off"
 			  " when un-used",
 	.default_value	= SEC_30,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_KBL_TIMEOUT,
+	},
 	.values		= (struct sm_enum_value[]) {
 			{ "30 seconds",		SEC_30	},
 			{ "1 minute",		MIN_1	},
@@ -30,20 +36,31 @@ static const struct sm_object kbl_timeout = SM_DECLARE_ENUM({
  * Function-Control Swap
  */
 static const struct sm_object fn_ctrl_swap = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "fn_ctrl_swap",
 	.ui_name	= "Fn Ctrl Reverse",
 	.ui_helptext	= "Swap the functions of the [Fn] and [Ctrl] keys",
 	.default_value	= false,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_FN_CTRL_SWAP,
+	},
 });
 
 /*
  * Maximum Battery Charge Level
  */
 static const struct sm_object max_charge = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_MAX_CHARGE) ? CFR_OPTFLAG_RUNTIME : 0,
 	.opt_name	= "max_charge",
 	.ui_name	= "Maximum Charge Level",
 	.ui_helptext	= "Set the maximum level the battery will charge to.",
 	.default_value	= CHARGE_100,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_MAX_CHARGE) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_MAX_CHARGE,
+	},
 	.values		= (const struct sm_enum_value[]) {
 			{ "100%",		CHARGE_100	},
 			{ "80%",		CHARGE_80	},
@@ -52,13 +69,39 @@ static const struct sm_object max_charge = SM_DECLARE_ENUM({
 });
 
 /*
+ * Power Reporting
+ */
+static const struct sm_object power_reporting = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_POWER_REPORTING) ? CFR_OPTFLAG_RUNTIME : 0,
+	.opt_name	= "power_reporting",
+	.ui_name	= "Power Reporting",
+	.ui_helptext	= "Control battery discharge reporting while external power is connected.",
+	.default_value	= POWER_REPORTING_TRUTHFUL,
+	.runtime_apply = {
+		.method = CONFIG(EC_STARLABS_POWER_REPORTING) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id = STARLABS_EFIOPT_ID_POWER_REPORTING,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "Truthful",	POWER_REPORTING_TRUTHFUL	},
+			{ "Quiet",	POWER_REPORTING_QUIET		},
+			SM_ENUM_VALUE_END				},
+});
+
+/*
  * Fan Mode
  */
 static const struct sm_object fan_mode = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_FAN) ? CFR_OPTFLAG_RUNTIME : 0,
 	.opt_name	= "fan_mode",
 	.ui_name	= "Fan Mode",
 	.ui_helptext	= "Adjust the fan curve to prioritize performance or noise levels.",
 	.default_value	= FAN_NORMAL,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_FAN) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_FAN_MODE,
+	},
 	.values		= (const struct sm_enum_value[]) {
 			{ "Normal",		FAN_NORMAL	},
 			{ "Aggressive",		FAN_AGGRESSIVE	},
@@ -71,11 +114,17 @@ static const struct sm_object fan_mode = SM_DECLARE_ENUM({
  * Charging Speed
  */
 static const struct sm_object charging_speed = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_CHARGING_SPEED) ? CFR_OPTFLAG_RUNTIME : 0,
 	.opt_name	= "charging_speed",
 	.ui_name	= "Charging Speed",
 	.ui_helptext	= "Set the maximum speed to charge the battery. Charging faster"
 		  " will increase heat and battery wear.",
 	.default_value	= SPEED_1_0C,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_CHARGING_SPEED) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_CHARGING_SPEED,
+	},
 	.values		= (const struct sm_enum_value[]) {
 			{ "1.0C",		SPEED_1_0C	},
 			{ "0.5C",		SPEED_0_5C	},
@@ -84,13 +133,41 @@ static const struct sm_object charging_speed = SM_DECLARE_ENUM({
 });
 
 /*
+ * Charging Policy
+ */
+static const struct sm_object charging_policy = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_CHARGING_POLICY) ? CFR_OPTFLAG_RUNTIME : 0,
+	.opt_name	= "charging_policy",
+	.ui_name	= "Charging Priority",
+	.ui_helptext	= "Choose whether battery charging or system performance gets"
+			  " priority when external power is limited.",
+	.default_value	= CHARGING_POLICY_AUTO,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_CHARGING_POLICY) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_CHARGING_POLICY,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "Automatic", 	CHARGING_POLICY_AUTO		},
+			{ "Charging", 		CHARGING_POLICY_CHARGING	},
+			{ "Performance", 	CHARGING_POLICY_PERFORMANCE	},
+			SM_ENUM_VALUE_END				},
+});
+
+/*
  * Lid Switch
  */
 static const struct sm_object lid_switch = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_LID_SWITCH) ? CFR_OPTFLAG_RUNTIME : 0,
 	.opt_name	= "lid_switch",
 	.ui_name	= "Lid Switch",
 	.ui_helptext	= "Configure what opening or closing the lid will do.",
 	.default_value	= SWITCH_NORMAL,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_LID_SWITCH) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_LID_SWITCH,
+	},
 	.values		= (const struct sm_enum_value[]) {
 			{ "Normal",		SWITCH_NORMAL		},
 			{ "Sleep Only",		SWITCH_SLEEP_ONLY	},
@@ -109,10 +186,16 @@ const struct sm_enum_value led_brightness[] = {
  * Power LED Brightness
  */
 static const struct sm_object power_led = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_POWER_LED) ? CFR_OPTFLAG_RUNTIME : 0,
 	.opt_name	= "power_led",
 	.ui_name	= "Power LED Brightness",
 	.ui_helptext	= "Control the maximum brightness of the power LED",
 	.default_value	= LED_NORMAL,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_POWER_LED) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_POWER_LED,
+	},
 	.values		= led_brightness,
 });
 
@@ -120,21 +203,53 @@ static const struct sm_object power_led = SM_DECLARE_ENUM({
  * Charge LED Brightness
  */
 static const struct sm_object charge_led = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_CHARGE_LED) ? CFR_OPTFLAG_RUNTIME : 0,
 	.opt_name	= "charge_led",
 	.ui_name	= "Charge LED Brightness",
 	.ui_helptext	= "Control the maximum brightness of the charge LED",
 	.default_value	= LED_NORMAL,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_CHARGE_LED) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_CHARGE_LED,
+	},
 	.values		= led_brightness,
 });
 
-#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+#if CONFIG(STARLABS_AUTOMATIC_START)
+/*
+ * Automatic power-on policy
+ */
+static const struct sm_object automatic_start = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "automatic_start",
+	.ui_name	= "Automatic Start",
+	.ui_helptext	= "Choose when the system starts without pressing the power button.",
+	.default_value	= AUTOMATIC_START_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_AUTOMATIC_START,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "On AC Connect",          AUTOMATIC_START_ALWAYS        },
+			{ "After Power Loss",       AUTOMATIC_START_AFTER_FAILURE },
+			{ "Never",                  AUTOMATIC_START_NEVER         },
+			SM_ENUM_VALUE_END
+	},
+});
+#elif CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 /*
  * Power on when adapter is connected
  */
 static const struct sm_object power_on_ac = SM_DECLARE_BOOL({
+	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "power_on_ac",
-	.ui_name	= "Power On AC Connect",
-	.ui_helptext	= "Power on automatically when a charger is connected.",
+	.ui_name	= "Start When Charger Connected",
+	.ui_helptext	= "Start automatically when a charger is connected.",
 	.default_value	= ADAPTER_AUTO_POWER_ON_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_POWER_ON_AC,
+	},
 });
 #endif
