@@ -378,8 +378,6 @@ static bool confirmed_replacement_matches(
 	const struct payload_mm_authvar_confirmed_operation *operation = bundle->confirmed_operation;
 	struct payload_mm_authvar_auth2_view auth2;
 
-	if (bundle->confirmed_key)
-		return false;
 	return payload_mm_authvar_confirmed_operation_matches(operation, request) &&
 		operation->mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_REPLACE &&
 		item->role == PAYLOAD_MM_AUTHVAR_BUNDLE_TARGET &&
@@ -820,28 +818,25 @@ static bool result_disjoint_from_inputs(
 	    !range_valid(candidate, index->store_size) ||
 	    !range_valid(scan_entries, *scan_entry_bytes))
 		return false;
-	if (bundle->confirmed_key || bundle->confirmed_operation || bundle->confirmed_request) {
+	if (bundle->confirmed_operation || bundle->confirmed_request) {
 		const struct payload_mm_authvar_policy_request *request = bundle->confirmed_request;
-		const void *confirmation;
-		size_t confirmation_size;
 
-		if (bundle->confirmed_operation) {
-			if (bundle->confirmed_key ||
-			    !payload_mm_authvar_confirmed_operation_matches(bundle->confirmed_operation, request))
-				return false;
-			confirmation = bundle->confirmed_operation;
-			confirmation_size = sizeof(*bundle->confirmed_operation);
-		} else {
+		if (!payload_mm_authvar_confirmed_operation_matches(bundle->confirmed_operation, request))
 			return false;
-		}
-		const void *inputs[] = { confirmation, request, request->name, request->data };
-		const size_t sizes[] = { confirmation_size, sizeof(*request),
-			request->name_size, request->data_size };
+		const struct {
+			const void *data;
+			size_t size;
+		} inputs[] = {
+			{ bundle->confirmed_operation, sizeof(*bundle->confirmed_operation) },
+			{ request, sizeof(*request) },
+			{ request->name, request->name_size },
+			{ request->data, request->data_size },
+		};
 
 		for (size_t i = 0; i < ARRAY_SIZE(inputs); i++)
-			if (ranges_overlap(result, sizeof(*result), inputs[i], sizes[i]) ||
-			    ranges_overlap(candidate, index->store_size, inputs[i], sizes[i]) ||
-			    ranges_overlap(scan_entries, *scan_entry_bytes, inputs[i], sizes[i]))
+			if (ranges_overlap(result, sizeof(*result), inputs[i].data, inputs[i].size) ||
+			    ranges_overlap(candidate, index->store_size, inputs[i].data, inputs[i].size) ||
+			    ranges_overlap(scan_entries, *scan_entry_bytes, inputs[i].data, inputs[i].size))
 				return false;
 	}
 	if (ranges_overlap(result, sizeof(*result), index, sizeof(*index)) ||

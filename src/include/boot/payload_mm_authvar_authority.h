@@ -46,10 +46,7 @@ typedef enum payload_mm_verify_status payload_mm_authvar_authority_verify_fn(
 	const struct payload_mm_authvar_authority_verify_request *request,
 	struct payload_mm_authvar_authority_verification *verification);
 
-struct payload_mm_authvar_confirmed_key_frame;
-
 struct payload_mm_authvar_authority_snapshot {
-	const struct payload_mm_authvar_confirmed_key_frame *confirmed_key;
 	const struct payload_mm_authvar_confirmed_operation *confirmed_operation;
 	const struct payload_mm_authvar_policy_request *request;
 	const struct payload_mm_authvar_store_index *index;

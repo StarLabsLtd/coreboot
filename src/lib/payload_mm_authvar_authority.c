@@ -307,10 +307,8 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 			route_status == PAYLOAD_MM_AUTHVAR_ROUTE_INVALID ?
 			PAYLOAD_MM_VERIFY_MALFORMED : PAYLOAD_MM_VERIFY_REJECTED;
 	append = request->attributes & PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
-	if (snapshot->confirmed_key)
-		return PAYLOAD_MM_VERIFY_REJECTED;
 	if (snapshot->confirmed_operation) {
-		if (snapshot->confirmed_key || !snapshot->facts.trusted_physical_presence ||
+		if (!snapshot->facts.trusted_physical_presence ||
 		    route.authorities[0] != PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS ||
 		    !payload_mm_authvar_confirmed_operation_matches(snapshot->confirmed_operation, request) ||
 		    snapshot->confirmed_operation->mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE)

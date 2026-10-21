@@ -9,7 +9,6 @@
 #define PAYLOAD_MM_AUTHVAR_COORDINATOR_CONTEXT_MAX 256U
 
 struct payload_mm_authvar_coordinator_policy {
-	const struct payload_mm_authvar_confirmed_key_frame *confirmed_key;
 	const struct payload_mm_authvar_confirmed_operation *confirmed_operation;
 	const struct payload_mm_authvar_policy_request *request;
 	struct payload_mm_crypto_owner *owner;

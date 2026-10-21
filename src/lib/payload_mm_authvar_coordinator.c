@@ -302,11 +302,8 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		invariant_failure))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	memset(result, 0, sizeof(*result));
-	if (coordinator->confirmed_key)
-		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 	if (coordinator->confirmed_operation) {
-		if (coordinator->confirmed_key ||
-		    !payload_mm_authvar_confirmed_operation_matches(coordinator->confirmed_operation,
+		if (!payload_mm_authvar_confirmed_operation_matches(coordinator->confirmed_operation,
 			coordinator->request) || binding->at_runtime || ready_to_boot)
 			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
 		confirmed_delete = coordinator->confirmed_operation->mutation ==
@@ -334,7 +331,6 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
 	authority = (struct payload_mm_authvar_authority_snapshot) {
-		.confirmed_key = coordinator->confirmed_key,
 		.confirmed_operation = coordinator->confirmed_operation,
 		.request = coordinator->request,
 		.index = index,
@@ -461,8 +457,6 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		bundle.confirmed_operation = coordinator->confirmed_operation;
 		bundle.confirmed_request = coordinator->request;
 	}
-	if (coordinator->confirmed_key)
-		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 	efi_status = payload_mm_authvar_candidate_build(index, &bundle, policy,
 		binding, candidate, candidate_capacity, scan_entries,
 		scan_entry_capacity, &draft.candidate);
