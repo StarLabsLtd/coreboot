@@ -109,6 +109,7 @@ enum payload_mm_authvar_confirmed_mutation {
 #define PAYLOAD_MM_AUTHVAR_KEY_CLASSIFICATION_SIZE 16U
 #define PAYLOAD_MM_AUTHVAR_KEY_PERSISTENT 1U
 #define PAYLOAD_MM_AUTHVAR_KEY_SYNTHETIC 2U
+/* Protected-resident volatile state; deletion retention requires predicate pinning. */
 #define PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED 3U
 #define PAYLOAD_MM_AUTHVAR_KEY_VISIBLE 1U
 
