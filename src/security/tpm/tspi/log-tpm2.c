@@ -164,8 +164,7 @@ static const uint8_t *tpm2_log_get_entry_at(const struct tpm_2_log_table *tclt,
 	if (tpm2_log_uses_fixed_entries(tclt)) {
 		const uint8_t *entry;
 
-		if (le16toh(tclt->vendor.max_entries) > tpm2_preram_log_capacity() ||
-		    entry_idx >= le16toh(tclt->vendor.max_entries))
+		if (entry_idx >= le16toh(tclt->vendor.max_entries))
 			return NULL;
 
 		entry = (const uint8_t *)&tclt->entries[entry_idx];
@@ -498,6 +497,9 @@ int tpm2_log_copy_entries(const void *from, void *to)
 	int i;
 
 	if (!ENV_HAS_CBMEM)
+		return -1;
+	if (!tpm2_log_uses_fixed_entries(from_log) ||
+	    le16toh(from_log->vendor.max_entries) > tpm2_preram_log_capacity())
 		return -1;
 
 	for (i = 0; i < le16toh(from_log->vendor.num_entries); i++) {

@@ -91,12 +91,39 @@ static void test_rejects_persistently_invalid_log(void **state)
 	free(log);
 }
 
+static void test_accepts_fixed_cbmem_log(void **state)
+{
+	struct tpm_2_log_table *log = new_log(tpm2_preram_log_capacity() + 1, true);
+	int pcr;
+	const uint8_t *digest;
+	enum vb2_hash_algorithm algo;
+	const char *name;
+
+	add_entries(log, 1);
+	current_log = log;
+	assert_int_equal(tpm2_log_get(0, &pcr, &digest, &algo, &name), 0);
+	free(log);
+}
+
+static void test_rejects_oversized_preram_source(void **state)
+{
+	struct tpm_2_log_table *from = new_log(tpm2_preram_log_capacity() + 1, true);
+	struct tpm_2_log_table *to = new_log(MAX_TPM_LOG_ENTRIES, false);
+
+	assert_int_equal(tpm2_log_copy_entries(from, to), -1);
+	assert_int_equal(le16toh(to->vendor.num_entries), 0);
+	free(from);
+	free(to);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_valid_fixed_migration),
 		cmocka_unit_test(test_rejects_malformed_fixed_entries),
 		cmocka_unit_test(test_rejects_persistently_invalid_log),
+		cmocka_unit_test(test_accepts_fixed_cbmem_log),
+		cmocka_unit_test(test_rejects_oversized_preram_source),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
