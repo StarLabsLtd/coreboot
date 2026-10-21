@@ -1,4 +1,4 @@
-## SPDX-License-Identifier: GPL-2.0-only
+## SPDX-License-Identifier: LicenseRef-LICENSE-TBC
 
 if VENDOR_STARLABS
 
@@ -7,6 +7,15 @@ config EDK2_BOOTSPLASH_FILE
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
 
 if PAYLOAD_CDK2
+
+config BMP_LOGO
+	default y if LINEAR_FRAMEBUFFER
+
+config USE_COREBOOT_FOR_BMP_RENDERING
+	default y
+
+config BMP_LOGO_FILE_NAME
+	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
 
 config STARLABS_CDK2_DEFAULTS
 	def_bool y
