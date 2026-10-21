@@ -14,6 +14,8 @@ void mb_devtree_update(void)
 {
 	config_t *cfg = config_of_soc();
 	update_power_limits(cfg);
+	if (!CONFIG(EDK2_DEBUG))
+		DEV_PTR(uart2)->enabled = 0;
 
 	/* Enable/Disable WiFi based on CMOS settings */
 	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0)

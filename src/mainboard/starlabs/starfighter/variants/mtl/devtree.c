@@ -28,6 +28,11 @@ void mb_devtree_update(void)
 	if (get_uint_option_checked("card_reader", 1, OPTION_BOOL) == 0)
 		cfg->usb2_ports[3].enable = 0;
 
+	if (!CONFIG(EDK2_DEBUG)) {
+		DEV_PTR(uart0)->enabled = 0;
+		cfg->serial_io_uart_mode[PchSerialIoIndexUART0] = PchSerialIoDisabled;
+	}
+
 	/* Enable/Disable GNA based on CMOS settings */
 	if (get_uint_option_checked("gna", 0, OPTION_BOOL) == 0)
 		DEV_PTR(gna)->enabled = 0;

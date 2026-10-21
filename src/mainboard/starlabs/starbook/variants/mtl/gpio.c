@@ -60,8 +60,13 @@ const struct pad_config *variant_nvme_power_sequence_post_pads(size_t *num)
 /* clang-format off */
 const struct pad_config early_gpio_table[] = {
 	/* Debug Connector */
+#if CONFIG(EDK2_DEBUG)
 	PAD_CFG_NF(GPP_H08, NONE, DEEP, NF1),				/* RXD */
 	PAD_CFG_NF(GPP_H09, NONE, DEEP, NF1),				/* TXD */
+#else
+	PAD_NC_LOCK(GPP_H08, NONE, LOCK_CONFIG),
+	PAD_NC_LOCK(GPP_H09, NONE, LOCK_CONFIG),
+#endif
 
 	/* SMBus */
 	PAD_CFG_NF(GPP_C00, NONE, DEEP, NF1),				/* Clock */
