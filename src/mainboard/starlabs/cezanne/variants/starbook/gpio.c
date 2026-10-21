@@ -10,8 +10,13 @@ const struct soc_amd_gpio early_gpio_table[] = {
 	PAD_GPO(GPIO_40,			LOW),		/* AUX reset asserted */
 
 	/* Debug Connector */
+#if CONFIG(EDK2_DEBUG)
 	PAD_NF(GPIO_141,	UART0_RXD,	PULL_NONE),	/* RXD */
 	PAD_NF(GPIO_143,	UART0_TXD,	PULL_NONE),	/* TXD */
+#else
+	PAD_NC(GPIO_141),
+	PAD_NC(GPIO_143),
+#endif
 };
 /* clang-format on */
 
