@@ -12,7 +12,9 @@ Device (XHCI)
 {
 	Name (_ADR, 0x00140000)
 
+#if CONFIG(SOC_INTEL_COMMON_ACPI_XHCI_WAKE)
 	Name (_PRW, Package () { GPE0_PME_B0, 3 })
+#endif
 
 	OperationRegion (XPRT, PCI_Config, 0x00, 0x100)
 	Field (XPRT, AnyAcc, NoLock, Preserve)
