@@ -4,17 +4,21 @@
 #include <boot/payload_mm_authvar_signature_db.h>
 #include <boot/payload_mm_authvar_store.h>
 
+#include <commonlib/endian.h>
 #include <commonlib/helpers.h>
 #include <mbedtls/pk.h>
 #include <mbedtls/x509_crt.h>
 #include <string.h>
 
 #include "payload_mm_crypto/crypto.h"
+#include "payload_mm_crypto/payload_mm_crypto_platform.h"
 
 #define SIGNATURE_LIST_HEADER_SIZE 28U
 #define SIGNATURE_OWNER_SIZE 16U
 #define VARIABLE_SIZE UINT32_MAX
-#define MAX_FILTER_COMPARISONS 65536U
+/* SHA-1 is the shortest supported entry; an admitted RSA certificate is larger. */
+#define MAX_SIGNATURES (PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_DATA_SIZE / \
+	(SIGNATURE_OWNER_SIZE + 20U))
 
 struct signature_type {
 	uint8_t guid[16];
@@ -186,53 +190,138 @@ enum payload_mm_verify_status payload_mm_authvar_signature_db_validate(
 	return validate_stream(owner, data, size, profile, maximum_x509, stats);
 }
 
-static bool signature_exists(const void *current, size_t current_size,
-	const struct payload_mm_authvar_signature_list_view *append_list,
-	const uint8_t *append_signature)
+struct signature_index {
+	const uint8_t *data;
+	uint32_t *lists;
+	uint32_t *signatures;
+	size_t count;
+};
+
+static int compare_signatures(const uint8_t *left_list, const uint8_t *left,
+	const uint8_t *right_list, const uint8_t *right)
+{
+	uint32_t left_size = read_le32(left_list + 24U);
+	uint32_t right_size = read_le32(right_list + 24U);
+	int order = memcmp(left_list, right_list, 16U);
+
+	if (order)
+		return order;
+	if (left_size != right_size)
+		return left_size < right_size ? -1 : 1;
+	return memcmp(left, right, left_size);
+}
+
+static void sift_down(struct signature_index *index, size_t root, size_t count)
+{
+	uint32_t list = index->lists[root];
+	uint32_t signature = index->signatures[root];
+
+	while (root < count / 2U) {
+		size_t child = root * 2U + 1U;
+
+		if (child + 1U < count && compare_signatures(
+			index->data + index->lists[child],
+			index->data + index->signatures[child],
+			index->data + index->lists[child + 1U],
+			index->data + index->signatures[child + 1U]) < 0)
+			child++;
+		if (compare_signatures(index->data + list, index->data + signature,
+			index->data + index->lists[child],
+			index->data + index->signatures[child]) >= 0)
+			break;
+		index->lists[root] = index->lists[child];
+		index->signatures[root] = index->signatures[child];
+		root = child;
+	}
+	index->lists[root] = list;
+	index->signatures[root] = signature;
+}
+
+static enum payload_mm_verify_status build_index(struct signature_index *index,
+	size_t size)
 {
 	struct payload_mm_authvar_signature_list_cursor cursor;
 	struct payload_mm_authvar_signature_list_view list;
 	enum payload_mm_authvar_format_result result;
+	size_t next = 0U;
 
-	payload_mm_authvar_signature_list_begin(&cursor, current, current_size);
+	/* Separate arrays keep each allocation below the arena's per-allocation limit. */
+	index->lists = payload_mm_crypto_calloc(index->count, sizeof(*index->lists));
+	index->signatures = payload_mm_crypto_calloc(index->count, sizeof(*index->signatures));
+	if (!index->lists || !index->signatures)
+		return PAYLOAD_MM_VERIFY_NO_MEMORY;
+	payload_mm_authvar_signature_list_begin(&cursor, index->data, size);
 	while ((result = payload_mm_authvar_signature_list_next(&cursor, &list)) ==
 		PAYLOAD_MM_AUTHVAR_FORMAT_OK) {
-		if (list.signature_size != append_list->signature_size ||
-		    memcmp(list.type_guid, append_list->type_guid, sizeof(list.type_guid)))
-			continue;
-		for (uint32_t i = 0U; i < list.signature_count; i++)
-			if (!memcmp(list.signatures.data + (size_t)i * list.signature_size,
-				append_signature, list.signature_size))
-				return true;
+		if (list.signature_count > index->count - next)
+			return PAYLOAD_MM_VERIFY_CHANGED;
+		for (uint32_t i = 0U; i < list.signature_count; i++) {
+			index->lists[next] = list.header.data - SIGNATURE_LIST_HEADER_SIZE -
+				index->data;
+			index->signatures[next] = list.signatures.data - index->data +
+				(size_t)i * list.signature_size;
+			next++;
+		}
+	}
+	if (result != PAYLOAD_MM_AUTHVAR_FORMAT_DONE || next != index->count)
+		return PAYLOAD_MM_VERIFY_CHANGED;
+	/* Heapsort bounds comparison work even for adversarial input ordering. */
+	for (size_t root = index->count / 2U; root > 0U; root--)
+		sift_down(index, root - 1U, index->count);
+	for (size_t count = index->count; count > 1U; count--) {
+		SWAP(index->lists[0], index->lists[count - 1U]);
+		SWAP(index->signatures[0], index->signatures[count - 1U]);
+		sift_down(index, 0U, count - 1U);
+	}
+	return PAYLOAD_MM_VERIFY_OK;
+}
+
+static bool signature_exists(const struct signature_index *index,
+	const struct payload_mm_authvar_signature_list_view *list,
+	const uint8_t *signature)
+{
+	size_t first = 0U;
+	size_t end = index->count;
+
+	while (first < end) {
+		size_t middle = first + (end - first) / 2U;
+		int order = compare_signatures(index->data + index->lists[middle],
+			index->data + index->signatures[middle],
+			list->header.data - SIGNATURE_LIST_HEADER_SIZE, signature);
+
+		if (!order)
+			return true;
+		if (order < 0)
+			first = middle + 1U;
+		else
+			end = middle;
 	}
 	return false;
 }
 
-static void write_le32(uint8_t *data, uint32_t value)
-{
-	data[0] = value;
-	data[1] = value >> 8;
-	data[2] = value >> 16;
-	data[3] = value >> 24;
-}
-
-static enum payload_mm_verify_status filtered_size(const void *current,
-	size_t current_size, const void *append, size_t append_size, size_t *size)
+static enum payload_mm_verify_status filter_append(const struct signature_index *index,
+	const void *append, size_t append_size, uint8_t *keep, size_t *size)
 {
 	struct payload_mm_authvar_signature_list_cursor cursor;
 	struct payload_mm_authvar_signature_list_view list;
 	enum payload_mm_authvar_format_result result;
 	size_t total = 0U;
+	size_t next = 0U;
 
 	payload_mm_authvar_signature_list_begin(&cursor, append, append_size);
 	while ((result = payload_mm_authvar_signature_list_next(&cursor, &list)) ==
 		PAYLOAD_MM_AUTHVAR_FORMAT_OK) {
 		size_t kept = 0U;
 
-		for (uint32_t i = 0U; i < list.signature_count; i++)
-			if (!signature_exists(current, current_size, &list,
+		if (list.signature_count > MAX_SIGNATURES - next)
+			return PAYLOAD_MM_VERIFY_CHANGED;
+		for (uint32_t i = 0U; i < list.signature_count; i++, next++) {
+			if (signature_exists(index, &list,
 				list.signatures.data + (size_t)i * list.signature_size))
-				kept++;
+				continue;
+			keep[next / 8U] |= 1U << (next % 8U);
+			kept++;
+		}
 		if (kept) {
 			size_t list_size = SIGNATURE_LIST_HEADER_SIZE + list.header.size;
 			if (kept > (SIZE_MAX - list_size) / list.signature_size)
@@ -249,36 +338,35 @@ static enum payload_mm_verify_status filtered_size(const void *current,
 	return PAYLOAD_MM_VERIFY_OK;
 }
 
-static void emit_filtered(const void *current, size_t current_size,
-	const void *append, size_t append_size, uint8_t *output)
+static void emit_filtered(const void *append, size_t append_size,
+	const uint8_t *keep, uint8_t *output)
 {
 	struct payload_mm_authvar_signature_list_cursor cursor;
 	struct payload_mm_authvar_signature_list_view list;
+	size_t next = 0U;
 
 	payload_mm_authvar_signature_list_begin(&cursor, append, append_size);
 	while (payload_mm_authvar_signature_list_next(&cursor, &list) ==
 		PAYLOAD_MM_AUTHVAR_FORMAT_OK) {
 		size_t kept = 0U;
 
-		for (uint32_t i = 0U; i < list.signature_count; i++) {
-			const uint8_t *signature = list.signatures.data +
-				(size_t)i * list.signature_size;
-
-			if (!signature_exists(current, current_size, &list, signature))
+		for (uint32_t i = 0U; i < list.signature_count; i++)
+			if (keep[(next + i) / 8U] & (1U << ((next + i) % 8U)))
 				kept++;
-		}
-		if (!kept)
+		if (!kept) {
+			next += list.signature_count;
 			continue;
+		}
 		memcpy(output, list.header.data - SIGNATURE_LIST_HEADER_SIZE,
 			SIGNATURE_LIST_HEADER_SIZE + list.header.size);
 		write_le32(output + 16U, SIGNATURE_LIST_HEADER_SIZE + list.header.size +
 			kept * list.signature_size);
 		output += SIGNATURE_LIST_HEADER_SIZE + list.header.size;
-		for (uint32_t i = 0U; i < list.signature_count; i++) {
+		for (uint32_t i = 0U; i < list.signature_count; i++, next++) {
 			const uint8_t *signature = list.signatures.data +
 				(size_t)i * list.signature_size;
 
-			if (signature_exists(current, current_size, &list, signature))
+			if (!(keep[next / 8U] & (1U << (next % 8U))))
 				continue;
 			memcpy(output, signature, list.signature_size);
 			output += list.signature_size;
@@ -294,6 +382,8 @@ enum payload_mm_verify_status payload_mm_authvar_signature_db_filter_append(
 {
 	struct payload_mm_authvar_signature_db_stats current_stats;
 	struct payload_mm_authvar_signature_db_stats append_stats;
+	struct signature_index index = { .data = current };
+	uint8_t keep[DIV_ROUND_UP(MAX_SIGNATURES, 8U)] = { 0 };
 	enum payload_mm_verify_status status;
 	size_t needed;
 
@@ -327,16 +417,23 @@ enum payload_mm_verify_status payload_mm_authvar_signature_db_filter_append(
 		PAYLOAD_MM_AUTHVAR_SIGNATURE_DB_MAX_X509, &append_stats);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
-	if (current_stats.signature_count &&
-	    append_stats.signature_count >
-		MAX_FILTER_COMPARISONS / current_stats.signature_count)
+	if (current_stats.signature_count > MAX_SIGNATURES ||
+	    append_stats.signature_count > MAX_SIGNATURES)
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
-	status = filtered_size(current, current_size, append, append_size, &needed);
+	status = payload_mm_crypto_begin(owner);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
-	if (needed > output_capacity)
-		return PAYLOAD_MM_VERIFY_NO_MEMORY;
-	emit_filtered(current, current_size, append, append_size, output);
+	index.count = current_stats.signature_count;
+	status = build_index(&index, current_size);
+	if (status == PAYLOAD_MM_VERIFY_OK)
+		status = filter_append(&index, append, append_size, keep, &needed);
+	if (status == PAYLOAD_MM_VERIFY_OK && needed > output_capacity)
+		status = PAYLOAD_MM_VERIFY_NO_MEMORY;
+	/* Arena cleanup can fail: retain only the bitmap until output may be changed. */
+	status = payload_mm_crypto_end(owner, status);
+	if (status != PAYLOAD_MM_VERIFY_OK)
+		return status;
+	emit_filtered(append, append_size, keep, output);
 	*output_size = needed;
 	return PAYLOAD_MM_VERIFY_OK;
 }
