@@ -78,6 +78,16 @@ static size_t tpm2_log_capacity(const struct tpm_2_log_table *tclt)
 	return le16toh(tclt->vendor.max_entries) * sizeof(struct tpm_2_log_entry);
 }
 
+static uint16_t tpm2_preram_log_capacity(void)
+{
+	const size_t log_size = REGION_SIZE(tpm_log);
+
+	if (log_size <= sizeof(struct tpm_2_log_table))
+		return 0;
+
+	return (log_size - sizeof(struct tpm_2_log_table)) / sizeof(struct tpm_2_log_entry);
+}
+
 static const uint8_t *tpm2_log_entry_offset(const struct tpm_2_log_table *tclt,
 					    uint16_t entry_idx)
 {
@@ -148,11 +158,20 @@ static int tpm2_log_uses_fixed_entries(const struct tpm_2_log_table *tclt)
 static const uint8_t *tpm2_log_get_entry_at(const struct tpm_2_log_table *tclt,
 					    uint16_t entry_idx)
 {
+	if (le16toh(tclt->vendor.num_entries) > le16toh(tclt->vendor.max_entries))
+		return NULL;
+
 	if (tpm2_log_uses_fixed_entries(tclt)) {
+		const uint8_t *entry;
+
 		if (entry_idx >= le16toh(tclt->vendor.max_entries))
 			return NULL;
 
-		return (const uint8_t *)&tclt->entries[entry_idx];
+		entry = (const uint8_t *)&tclt->entries[entry_idx];
+		if (!tpm2_log_entry_size(entry))
+			return NULL;
+
+		return entry;
 	}
 
 	if (!ENV_HAS_CBMEM || !tpm2_log_uses_packed_entries(tclt))
@@ -433,9 +452,6 @@ int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 
 	tclt = tpm_log_init();
 	if (!tclt)
-		return 1;
-	if (tclt->vendor.reserved ||
-	    le16toh(tclt->vendor.num_entries) > le16toh(tclt->vendor.max_entries))
 		return -1;
 
 	if (entry_idx < 0 || entry_idx >= le16toh(tclt->vendor.num_entries))
@@ -443,7 +459,7 @@ int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 
 	entry = tpm2_log_get_entry_at(tclt, entry_idx);
 	if (!entry)
-		return 1;
+		return -1;
 
 	*pcr = tpm2_log_read_le32(entry, offsetof(struct tpm_2_log_entry, pcr));
 	*digest_data = tpm2_log_entry_digest(entry);
@@ -466,27 +482,19 @@ void tpm2_preram_log_clear(void)
 	 * packed CBMEM log when CBMEM is created.
 	 */
 	struct tpm_2_log_table *tclt = (struct tpm_2_log_table *)_tpm_log;
-	tclt->vendor.reserved = 0;
-	tclt->vendor.max_entries = htole16(MAX_PRERAM_TPM_LOG_ENTRIES);
+	tclt->vendor.max_entries = htole16(tpm2_preram_log_capacity());
 	tclt->vendor.num_entries = htole16(0);
 	tclt->vendor.entry_size = htole32(sizeof(struct tpm_2_log_entry));
 }
 
-void tpm2_log_copy_entries(const void *from, void *to)
+int tpm2_log_copy_entries(const void *from, void *to)
 {
 	const struct tpm_2_log_table *from_log = from;
 	struct tpm_2_log_table *to_log = to;
-	const size_t preram_capacity =
-		(REGION_SIZE(tpm_log) - offsetof(struct tpm_2_log_table, entries)) /
-		sizeof(struct tpm_2_log_entry);
 	int i;
 
 	if (!ENV_HAS_CBMEM)
-		return;
-
-	if (le16toh(from_log->vendor.max_entries) > preram_capacity ||
-	    le16toh(from_log->vendor.num_entries) > le16toh(from_log->vendor.max_entries))
-		goto invalid;
+		return -1;
 
 	for (i = 0; i < le16toh(from_log->vendor.num_entries); i++) {
 		const uint8_t *from_entry = tpm2_log_get_entry_at(from_log, i);
@@ -496,7 +504,7 @@ void tpm2_log_copy_entries(const void *from, void *to)
 
 		if (!from_entry) {
 			printk(BIOS_WARNING, "TPM LOG: malformed entry\n");
-			goto invalid;
+			return -1;
 		}
 
 		pcr = tpm2_log_read_le32(from_entry, offsetof(struct tpm_2_log_entry, pcr));
@@ -508,11 +516,7 @@ void tpm2_log_copy_entries(const void *from, void *to)
 						  tpm2_log_entry_digest(from_entry),
 						  vb2_digest_size(TPM_MEASURE_ALGO),
 						  tpm2_log_entry_data(from_entry), data_length))
-			goto invalid;
+			return -1;
 	}
-	return;
-
-invalid:
-	/* This CBMEM log can outlive the stage which detected the failed copy. */
-	to_log->vendor.reserved = 1;
+	return 0;
 }
