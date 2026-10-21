@@ -5,6 +5,7 @@
 #include <cpu/x86/smm.h>
 #include <drivers/option/cfr_runtime.h>
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+#include <drivers/efi/option.h>
 #include <drivers/i2c/designware/dw_i2c.h>
 #endif
 #include <ec/acpi/ec.h>
