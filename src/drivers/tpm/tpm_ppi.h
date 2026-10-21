@@ -142,5 +142,8 @@ struct cb_tpm_ppi_payload_handshake {
 } __packed;
 
 void lb_tpm_ppi(struct lb_header *header);
+void tpm_ppi_add_resources(struct device *dev, unsigned long index);
+void tpm_ppi_add_mmio_handoff(struct lb_header *header);
+void tpm_ppi_disable_mmio(void);
 
 #endif /* _TPM_PPI_H_ */

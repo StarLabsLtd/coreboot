@@ -913,6 +913,17 @@ struct lb_tpm_physical_presence {
 	uint8_t pad[2];
 };
 
+#define LB_TPM_PPI_STORAGE_MMIO 1
+
+struct lb_tpm_physical_presence_mmio {
+	struct lb_tpm_physical_presence common;
+	uint32_t storage;
+	uint32_t buffer_size;
+};
+
+_Static_assert(sizeof(struct lb_tpm_physical_presence_mmio) == 24,
+	       "TPM PPI MMIO handoff layout");
+
 
 /*
  * Handoff the ACPI RSDP

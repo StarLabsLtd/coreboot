@@ -42,6 +42,13 @@
 
 static acpi_rsdp_t *valid_rsdp(acpi_rsdp_t *rsdp);
 
+static bool using_fw_cfg_tables;
+
+bool acpi_tables_from_fw_cfg(void)
+{
+	return using_fw_cfg_tables;
+}
+
 u8 acpi_checksum(u8 *table, u32 length)
 {
 	u8 ret = 0;
@@ -1551,6 +1558,7 @@ static unsigned long write_acpi_tables(const unsigned long start)
 	current = acpi_align_current(current);
 
 	/* Special case for qemu */
+	using_fw_cfg_tables = false;
 	fw = fw_cfg_acpi_tables(current);
 	if (fw) {
 		rsdp = NULL;
@@ -1564,6 +1572,7 @@ static unsigned long write_acpi_tables(const unsigned long start)
 		}
 		if (!rsdp)
 			return fw;
+		using_fw_cfg_tables = true;
 
 		current = fw;
 		current = acpi_align_current(current);

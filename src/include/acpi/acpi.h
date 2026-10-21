@@ -1536,6 +1536,7 @@ typedef struct acpi_table_wdat {
 } __packed acpi_wdat_t;
 
 uintptr_t get_coreboot_rsdp(void);
+bool acpi_tables_from_fw_cfg(void);
 
 unsigned long fw_cfg_acpi_tables(unsigned long start);
 
