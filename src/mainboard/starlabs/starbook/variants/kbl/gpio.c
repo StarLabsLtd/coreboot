@@ -5,8 +5,13 @@
 /* Early pad configuration in bootblock. */
 const struct pad_config early_gpio_table[] = {
 	/* Debug Connector */
+#if CONFIG(EDK2_DEBUG)
 	PAD_CFG_NF(GPP_C20, NONE, DEEP, NF1),				/* RXD */
 	PAD_CFG_NF(GPP_C21, NONE, DEEP, NF1),				/* TXD */
+#else
+	PAD_NC_LOCK(GPP_C20, NONE, LOCK_CONFIG),
+	PAD_NC_LOCK(GPP_C21, NONE, LOCK_CONFIG),
+#endif
 };
 
 const struct pad_config *variant_early_gpio_table(size_t *num)

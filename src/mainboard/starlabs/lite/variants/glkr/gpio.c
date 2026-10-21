@@ -8,10 +8,15 @@
 
 /* Early pad configuration in bootblock. */
 const struct pad_config early_gpio_table[] = {
+#if CONFIG(EDK2_DEBUG)
 	/* GPIO_64:	UART2_TXD	*/
 	PAD_CFG_NF_IOSSTATE_IOSTERM(GPIO_64, UP_20K, DEEP, NF1, HIZCRx1, DISPUPD),
 	/* GPIO_65:	UART2_RXD	*/
 	PAD_CFG_NF_IOSSTATE_IOSTERM(GPIO_65, UP_20K, DEEP, NF1, TxLASTRxE, DISPUPD),
+#else
+	PAD_NC_LOCK(GPIO_64, NONE, LOCK_CONFIG),
+	PAD_NC_LOCK(GPIO_65, NONE, LOCK_CONFIG),
+#endif
 };
 
 const struct pad_config *variant_early_gpio_table(size_t *num)

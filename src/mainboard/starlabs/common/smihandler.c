@@ -3,6 +3,10 @@
 #include <commonlib/helpers.h>
 #include <cpu/x86/smm.h>
 #include <drivers/option/cfr_runtime.h>
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS)
+#include <gpio.h>
+#include <variants.h>
+#endif
 #include <ec/acpi/ec.h>
 #include <ec/starlabs/merlin/ec.h>
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
@@ -85,6 +89,28 @@ static struct starlabs_dnvs_efiopt *get_starlabs_dnvs_efiopt(void)
 	uint8_t *base = (uint8_t *)gnvs;
 	base += gnvs_size;
 	return (struct starlabs_dnvs_efiopt *)base;
+}
+#endif
+
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS)
+int mainboard_smi_finalize(void)
+{
+	int ret = 0;
+
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS)
+	if (!CONFIG(EDK2_DEBUG)) {
+		size_t num;
+		const struct pad_config *pads = variant_early_gpio_table(&num);
+
+		/* Early stages cannot apply the lock requests in this table. */
+		for (size_t i = 0; i < num; i++) {
+			if (pads[i].lock_action &&
+			    gpio_lock_pad(pads[i].pad, pads[i].lock_action))
+				ret = -1;
+		}
+	}
+#endif
+	return ret;
 }
 #endif
 
