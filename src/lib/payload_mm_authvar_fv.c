@@ -87,20 +87,21 @@ bool payload_mm_authvar_fv_geometry(struct payload_mm_authvar_fv_geometry *geome
 	return true;
 }
 
-bool payload_mm_authvar_fv_format(void *region, size_t region_size,
-	size_t block_size)
+bool payload_mm_authvar_fv_format_header(void *header, size_t capacity,
+	size_t region_size, size_t block_size)
 {
 	struct payload_mm_authvar_fv_geometry geometry;
-	uint8_t *fv = region;
+	uint8_t *fv = header;
 	uint16_t checksum = 0;
 
-	if (!span_valid(fv, region_size) ||
+	if (capacity < PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE ||
+	    !span_valid(fv, PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE) ||
 	    !payload_mm_authvar_fv_geometry(&geometry, region_size, block_size) ||
 	    geometry.variable_size < PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE +
 		VARIABLE_STORE_HEADER_SIZE)
 		return false;
 
-	memset(fv, 0xff, region_size);
+	memset(fv, 0xff, PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE);
 	memset(fv, 0, 16U);
 	memcpy(fv + 16U, system_nv_data_fv_guid, sizeof(system_nv_data_fv_guid));
 	write_le64(fv + 32U, region_size);
@@ -125,5 +126,18 @@ bool payload_mm_authvar_fv_format(void *region, size_t region_size,
 	fv[PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + 20U] = VARIABLE_STORE_FORMATTED;
 	fv[PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + 21U] = VARIABLE_STORE_HEALTHY;
 	memset(fv + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + 22U, 0, 6U);
+	return true;
+}
+
+bool payload_mm_authvar_fv_format(void *region, size_t region_size,
+	size_t block_size)
+{
+	uint8_t header[PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE];
+
+	if (!span_valid(region, region_size) ||
+	    !payload_mm_authvar_fv_format_header(header, sizeof(header), region_size, block_size))
+		return false;
+	memset(region, 0xff, region_size);
+	memcpy(region, header, sizeof(header));
 	return true;
 }

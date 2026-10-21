@@ -27,4 +27,9 @@ enum payload_mm_authvar_default_store_source
 payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 					 size_t region_size, size_t block_size);
 
+/* Read-only bootstrap proof using the same complete image as compose. */
+enum payload_mm_authvar_default_store_source
+payload_mm_authvar_default_store_classify(const void *source,
+					 size_t region_size, size_t block_size);
+
 #endif

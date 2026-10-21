@@ -12,6 +12,10 @@
 #define DEFAULT_STORE_FIRST_RECORD \
 	(PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE)
 #define DEFAULT_STORE_RECORD_BYTES 252U
+#define DEFAULT_STORE_PREFIX_BYTES (DEFAULT_STORE_FIRST_RECORD + DEFAULT_STORE_RECORD_BYTES)
+
+_Static_assert(DEFAULT_STORE_FIRST_RECORD == PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE,
+	"Default records follow the complete FV/store header");
 
 static const uint8_t custom_mode_guid[16] = {
 	0x0c, 0xec, 0x76, 0xc0, 0x28, 0x70, 0x99, 0x43,
@@ -83,30 +87,16 @@ static bool span_valid(const void *data, size_t size)
 	return data && (uintptr_t)data <= UINTPTR_MAX - size;
 }
 
-enum payload_mm_authvar_default_store_source
-payload_mm_authvar_default_store_compose(const void *source, void *candidate,
-					 size_t region_size, size_t block_size)
+static bool default_store_prefix(uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
+				 size_t region_size, size_t block_size)
 {
 	struct payload_mm_authvar_fv_geometry geometry;
-	const uint8_t *source_bytes = source;
-	uint8_t *candidate_bytes = candidate;
-	uint8_t records[DEFAULT_STORE_RECORD_BYTES];
-	const uintptr_t source_address = (uintptr_t)source;
-	const uintptr_t candidate_address = (uintptr_t)candidate;
 	size_t candidate_used = DEFAULT_STORE_FIRST_RECORD;
 	size_t records_used = 0U;
-	bool erased = true;
-	bool complete = true;
-	bool subset = true;
+	uint8_t *records = prefix + DEFAULT_STORE_FIRST_RECORD;
 
-	if (!span_valid(source, region_size) || !span_valid(candidate, region_size))
-		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
-	if ((source_address <= candidate_address ?
-	     candidate_address - source_address :
-	     source_address - candidate_address) < region_size)
-		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
 	if (!payload_mm_authvar_fv_geometry(&geometry, region_size, block_size))
-		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+		return false;
 	for (size_t i = 0; i < ARRAY_SIZE(defaults); i++) {
 		size_t record_size;
 		size_t data_offset;
@@ -115,10 +105,10 @@ payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 			defaults[i].data_size, &record_size, &data_offset) ||
 		    __builtin_add_overflow(candidate_used, record_size,
 			&candidate_used))
-			return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+			return false;
 	}
 	if (candidate_used > geometry.variable_size)
-		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+		return false;
 
 	for (size_t i = 0; i < ARRAY_SIZE(defaults); i++) {
 		struct payload_mm_authvar_record_descriptor descriptor = {
@@ -136,21 +126,28 @@ payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 			sizeof(descriptor.vendor_guid));
 		if (!payload_mm_authvar_record_encode(&descriptor, &span, 1U,
 			defaults[i].timestamp_mode, records + records_used,
-			sizeof(records) - records_used, &record_size))
-			return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+			DEFAULT_STORE_RECORD_BYTES - records_used, &record_size))
+			return false;
 		records[records_used + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
 		records_used += record_size;
 	}
-	if (records_used != sizeof(records) ||
-	    !payload_mm_authvar_fv_format(candidate, region_size, block_size))
-		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
-	memcpy(candidate_bytes + DEFAULT_STORE_FIRST_RECORD, records,
-		sizeof(records));
+	return records_used == DEFAULT_STORE_RECORD_BYTES &&
+		payload_mm_authvar_fv_format_header(prefix, DEFAULT_STORE_FIRST_RECORD,
+			region_size, block_size);
+}
+
+static enum payload_mm_authvar_default_store_source classify_source(
+	const uint8_t *source, const uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES], size_t region_size)
+{
+	bool erased = true;
+	bool complete = true;
+	bool subset = true;
 
 	for (size_t i = 0; i < region_size; i++) {
-		erased &= source_bytes[i] == 0xffU;
-		complete &= source_bytes[i] == candidate_bytes[i];
-		subset &= (source_bytes[i] & candidate_bytes[i]) == candidate_bytes[i];
+		uint8_t expected = i < DEFAULT_STORE_PREFIX_BYTES ? prefix[i] : 0xffU;
+		erased &= source[i] == 0xffU;
+		complete &= source[i] == expected;
+		subset &= (source[i] & expected) == expected;
 	}
 	if (erased)
 		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED;
@@ -159,4 +156,35 @@ payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 	if (subset)
 		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_NOR_SUBSET;
 	return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_FOREIGN;
+}
+
+enum payload_mm_authvar_default_store_source
+payload_mm_authvar_default_store_classify(const void *source,
+					 size_t region_size, size_t block_size)
+{
+	uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES];
+
+	if (!span_valid(source, region_size) || !default_store_prefix(prefix, region_size, block_size))
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	return classify_source(source, prefix, region_size);
+}
+
+enum payload_mm_authvar_default_store_source
+payload_mm_authvar_default_store_compose(const void *source, void *candidate,
+					 size_t region_size, size_t block_size)
+{
+	uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES];
+	const uintptr_t source_address = (uintptr_t)source;
+	const uintptr_t candidate_address = (uintptr_t)candidate;
+
+	if (!span_valid(source, region_size) || !span_valid(candidate, region_size))
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	if ((source_address <= candidate_address ?
+	     candidate_address - source_address :
+	     source_address - candidate_address) < region_size ||
+	    !default_store_prefix(prefix, region_size, block_size))
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	memset(candidate, 0xff, region_size);
+	memcpy(candidate, prefix, sizeof(prefix));
+	return classify_source(source, prefix, region_size);
 }
