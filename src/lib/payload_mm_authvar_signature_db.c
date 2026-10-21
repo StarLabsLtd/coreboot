@@ -385,7 +385,7 @@ enum payload_mm_verify_status payload_mm_authvar_signature_db_filter_append(
 	struct signature_index index = { .data = current };
 	uint8_t keep[(MAX_SIGNATURES + 7U) / 8U] = { 0 };
 	enum payload_mm_verify_status status;
-	size_t needed;
+	size_t needed = 0U;
 
 	if (!owner || (uintptr_t)owner % _Alignof(*owner) || !current ||
 	    !current_size || !append || !append_size || !output || !output_size ||
