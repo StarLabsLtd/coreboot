@@ -300,6 +300,14 @@ enum timestamp_id {
 	TS_PAYLOAD_RESOURCE_FINALIZE_END = 0x1b03,
 	TS_PAYLOAD_I2C_HID_BEGIN = 0x1b04,
 	TS_PAYLOAD_I2C_HID_END = 0x1b05,
+	TS_PAYLOAD_RESOURCE_COUNT_BEGIN = 0x1b06,
+	TS_PAYLOAD_RESOURCE_COUNT_END = 0x1b07,
+	TS_PAYLOAD_RESOURCE_TOPOLOGY_BEGIN = 0x1b08,
+	TS_PAYLOAD_RESOURCE_TOPOLOGY_END = 0x1b09,
+	TS_PAYLOAD_RESOURCE_COMMAND_BEGIN = 0x1b0a,
+	TS_PAYLOAD_RESOURCE_COMMAND_END = 0x1b0b,
+	TS_PAYLOAD_RESOURCE_SERIALIZE_BEGIN = 0x1b0c,
+	TS_PAYLOAD_RESOURCE_SERIALIZE_END = 0x1b0d,
 };
 
 #define TS_NAME_DEF(id, id_end, desc) {(id), (id_end),  STRINGIFY(id), (desc)}
@@ -651,6 +659,22 @@ static const struct timestamp_id_to_name {
 	TS_NAME_DEF(TS_PAYLOAD_I2C_HID_BEGIN, TS_PAYLOAD_I2C_HID_END,
 		    "payload I2C HID description begin"),
 	TS_NAME_DEF(TS_PAYLOAD_I2C_HID_END, 0, "payload I2C HID description complete"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_COUNT_BEGIN, TS_PAYLOAD_RESOURCE_COUNT_END,
+		    "payload resource count and validation begin"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_COUNT_END, 0,
+		    "payload resource count and validation complete"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_TOPOLOGY_BEGIN, TS_PAYLOAD_RESOURCE_TOPOLOGY_END,
+		    "payload topology and framebuffer validation begin"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_TOPOLOGY_END, 0,
+		    "payload topology and framebuffer validation complete"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_COMMAND_BEGIN, TS_PAYLOAD_RESOURCE_COMMAND_END,
+		    "payload final PCI command reads begin"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_COMMAND_END, 0,
+		    "payload final PCI command reads complete"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_SERIALIZE_BEGIN, TS_PAYLOAD_RESOURCE_SERIALIZE_END,
+		    "payload resource serialization and checksums begin"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_SERIALIZE_END, 0,
+		    "payload resource serialization and checksums complete"),
 };
 
 #endif

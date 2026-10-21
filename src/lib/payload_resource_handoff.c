@@ -808,8 +808,14 @@ static enum cb_err write_payload_resource_handoff(struct lb_header *header,
 
 	if (!header)
 		return CB_ERR;
+	if (reserved)
+		timestamp_add_now(TS_PAYLOAD_RESOURCE_COUNT_BEGIN);
 	if (count_records(&root_count, &assignment_count) != CB_SUCCESS)
 		return CB_ERR;
+	if (reserved) {
+		timestamp_add_now(TS_PAYLOAD_RESOURCE_COUNT_END);
+		timestamp_add_now(TS_PAYLOAD_RESOURCE_TOPOLOGY_BEGIN);
+	}
 	revision4 = payload_resource_revision4_ready();
 	memset(snapshot, 0, sizeof(*snapshot));
 	if (revision4 && !collect_topology(snapshot)) {
@@ -837,6 +843,8 @@ static enum cb_err write_payload_resource_handoff(struct lb_header *header,
 		return CB_ERR;
 	}
 	if (reserved) {
+		timestamp_add_now(TS_PAYLOAD_RESOURCE_TOPOLOGY_END);
+		timestamp_add_now(TS_PAYLOAD_RESOURCE_COMMAND_BEGIN);
 		for (size_t index = 0; index < snapshot->count; index++) {
 			device = snapshot->devices[index];
 			snapshot->commands[index] = payload_resource_read_command(device);
@@ -847,6 +855,7 @@ static enum cb_err write_payload_resource_handoff(struct lb_header *header,
 				return CB_ERR;
 			}
 		}
+		timestamp_add_now(TS_PAYLOAD_RESOURCE_COMMAND_END);
 	} else if ((revision4 ? quiesce_topology_devices(snapshot) :
 		    quiesce_assigned_devices()) != CB_SUCCESS) {
 		return CB_ERR;
@@ -855,8 +864,10 @@ static enum cb_err write_payload_resource_handoff(struct lb_header *header,
 	if (reserved)
 		timestamp_add_now(TS_PAYLOAD_I2C_HID_BEGIN);
 	i2c_hid_count = fill_lb_i2c_hid(i2c_hid, ARRAY_SIZE(i2c_hid));
-	if (reserved)
+	if (reserved) {
 		timestamp_add_now(TS_PAYLOAD_I2C_HID_END);
+		timestamp_add_now(TS_PAYLOAD_RESOURCE_SERIALIZE_BEGIN);
+	}
 	if (i2c_hid_count > ARRAY_SIZE(i2c_hid))
 		i2c_hid_count = 0;
 	section_count = 2 + (revision4 ? 2 : 0) + (framebuffer ? 2 : 0) +
@@ -1149,5 +1160,6 @@ enum cb_err lb_finalize_payload_resource_handoff(void)
 		handoff_header->header_bytes, handoff_header->table_bytes);
 	handoff_header->header_checksum = 0;
 	handoff_header->header_checksum = ipchksum(handoff_header, sizeof(*handoff_header));
+	timestamp_add_now(TS_PAYLOAD_RESOURCE_SERIALIZE_END);
 	return CB_SUCCESS;
 }
