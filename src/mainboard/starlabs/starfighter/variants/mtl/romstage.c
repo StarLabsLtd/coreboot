@@ -131,13 +131,6 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0)
 		mupd->FspmConfig.PcieRpEnableMask &= ~(1 << 8);
 
-	/* Enable/Disable Thunderbolt based on CMOS settings */
-	if (get_uint_option_checked("thunderbolt", 1, OPTION_BOOL) == 0) {
-		mupd->FspmConfig.TcssDma0En = 0;
-		mupd->FspmConfig.TcssItbtPcie0En = 0;
-		mupd->FspmConfig.TcssXhciEn = 0;
-	}
-
 	mupd->FspmConfig.PchHdaSubSystemIds =
 		starlabs_hda_selected_pci_subsystem_id(
 			STARLABS_HDA_POLICY_ALC235_STARFIGHTER);

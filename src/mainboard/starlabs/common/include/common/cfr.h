@@ -240,13 +240,6 @@ static const struct sm_object s0ix_enable = SM_DECLARE_BOOL({
 	.default_value	= false,
 }, WITH_DEP_VALUES(&me_state, 0));
 
-static const struct sm_object thunderbolt = SM_DECLARE_BOOL({
-	.opt_name	= "thunderbolt",
-	.ui_name	= "Thunderbolt",
-	.ui_helptext	= "Enable or disable Thunderbolt support",
-	.default_value	= true,
-});
-
 static const struct sm_object touchpad_haptics = SM_DECLARE_ENUM({
 	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "touchpad_haptics",

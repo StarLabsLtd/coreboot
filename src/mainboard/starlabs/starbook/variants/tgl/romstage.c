@@ -31,12 +31,5 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	const uint8_t vtd = get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	mupd->FspmConfig.VtdDisable = !vtd;
 
-	/* Enable/Disable Thunderbolt based on CMOS settings */
-	if (get_uint_option_checked("thunderbolt", 1, OPTION_BOOL) == 0) {
-		mupd->FspmConfig.VtdItbtEnable = 0;
-		mupd->FspmConfig.VtdBaseAddress[3] = 0;
-		mupd->FspmConfig.TcssDma0En = 0;
-		mupd->FspmConfig.TcssItbtPcie0En = 0;
-	}
 	mupd->FspmConfig.DmiMaxLinkSpeed = 4;
 };
