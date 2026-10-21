@@ -58,6 +58,12 @@ config STARLABS_MEMORY_SETTINGS_VERSION
 
 menu "Star Labs Settings"
 
+config DAVE_MODE
+	bool "Enable DAVE mode"
+	select SECURITY_FAIL_CLOSED
+	help
+	  DAVE mode is the secure, locked-down variant.
+
 config BOOTMEDIA_SMM_BWP
 	bool
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
