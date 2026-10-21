@@ -7,7 +7,9 @@
 #include <drivers/spi/tpm/tpm.h>
 #include <security/tpm/tis.h>
 #include <security/tpm/tss.h>
-#if CONFIG(TPM_TREAT_ME_DISABLED_AS_ABSENT)
+#if CONFIG(TPM2) && CONFIG(HAVE_INTEL_PTT) && CONFIG(CRB_TPM) && \
+	!CONFIG(MEMORY_MAPPED_TPM) && CONFIG(SOC_INTEL_COMMON_BLOCK_CSE) && \
+	!CONFIG(TPM_MEASURED_BOOT_INIT_BOOTBLOCK)
 #include <intelblocks/cse.h>
 #endif
 
@@ -20,7 +22,9 @@ enum tpm_family tlcl_tpm_family = TPM_UNKNOWN;
 
 tis_sendrecv_fn tlcl_tis_sendrecv;
 
-#if CONFIG(TPM_TREAT_ME_DISABLED_AS_ABSENT) && \
+#if CONFIG(TPM2) && CONFIG(HAVE_INTEL_PTT) && CONFIG(CRB_TPM) && \
+	!CONFIG(MEMORY_MAPPED_TPM) && CONFIG(SOC_INTEL_COMMON_BLOCK_CSE) && \
+	!CONFIG(TPM_MEASURED_BOOT_INIT_BOOTBLOCK) && \
 	(ENV_BOOTBLOCK || ENV_SEPARATE_ROMSTAGE || ENV_RAMSTAGE || ENV_SEPARATE_VERSTAGE)
 bool tpm_is_expected_absent(void)
 {

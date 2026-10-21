@@ -36,7 +36,9 @@ tpm_result_t tlcl_lib_init(void);
 /**
  * Return true when platform policy says the TPM should be treated as absent.
  */
-#if CONFIG(TPM_TREAT_ME_DISABLED_AS_ABSENT) && \
+#if CONFIG(TPM2) && CONFIG(HAVE_INTEL_PTT) && CONFIG(CRB_TPM) && \
+	!CONFIG(MEMORY_MAPPED_TPM) && CONFIG(SOC_INTEL_COMMON_BLOCK_CSE) && \
+	!CONFIG(TPM_MEASURED_BOOT_INIT_BOOTBLOCK) && \
 	(ENV_BOOTBLOCK || ENV_SEPARATE_ROMSTAGE || ENV_RAMSTAGE || ENV_SEPARATE_VERSTAGE)
 bool tpm_is_expected_absent(void);
 #else
