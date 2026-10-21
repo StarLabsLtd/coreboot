@@ -669,6 +669,10 @@ int mainboard_smi_apmc(u8 data)
 			break;
 		response_value = value;
 
+		if (!smm_wait_for_cpus()) {
+			status = CB_ERR;
+			break;
+		}
 		const bool wp_enabled = chipset_disable_wp();
 		status = set_uint_option(opt->name, value);
 		if (wp_enabled)

@@ -261,7 +261,13 @@ static void mainboard_smi_store(void)
 	u32 ret;
 	u8 sub_command;
 	uintptr_t reg_rbx;
-	int node = get_apmc_node(APM_CNT_SMMSTORE);
+	int node;
+
+	if (!smm_wait_for_cpus()) {
+		printk(BIOS_WARNING, "SMMSTORE: CPU rendezvous failed\n");
+		return;
+	}
+	node = get_apmc_node(APM_CNT_SMMSTORE);
 
 	if (node < 0)
 		return;

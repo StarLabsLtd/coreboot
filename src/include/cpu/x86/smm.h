@@ -147,6 +147,12 @@ extern struct global_nvs *gnvs;
 /* Entry point for SMM modules. */
 asmlinkage void smm_handler_start(void *params);
 
+/*
+ * Called by the SMI leader before a shared write gate or save-state scan.
+ * Success keeps all peers parked until the handler releases its lock.
+ */
+bool smm_wait_for_cpus(void);
+
 /* Retrieve SMM save state for a given CPU. WARNING: This does not take into
  * account CPUs which are configured to not save their state to RAM. */
 void *smm_get_save_state(int cpu);

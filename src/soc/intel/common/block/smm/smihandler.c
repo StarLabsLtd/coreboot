@@ -301,6 +301,10 @@ static void southbridge_smi_store(
 	int node;
 	uint32_t eax_val, reg_ebx;
 
+	if (!smm_wait_for_cpus()) {
+		printk(BIOS_WARNING, "SMMSTORE: CPU rendezvous failed\n");
+		return;
+	}
 	node = save_state_ops->apmc_node(APM_CNT_SMMSTORE);
 	if (node < 0)
 		return;
