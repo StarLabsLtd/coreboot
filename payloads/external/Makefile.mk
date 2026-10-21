@@ -232,7 +232,7 @@ $(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(obj)/config.h $(objutil)/kconfig/conf
 # Manufacturing only: never seed an existing store through an ordinary update.
 .PHONY: cdk2-factory-image
 ifeq ($(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),y)
-cdk2-factory-image: $(obj)/coreboot.rom $(CBFSTOOL)
+cdk2-factory-image: $(CBFSTOOL) | files_added
 	+@set -e; \
 	work=$$(mktemp -d "$(abspath $(obj))/cdk2-factory.XXXXXXXX"); \
 	trap 'rm -f "$$work/store.bin" "$$work/readback.bin" "$$work/coreboot.factory.rom"; rmdir "$$work"' EXIT; \
