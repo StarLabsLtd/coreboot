@@ -32,6 +32,7 @@ int acpigen_soc_read_rx_gpio(unsigned int gpio_num)
 
 int acpigen_soc_get_tx_gpio(unsigned int gpio_num)
 {
+	/* PGTX preserves the legacy raw-bit contract by returning low on failure. */
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO) && mainboard_acpi_gpio_uses_smm(gpio_num))
 		return acpigen_soc_get_gpio_state("\\_SB.PCI0.PGTX", gpio_num);
 
