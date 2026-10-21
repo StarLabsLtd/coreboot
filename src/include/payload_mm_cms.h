@@ -14,8 +14,6 @@
 #define PAYLOAD_MM_SHA256_MAX_SPANS 2U
 #define PAYLOAD_MM_HASH_MAX_SPANS 5U
 #define PAYLOAD_MM_CRYPTO_MAX_MESSAGE_SIZE (128U * 1024U * 1024U)
-#define PAYLOAD_MM_MAX_SIGNED_BODY_SIZE \
-	(PAYLOAD_MM_CRYPTO_MAX_MESSAGE_SIZE - sizeof(uint64_t))
 #define PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE (64U * 1024U)
 #define PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES 8U
 #define PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_BYTES (256U * 1024U)
@@ -31,8 +29,6 @@
 #define PAYLOAD_MM_MAX_CMS_OID_SIZE 64U
 #define PAYLOAD_MM_MAX_DER_DEPTH 12U
 #define PAYLOAD_MM_MAX_DER_OBJECTS 512U
-#define PAYLOAD_MM_MAX_TRUST_XDR_SIZE (256U * 1024U)
-#define PAYLOAD_MM_AUTH_HEADER_SIZE 32U
 
 enum payload_mm_verify_status {
 	PAYLOAD_MM_VERIFY_OK = 0,
@@ -50,14 +46,6 @@ enum payload_mm_hash_algorithm {
 	PAYLOAD_MM_HASH_SHA256 = 1,
 	PAYLOAD_MM_HASH_SHA384 = 2,
 	PAYLOAD_MM_HASH_SHA512 = 3,
-};
-
-enum payload_mm_auth_failure_source {
-	PAYLOAD_MM_AUTH_FAILURE_NONE = 0,
-	PAYLOAD_MM_AUTH_FAILURE_CAPSULE_FORMAT,
-	PAYLOAD_MM_AUTH_FAILURE_CAPSULE_SIGNATURE,
-	PAYLOAD_MM_AUTH_FAILURE_TRUST,
-	PAYLOAD_MM_AUTH_FAILURE_TRANSIENT,
 };
 
 struct payload_mm_crypto_span {
@@ -79,12 +67,6 @@ struct payload_mm_crypto_owner {
 #endif
 	bool busy;
 	bool allocation_failed;
-};
-
-struct payload_mm_authenticated_image {
-	struct payload_mm_crypto_span payload;
-	uint64_t monotonic_count;
-	enum payload_mm_auth_failure_source failure_source;
 };
 
 /*
@@ -118,13 +100,6 @@ enum payload_mm_verify_status payload_mm_authvar_trust_anchor_verify(
 	const struct payload_mm_cms_verified_signer *verified,
 	const struct payload_mm_crypto_span *trust_anchor);
 #endif
-
-/* The production entry point derives the signed digest from image bytes. */
-enum payload_mm_verify_status payload_mm_authenticate_image(
-	struct payload_mm_crypto_owner *owner,
-	const struct payload_mm_crypto_span *image,
-	const struct payload_mm_crypto_span *trust_xdr,
-	struct payload_mm_authenticated_image *authenticated);
 
 #ifdef PAYLOAD_MM_AUTH_TEST
 #endif

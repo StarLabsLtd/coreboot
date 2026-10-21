@@ -43,17 +43,6 @@ enum payload_mm_verify_status payload_mm_rsa_verify(
 	enum payload_mm_hash_algorithm algorithm, const uint8_t *digest,
 	size_t digest_size, const struct payload_mm_crypto_span *signature);
 #endif
-enum payload_mm_verify_status payload_mm_rsa_sha256_verify(
-	const struct payload_mm_crypto_span *certificate,
-	const uint8_t digest[PAYLOAD_MM_SHA256_SIZE],
-	const struct payload_mm_crypto_span *signature);
-enum payload_mm_verify_status payload_mm_x509_chain_verify_detailed(
-	const struct payload_mm_crypto_span *leaf,
-	const struct payload_mm_crypto_span *intermediates,
-	size_t intermediate_count,
-	const struct payload_mm_crypto_span *trust_anchors,
-	size_t trust_anchor_count,
-	enum payload_mm_crypto_failure_source *failure_source);
 #if CONFIG(PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR)
 enum payload_mm_verify_status payload_mm_authvar_x509_chain_verify_detailed(
 	const struct payload_mm_crypto_span *leaf,
