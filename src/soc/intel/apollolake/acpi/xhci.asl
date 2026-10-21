@@ -9,7 +9,9 @@ Device (XHCI) {
 	Name (_S3W, 3)  /* D3 can wake system from S3 */
 
 	/* Declare XHCI GPE status and enable bits are bit 13 */
+#if CONFIG(SOC_INTEL_COMMON_ACPI_XHCI_WAKE)
 	Name (_PRW, Package() { GPE0A_XHCI_PME_STS, 3 })
+#endif
 
 	Method (_STA, 0)
 	{
