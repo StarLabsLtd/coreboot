@@ -3,8 +3,7 @@
 #ifndef SECURITY_TCG_OPAL_S3_H
 #define SECURITY_TCG_OPAL_S3_H
 
-#include <stddef.h>
-#include <types.h>
+#include <stdint.h>
 
 /*
  * ABI between payload software and the SMM OPAL S3 unlock handler.
@@ -31,21 +30,21 @@
 #define OPAL_S3_MAX_SECRETS 8
 
 struct opal_s3_smm_ctx {
-	u32 signature;
-	u16 version;
-	u16 size;
+	uint32_t signature;
+	uint16_t version;
+	uint16_t size;
 
-	u8 bus;
-	u8 dev;
-	u8 func;
-	u8 reserved0;
+	uint8_t bus;
+	uint8_t dev;
+	uint8_t func;
+	uint8_t reserved0;
 
-	u16 base_comid;
-	u16 reserved1;
+	uint16_t base_comid;
+	uint16_t reserved1;
 
-	u8 password_len;
-	u8 reserved2[3];
-	u8 password[OPAL_S3_MAX_PASSWORD_LEN];
-} __packed;
+	uint8_t password_len;
+	uint8_t reserved2[3];
+	uint8_t password[OPAL_S3_MAX_PASSWORD_LEN];
+} __attribute__((packed));
 
 #endif
