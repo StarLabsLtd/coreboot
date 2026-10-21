@@ -48,9 +48,9 @@ int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 	return 0;
 }
 
-static enum cb_err lookup_store_region(struct region *region)
+static enum cb_err lookup_store_region(struct region *region, bool full_flash)
 {
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && smmstore_use_full_flash) {
+	if (full_flash) {
 		const struct region_device *rdev = boot_device_rw();
 
 		if (rdev == NULL)
@@ -82,14 +82,14 @@ static enum cb_err lookup_store_region(struct region *region)
  * returns 0 on success, -1 on failure
  * outputs the valid store rdev in rstore
  */
-static int lookup_store(struct region_device *rstore)
+static int lookup_store(struct region_device *rstore, bool full_flash)
 {
 	static struct region_device read_rdev, write_rdev;
 	static struct incoherent_rdev store_irdev;
 	struct region region;
 	const struct region_device *rdev;
 
-	if (lookup_store_region(&region) != CB_SUCCESS)
+	if (lookup_store_region(&region, full_flash) != CB_SUCCESS)
 		return -1;
 
 	if (boot_device_ro_subregion(&region, &read_rdev) < 0)
@@ -116,7 +116,7 @@ int smmstore_lookup_region(struct region_device *rstore)
 	if (!done) {
 		done = 1;
 
-		if (lookup_store(&rdev)) {
+		if (lookup_store(&rdev, false)) {
 			printk(BIOS_WARNING,
 			       "smm store: Unable to find SMM store FMAP region '%s'\n",
 				SMMSTORE_REGION);
@@ -162,7 +162,7 @@ int smmstore_get_info(struct smmstore_params_info *out)
 {
 	struct region_device store;
 
-	if (lookup_store(&store) < 0) {
+	if (lookup_store(&store, false) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}
@@ -188,7 +188,7 @@ int smmstore_get_info(struct smmstore_params_info *out)
 /* Returns -1 on error, 0 on success */
 static int lookup_block_in_store(struct region_device *store, uint32_t block_id)
 {
-	if (lookup_store(store) < 0) {
+	if (lookup_store(store, smmstore_use_full_flash != 0) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}
