@@ -1005,6 +1005,9 @@ void acpigen_write_TPC(const char *gnvs_tpc_limit)
 
 void acpigen_write_PRW(u32 wake, u32 level)
 {
+	if (!CONFIG(ACPI_DEVICE_WAKE))
+		return;
+
 	/*
 	 * Name (_PRW, Package () { wake, level }
 	 */

@@ -62,6 +62,13 @@ config ACPI_GNVS_USB_CHARGECTL
 	  Set to indicate <soc/nvs.h> implements fields s3u0, s3u1, s5u0, s5u1
 	  to control USB port power rail for S3/S4/S5 sleep states.
 
+config ACPI_DEVICE_WAKE
+	bool
+	default y
+	help
+	  Generate ACPI device wake declarations for drivers that use the common
+	  ACPIGEN helper.
+
 config ACPI_CUSTOM_MADT
 	bool
 	default n if ACPI_NO_CUSTOM_MADT
