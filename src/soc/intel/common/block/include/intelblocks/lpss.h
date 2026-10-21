@@ -14,6 +14,12 @@ enum lpss_pwr_state {
 
 #define LPSS_RESET_CTL_REG	0x204
 
+#define LPSS_CLOCK_CTL_REG	0x200
+#define LPSS_CNT_CLOCK_EN	1
+#define LPSS_CNT_CLK_UPDATE	(1 << 31)
+#define LPSS_CLOCK_DIV_N(n)	(((n) & 0x7fff) << 16)
+#define LPSS_CLOCK_DIV_M(m)	(((m) & 0x7fff) << 1)
+
 /* Gets controller out of reset */
 void lpss_reset_release(uintptr_t base);
 
