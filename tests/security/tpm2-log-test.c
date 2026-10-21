@@ -77,11 +77,26 @@ static void test_rejects_malformed_fixed_entries(void **state)
 	free(from);
 }
 
+static void test_rejects_persistently_invalid_log(void **state)
+{
+	struct tpm_2_log_table *log = new_log(1, false);
+	int pcr;
+	const uint8_t *digest;
+	enum vb2_hash_algorithm algo;
+	const char *name;
+
+	log->vendor.reserved = 1;
+	current_log = log;
+	assert_int_equal(tpm2_log_get(0, &pcr, &digest, &algo, &name), -1);
+	free(log);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_valid_fixed_migration),
 		cmocka_unit_test(test_rejects_malformed_fixed_entries),
+		cmocka_unit_test(test_rejects_persistently_invalid_log),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
