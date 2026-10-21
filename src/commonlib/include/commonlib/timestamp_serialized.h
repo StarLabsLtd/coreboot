@@ -298,6 +298,8 @@ enum timestamp_id {
 	TS_PAYLOAD_PLATFORM_FINALIZE_END = 0x1b01,
 	TS_PAYLOAD_RESOURCE_FINALIZE_BEGIN = 0x1b02,
 	TS_PAYLOAD_RESOURCE_FINALIZE_END = 0x1b03,
+	TS_PAYLOAD_I2C_HID_BEGIN = 0x1b04,
+	TS_PAYLOAD_I2C_HID_END = 0x1b05,
 };
 
 #define TS_NAME_DEF(id, id_end, desc) {(id), (id_end),  STRINGIFY(id), (desc)}
@@ -646,6 +648,9 @@ static const struct timestamp_id_to_name {
 	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_FINALIZE_BEGIN, TS_PAYLOAD_RESOURCE_FINALIZE_END,
 		    "payload resource handoff finalization begin"),
 	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_FINALIZE_END, 0, "payload resource handoff finalization complete"),
+	TS_NAME_DEF(TS_PAYLOAD_I2C_HID_BEGIN, TS_PAYLOAD_I2C_HID_END,
+		    "payload I2C HID description begin"),
+	TS_NAME_DEF(TS_PAYLOAD_I2C_HID_END, 0, "payload I2C HID description complete"),
 };
 
 #endif

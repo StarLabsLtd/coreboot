@@ -12,6 +12,7 @@
 #include <device/pci_ops.h>
 #include <framebuffer_info.h>
 #include <string.h>
+#include <timestamp.h>
 #include <version.h>
 
 static bool revision4_published;
@@ -851,7 +852,11 @@ static enum cb_err write_payload_resource_handoff(struct lb_header *header,
 		return CB_ERR;
 	}
 	serial_available = fill_lb_serial_capability(&serial) == CB_SUCCESS;
+	if (reserved)
+		timestamp_add_now(TS_PAYLOAD_I2C_HID_BEGIN);
 	i2c_hid_count = fill_lb_i2c_hid(i2c_hid, ARRAY_SIZE(i2c_hid));
+	if (reserved)
+		timestamp_add_now(TS_PAYLOAD_I2C_HID_END);
 	if (i2c_hid_count > ARRAY_SIZE(i2c_hid))
 		i2c_hid_count = 0;
 	section_count = 2 + (revision4 ? 2 : 0) + (framebuffer ? 2 : 0) +
