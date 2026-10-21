@@ -15,6 +15,9 @@
 
 #define OPAL_SMM_SUBCMD_SET_SECRET   0x01
 #define OPAL_SMM_SUBCMD_CLEAR_SECRET 0x02
+#define OPAL_SMM_SUBCMD_CLEAR_DEVICE 0x03
+
+/* CLEAR_DEVICE uses the same context with only its header, BDF and ComID set. */
 
 #define OPAL_S3_SMM_CTX_SIGNATURE 0x3353504f /* "OPS3" */
 #define OPAL_S3_SMM_CTX_VERSION   0x0001
