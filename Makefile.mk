@@ -99,7 +99,7 @@ EFI_CAPSULE_SIGNER := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PR
 EFI_CAPSULE_INTERMEDIATE := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))
 EFI_CAPSULE_ROOT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
 
-$(EFI_CAPSULE_TOOL): util/efi_capsule/capsule.c util/efi_capsule/capsule_cert.c
+$(EFI_CAPSULE_TOOL): util/efi_capsule/capsule.c
 	mkdir -p $(dir $@)
 	$(HOSTCC) $(HOSTCFLAGS) -Isrc/commonlib/bsd/include -o $@ $< -lcrypto
 

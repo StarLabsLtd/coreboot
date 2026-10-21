@@ -345,13 +345,13 @@ static PKCS7 *sign_payload(const uint8_t *payload, size_t size, const struct opt
 		fprintf(stderr, "Capsule certificates are not supported by the native verifier\n");
 		goto out;
 	}
-	if (X509_check_ca(root) != 1 || X509_check_issued(root, root) != X509_V_OK ||
-	    X509_verify(root, X509_get0_pubkey(root)) != 1) {
-		fprintf(stderr, "The configured trust certificate is not a self-signed CA\n");
+	if (X509_check_ca(root) != 1) {
+		fprintf(stderr, "The configured trust certificate is not a CA\n");
 		goto out;
 	}
 	if (!sk_X509_push(chain, intermediate) || !sk_X509_push(chain, root) ||
-	    !X509_STORE_add_cert(store, root) || !X509_STORE_set_purpose(store, X509_PURPOSE_ANY))
+	    !X509_STORE_add_cert(store, root) || !X509_STORE_set_purpose(store, X509_PURPOSE_ANY) ||
+	    !X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN))
 		goto out;
 	signature = PKCS7_sign(NULL, NULL, chain, NULL, flags | PKCS7_PARTIAL);
 	if (!signature || !PKCS7_sign_add_signer(signature, signer, key, EVP_sha256(), flags) ||
