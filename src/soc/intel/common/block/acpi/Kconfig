@@ -25,6 +25,12 @@ config SOC_INTEL_COMMON_ACPI_XHCI_WAKE
 	help
 	  Generate XHCI ACPI wake declarations.
 
+config SOC_INTEL_COMMON_ACPI_TCSS_WAKE
+	bool
+	default y
+	help
+	  Generate Thunderbolt and USB4 ACPI wake declarations.
+
 config SOC_INTEL_COMMON_BLOCK_ACPI_LPIT
 	bool
 	depends on HAVE_ACPI_TABLES
