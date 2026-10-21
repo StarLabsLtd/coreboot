@@ -294,6 +294,10 @@ enum timestamp_id {
 	TS_CDK2_TIME_OVERFLOW = 0x16fe,
 	TS_CDK2_PCI_DRIVER_START = 0x17e0,
 	TS_CDK2_PCI_GLOBAL_START_DISPATCH = 0x17e2,
+	TS_PAYLOAD_PLATFORM_FINALIZE_BEGIN = 0x1800,
+	TS_PAYLOAD_PLATFORM_FINALIZE_END = 0x1801,
+	TS_PAYLOAD_RESOURCE_FINALIZE_BEGIN = 0x1802,
+	TS_PAYLOAD_RESOURCE_FINALIZE_END = 0x1803,
 };
 
 #define TS_NAME_DEF(id, id_end, desc) {(id), (id_end),  STRINGIFY(id), (desc)}
@@ -636,6 +640,12 @@ static const struct timestamp_id_to_name {
 	TS_NAME_DEF(TS_CDK2_TIME_OVERFLOW, 0, "CDK2 timestamp overflow (later events lost)"),
 	TS_NAME_DEF(TS_CDK2_PCI_DRIVER_START, 0, "CDK2 PCI DriverBinding Start"),
 	TS_NAME_DEF(TS_CDK2_PCI_GLOBAL_START_DISPATCH, 0, "CDK2 PCI global start dispatch"),
+	TS_NAME_DEF(TS_PAYLOAD_PLATFORM_FINALIZE_BEGIN, TS_PAYLOAD_PLATFORM_FINALIZE_END,
+		    "payload platform finalization begin"),
+	TS_NAME_DEF(TS_PAYLOAD_PLATFORM_FINALIZE_END, 0, "payload platform finalization complete"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_FINALIZE_BEGIN, TS_PAYLOAD_RESOURCE_FINALIZE_END,
+		    "payload resource handoff finalization begin"),
+	TS_NAME_DEF(TS_PAYLOAD_RESOURCE_FINALIZE_END, 0, "payload resource handoff finalization complete"),
 };
 
 #endif
