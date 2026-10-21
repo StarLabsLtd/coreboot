@@ -120,8 +120,10 @@ static bool database_valid(struct payload_mm_authvar_span database)
 	if (!payload_mm_authvar_signature_list_begin(&cursor, database.data, database.size))
 		return false;
 	while ((result = payload_mm_authvar_signature_list_next(&cursor, &list)) ==
-	       PAYLOAD_MM_AUTHVAR_FORMAT_OK)
-		;
+	       PAYLOAD_MM_AUTHVAR_FORMAT_OK) {
+		if (!list.signature_count || list.signature_size <= 16U)
+			return false;
+	}
 	return result == PAYLOAD_MM_AUTHVAR_FORMAT_DONE;
 }
 
