@@ -130,5 +130,8 @@ struct starlabs_touchpad_op_ctx {
 
 enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
 					    uint16_t release, uint8_t rate);
+#if ENV_SMM
+bool starlabs_touchpad_runtime_available(void);
+#endif
 
 #endif /* _STARLABS_CMN_TOUCHPAD_H_ */

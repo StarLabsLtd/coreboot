@@ -11,6 +11,8 @@
 static const EFI_GUID EficorebootNvDataGuid = {
 	0xceae4c1d, 0x335b, 0x4685, { 0xa4, 0xa0, 0xfc, 0x4a, 0x94, 0xee, 0xa0, 0x85 } };
 
+#define EFI_UINT_OPTION_BATCH_MAX 16
+
 enum cb_err efi_option_initialize_store(void)
 {
 	struct region_device rdev;
@@ -39,6 +41,38 @@ enum cb_err efi_option_get_uint(const char *name, uint32_t *value)
 		return ret;
 	if (size != sizeof(*value))
 		return CB_EFI_ACCESS_ERROR;
+
+	return CB_SUCCESS;
+}
+
+enum cb_err efi_option_get_uints(struct efi_uint_option *options, size_t count)
+{
+	struct efi_fv_option fv_options[EFI_UINT_OPTION_BATCH_MAX];
+	struct region_device rdev;
+	enum cb_err ret;
+
+	if (!options || !count || count > EFI_UINT_OPTION_BATCH_MAX)
+		return CB_ERR_ARG;
+
+	if (smmstore_lookup_region(&rdev))
+		return CB_CMOS_OTABLE_DISABLED;
+
+	for (size_t i = 0; i < count; i++) {
+		if (!options[i].name)
+			return CB_ERR_ARG;
+		fv_options[i] = (struct efi_fv_option) {
+			.name = options[i].name,
+			.data = &options[i].value,
+			.size = sizeof(options[i].value),
+		};
+	}
+
+	ret = efi_fv_get_options(&rdev, &EficorebootNvDataGuid, fv_options, count);
+	if (ret != CB_SUCCESS)
+		return ret;
+
+	for (size_t i = 0; i < count; i++)
+		options[i].result = fv_options[i].result;
 
 	return CB_SUCCESS;
 }

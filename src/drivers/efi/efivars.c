@@ -12,6 +12,7 @@
 #include "efivars.h"
 
 #define PREFIX "EFIVARS: "
+#define EFI_FV_OPTION_BATCH_MAX 16
 
 static const EFI_GUID EfiVariableGuid = {
 	0xddcf3616, 0x3275, 0x4164, { 0x98, 0xb6, 0xfe, 0x85, 0x70, 0x7f, 0xfe, 0x7d } };
@@ -411,6 +412,13 @@ struct efi_find_args {
 	void *data;
 };
 
+struct efi_find_many_args {
+	const EFI_GUID *guid;
+	struct efi_fv_option *options;
+	bool *done;
+	size_t count;
+};
+
 static enum cb_err match(struct region_device *rdev, VARIABLE_HEADER *hdr, size_t hdr_size,
 			 const char *name, const EFI_GUID *guid, bool *matched)
 {
@@ -465,6 +473,49 @@ enum cb_err find_and_copy(struct region_device *rdev, VARIABLE_HEADER *hdr, size
 		return CB_EFI_ACCESS_ERROR;
 
 	*(fa->size) = hdr->DataSize;
+	return CB_SUCCESS;
+}
+
+static enum cb_err find_many_and_copy(struct region_device *rdev, VARIABLE_HEADER *hdr,
+				      size_t hdr_size, void *arg, bool *stop)
+{
+	struct efi_find_many_args *fa = arg;
+	bool all_done = true;
+
+	for (size_t i = 0; i < fa->count; i++) {
+		struct efi_fv_option *option = &fa->options[i];
+		bool matched;
+		enum cb_err ret;
+
+		if (fa->done[i])
+			continue;
+
+		ret = match(rdev, hdr, hdr_size, option->name, fa->guid, &matched);
+		if (ret != CB_SUCCESS)
+			return ret;
+		if (!matched) {
+			all_done = false;
+			continue;
+		}
+
+		if (option->size != hdr->DataSize) {
+			option->result = CB_EFI_ACCESS_ERROR;
+		} else if (hdr->DataSize &&
+			   rdev_readat(rdev, option->data, hdr_size + hdr->NameSize,
+				       hdr->DataSize) != hdr->DataSize) {
+			option->result = CB_EFI_ACCESS_ERROR;
+		} else {
+			option->result = CB_SUCCESS;
+		}
+
+		/* A later added record supersedes a deleted-transition record. */
+		if (hdr->State != VAR_ADDED)
+			all_done = false;
+		else
+			fa->done[i] = true;
+	}
+
+	*stop = all_done;
 	return CB_SUCCESS;
 }
 
@@ -738,6 +789,46 @@ enum cb_err efi_fv_get_option(const struct region_device *rdev,
 	args.data = dest;
 
 	return walk_variables(&store_rdev, auth_format, find_and_copy, &args, NULL);
+}
+
+enum cb_err efi_fv_get_options(const struct region_device *rdev,
+			       const EFI_GUID *guid,
+			       struct efi_fv_option *options,
+			       size_t count)
+{
+	struct efi_find_many_args args;
+	struct region_device store_rdev;
+	bool done[EFI_FV_OPTION_BATCH_MAX];
+	bool auth_format;
+	enum cb_err ret;
+
+	if (!rdev || !guid || (!options && count) || count > EFI_FV_OPTION_BATCH_MAX)
+		return CB_ERR_ARG;
+	if (!count)
+		return CB_SUCCESS;
+
+	for (size_t i = 0; i < count; i++) {
+		if (!options[i].name || (!options[i].data && options[i].size))
+			return CB_ERR_ARG;
+		options[i].result = CB_EFI_OPTION_NOT_FOUND;
+		done[i] = false;
+	}
+
+	store_rdev = *rdev;
+	ret = efi_fv_init(&store_rdev, &auth_format);
+	if (ret != CB_SUCCESS)
+		return ret;
+
+	args = (struct efi_find_many_args) {
+		.guid = guid,
+		.options = options,
+		.done = done,
+		.count = count,
+	};
+	ret = walk_variables(&store_rdev, auth_format, find_many_and_copy, &args, NULL);
+
+	/* No aggregate match is expected when one or more requested names are absent. */
+	return ret == CB_EFI_OPTION_NOT_FOUND ? CB_SUCCESS : ret;
 }
 
 static enum cb_err variable_write_sizes(const struct region_device *rdev, const char *name,
