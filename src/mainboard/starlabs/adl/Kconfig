@@ -1,5 +1,3 @@
-# SPDX-License-Identifier: LicenseRef-LICENSE-TBC
-
 config BOARD_STARLABS_ADL_SERIES
 	def_bool n
 	select ACPI_COMMON_SLEEP_STATES

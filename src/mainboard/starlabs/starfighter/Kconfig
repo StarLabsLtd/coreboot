@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LicenseRef-LICENSE-TBC
+## SPDX-License-Identifier: GPL-2.0-only
 
 config BOARD_STARLABS_STARFIGHTER_SERIES
 	def_bool n
