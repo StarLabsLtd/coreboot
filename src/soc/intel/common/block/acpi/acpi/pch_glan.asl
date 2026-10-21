@@ -24,7 +24,9 @@ Device (GLAN)
 
 	Name (_S0W, 3)
 
+#if CONFIG(SOC_INTEL_COMMON_ACPI_PCH_GLAN_WAKE)
 	Name (_PRW, Package() {GPE0_PME_B0, 4})
+#endif
 
 	Method (_DSW, 3) {}
 }

@@ -13,6 +13,12 @@ config SOC_INTEL_COMMON_BLOCK_ACPI
 config SOC_INTEL_COMMON_BLOCK_ACPI_GPIO
 	bool
 
+config SOC_INTEL_COMMON_ACPI_PCH_GLAN_WAKE
+	bool
+	default y
+	help
+	  Generate the PCH Ethernet ACPI wake declaration.
+
 config SOC_INTEL_COMMON_BLOCK_ACPI_LPIT
 	bool
 	depends on HAVE_ACPI_TABLES
