@@ -1,7 +1,8 @@
-## SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: LicenseRef-LICENSE-TBC
 
 config BOARD_STARLABS_CEZANNE_SERIES
 	def_bool n
+	select ACPI_COMMON_SLEEP_STATES
 	select AMD_FWM_POSITION_820000_DEFAULT
 	select AMD_SOC_CONSOLE_UART
 	select AZALIA_HDA_CODEC_SUPPORT

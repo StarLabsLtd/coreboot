@@ -1,7 +1,8 @@
-## SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: LicenseRef-LICENSE-TBC
 
 config BOARD_STARLABS_LITE_SERIES
 	def_bool n
+	select ACPI_COMMON_SLEEP_STATES
 	select BOARD_ROMSIZE_KB_8192
 	select DRIVERS_EFI_VARIABLE_STORE
 	select DRIVERS_OPTION_CFR_ENABLED
