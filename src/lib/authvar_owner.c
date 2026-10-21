@@ -9,6 +9,10 @@
 #include "payload_mm_authvar_internal.h"
 #include <string.h>
 
+#ifndef CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS
+#error "Variable owner requires the resolved fixed-key policy"
+#endif
+
 static bool status_error(uint64_t status)
 {
 	return (status & PAYLOAD_MM_AUTHVAR_STATUS_ERROR_BIT) != 0;
