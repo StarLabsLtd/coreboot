@@ -411,13 +411,6 @@ enum signed_attributes_result {
 	SIGNED_ATTRIBUTES_VALID,
 };
 
-struct cms_content {
-	const uint8_t *digest;
-	size_t digest_size;
-	const struct payload_mm_crypto_span *spans;
-	size_t span_count;
-};
-
 static enum signed_attributes_result parse_signed_attributes(
 	const struct der_object *attributes,
 	const uint8_t *content_digest, size_t content_digest_size)
@@ -494,7 +487,7 @@ static enum signed_attributes_result parse_signed_attributes(
 
 static enum payload_mm_verify_status parse_cms(
 	const struct payload_mm_crypto_span *signed_data,
-	const struct cms_content *content,
+	const struct payload_mm_crypto_span *content, size_t content_count,
 	struct payload_mm_crypto_span *certificates,
 	size_t *certificate_count, size_t *signer_index,
 	struct payload_mm_crypto_span *signed_attributes,
@@ -513,8 +506,7 @@ static enum payload_mm_verify_status parse_cms(
 	struct der_object first;
 	struct payload_mm_crypto_span certificate;
 	struct certificate_identity identity;
-	uint8_t computed_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
-	const uint8_t *content_digest;
+	uint8_t content_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
 	size_t content_digest_size;
 	size_t matches = 0U;
 	size_t objects = 0U;
@@ -553,20 +545,10 @@ static enum payload_mm_verify_status parse_cms(
 	if (!hash_algorithm(&algorithm, digest_algorithm))
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
 	content_digest_size = payload_mm_hash_digest_size(*digest_algorithm);
-	if (content->span_count) {
-		if (content->digest || content->digest_size)
-			return PAYLOAD_MM_VERIFY_INVALID;
-		status = payload_mm_hash_spans(*digest_algorithm, content->spans,
-			content->span_count, computed_digest);
-		if (status != PAYLOAD_MM_VERIFY_OK)
-			return status;
-		content_digest = computed_digest;
-	} else {
-		if (content->spans || !content->digest ||
-		    content->digest_size != content_digest_size)
-			return PAYLOAD_MM_VERIFY_UNSUPPORTED;
-		content_digest = content->digest;
-	}
+	status = payload_mm_hash_spans(*digest_algorithm, content, content_count,
+		content_digest);
+	if (status != PAYLOAD_MM_VERIFY_OK)
+		return status;
 	if (!der_expect(&fields, 0x30U, &object))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
 	contents.data = object.value.data;
@@ -734,10 +716,6 @@ enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
 	const struct payload_mm_crypto_span *content_spans, size_t content_count,
 	struct payload_mm_cms_verified_signer *verified)
 {
-	const struct cms_content content = {
-		.spans = content_spans,
-		.span_count = content_count,
-	};
 	struct payload_mm_cms_verified_signer published = { 0 };
 	struct payload_mm_crypto_span attributes;
 	struct payload_mm_crypto_span signature;
@@ -765,7 +743,7 @@ enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
 	status = payload_mm_crypto_begin(owner);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
-	status = parse_cms(signed_data, &content, published.certificates,
+	status = parse_cms(signed_data, content_spans, content_count, published.certificates,
 		&published.certificate_count, &signer, &attributes, &signature,
 		&published.digest_algorithm, &failure_source);
 	if (status == PAYLOAD_MM_VERIFY_OK) {
