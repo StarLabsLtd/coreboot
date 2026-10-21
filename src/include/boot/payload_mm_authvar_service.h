@@ -5,7 +5,6 @@
 
 #include <commonlib/authvar_service.h>
 #include <commonlib/bsd/cb_err.h>
-#include <commonlib/coreboot_tables.h>
 
 enum cb_err payload_mm_authvar_service_endpoint_validate(
 	const struct lb_authvar_service_endpoint *endpoint);

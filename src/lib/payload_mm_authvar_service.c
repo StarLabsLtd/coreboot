@@ -4,6 +4,7 @@
 
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/authvar_image_policy.h>
+#include <commonlib/coreboot_tables.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
