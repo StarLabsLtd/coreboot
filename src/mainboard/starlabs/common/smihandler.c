@@ -583,57 +583,65 @@ int mainboard_smi_apmc(u8 data)
 
 	const enum starlabs_efiopt_cmd cmd = dnvs->cmd;
 	const enum starlabs_efiopt_id id = dnvs->id;
+	const uint32_t request_value = dnvs->value;
 	const struct starlabs_efiopt_entry *opt = NULL;
+	uint32_t response_value = request_value;
+	enum cb_err status = CB_ERR_ARG;
 
 	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED)
 		opt = find_efiopt(id);
 
 	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED && !opt) {
-		dnvs->status = CB_ERR_ARG;
+		dnvs->value = response_value;
+		dnvs->status = status;
 		return 1;
 	}
 
 	switch (cmd) {
 	case STARLABS_EFIOPT_CMD_GET_SUPPORTED:
-		dnvs->value = get_supported_efiopts();
-		dnvs->status = CB_SUCCESS;
+		response_value = get_supported_efiopts();
+		status = CB_SUCCESS;
 		break;
 	case STARLABS_EFIOPT_CMD_GET: {
 		unsigned int value;
 
-		dnvs->status = get_uint_option_status(opt->name, opt->fallback, &value);
-		if (dnvs->status == CB_EFI_OPTION_NOT_FOUND) {
-			dnvs->value = opt->fallback;
-			dnvs->status = CB_SUCCESS;
-		} else if (dnvs->status == CB_SUCCESS) {
+		status = get_uint_option_status(opt->name, opt->fallback, &value);
+		if (status == CB_EFI_OPTION_NOT_FOUND) {
+			response_value = opt->fallback;
+			status = CB_SUCCESS;
+		} else if (status == CB_SUCCESS) {
 			const unsigned int stored = value;
 
-			dnvs->status = normalize_value(id, &value);
+			status = normalize_value(id, &value);
 			if (value != stored)
-				dnvs->status = CB_ERR_ARG;
-			if (dnvs->status == CB_SUCCESS)
-				dnvs->value = value;
+				status = CB_ERR_ARG;
+			if (status == CB_SUCCESS)
+				response_value = value;
 		}
 		break;
 	}
 	case STARLABS_EFIOPT_CMD_SET: {
-		uint32_t value = dnvs->value;
-		dnvs->status = normalize_value(id, &value);
-		if (dnvs->status != CB_SUCCESS)
+		uint32_t value = request_value;
+		status = normalize_value(id, &value);
+		if (status != CB_SUCCESS)
 			break;
+		response_value = value;
 
 		const bool wp_enabled = chipset_disable_wp();
-		dnvs->status = set_uint_option(opt->name, value);
+		status = set_uint_option(opt->name, value);
 		if (wp_enabled)
 			chipset_enable_wp();
-		if (dnvs->status == CB_SUCCESS)
-			dnvs->status = apply_runtime_efiopt(id, value);
+		if (status == CB_SUCCESS)
+			status = apply_runtime_efiopt(id, value);
 		break;
 	}
 	default:
-		dnvs->status = CB_ERR_ARG;
 		break;
 	}
+
+	/* Publish the reply only after all decisions have used local state. */
+	dnvs->value = response_value;
+	dnvs->status = status;
 
 	return 1;
 }
