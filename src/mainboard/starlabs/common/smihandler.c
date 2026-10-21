@@ -13,9 +13,6 @@
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
 #include <acpi/acpi_gnvs.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-#include <cpu/intel/msr.h>
-#include <cpu/x86/msr.h>
-#include <device/mmio.h>
 #include <intelblocks/fast_spi.h>
 #endif
 #include <soc/nvs.h>
@@ -33,53 +30,6 @@
 #include "ecdefs.h"
 
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-static void set_insmm_sts(const bool enable_writes)
-{
-	msr_t msr = {
-		.lo = read32p(0xfed30880),
-		.hi = 0,
-	};
-
-	if (enable_writes)
-		msr.lo |= 1;
-	else
-		msr.lo &= ~1;
-
-	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
-}
-#endif
-
-static bool chipset_disable_wp(void)
-{
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-	const bool wp_enabled = !fast_spi_wpd_status();
-
-	if (wp_enabled) {
-		set_insmm_sts(true);
-		/*
-		 * As per BWG, clearing "SPI_BIOS_CONTROL_SYNC_SS"
-		 * bit is a must prior setting SPI_BIOS_CONTROL_WPD" bit
-		 * to avoid 3-strike error.
-		 */
-		fast_spi_clear_sync_smi_status();
-		fast_spi_disable_wp();
-	}
-
-	return wp_enabled;
-#endif
-
-	return false;
-}
-
-static void chipset_enable_wp(void)
-{
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-	fast_spi_enable_wp();
-	set_insmm_sts(false);
-#endif
-}
-
 static struct starlabs_dnvs_efiopt *get_starlabs_dnvs_efiopt(void)
 {
 	if (!gnvs)
@@ -673,10 +623,18 @@ int mainboard_smi_apmc(u8 data)
 			status = CB_ERR;
 			break;
 		}
-		const bool wp_enabled = chipset_disable_wp();
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
+		bool restore_wp;
+
+		if (!fast_spi_smm_write_begin(&restore_wp)) {
+			status = CB_ERR;
+			break;
+		}
+#endif
 		status = set_uint_option(opt->name, value);
-		if (wp_enabled)
-			chipset_enable_wp();
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
+		fast_spi_smm_write_end(restore_wp);
+#endif
 		if (status == CB_SUCCESS)
 			status = apply_runtime_efiopt(id, value);
 		break;
