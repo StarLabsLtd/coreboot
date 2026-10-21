@@ -90,12 +90,12 @@ void fast_spi_enable_wp(void);
 void fast_spi_disable_wp(void);
 #if ENV_SMM
 /*
- * Caller holds the SMI lock with all peers parked. Already-open protection
+ * Begin requires the SMI lock with all peers parked. Already-open protection
  * is retained for ordinary store access; restore_wp records only a gate
  * opened by begin. No media write is permitted when begin returns false.
  */
 bool fast_spi_smm_write_begin(bool *restore_wp);
-/* Returns only after idle and, when owned, protection restoration. */
+/* Enforce idle and the requested protection, also for finalization/violations. */
 void fast_spi_smm_write_end(bool restore_wp);
 #endif
 /*

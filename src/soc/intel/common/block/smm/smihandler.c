@@ -378,8 +378,7 @@ static int finalize(void)
 		fast_spi_init();
 
 	if (enable_smm_bios_protection()) {
-		fast_spi_enable_wp();
-		set_insmm_sts(false);
+		fast_spi_smm_write_end(true);
 	}
 
 	/*
@@ -497,8 +496,7 @@ void smihandler_southbridge_tco(
 		 * box.
 		 */
 		printk(BIOS_DEBUG, "Switching SPI back to RO\n");
-		fast_spi_enable_wp();
-		set_insmm_sts(false);
+		fast_spi_smm_write_end(true);
 	}
 
 	/* Any TCO event? */
