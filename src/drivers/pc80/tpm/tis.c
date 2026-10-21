@@ -405,7 +405,10 @@ static tpm_result_t pc80_tpm_probe(enum tpm_family *family)
 
 	didvid = tpm_read_did_vid(0);
 	if (!didvid || (didvid == 0xffffffff)) {
-		printf("%s: No TPM device found\n", __func__);
+		if (tpm_is_expected_absent())
+			printk(BIOS_DEBUG, "%s: TPM absent by platform policy\n", __func__);
+		else
+			printf("%s: No TPM device found\n", __func__);
 		return TPM_CB_FAIL;
 	}
 
@@ -808,6 +811,8 @@ static void lpc_tpm_fill_ssdt(const struct device *dev)
 {
 	/* Windows 11 requires the following path for TPM to be detected */
 	const char *path = "\\_SB_.PCI0";
+	const bool tpm_present = !tpm_is_expected_absent() &&
+		tlcl_lib_init() == TPM_SUCCESS;
 
 	/* Device */
 	acpigen_write_scope(path);
@@ -826,8 +831,8 @@ static void lpc_tpm_fill_ssdt(const struct device *dev)
 
 	acpi_device_write_uid(dev);
 
-	u32 did_vid = tpm_read_did_vid(0);
-	if (did_vid > 0 && did_vid < 0xffffffff)
+	u32 did_vid = tpm_present ? tpm_read_did_vid(0) : 0;
+	if (tpm_present && did_vid > 0 && did_vid < 0xffffffff)
 		acpigen_write_STA(ACPI_STATUS_DEVICE_ALL_ON);
 	else
 		acpigen_write_STA(ACPI_STATUS_DEVICE_ALL_OFF);
@@ -869,7 +874,7 @@ static void lpc_tpm_fill_ssdt(const struct device *dev)
 
 	acpigen_write_resourcetemplate_footer();
 
-	if (!CONFIG(CHROMEOS))
+	if (tpm_present && !CONFIG(CHROMEOS))
 		tpm_ppi_acpi_fill_ssdt(dev);
 
 	acpigen_pop_len(); /* Device */

@@ -177,7 +177,6 @@ static void tpm_ppi_func2_cb(void *arg)
 
 	acpigen_write_store_op_to_namestr(LOCAL2_OP, "^CMDR");
 	acpigen_write_store_op_to_namestr(ZERO_OP, "^OARG");
-	acpigen_write_store_op_to_namestr(ZERO_OP, "^USER");
 
 	acpigen_write_return_integer(PPI2_RET_SUCCESS);
 	acpigen_pop_len();
@@ -525,6 +524,11 @@ void tpm_ppi_acpi_fill_ssdt(const struct device *dev)
 {
 	struct cb_tpm_ppi_payload_handshake *ppib;
 
+	if (tpm_is_expected_absent() || tlcl_lib_init() != TPM_SUCCESS) {
+		printk(BIOS_DEBUG, "PPI: skipping because no TPM is available\n");
+		return;
+	}
+
 	static const struct fieldlist list[] = {
 		FIELDLIST_OFFSET(0x100),// FIXME: Add support for func
 		FIELDLIST_NAMESTR("PPIN", 8),// Not used
@@ -748,6 +752,9 @@ void lb_tpm_ppi(struct lb_header *header)
 
 	ppib = cbmem_find(CBMEM_ID_TPM_PPI);
 	if (!ppib)
+		return;
+
+	if (tpm_is_expected_absent() || tlcl_lib_init() != TPM_SUCCESS)
 		return;
 
 	family = tlcl_get_family();

@@ -5,11 +5,13 @@
 #include <bootstate.h>
 #include <cbfs.h>
 #include <symbols.h>
+#include <security/tpm/tpm2_log_serialized.h>
 #include "crtm.h"
 #include <stdio.h>
 #include <string.h>
 
 static int tpm_log_initialized;
+static int tpm_log_copy_failed;
 static inline int tpm_log_available(void)
 {
 	if (ENV_BOOTBLOCK)
@@ -200,6 +202,8 @@ tpm_result_t tspi_measure_cache_to_pcr(void)
 	/* This means the table is empty. */
 	if (!tpm_log_available())
 		return TPM_SUCCESS;
+	if (tpm_log_copy_failed)
+		return TPM_CB_FAIL;
 
 	if (tpm_log_init() == NULL) {
 		printk(BIOS_WARNING, "TPM LOG: log non-existent!\n");
@@ -207,8 +211,15 @@ tpm_result_t tspi_measure_cache_to_pcr(void)
 	}
 
 	printk(BIOS_DEBUG, "TPM: Write digests cached in TPM log to PCR\n");
-	i = 0;
-	while (!tpm_log_get(i++, &pcr, &digest_data, &digest_algo, &event_name)) {
+	for (i = 0;; i++) {
+		int log_rc = tpm_log_get(i, &pcr, &digest_data, &digest_algo, &event_name);
+
+		if (log_rc > 0)
+			break;
+		if (log_rc < 0) {
+			printk(BIOS_ERR, "TPM: malformed measurement log\n");
+			return TPM_CB_FAIL;
+		}
 		printk(BIOS_DEBUG, "TPM: Write digest for %s into PCR %d\n", event_name, pcr);
 		tpm_result_t rc = tlcl_extend(pcr, digest_data, digest_algo);
 		if (rc != TPM_SUCCESS) {
@@ -228,7 +239,7 @@ static void recover_tpm_log(int is_recovery)
 	const void *preram_log = _tpm_log;
 	void *ram_log = tpm_log_cbmem_init();
 
-	if (tpm_log_get_size(preram_log) > MAX_PRERAM_TPM_LOG_ENTRIES) {
+	if (!CONFIG(TPM_LOG_TPM2) && tpm_log_get_size(preram_log) > MAX_PRERAM_TPM_LOG_ENTRIES) {
 		printk(BIOS_WARNING, "TPM LOG: pre-RAM log is too full, possible corruption\n");
 		return;
 	}
@@ -238,7 +249,12 @@ static void recover_tpm_log(int is_recovery)
 		return;
 	}
 
-	tpm_log_copy_entries(_tpm_log, ram_log);
+	if (tpm_log_copy_entries(_tpm_log, ram_log)) {
+		printk(BIOS_WARNING, "TPM LOG: failed to copy pre-RAM log\n");
+		tpm_log_copy_failed = 1;
+		if (CONFIG(TPM_LOG_TPM2))
+			((struct tpm_2_log_table *)ram_log)->vendor.reserved = 1;
+	}
 }
 CBMEM_CREATION_HOOK(recover_tpm_log);
 #endif

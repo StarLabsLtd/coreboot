@@ -69,14 +69,19 @@ static inline uint16_t tpm_log_get_size(const void *log_table)
 /**
  * Copies data from pre-RAM TPM log to CBMEM (RAM) log
  */
-static inline void tpm_log_copy_entries(const void *from, void *to)
+static inline int tpm_log_copy_entries(const void *from, void *to)
 {
-	if (CONFIG(TPM_LOG_CB))
+	if (CONFIG(TPM_LOG_CB)) {
 		tpm_cb_log_copy_entries(from, to);
-	else if (CONFIG(TPM_LOG_TPM1))
+		return 0;
+	} else if (CONFIG(TPM_LOG_TPM1)) {
 		tpm1_log_copy_entries(from, to);
-	else if (CONFIG(TPM_LOG_TPM2))
-		tpm2_log_copy_entries(from, to);
+		return 0;
+	} else if (CONFIG(TPM_LOG_TPM2)) {
+		return tpm2_log_copy_entries(from, to);
+	}
+
+	return -1;
 }
 
 /**

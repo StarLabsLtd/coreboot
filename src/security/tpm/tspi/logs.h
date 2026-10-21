@@ -42,7 +42,7 @@ void *tpm2_log_init(void);
 void *tpm2_log_cbmem_init(void);
 void tpm2_preram_log_clear(void);
 uint16_t tpm2_log_get_size(const void *log_table);
-void tpm2_log_copy_entries(const void *from, void *to);
+int tpm2_log_copy_entries(const void *from, void *to);
 int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 		 enum vb2_hash_algorithm *digest_algo, const char **event_name);
 void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
