@@ -96,7 +96,7 @@ static int amd64_set_reg(const enum cpu_reg reg, const int node, void *in,
 static int amd64_apmc_node(u8 cmd)
 {
 	amd64_smm_state_save_area_t *save_state;
-	int node;
+	int node, requester = -1;
 
 	for (node = 0; (unsigned int)node < CONFIG_MAX_CPUS; node++) {
 		save_state = smm_get_save_state(node);
@@ -119,11 +119,15 @@ static int amd64_apmc_node(u8 cmd)
 		 *   instructions to APM_CNT port
 		 * - ideally do so in constant-time manner to not leak information
 		 */
-		if ((save_state->rax & 0xFF) == cmd)
-			return node;
+		if ((save_state->rax & 0xFF) == cmd) {
+			/* Broadcast can leave several CPUs with the same command byte. */
+			if (requester >= 0)
+				return -1;
+			requester = node;
+		}
 	}
 
-	return -1;
+	return requester;
 }
 
 static const struct smm_save_state_ops _amd64_ops = {
@@ -199,7 +203,7 @@ static int legacy_set_reg(const enum cpu_reg reg, const int node, void *in,
 static int legacy_apmc_node(u8 cmd)
 {
 	legacy_smm_state_save_area_t *save_state;
-	int node;
+	int node, requester = -1;
 
 	for (node = 0; (unsigned int)node < CONFIG_MAX_CPUS; node++) {
 		save_state = smm_get_save_state(node);
@@ -214,11 +218,14 @@ static int legacy_apmc_node(u8 cmd)
 		 *
 		 * See comment in amd64_apmc_node().
 		 */
-		if ((save_state->eax & 0xFF) == cmd)
-			return node;
+		if ((save_state->eax & 0xFF) == cmd) {
+			if (requester >= 0)
+				return -1;
+			requester = node;
+		}
 	}
 
-	return -1;
+	return requester;
 }
 
 static const struct smm_save_state_ops _legacy_ops = {
@@ -235,7 +242,13 @@ static void mainboard_smi_gsmi(void)
 	u32 ret;
 	u8 sub_command;
 	uintptr_t param;
-	int node = get_apmc_node(APM_CNT_ELOG_GSMI);
+	int node;
+
+	if (!smm_wait_for_cpus()) {
+		printk(BIOS_WARNING, "GSMI: CPU rendezvous failed\n");
+		return;
+	}
+	node = get_apmc_node(APM_CNT_ELOG_GSMI);
 
 	if (node < 0)
 		return;
