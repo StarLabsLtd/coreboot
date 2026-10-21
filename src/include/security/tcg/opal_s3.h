@@ -28,6 +28,7 @@
  * coordinated payload update.
  */
 #define OPAL_S3_MAX_PASSWORD_LEN 32
+#define OPAL_S3_MAX_SECRETS 8
 
 struct opal_s3_smm_ctx {
 	u32 signature;

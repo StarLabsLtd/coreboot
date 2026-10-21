@@ -31,8 +31,6 @@
 #define OPAL_S3_ARMED_NONE      0
 #define OPAL_S3_ARMED_S3        1
 
-#define OPAL_S3_MAX_SECRETS 8
-
 struct __packed opal_s3_secret {
 	u8 valid;
 	u8 reserved0;
