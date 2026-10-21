@@ -172,12 +172,6 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	size_t aligned_size = 0;
 	pci_devfn_t nvme_dev;
 
-	if (!ctx)
-		return 1;
-
-	if (smm_points_to_smram(ctx, sizeof(*ctx)))
-		return 2;
-
 	if (ctx->signature != OPAL_S3_SMM_CTX_SIGNATURE)
 		return 3;
 
@@ -379,6 +373,7 @@ static u32 opal_s3_unlock_if_armed(void)
 
 int opal_s3_smi_apmc(u8 apmc)
 {
+	struct opal_s3_smm_ctx ctx;
 	int node;
 	u64 rax;
 	u64 rbx;
@@ -417,7 +412,19 @@ int opal_s3_smi_apmc(u8 apmc)
 
 	switch (subcmd) {
 	case OPAL_SMM_SUBCMD_SET_SECRET:
-		ret = opal_s3_set_secret((const struct opal_s3_smm_ctx *)(uintptr_t)rbx);
+		if (!rbx || rbx != (uintptr_t)rbx ||
+		    rbx > UINTPTR_MAX - (sizeof(ctx) - 1)) {
+			ret = 1;
+			break;
+		}
+		if (smm_points_to_smram((const void *)(uintptr_t)rbx, sizeof(ctx))) {
+			ret = 2;
+			break;
+		}
+		/* Validate and consume the same copy, never mutable caller memory. */
+		memcpy(&ctx, (const void *)(uintptr_t)rbx, sizeof(ctx));
+		ret = opal_s3_set_secret(&ctx);
+		opal_explicit_bzero(&ctx, sizeof(ctx));
 		break;
 	case OPAL_SMM_SUBCMD_CLEAR_SECRET:
 		ret = opal_s3_clear_secret();
