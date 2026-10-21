@@ -7,11 +7,6 @@
 
 #include "payload_mm_authvar_authority_provider.h"
 
-#if CONFIG(PAYLOAD_MM_AUTHVAR_AUTHORITY_PROVIDER) && \
-	CONFIG(PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK)
-#error "The authvar authority provider lacks NEW_PAYLOAD_CERT trust"
-#endif
-
 struct provider_snapshot {
 	struct payload_mm_authvar_authority_verify_request request;
 	struct payload_mm_crypto_span pkcs7;

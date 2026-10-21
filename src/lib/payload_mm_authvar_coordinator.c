@@ -4,9 +4,6 @@
 #include <boot/payload_mm_authvar_candidate.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_format.h>
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-#include <boot/payload_mm_authvar_presence_authority.h>
-#endif
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
@@ -305,17 +302,8 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		invariant_failure))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	memset(result, 0, sizeof(*result));
-	if (coordinator->confirmed_key) {
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-		if (!payload_mm_authvar_presence_key_authorized(coordinator->confirmed_key,
-			coordinator->request))
-			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-		confirmed_delete = coordinator->confirmed_key->mutation ==
-			PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE;
-#else
+	if (coordinator->confirmed_key)
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
-#endif
-	}
 	if (coordinator->confirmed_operation) {
 		if (coordinator->confirmed_key ||
 		    !payload_mm_authvar_confirmed_operation_matches(coordinator->confirmed_operation,
@@ -357,8 +345,7 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 			.custom_mode = in_custom_mode,
 			.trusted_physical_presence =
 				coordinator->trusted_physical_presence,
-			.require_self_signed_pk =
-				CONFIG(PAYLOAD_MM_AUTHVAR_REQUIRE_SELF_SIGNED_PK),
+			.require_self_signed_pk = false,
 		},
 		.verify = coordinator->verify,
 		.verify_context = coordinator->verify_context,
@@ -474,18 +461,8 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		bundle.confirmed_operation = coordinator->confirmed_operation;
 		bundle.confirmed_request = coordinator->request;
 	}
-	if (coordinator->confirmed_key) {
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-		if (decision.accepted_authority != PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS ||
-		    !payload_mm_authvar_presence_key_authorized(coordinator->confirmed_key,
-			coordinator->request))
-			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-		bundle.confirmed_key = coordinator->confirmed_key;
-		bundle.confirmed_request = coordinator->request;
-#else
+	if (coordinator->confirmed_key)
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
-#endif
-	}
 	efi_status = payload_mm_authvar_candidate_build(index, &bundle, policy,
 		binding, candidate, candidate_capacity, scan_entries,
 		scan_entry_capacity, &draft.candidate);

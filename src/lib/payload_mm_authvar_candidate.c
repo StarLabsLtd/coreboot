@@ -5,10 +5,6 @@
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_record.h>
 #include <boot/payload_mm_authvar_service.h>
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-#include <boot/payload_mm_authvar_presence_authority.h>
-#include <boot/payload_mm_authvar_route.h>
-#endif
 #include <commonlib/helpers.h>
 #include <string.h>
 
@@ -381,24 +377,9 @@ static bool confirmed_replacement_matches(
 	const struct payload_mm_authvar_policy_request *request = bundle->confirmed_request;
 	const struct payload_mm_authvar_confirmed_operation *operation = bundle->confirmed_operation;
 	struct payload_mm_authvar_auth2_view auth2;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-	struct payload_mm_authvar_confirmed_operation frame_operation;
-#endif
 
-	if (bundle->confirmed_key) {
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-		if (operation || !request ||
-		    !payload_mm_authvar_presence_key_authorized(bundle->confirmed_key, request))
-			return false;
-		frame_operation = (struct payload_mm_authvar_confirmed_operation) {
-			.key_id = bundle->confirmed_key->key_id,
-			.mutation = bundle->confirmed_key->mutation,
-		};
-		operation = &frame_operation;
-#else
+	if (bundle->confirmed_key)
 		return false;
-#endif
-	}
 	return payload_mm_authvar_confirmed_operation_matches(operation, request) &&
 		operation->mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_REPLACE &&
 		item->role == PAYLOAD_MM_AUTHVAR_BUNDLE_TARGET &&
@@ -851,19 +832,7 @@ static bool result_disjoint_from_inputs(
 			confirmation = bundle->confirmed_operation;
 			confirmation_size = sizeof(*bundle->confirmed_operation);
 		} else {
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-			const struct payload_mm_authvar_confirmed_key_frame *frame = bundle->confirmed_key;
-			size_t message_size;
-
-			if (!frame || !request ||
-			    !(message_size = payload_mm_authvar_presence_key_authorized(frame, request)) ||
-			    bundle->confirmed_key != frame || bundle->confirmed_request != request)
-				return false;
-			confirmation = frame;
-			confirmation_size = message_size;
-#else
 			return false;
-#endif
 		}
 		const void *inputs[] = { confirmation, request, request->name, request->data };
 		const size_t sizes[] = { confirmation_size, sizeof(*request),

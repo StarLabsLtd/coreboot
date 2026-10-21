@@ -4,9 +4,6 @@
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_signature_db.h>
 #include <boot/payload_mm_authvar_service.h>
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-#include <boot/payload_mm_authvar_presence_authority.h>
-#endif
 
 #include <commonlib/helpers.h>
 #include <string.h>
@@ -310,23 +307,8 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 			route_status == PAYLOAD_MM_AUTHVAR_ROUTE_INVALID ?
 			PAYLOAD_MM_VERIFY_MALFORMED : PAYLOAD_MM_VERIFY_REJECTED;
 	append = request->attributes & PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
-	if (snapshot->confirmed_key) {
-#if CONFIG(PAYLOAD_MM_AUTHVAR_PRESENCE_AUTHORITY)
-		if (!snapshot->facts.trusted_physical_presence ||
-		    route.authorities[0] != PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS ||
-		    !payload_mm_authvar_presence_key_authorized(snapshot->confirmed_key, request))
-			return PAYLOAD_MM_VERIFY_REJECTED;
-		struct payload_mm_authvar_confirmed_operation operation = {
-			.key_id = snapshot->confirmed_key->key_id,
-			.mutation = snapshot->confirmed_key->mutation,
-		};
-		if (!payload_mm_authvar_confirmed_operation_matches(&operation, request))
-			return PAYLOAD_MM_VERIFY_REJECTED;
-		confirmed = true;
-#else
+	if (snapshot->confirmed_key)
 		return PAYLOAD_MM_VERIFY_REJECTED;
-#endif
-	}
 	if (snapshot->confirmed_operation) {
 		if (snapshot->confirmed_key || !snapshot->facts.trusted_physical_presence ||
 		    route.authorities[0] != PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS ||
