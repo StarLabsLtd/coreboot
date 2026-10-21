@@ -26,6 +26,12 @@ _Static_assert(FMAP_SECTION_SMMSTORE_SIZE >= SMM_BLOCK_SIZE,
 static int smmstore_use_full_flash;
 static int has_capsules = -1;
 
+struct smmstore_region {
+	struct region_device read;
+	struct region_device write;
+	struct incoherent_rdev device;
+};
+
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
@@ -82,23 +88,22 @@ static enum cb_err lookup_store_region(struct region *region, bool full_flash)
  * returns 0 on success, -1 on failure
  * outputs the valid store rdev in rstore
  */
-static int lookup_store(struct region_device *rstore, bool full_flash)
+static int lookup_store(struct region_device *rstore, struct smmstore_region *store,
+			bool full_flash)
 {
-	static struct region_device read_rdev, write_rdev;
-	static struct incoherent_rdev store_irdev;
 	struct region region;
 	const struct region_device *rdev;
 
 	if (lookup_store_region(&region, full_flash) != CB_SUCCESS)
 		return -1;
 
-	if (boot_device_ro_subregion(&region, &read_rdev) < 0)
+	if (boot_device_ro_subregion(&region, &store->read) < 0)
 		return -1;
 
-	if (boot_device_rw_subregion(&region, &write_rdev) < 0)
+	if (boot_device_rw_subregion(&region, &store->write) < 0)
 		return -1;
 
-	rdev = incoherent_rdev_init(&store_irdev, &region, &read_rdev, &write_rdev);
+	rdev = incoherent_rdev_init(&store->device, &region, &store->read, &store->write);
 
 	if (rdev == NULL)
 		return -1;
@@ -112,11 +117,13 @@ int smmstore_lookup_region(struct region_device *rstore)
 	static int done;
 	static int ret;
 	static struct region_device rdev;
+	/* Cached readers must not share the raw capsule command's mutable region. */
+	static struct smmstore_region store;
 
 	if (!done) {
 		done = 1;
 
-		if (lookup_store(&rdev, false)) {
+		if (lookup_store(&rdev, &store, false)) {
 			printk(BIOS_WARNING,
 			       "smm store: Unable to find SMM store FMAP region '%s'\n",
 				SMMSTORE_REGION);
@@ -160,9 +167,10 @@ int smmstore_init(void *buf, size_t len)
  */
 int smmstore_get_info(struct smmstore_params_info *out)
 {
+	static struct smmstore_region backing;
 	struct region_device store;
 
-	if (lookup_store(&store, false) < 0) {
+	if (lookup_store(&store, &backing, false) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}
@@ -188,7 +196,9 @@ int smmstore_get_info(struct smmstore_params_info *out)
 /* Returns -1 on error, 0 on success */
 static int lookup_block_in_store(struct region_device *store, uint32_t block_id)
 {
-	if (lookup_store(store, smmstore_use_full_flash != 0) < 0) {
+	static struct smmstore_region backing;
+
+	if (lookup_store(store, &backing, smmstore_use_full_flash != 0) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}
