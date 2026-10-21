@@ -460,7 +460,9 @@ static void southbridge_fill_ssdt(const struct device *device)
 	config_t *chip = dev->chip_info;
 
 	intel_acpi_pcie_hotplug_generator(chip->pcie_hotplug_map, 8);
-	intel_acpi_gen_def_acpi_pirq(device);
+	/* Both the Q35 DSDT and its fw_cfg replacement provide _PRT. */
+	if (!CONFIG(BOARD_EMULATION_QEMU_X86_Q35))
+		intel_acpi_gen_def_acpi_pirq(device);
 }
 
 static struct device_operations device_ops = {
