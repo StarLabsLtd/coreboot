@@ -314,6 +314,9 @@ bool cse_is_me_enabled(void)
 
 bool cse_get_s0ix_enable_state(bool fallback)
 {
+	if (!CONFIG(SOC_INTEL_COMMON_CSE_S0IX))
+		return false;
+
 	const bool enable = get_uint_option_checked("s0ix_enable", fallback, OPTION_BOOL);
 
 	if (!enable)
