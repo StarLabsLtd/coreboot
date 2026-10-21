@@ -222,14 +222,8 @@ static void *get_tcpa_log(u32 *size)
 
 static bool acpi_should_create_tpm_tables(void)
 {
-	if (!CONFIG(ACPI_TPM_TABLES_REQUIRE_PROBE))
-		return true;
-
-#if CONFIG(TPM)
-	return tlcl_lib_init() == TPM_SUCCESS;
-#else
-	return false;
-#endif
+	return !CONFIG(ACPI_TPM_TABLES_REQUIRE_PROBE) ||
+		(CONFIG(TPM) && tlcl_lib_init() == TPM_SUCCESS);
 }
 
 static void acpi_create_tcpa(acpi_header_t *header, void *unused)
