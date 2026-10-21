@@ -383,7 +383,7 @@ enum payload_mm_verify_status payload_mm_authvar_signature_db_filter_append(
 	struct payload_mm_authvar_signature_db_stats current_stats;
 	struct payload_mm_authvar_signature_db_stats append_stats;
 	struct signature_index index = { .data = current };
-	uint8_t keep[DIV_ROUND_UP(MAX_SIGNATURES, 8U)] = { 0 };
+	uint8_t keep[(MAX_SIGNATURES + 7U) / 8U] = { 0 };
 	enum payload_mm_verify_status status;
 	size_t needed;
 
