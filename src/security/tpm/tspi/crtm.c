@@ -5,6 +5,7 @@
 #include <bootstate.h>
 #include <cbfs.h>
 #include <symbols.h>
+#include <security/tpm/tpm2_log_serialized.h>
 #include "crtm.h"
 #include <stdio.h>
 #include <string.h>
@@ -251,6 +252,8 @@ static void recover_tpm_log(int is_recovery)
 	if (tpm_log_copy_entries(_tpm_log, ram_log)) {
 		printk(BIOS_WARNING, "TPM LOG: failed to copy pre-RAM log\n");
 		tpm_log_copy_failed = 1;
+		if (CONFIG(TPM_LOG_TPM2))
+			((struct tpm_2_log_table *)ram_log)->vendor.reserved = 1;
 	}
 }
 CBMEM_CREATION_HOOK(recover_tpm_log);

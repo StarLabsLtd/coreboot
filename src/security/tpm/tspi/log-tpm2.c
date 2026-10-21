@@ -164,7 +164,9 @@ static const uint8_t *tpm2_log_get_entry_at(const struct tpm_2_log_table *tclt,
 	if (tpm2_log_uses_fixed_entries(tclt)) {
 		const uint8_t *entry;
 
-		if (entry_idx >= le16toh(tclt->vendor.max_entries))
+		if ((!ENV_HAS_CBMEM &&
+		     le16toh(tclt->vendor.max_entries) > tpm2_preram_log_capacity()) ||
+		    entry_idx >= le16toh(tclt->vendor.max_entries))
 			return NULL;
 
 		entry = (const uint8_t *)&tclt->entries[entry_idx];
@@ -482,6 +484,7 @@ void tpm2_preram_log_clear(void)
 	 * packed CBMEM log when CBMEM is created.
 	 */
 	struct tpm_2_log_table *tclt = (struct tpm_2_log_table *)_tpm_log;
+	tclt->vendor.reserved = 0;
 	tclt->vendor.max_entries = htole16(tpm2_preram_log_capacity());
 	tclt->vendor.num_entries = htole16(0);
 	tclt->vendor.entry_size = htole32(sizeof(struct tpm_2_log_entry));
