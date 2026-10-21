@@ -229,6 +229,35 @@ $(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(obj)/config.h $(objutil)/kconfig/conf
 		exit 1; \
 	}
 
+# Manufacturing only: never seed an existing store through an ordinary update.
+.PHONY: cdk2-factory-image
+ifeq ($(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),y)
+cdk2-factory-image: $(obj)/coreboot.rom $(CBFSTOOL)
+	+@set -e; \
+	work=$$(mktemp -d "$(abspath $(obj))/cdk2-factory.XXXXXXXX"); \
+	trap 'rm -f "$$work/store.bin" "$$work/readback.bin" "$$work/coreboot.factory.rom"; rmdir "$$work"' EXIT; \
+	trap 'exit 1' HUP INT TERM; \
+	$(MAKE) -C $(CDK2_SOURCE) fixed-store-image \
+		COREBOOT_SOURCE="$(abspath .)" \
+		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+		COREBOOT_CONFIG_HEADER="$(abspath $(obj)/config.h)" \
+		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))" \
+		CDK2_FIXED_STORE_OUTPUT="$$work/store.bin" \
+		CDK2_FIXED_STORE_SIZE="$(CONFIG_SMMSTORE_SIZE)" \
+		CDK2_FIXED_STORE_BLOCK_SIZE="$(CONFIG_SMMSTORE_BLOCK_SIZE)" \
+		HOSTCC="$(HOSTCC)"; \
+	cp "$(obj)/coreboot.rom" "$$work/coreboot.factory.rom"; \
+	$(CBFSTOOL) "$$work/coreboot.factory.rom" write -r SMMSTORE -f "$$work/store.bin"; \
+	$(CBFSTOOL) "$$work/coreboot.factory.rom" read -r SMMSTORE -f "$$work/readback.bin"; \
+	cmp "$$work/store.bin" "$$work/readback.bin"; \
+	mv "$$work/coreboot.factory.rom" "$(obj)/coreboot.factory.rom"; \
+	printf 'Created %s for new-device provisioning only\n' "$(obj)/coreboot.factory.rom"
+else
+cdk2-factory-image:
+	@echo 'cdk2-factory-image requires CDK2_SECURE_BOOT_FIXED_KEYS' >&2
+	@false
+endif
+
 endif
 
 ifeq ($(CONFIG_EDK2_ENABLE_IPXE),y)
