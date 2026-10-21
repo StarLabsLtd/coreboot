@@ -32,14 +32,12 @@ static const uint8_t data_oid[] = {
 static const uint8_t sha256_oid[] = {
 	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
 };
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 static const uint8_t sha384_oid[] = {
 	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02,
 };
 static const uint8_t sha512_oid[] = {
 	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
 };
-#endif
 static const uint8_t rsa_oid[] = {
 	0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
 };
@@ -298,7 +296,6 @@ static bool algorithm_is(struct der_object *object, const uint8_t *oid,
 		cursor.size == 0U;
 }
 
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 static bool hash_algorithm(const struct der_object *object,
 	enum payload_mm_hash_algorithm *algorithm)
 {
@@ -322,7 +319,6 @@ static bool hash_algorithm(const struct der_object *object,
 	}
 	return true;
 }
-#endif
 
 static int span_order(const struct payload_mm_crypto_span *left,
 	const struct payload_mm_crypto_span *right)
@@ -415,22 +411,16 @@ enum signed_attributes_result {
 	SIGNED_ATTRIBUTES_VALID,
 };
 
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 struct cms_content {
 	const uint8_t *digest;
 	size_t digest_size;
 	const struct payload_mm_crypto_span *spans;
 	size_t span_count;
 };
-#endif
 
 static enum signed_attributes_result parse_signed_attributes(
 	const struct der_object *attributes,
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	const uint8_t *content_digest, size_t content_digest_size)
-#else
-	const uint8_t content_digest[PAYLOAD_MM_SHA256_SIZE])
-#endif
 {
 	struct der_cursor cursor = { attributes->value.data,
 		attributes->value.size };
@@ -474,20 +464,11 @@ static enum signed_attributes_result parse_signed_attributes(
 		} else if (oid_is(&oid, message_digest_oid,
 			sizeof(message_digest_oid))) {
 			if (message_digest || !der_expect(&values, 0x04U, &object) ||
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 			    object.value.size != content_digest_size ||
-#else
-			    object.value.size != PAYLOAD_MM_SHA256_SIZE ||
-#endif
 			    values.size != 0U)
 				return SIGNED_ATTRIBUTES_FORMAT;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 			if (!bytes_equal(object.value.data, content_digest,
 				content_digest_size))
-#else
-			if (!bytes_equal(object.value.data, content_digest,
-				PAYLOAD_MM_SHA256_SIZE))
-#endif
 				return SIGNED_ATTRIBUTES_AUTHENTICATED;
 			message_digest = true;
 		} else if (oid_is(&oid, signing_time_oid,
@@ -513,18 +494,12 @@ static enum signed_attributes_result parse_signed_attributes(
 
 static enum payload_mm_verify_status parse_cms(
 	const struct payload_mm_crypto_span *signed_data,
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	const struct cms_content *content,
-#else
-	const uint8_t content_digest[PAYLOAD_MM_SHA256_SIZE],
-#endif
 	struct payload_mm_crypto_span *certificates,
 	size_t *certificate_count, size_t *signer_index,
 	struct payload_mm_crypto_span *signed_attributes,
 	struct payload_mm_crypto_span *signature,
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	enum payload_mm_hash_algorithm *digest_algorithm,
-#endif
 	enum payload_mm_crypto_failure_source *failure_source)
 {
 	struct certificate_identity identities[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES];
@@ -538,19 +513,15 @@ static enum payload_mm_verify_status parse_cms(
 	struct der_object first;
 	struct payload_mm_crypto_span certificate;
 	struct certificate_identity identity;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	uint8_t computed_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
 	const uint8_t *content_digest;
 	size_t content_digest_size;
-#endif
 	size_t matches = 0U;
 	size_t objects = 0U;
 	size_t index;
 	int order;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	enum payload_mm_hash_algorithm signer_algorithm;
 	enum payload_mm_verify_status status;
-#endif
 	enum signed_attributes_result attributes_result;
 
 	*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
@@ -579,7 +550,6 @@ static enum payload_mm_verify_status parse_cms(
 	contents.size = object.value.size;
 	if (!der_expect(&contents, 0x30U, &algorithm) || contents.size != 0U)
 		return PAYLOAD_MM_VERIFY_MALFORMED;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	if (!hash_algorithm(&algorithm, digest_algorithm))
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
 	content_digest_size = payload_mm_hash_digest_size(*digest_algorithm);
@@ -597,10 +567,6 @@ static enum payload_mm_verify_status parse_cms(
 			return PAYLOAD_MM_VERIFY_UNSUPPORTED;
 		content_digest = content->digest;
 	}
-#else
-	if (!algorithm_is(&algorithm, sha256_oid, sizeof(sha256_oid)))
-		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
-#endif
 	if (!der_expect(&fields, 0x30U, &object))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
 	contents.data = object.value.data;
@@ -659,21 +625,13 @@ static enum payload_mm_verify_status parse_cms(
 	signer_serial = object.value;
 	if (!der_expect(&fields, 0x30U, &algorithm))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	if (!hash_algorithm(&algorithm, &signer_algorithm) ||
 	    signer_algorithm != *digest_algorithm)
-#else
-	if (!algorithm_is(&algorithm, sha256_oid, sizeof(sha256_oid)))
-#endif
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
 	if (!der_expect(&fields, 0xa0U, &object))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	attributes_result = parse_signed_attributes(&object, content_digest,
 		content_digest_size);
-#else
-	attributes_result = parse_signed_attributes(&object, content_digest);
-#endif
 	if (attributes_result != SIGNED_ATTRIBUTES_VALID) {
 		if (attributes_result == SIGNED_ATTRIBUTES_AUTHENTICATED)
 			*failure_source =
@@ -706,7 +664,6 @@ static enum payload_mm_verify_status parse_cms(
 }
 
 
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 static bool address_range_valid(const void *data, size_t size)
 {
 	return size == 0U || (data && (uintptr_t)data <= UINTPTR_MAX - size);
@@ -832,7 +789,6 @@ enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
 		*verified = published;
 	return status;
 }
-#endif
 
 #ifdef PAYLOAD_MM_AUTH_TEST
 #endif

@@ -3,14 +3,10 @@
 #include "payload_mm_cms.h"
 #include "payload_mm_crypto_platform.h"
 
-#if CONFIG(PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR)
 #include <commonlib/helpers.h>
-#endif
 #include <mbedtls/pk.h>
 #include <mbedtls/sha256.h>
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 #include <mbedtls/sha512.h>
-#endif
 #include <mbedtls/x509_crt.h>
 
 #include "crypto.h"
@@ -288,7 +284,6 @@ enum payload_mm_verify_status payload_mm_sha256_spans(
 	const struct payload_mm_crypto_span *spans, size_t count,
 	uint8_t digest[PAYLOAD_MM_SHA256_SIZE])
 {
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 	uint8_t full_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
 	enum payload_mm_verify_status status;
 
@@ -300,36 +295,8 @@ enum payload_mm_verify_status payload_mm_sha256_spans(
 		memcpy(digest, full_digest, PAYLOAD_MM_SHA256_SIZE);
 	mbedtls_platform_zeroize(full_digest, sizeof(full_digest));
 	return status;
-#else
-	mbedtls_sha256_context context;
-	size_t total = 0U;
-	size_t index;
-	int result;
-
-	if (spans == NULL || count == 0U ||
-	    count > PAYLOAD_MM_SHA256_MAX_SPANS || digest == NULL)
-		return PAYLOAD_MM_VERIFY_INVALID;
-	for (index = 0U; index < count; index++) {
-		if ((spans[index].size != 0U && spans[index].data == NULL) ||
-		    spans[index].size >
-			PAYLOAD_MM_CRYPTO_MAX_MESSAGE_SIZE - total)
-			return PAYLOAD_MM_VERIFY_INVALID;
-		total += spans[index].size;
-	}
-
-	mbedtls_sha256_init(&context);
-	result = mbedtls_sha256_starts(&context, 0);
-	for (index = 0U; result == 0 && index < count; index++)
-		result = mbedtls_sha256_update(&context, spans[index].data,
-			spans[index].size);
-	if (result == 0)
-		result = mbedtls_sha256_finish(&context, digest);
-	mbedtls_sha256_free(&context);
-	return result == 0 ? PAYLOAD_MM_VERIFY_OK : PAYLOAD_MM_VERIFY_INTERNAL;
-#endif
 }
 
-#if CONFIG(PAYLOAD_MM_AUTHVAR_CMS_VERIFY)
 size_t payload_mm_hash_digest_size(enum payload_mm_hash_algorithm algorithm)
 {
 	switch (algorithm) {
@@ -448,10 +415,8 @@ enum payload_mm_verify_status payload_mm_rsa_verify(
 	mbedtls_x509_crt_free(&parsed);
 	return status;
 }
-#endif
 
 
-#if CONFIG(PAYLOAD_MM_AUTHVAR_TRUST_ANCHOR)
 static enum payload_mm_verify_status authvar_x509_chain_verify_detailed(
 	const struct payload_mm_crypto_span *leaf,
 	const struct payload_mm_crypto_span *intermediates,
@@ -640,4 +605,3 @@ out:
 	mbedtls_x509_crt_free(&parsed_leaf);
 	return status;
 }
-#endif
