@@ -121,11 +121,13 @@ static uint32_t state_floor(const uint8_t state[20])
 		state[1] ? le32dec(state + 8) : 0);
 }
 
-static bool apply_image(const struct capsule_broker_raw_image *raw)
+static bool apply_image(const struct capsule_broker_raw_image *raw, uint32_t selected)
 {
 	for (size_t i = 0; i < capsule.region_count; i++) {
 		const struct lb_capsule_update_region *region = &capsule.regions[i];
 
+		if (!(selected & (1U << i)))
+			continue;
 		for (uint64_t done = 0; done < region->size; done += sizeof(capsule.write)) {
 			size_t offset = region->flash_offset + done;
 			bool restore_wp;
@@ -170,10 +172,12 @@ static void execute(struct smm_authvar_dispatch *service,
 	bool set = intent->operation == PAYLOAD_MM_FMP_CAPSULE_SET;
 	bool recorded = false;
 	uint32_t outcome = CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL;
+	uint32_t floor, selected;
 
 	if (capsule.closed || capsule.spent || service->owner.runtime ||
 	    !read_state(service, state))
 		return;
+	floor = state_floor(state);
 	if (set)
 		capsule.spent = true;
 	status = smm_capsule_image_open(&capsule.image, (void *)capsule.staging,
@@ -193,8 +197,8 @@ static void execute(struct smm_authvar_dispatch *service,
 		goto refusal;
 	}
 	policy = smm_capsule_policy(&capsule.image, capsule.firmware.guid,
-		capsule.firmware.version, state_floor(state), intent->attempted_version,
-		capsule.fmap, sizeof(capsule.fmap), &raw);
+		capsule.firmware.version, floor, intent->attempted_version,
+		capsule.fmap, sizeof(capsule.fmap), capsule.region_count, &raw, &selected);
 	if (policy != CAPSULE_BROKER_AUTHENTICATED) {
 		if (policy == CAPSULE_BROKER_VERSION_REFUSED) {
 			result->result = CAPSULE_BROKER_RESULT_VERSION_REFUSED;
@@ -217,11 +221,11 @@ static void execute(struct smm_authvar_dispatch *service,
 	if (!commit_state(service, state))
 		goto out;
 	recorded = true;
-	if (!apply_image(&raw))
+	if (!apply_image(&raw, selected))
 		goto out;
 	state[0] = state[1] = 1;
 	le32enc(state + 4, intent->attempted_version);
-	le32enc(state + 8, MAX(state_floor(state), raw.lowest_supported_version));
+	le32enc(state + 8, MAX(floor, raw.lowest_supported_version));
 	le32enc(state + 12, CAPSULE_BROKER_LAST_ATTEMPT_SUCCESS);
 	if (!commit_state(service, state))
 		goto out;

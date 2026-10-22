@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "capsule_policy.h"
 #include "capsule_image.h"
+#include "capsule.h"
 #include <commonlib/bsd/cbfs_serialized.h>
 #include <commonlib/helpers.h>
 #include <endian.h>
@@ -268,14 +269,18 @@ static bool board_matches(struct smm_capsule_image *image, size_t raw_offset,
 enum capsule_broker_authentication_status smm_capsule_policy(
 	struct smm_capsule_image *image, const uint8_t image_type[16],
 	uint32_t current_version, uint32_t lowest_version, uint32_t attempted_version,
-	const void *fmap, size_t fmap_size, struct capsule_broker_raw_image *raw)
+	const void *fmap, size_t fmap_size, uint32_t region_count,
+	struct capsule_broker_raw_image *raw, uint32_t *selected)
 {
 	uint8_t metadata[DEPENDENCY_LIMIT + MSS1_HEADER_SIZE];
+	uint8_t names[SMM_CAPSULE_MAX_REGIONS][16], trailer[8];
 	size_t dependency_size = 0, size = MIN(image->payload_size, sizeof(metadata));
 	size_t offset;
 	uint32_t header_size, version, floor;
+	uint32_t count;
 
 	*raw = (struct capsule_broker_raw_image) { 0 };
+	*selected = 0;
 	if (size < MSS1_HEADER_SIZE + 1 ||
 	    !smm_capsule_image_read(image, image->payload_offset, metadata, size))
 		return CAPSULE_BROKER_IMAGE_REFUSED;
@@ -295,9 +300,55 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 	if (version < lowest_version)
 		return CAPSULE_BROKER_VERSION_REFUSED;
 	offset = image->payload_offset + dependency_size + header_size;
-	if (image->payload_size - dependency_size - header_size != CONFIG_ROM_SIZE ||
+	if (!smm_capsule_image_read(image, image->size - sizeof(trailer),
+		trailer, sizeof(trailer)) || memcmp(trailer, "RMAP", 4) ||
+	    le16dec(trailer + 4) != 1)
+		return CAPSULE_BROKER_IMAGE_REFUSED;
+	count = le16dec(trailer + 6);
+	if (!count || count > region_count || count > ARRAY_SIZE(names) ||
+	    image->payload_size - dependency_size - header_size !=
+		CONFIG_ROM_SIZE + count * sizeof(names[0]) + sizeof(trailer) ||
+	    !smm_capsule_image_read(image, offset + CONFIG_ROM_SIZE, names,
+		count * sizeof(names[0])) ||
 	    !board_matches(image, offset, fmap, fmap_size))
 		return CAPSULE_BROKER_IMAGE_REFUSED;
+	for (size_t i = 0; i < count; i++) {
+		const char *entry = CONFIG_DRIVERS_EFI_CAPSULE_REGIONS;
+		size_t length = 0, region = 0;
+		bool found = false;
+
+		while (length < sizeof(names[i]) && names[i][length])
+			length++;
+		if (!length || length == sizeof(names[i]))
+			return CAPSULE_BROKER_IMAGE_REFUSED;
+		for (size_t padding = length; padding < sizeof(names[i]); padding++)
+			if (names[i][padding])
+				return CAPSULE_BROKER_IMAGE_REFUSED;
+		/* The compiled list and region array have the same validated order. */
+		while (*entry) {
+			const char *start;
+			size_t size;
+
+			while (*entry == ' ' || *entry == '\t')
+				entry++;
+			if (!*entry)
+				break;
+			start = entry;
+			while (*entry && *entry != ' ' && *entry != '\t')
+				entry++;
+			size = entry - start;
+			if (size == length && !memcmp(start, names[i], length)) {
+				if (region >= region_count || (*selected & (1U << region)))
+					return CAPSULE_BROKER_IMAGE_REFUSED;
+				*selected |= 1U << region;
+				found = true;
+				break;
+			}
+			region++;
+		}
+		if (!found)
+			return CAPSULE_BROKER_IMAGE_REFUSED;
+	}
 	*raw = (struct capsule_broker_raw_image) {
 		.offset = offset, .size = CONFIG_ROM_SIZE, .lowest_supported_version = floor,
 	};

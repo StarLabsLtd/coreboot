@@ -36,7 +36,7 @@ bool smm_capsule_regions(const void *data, size_t size,
 		if (!*names)
 			break;
 		while (*names && *names != ' ' && *names != '\t') {
-			if (length == sizeof(name) - 1 || *names <= ' ' || *names > '~')
+			if (length == 15 || *names <= ' ' || *names > '~')
 				return false;
 			name[length++] = *names++;
 		}
@@ -53,7 +53,8 @@ bool smm_capsule_regions(const void *data, size_t size,
 			return false;
 		offset = le32toh(found->offset);
 		length_bytes = le32toh(found->size);
-		if (!length_bytes || offset > CONFIG_ROM_SIZE ||
+		if ((le16toh(found->flags) & FMAP_AREA_PRESERVE) ||
+		    !length_bytes || offset > CONFIG_ROM_SIZE ||
 		    length_bytes > CONFIG_ROM_SIZE - offset ||
 		    offset % SMM_CAPSULE_ERASE_SIZE || length_bytes % SMM_CAPSULE_ERASE_SIZE ||
 		    (offset < (uint64_t)FMAP_SECTION_SMMSTORE_START + FMAP_SECTION_SMMSTORE_SIZE &&
