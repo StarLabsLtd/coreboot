@@ -18,40 +18,32 @@
 
 static int do_driver_init = 1;
 
-typedef enum { SMI_LOCKED, SMI_UNLOCKED } smi_semaphore;
-
-/* SMI multiprocessing semaphore */
-static volatile
-__attribute__((aligned(4))) smi_semaphore smi_handler_status = SMI_UNLOCKED;
+/* Odd values identify an active SMI; even values mean the handler is unlocked. */
+static unsigned int smi_handler_status;
+static unsigned int cpu_smi_generation[CONFIG_MAX_CPUS];
 
 static const volatile
 __attribute((aligned(4), __section__(".module_parameters"))) struct smm_runtime smm_runtime;
 
-static int smi_obtain_lock(void)
+static bool smi_obtain_lock(unsigned int *generation)
 {
-	u8 ret = SMI_LOCKED;
+	unsigned int state = __atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE);
 
-	asm volatile (
-		"movb %2, %%al\n"
-		"xchgb %%al, %1\n"
-		"movb %%al, %0\n"
-		: "=g" (ret), "=m" (smi_handler_status)
-		: "g" (SMI_LOCKED)
-		: "eax"
-	);
+	while (!(state & 1)) {
+		if (__atomic_compare_exchange_n(&smi_handler_status, &state, state + 1,
+				false, __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE)) {
+			*generation = state + 1;
+			return true;
+		}
+	}
 
-	return (ret == SMI_UNLOCKED);
+	*generation = state;
+	return false;
 }
 
 static void smi_release_lock(void)
 {
-	asm volatile (
-		"movb %1, %%al\n"
-		"xchgb %%al, %0\n"
-		: "=m" (smi_handler_status)
-		: "g" (SMI_UNLOCKED)
-		: "eax"
-	);
+	__atomic_fetch_add(&smi_handler_status, 1, __ATOMIC_RELEASE);
 }
 
 #if CONFIG(RUNTIME_CONFIGURABLE_SMM_LOGLEVEL)
@@ -166,6 +158,17 @@ void *smm_get_save_state(int cpu)
 			(smm_runtime.save_state_size - STM_PSD_SIZE));
 }
 
+void *smm_get_current_save_state(unsigned int cpu)
+{
+	unsigned int generation = __atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE);
+
+	if (cpu >= CONFIG_MAX_CPUS ||
+	    __atomic_load_n(&cpu_smi_generation[cpu], __ATOMIC_ACQUIRE) != generation)
+		return NULL;
+
+	return smm_get_save_state(cpu);
+}
+
 uint32_t smm_revision(void)
 {
 	const uintptr_t save_state = (uintptr_t)(smm_get_save_state(0));
@@ -186,6 +189,7 @@ asmlinkage void smm_handler_start(void *arg)
 {
 	const struct smm_module_params *p;
 	int cpu;
+	unsigned int generation;
 	uintptr_t actual_canary;
 	uintptr_t expected_canary;
 
@@ -197,20 +201,24 @@ asmlinkage void smm_handler_start(void *arg)
 	 * will be the same across CPUs as well as multiple SMIs. */
 	gnvs = (void *)(uintptr_t)smm_runtime.gnvs_ptr;
 
-	if (cpu >= CONFIG_MAX_CPUS) {
+	if (cpu < 0 || cpu >= CONFIG_MAX_CPUS) {
 		/* Do not log messages to console here, it is not thread safe */
 		return;
 	}
 
-	/* Are we ok to execute the handler? */
-	if (!smi_obtain_lock()) {
+	/* Publish entry only after hardware has written this CPU's save state. */
+	bool handler = smi_obtain_lock(&generation);
+	__atomic_store_n(&cpu_smi_generation[cpu], generation, __ATOMIC_RELEASE);
+
+	if (!handler) {
 		/* For security reasons we don't release the other CPUs
 		 * until the CPU with the lock is actually done */
-		while (smi_handler_status == SMI_LOCKED) {
+		while (__atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE) & 1) {
 			asm volatile (
 				".byte 0xf3, 0x90\n" /* PAUSE */
 			);
 		}
+		__atomic_store_n(&cpu_smi_generation[cpu], 0, __ATOMIC_RELEASE);
 		return;
 	}
 
@@ -252,6 +260,7 @@ asmlinkage void smm_handler_start(void *arg)
 
 	smm_soc_exit();
 
+	__atomic_store_n(&cpu_smi_generation[cpu], 0, __ATOMIC_RELEASE);
 	smi_release_lock();
 
 	/* De-assert SMI# signal to allow another SMI */
