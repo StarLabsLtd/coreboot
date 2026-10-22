@@ -431,11 +431,15 @@ enum cb_err smm_authvar_set_uint_option(const char *name, uint32_t value)
 static void southbridge_smi_authvar(const struct smm_save_state_ops *ops)
 {
 	uint32_t result = SMMSTORE_RET_FAILURE;
-	int node = ops->apmc_node(APM_CNT_AUTHVAR);
+	int node;
 
+	/* Other CPUs' save states are current only after they have entered SMM. */
+	if (!smm_wait_for_cpus())
+		return;
+	node = ops->apmc_node(APM_CNT_AUTHVAR);
 	if (node < 0)
 		return;
-	if (smm_wait_for_cpus() && authvar_protection_ready())
+	if (authvar_protection_ready())
 		result = smm_authvar_exec();
 	ops->set_reg(RAX, node, &result, sizeof(result));
 }
