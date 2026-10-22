@@ -483,6 +483,97 @@ static enum payload_mm_verify_status volatile_verify(void *context,
 		verification);
 }
 
+static uint64_t ordinary_volatile_set(struct authvar_owner *local,
+	const struct payload_mm_authvar_policy_request *request)
+{
+	struct payload_mm_authvar_set_snapshot snapshot = {
+		.request = request, .index = &local->volatile_index,
+		.at_runtime = local->runtime, .volatile_store = true,
+	};
+	struct payload_mm_authvar_set_plan plan;
+	struct payload_mm_authvar_store_index next = {0};
+	const struct payload_mm_authvar_store_entry *existing;
+	struct payload_mm_authvar_record_descriptor descriptor = {0};
+	struct payload_mm_authvar_record_span spans[2];
+	size_t span_count = 0U, data_size = request->data_size;
+	size_t offset = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
+	uint8_t bank = local->volatile_active ^ 1U;
+	uint8_t *candidate = local_buffer(local, LOCAL_VOLATILE_FIRST + bank);
+	uint32_t encoded_size;
+	uint64_t status;
+
+	if (is_certdbv(request->vendor_guid, request->name, request->name_size))
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+	if (payload_mm_authvar_store_find(&local->index, request->vendor_guid,
+		request->name, request->name_size))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	existing = payload_mm_authvar_store_find(&local->volatile_index,
+		request->vendor_guid, request->name, request->name_size);
+	/* Runtime may read RT volatile variables, but cannot mutate their bank. */
+	if (local->runtime)
+		return existing ? PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED :
+			PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	status = payload_mm_authvar_set_preflight(&snapshot, &plan);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+	    plan.kind == PAYLOAD_MM_AUTHVAR_SET_NOOP)
+		return status;
+	if (plan.kind != PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE &&
+	    plan.kind != PAYLOAD_MM_AUTHVAR_SET_ORDINARY_DELETE)
+		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	if (plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE) {
+		if (!existing && local->volatile_index.entry_count >=
+		    local->volatile_index.entry_capacity)
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+		if (existing && (request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE)) {
+			if (__builtin_add_overflow(data_size, (size_t)existing->data_size, &data_size))
+				return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+			spans[span_count++] = (struct payload_mm_authvar_record_span) {
+				payload_mm_authvar_store_data(&local->volatile_index, existing),
+				existing->data_size,
+			};
+		}
+		if (data_size > local->limits.maximum_data_size)
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+		spans[span_count++] = (struct payload_mm_authvar_record_span) {
+			request->data, request->data_size,
+		};
+		descriptor.name = request->name;
+		descriptor.name_size = request->name_size;
+		descriptor.attributes = request->attributes & ~PAYLOAD_MM_AUTHVAR_ATTR_APPEND_WRITE;
+		memcpy(descriptor.vendor_guid, request->vendor_guid, sizeof(descriptor.vendor_guid));
+	}
+	/* Build the entire replacement before publication, including private certdbv. */
+	memset(candidate, 0xff, local->volatile_index.store_size);
+	memcpy(candidate, local->volatile_index.store, PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE);
+	for (size_t i = 0; i < local->volatile_index.entry_count; i++) {
+		const struct payload_mm_authvar_store_entry *entry = &local->volatile_index.entries[i];
+
+		if (entry == existing)
+			continue;
+		if (!append_record(candidate, local->volatile_index.store_size, &offset,
+			entry->vendor_guid, payload_mm_authvar_store_name(&local->volatile_index, entry),
+			entry->name_size, entry->attributes,
+			local->volatile_index.store + entry->record_offset + 16U,
+			payload_mm_authvar_store_data(&local->volatile_index, entry), entry->data_size))
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+	}
+	if (plan.kind == PAYLOAD_MM_AUTHVAR_SET_ORDINARY_WRITE) {
+		if (!payload_mm_authvar_record_encode(&descriptor, spans, span_count,
+			PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED, candidate + offset,
+			local->volatile_index.store_size - offset, &encoded_size))
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+		candidate[offset + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	}
+	next.entries = local_entries(local, LOCAL_VOLATILE_FIRST + bank);
+	next.entry_capacity = local->limits.maximum_records;
+	if (payload_mm_authvar_store_scan(&next, candidate, local->volatile_index.store_size,
+		&local->limits) != CB_SUCCESS)
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	local->volatile_active = bank;
+	local->volatile_index = next;
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
 static uint64_t volatile_set(struct authvar_owner *local,
 	const struct payload_mm_authvar_policy_request *request)
 {
@@ -696,6 +787,10 @@ uint64_t authvar_owner_set(struct authvar_owner *local,
 	if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) &&
 	    (attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED))
 		return volatile_set(local, &request);
+	if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) &&
+	    (attributes || !payload_mm_authvar_store_find(&local->index,
+		request.vendor_guid, request.name, request.name_size)))
+		return ordinary_volatile_set(local, &request);
 	if (payload_mm_authvar_store_find(&local->volatile_index, request.vendor_guid,
 		request.name, request.name_size))
 		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;

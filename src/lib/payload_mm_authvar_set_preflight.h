@@ -22,6 +22,8 @@ struct payload_mm_authvar_set_snapshot {
 	const struct payload_mm_authvar_policy_request *request;
 	const struct payload_mm_authvar_store_index *index;
 	bool at_runtime;
+	/* The snapshot indexes the owner's RAM bank, not its NOR-backed store. */
+	bool volatile_store;
 	bool trusted_physical_presence;
 };
 

@@ -90,6 +90,9 @@ uint64_t payload_mm_authvar_set_preflight(
 		if (!((const uint8_t *)request->name)[offset] &&
 		    !((const uint8_t *)request->name)[offset + 1U])
 			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (snapshot->volatile_store &&
+	    (request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	if ((request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) &&
 	    !(request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS))
 		return request->attributes &
@@ -221,7 +224,7 @@ uint64_t payload_mm_authvar_set_preflight(
 		(PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
 		 PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
-	if (request->attributes &&
+	if (request->attributes && !snapshot->volatile_store &&
 	    !(request->attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE))
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 	if (!request->attributes)
