@@ -93,9 +93,10 @@ static struct starlabs_dnvs_efiopt *get_starlabs_dnvs_efiopt(void)
 #endif
 
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
-void mainboard_smi_finalize(void)
+int mainboard_smi_finalize(void)
 {
 	dw_i2c_smm_init(STARLABS_TOUCHPAD_I2C_BUS);
+	return 0;
 }
 #endif
 
