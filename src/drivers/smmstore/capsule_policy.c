@@ -238,11 +238,11 @@ static bool board_matches(struct smm_capsule_image *image, size_t raw_offset,
 					return false;
 				attribute_size = be32dec(header + attribute + 4);
 				switch (be32dec(header + attribute + 8)) {
-				case 1: digest_size = 20; break;
-				case 2: digest_size = 32; break;
-				case 3: digest_size = 64; break;
-				case 4: digest_size = 28; break;
-				case 5: digest_size = 48; break;
+				case VB2_HASH_SHA1: digest_size = VB2_SHA1_DIGEST_SIZE; break;
+				case VB2_HASH_SHA256: digest_size = VB2_SHA256_DIGEST_SIZE; break;
+				case VB2_HASH_SHA512: digest_size = VB2_SHA512_DIGEST_SIZE; break;
+				case VB2_HASH_SHA224: digest_size = VB2_SHA224_DIGEST_SIZE; break;
+				case VB2_HASH_SHA384: digest_size = VB2_SHA384_DIGEST_SIZE; break;
 				default: return false;
 				}
 				if (attribute_size != 12 + digest_size ||
