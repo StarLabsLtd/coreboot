@@ -6,8 +6,9 @@
 #include <security/tpm/tspi.h>
 #include <vb2_sha.h>
 
-#if !CONFIG(TPM2) || !CONFIG(TPM_MEASURED_BOOT) || !CONFIG(TPM_LOG_TPM2)
-#error "DAVE requires TPM2 measured boot and its native event log"
+#if !CONFIG(TPM2) || !CONFIG(TPM_MEASURED_BOOT) || !CONFIG(TPM_LOG_TPM2) || \
+	!CONFIG(TPM_HASH_SHA256)
+#error "DAVE requires TPM2 SHA256 measured boot and its native event log"
 #endif
 
 static void dave_open_phase(void *unused)
