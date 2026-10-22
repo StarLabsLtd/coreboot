@@ -2,6 +2,8 @@
 
 subdirs-$(CONFIG_TPM_GOOGLE) += tss/vendor/cr50
 
+ramstage-$(CONFIG_DAVE_MODE) += tspi/dave.c
+
 ## TSS
 
 ifeq ($(CONFIG_TPM1),y)
