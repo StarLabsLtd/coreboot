@@ -487,7 +487,7 @@ static enum signed_attributes_result parse_signed_attributes(
 
 static enum payload_mm_verify_status parse_cms(
 	const struct payload_mm_crypto_span *signed_data,
-	const struct payload_mm_crypto_span *content, size_t content_count,
+	payload_mm_cms_content_hash_fn *hash_content, void *hash_context,
 	struct payload_mm_crypto_span *certificates,
 	size_t *certificate_count, size_t *signer_index,
 	struct payload_mm_crypto_span *signed_attributes,
@@ -545,8 +545,7 @@ static enum payload_mm_verify_status parse_cms(
 	if (!hash_algorithm(&algorithm, digest_algorithm))
 		return PAYLOAD_MM_VERIFY_UNSUPPORTED;
 	content_digest_size = payload_mm_hash_digest_size(*digest_algorithm);
-	status = payload_mm_hash_spans(*digest_algorithm, content, content_count,
-		content_digest);
+	status = hash_content(hash_context, *digest_algorithm, content_digest);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
 	if (!der_expect(&fields, 0x30U, &object))
@@ -710,10 +709,10 @@ static bool authvar_cms_buffers_disjoint(
 	return true;
 }
 
-enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
+enum payload_mm_verify_status payload_mm_cms_verify_streamed_untrusted(
 	struct payload_mm_crypto_owner *owner,
 	const struct payload_mm_crypto_span *signed_data,
-	const struct payload_mm_crypto_span *content_spans, size_t content_count,
+	payload_mm_cms_content_hash_fn *hash_content, void *hash_context,
 	struct payload_mm_cms_verified_signer *verified)
 {
 	struct payload_mm_cms_verified_signer published = { 0 };
@@ -726,24 +725,21 @@ enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
 	uint8_t attribute_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
 	size_t signer;
 
-	if (!owner || !verified || !signed_data || !content_spans ||
+	if (!owner || !verified || !signed_data || !hash_content ||
 	    !address_range_valid(owner, sizeof(*owner)) ||
 	    !address_range_valid(verified, sizeof(*verified)) ||
 	    !address_range_valid(signed_data, sizeof(*signed_data)) ||
 	    (uintptr_t)owner % _Alignof(*owner) ||
 	    (uintptr_t)verified % _Alignof(*verified) ||
 	    (uintptr_t)signed_data % _Alignof(*signed_data) ||
-	    (uintptr_t)content_spans % _Alignof(*content_spans) ||
 	    !signed_data->data ||
 	    !signed_data->size || signed_data->size > PAYLOAD_MM_MAX_CMS_SIZE ||
-	    !content_count || content_count > PAYLOAD_MM_HASH_MAX_SPANS ||
-	    !authvar_cms_buffers_disjoint(owner, signed_data, content_spans,
-		content_count, verified))
+	    !authvar_cms_buffers_disjoint(owner, signed_data, NULL, 0, verified))
 		return PAYLOAD_MM_VERIFY_INVALID;
 	status = payload_mm_crypto_begin(owner);
 	if (status != PAYLOAD_MM_VERIFY_OK)
 		return status;
-	status = parse_cms(signed_data, content_spans, content_count, published.certificates,
+	status = parse_cms(signed_data, hash_content, hash_context, published.certificates,
 		&published.certificate_count, &signer, &attributes, &signature,
 		&published.digest_algorithm, &failure_source);
 	if (status == PAYLOAD_MM_VERIFY_OK) {
@@ -766,6 +762,46 @@ enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
 	if (status == PAYLOAD_MM_VERIFY_OK)
 		*verified = published;
 	return status;
+}
+
+struct cms_content_spans {
+	const struct payload_mm_crypto_span *spans;
+	size_t count;
+};
+
+static enum payload_mm_verify_status hash_content_spans(void *context,
+	enum payload_mm_hash_algorithm algorithm,
+	uint8_t digest[PAYLOAD_MM_MAX_DIGEST_SIZE])
+{
+	const struct cms_content_spans *content = context;
+
+	return payload_mm_hash_spans(algorithm, content->spans, content->count, digest);
+}
+
+enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	const struct payload_mm_crypto_span *content_spans, size_t content_count,
+	struct payload_mm_cms_verified_signer *verified)
+{
+	struct cms_content_spans content = { content_spans, content_count };
+
+	if (!owner || !verified || !signed_data || !content_spans ||
+	    !address_range_valid(owner, sizeof(*owner)) ||
+	    !address_range_valid(verified, sizeof(*verified)) ||
+	    !address_range_valid(signed_data, sizeof(*signed_data)) ||
+	    (uintptr_t)owner % _Alignof(*owner) ||
+	    (uintptr_t)verified % _Alignof(*verified) ||
+	    (uintptr_t)signed_data % _Alignof(*signed_data) ||
+	    (uintptr_t)content_spans % _Alignof(*content_spans) ||
+	    !signed_data->data ||
+	    !signed_data->size || signed_data->size > PAYLOAD_MM_MAX_CMS_SIZE ||
+	    !content_count || content_count > PAYLOAD_MM_HASH_MAX_SPANS ||
+	    !authvar_cms_buffers_disjoint(owner, signed_data, content_spans,
+		content_count, verified))
+		return PAYLOAD_MM_VERIFY_INVALID;
+	return payload_mm_cms_verify_streamed_untrusted(owner, signed_data,
+		hash_content_spans, &content, verified);
 }
 
 #ifdef PAYLOAD_MM_AUTH_TEST

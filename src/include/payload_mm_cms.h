@@ -87,6 +87,20 @@ enum payload_mm_verify_status payload_mm_cms_verify_detached_untrusted(
 	struct payload_mm_cms_verified_signer *verified);
 
 /*
+ * Internal SMM consumer: trusted code hashes its privately copied content after
+ * CMS selects the digest algorithm. The callback cannot grant signature trust.
+ */
+typedef enum payload_mm_verify_status payload_mm_cms_content_hash_fn(void *context,
+	enum payload_mm_hash_algorithm algorithm,
+	uint8_t digest[PAYLOAD_MM_MAX_DIGEST_SIZE]);
+
+enum payload_mm_verify_status payload_mm_cms_verify_streamed_untrusted(
+	struct payload_mm_crypto_owner *owner,
+	const struct payload_mm_crypto_span *signed_data,
+	payload_mm_cms_content_hash_fn *hash_content, void *hash_context,
+	struct payload_mm_cms_verified_signer *verified);
+
+/*
  * Check one previously verified CMS signer chain against one protected-store
  * X.509 anchor. All certificate views must be exact, disjoint subranges of
  * signed_data. This is a trust mechanic, not a variable-policy decision.

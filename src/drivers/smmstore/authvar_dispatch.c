@@ -3,6 +3,9 @@
 #include <boot/authvar_image_policy.h>
 #include <boot/payload_mm_authvar_format.h>
 #include <string.h>
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+#include "capsule.h"
+#endif
 
 static bool state_predicate(const struct authvar_policy *policy,
 	const void *guid, const void *name, size_t name_size)
@@ -102,6 +105,11 @@ static uint64_t set_variable(struct smm_authvar_dispatch *service,
 	size_t reclaimed;
 	uint64_t status;
 
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+	/* Only the authenticated broker can publish durable update outcomes. */
+	if (smm_capsule_state_name(name, guid))
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+#endif
 	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
 		if (payload_mm_authvar_auth2_parse(data, size, &auth) !=
 		    PAYLOAD_MM_AUTHVAR_FORMAT_OK)
@@ -235,11 +243,16 @@ enum cb_err smm_authvar_dispatch(struct smm_authvar_dispatch *service,
 	case PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY: {
 		struct payload_mm_authvar_key_classification classification;
 		uint32_t fields[4];
+		bool reserved = false;
+
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+		reserved = smm_capsule_state_name(name, in->vendor_guid);
+#endif
 
 		status = authvar_owner_classify(&service->owner, name, in->vendor_guid,
 			&classification);
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
-		    (state_predicate(&service->policy, in->vendor_guid, name, in->name_size) ||
+		    (reserved || state_predicate(&service->policy, in->vendor_guid, name, in->name_size) ||
 		     authvar_policy_has_match(&service->policy, name, in->name_size,
 			in->vendor_guid))) {
 			classification = (struct payload_mm_authvar_key_classification) {

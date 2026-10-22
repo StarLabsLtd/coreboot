@@ -375,6 +375,15 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		mod_params->smmstore_com_buffer_size = info.block_size;
 	}
 
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+	void *staging = cbmem_add(CBMEM_ID_CAPSULE_STAGING, CONFIG_ROM_SIZE + 1 * MiB);
+
+	if (!staging)
+		die("Capsules: staging allocation failed\n");
+	mod_params->capsule_staging_base = (uintptr_t)staging;
+	mod_params->capsule_staging_size = CONFIG_ROM_SIZE + 1 * MiB;
+#endif
+
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	/*
 	 * Provide a small, coreboot-managed CBMEM scratch region for SMM code.

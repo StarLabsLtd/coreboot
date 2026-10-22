@@ -10,6 +10,7 @@
 #include <cpu/x86/pae.h>
 #include <drivers/efi/efivars.h>
 #include <drivers/efi/capsules.h>
+#include <drivers/smmstore/capsule.h>
 #include <fmap.h>
 #include <fmap_config.h>
 #include <memrange.h>
@@ -180,6 +181,10 @@ static void capsule_update_info(struct lb_header *header, bool writer_ready)
 	struct lb_capsule_delivery_policy *delivery;
 	uint32_t count;
 
+	if (CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)) {
+		lb_smm_capsule(header);
+		goto delivery_policy;
+	}
 	if (!capsule_regions(regions, &count)) {
 		printk(BIOS_ERR, "capsules: invalid update region policy\n");
 		return;
@@ -191,6 +196,7 @@ static void capsule_update_info(struct lb_header *header, bool writer_ready)
 	update->region_count = count;
 	memcpy(update->regions, regions, count * sizeof(regions[0]));
 
+delivery_policy:
 	delivery = (void *)lb_new_record(header);
 	memset(delivery, 0, sizeof(*delivery));
 	delivery->tag = LB_TAG_CAPSULE_DELIVERY_POLICY;
@@ -892,7 +898,8 @@ void lb_efi_capsules(struct lb_header *header)
 {
 	int i;
 
-	capsule_update_info(header, enable_capsule_smi());
+	capsule_update_info(header, CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT) ?
+		false : enable_capsule_smi());
 	for (i = 0; i < uefi_capsule_count; ++i) {
 		struct lb_range *capsule = (void *)lb_new_record(header);
 

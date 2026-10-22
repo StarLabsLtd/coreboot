@@ -28,3 +28,11 @@ $(call src-to-obj,smm,3rdparty/mbedtls/library/x509_crt.c): CFLAGS_smm += \
 $(obj)/smm/smm.elf: LDFLAGS_rmodules_x86_32 += --wrap=mbedtls_rsa_parse_pubkey
 $(obj)/smm/smm.elf: LDFLAGS_rmodules_x86_64 += --wrap=mbedtls_rsa_parse_pubkey
 endif
+
+ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT),y)
+smm-y += capsule.c capsule_image.c capsule_policy.c capsule_layout.c
+ramstage-y += capsule_ramstage.c capsule_layout.c
+$(call src-to-obj,smm,src/drivers/smmstore/capsule_image.c): CFLAGS_smm += \
+	-I$(src)/../3rdparty/mbedtls/include -I$(src)/lib/payload_mm_crypto \
+	-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"'
+endif

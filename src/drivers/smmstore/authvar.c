@@ -13,6 +13,9 @@
 #include <intelblocks/fast_spi.h>
 #include <smmstore.h>
 #include <string.h>
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+#include "capsule.h"
+#endif
 #if CONFIG(CDK2_SECURE_BOOT_FIXED_KEYS)
 #include "fixed_policy_assets.h"
 #include <cf9_reset.h>
@@ -174,6 +177,10 @@ static bool initialize(void)
 	smm_authvar_endpoint(&private.endpoint, communication, communication_size);
 	if (payload_mm_authvar_service_endpoint_validate(&private.endpoint) != CB_SUCCESS)
 		return false;
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+	if (!smm_capsule_initialize())
+		return false;
+#endif
 	private.state = OWNER_READY;
 	return true;
 }
@@ -228,3 +235,12 @@ uint32_t smm_authvar_exec(void)
 	memset(private.response, 0, sizeof(private.response));
 	return SMMSTORE_RET_SUCCESS;
 }
+
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+uint32_t smm_authvar_capsule_exec(void)
+{
+	if (!owner_ready())
+		return SMMSTORE_RET_FAILURE;
+	return smm_capsule_exec(&private.service);
+}
+#endif

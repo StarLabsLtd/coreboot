@@ -68,6 +68,15 @@ config DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
 	  Scanning DRAM for capsules is not reliable on some platforms, so this option is
 	  required for those platforms.
 
+config DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT
+	bool
+	depends on SMM_AUTHVAR && DRIVERS_EFI_UPDATE_CAPSULES
+	default y
+	help
+	  Authenticate and apply firmware updates in the protected variable owner's
+	  SMM service. Shared capsule bytes are bound to private block snapshots;
+	  the legacy full-flash SMMSTORE writer remains unavailable.
+
 config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 	bool "Allow embedded drivers in update capsules"
 	depends on PAYLOAD_EDK2 && DRIVERS_EFI_UPDATE_CAPSULES

@@ -217,6 +217,13 @@ $(CDK2_CAPSULE_TRUST): $(CDK2_CAPSULE_CERT) $(CDK2_CAPSULE_ROOT) $(DOTCONFIG) cd
 	mkdir -p $(dir $@)
 	$(CDK2_CAPSULE_CERT) "$(CDK2_CAPSULE_ROOT)" > $@.tmp
 	if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
+
+ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT),y)
+smm-srcs += $(CDK2_CAPSULE_TRUST)
+$(call src-to-obj,smm,$(CDK2_CAPSULE_TRUST)): CFLAGS_smm += -I$(CDK2_SOURCE)/include
+$(call src-to-obj,smm,$(CDK2_CAPSULE_TRUST)): .EXTRA_PREREQS += \
+	payloads/external/Makefile.mk $(DOTCONFIG)
+endif
 endif
 
 # Preserve both sides of the configuration boundary. The outer configuration

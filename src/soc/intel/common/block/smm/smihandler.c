@@ -17,6 +17,9 @@
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
 #include <drivers/smmstore/authvar.h>
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+#include <drivers/smmstore/capsule.h>
+#endif
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
@@ -151,6 +154,10 @@ void smihandler_southbridge_sleep(
 	slp_typ = acpi_sleep_from_pm1(reg32);
 
 	opal_s3_smi_sleep(slp_typ);
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+	if (slp_typ >= ACPI_S3)
+		smm_capsule_close();
+#endif
 
 	/* Do any mainboard sleep handling */
 	mainboard_smi_sleep(slp_typ);
@@ -447,7 +454,7 @@ enum cb_err smm_authvar_set_uint_option(const char *name, uint32_t value)
 		CB_SUCCESS : CB_EFI_ACCESS_ERROR;
 }
 
-static void southbridge_smi_authvar(const struct smm_save_state_ops *ops)
+static void southbridge_smi_authvar(const struct smm_save_state_ops *ops, uint8_t command)
 {
 	uint32_t result = SMMSTORE_RET_FAILURE;
 	int node;
@@ -455,11 +462,17 @@ static void southbridge_smi_authvar(const struct smm_save_state_ops *ops)
 	/* Other CPUs' save states are current only after they have entered SMM. */
 	if (!smm_wait_for_cpus())
 		return;
-	node = ops->apmc_node(APM_CNT_AUTHVAR);
+	node = ops->apmc_node(command);
 	if (node < 0)
 		return;
-	if (authvar_protection_ready())
-		result = smm_authvar_exec();
+	if (authvar_protection_ready()) {
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+		if (command == APM_CNT_CAPSULE)
+			result = smm_authvar_capsule_exec();
+		else
+#endif
+			result = smm_authvar_exec();
+	}
 	ops->set_reg(RAX, node, &result, sizeof(result));
 }
 #endif
@@ -526,7 +539,12 @@ void smihandler_southbridge_apmc(
 		break;
 	case APM_CNT_AUTHVAR:
 #if CONFIG(SMM_AUTHVAR)
-		southbridge_smi_authvar(save_state_ops);
+		southbridge_smi_authvar(save_state_ops, APM_CNT_AUTHVAR);
+#endif
+		break;
+	case APM_CNT_CAPSULE:
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+		southbridge_smi_authvar(save_state_ops, APM_CNT_CAPSULE);
 #endif
 		break;
 	case APM_CNT_FINALIZE:

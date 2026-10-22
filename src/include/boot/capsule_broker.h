@@ -5,6 +5,7 @@
 
 #include <boot/payload_mm_authvar.h>
 #include <commonlib/coreboot_tables.h>
+#include <commonlib/capsule_service.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <types.h>
@@ -17,7 +18,7 @@
 #define CAPSULE_BROKER_RESULT_PENDING UINT32_MAX
 #define CAPSULE_BROKER_STATUS_PENDING UINT32_MAX
 #define CAPSULE_BROKER_APM_PORT 0xb2U
-#define CAPSULE_BROKER_APM_COMMAND 0xe4U
+#define CAPSULE_BROKER_APM_COMMAND 0xe5U
 
 /* Broker-owned description of the authenticated raw ROM in an envelope. */
 struct capsule_broker_raw_image {

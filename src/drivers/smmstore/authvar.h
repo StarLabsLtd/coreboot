@@ -13,6 +13,7 @@ void lb_authvar_service(struct lb_header *header);
 void smm_authvar_endpoint(struct lb_authvar_service_endpoint *endpoint,
 	uintptr_t communication, size_t size);
 uint32_t smm_authvar_exec(void);
+uint32_t smm_authvar_capsule_exec(void);
 enum cb_err smm_authvar_set_uint_option(const char *name, uint32_t value);
 uint64_t smm_authvar_store_uint_option(const char *name, uint32_t value);
 

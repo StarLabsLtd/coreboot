@@ -146,6 +146,14 @@ void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 	*size = smm_runtime.smmstore_com_buffer_size;
 }
 
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+void smm_get_capsule_staging(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.capsule_staging_base;
+	*size = smm_runtime.capsule_staging_size;
+}
+#endif
+
 #if CONFIG(SMM_AUTHVAR)
 bool smm_authvar_is_s3_resume(void)
 {
