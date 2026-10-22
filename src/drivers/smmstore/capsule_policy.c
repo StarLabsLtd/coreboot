@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "capsule_policy.h"
 #include "capsule_image.h"
+#include <commonlib/bsd/cbfs_serialized.h>
 #include <commonlib/helpers.h>
 #include <endian.h>
 #include <fmap_config.h>
@@ -27,16 +28,8 @@
 #define DEP_END 0x0dU
 #define DEP_DECLARE_LENGTH 0x0eU
 
-#define FMAP_HEADER_SIZE 56U
-#define FMAP_AREA_SIZE 42U
-#define FMAP_NAME_SIZE 32U
-#define FMAP_MAX_AREAS 64U
 #define CBFS_HEADER_SIZE 24U
-#define CBFS_ALIGNMENT 64U
 #define CBFS_MAX_FILES 128U
-#define CBFS_TYPE_RAW 0x50U
-#define CBFS_TYPE_DELETED 0U
-#define CBFS_TYPE_NULL UINT32_MAX
 #define BUILD_INFO_LIMIT 512U
 
 
@@ -229,12 +222,34 @@ static bool board_matches(struct smm_capsule_image *image, size_t raw_offset,
 		    !memcmp(header + CBFS_HEADER_SIZE, "build_info", sizeof("build_info"))) {
 			size_t end;
 
-			if (++matches != 1 || type != CBFS_TYPE_RAW || attributes ||
+			if (++matches != 1 || type != CBFS_TYPE_RAW ||
 			    !length || length > sizeof(info) ||
 			    !smm_capsule_image_read(image, raw_offset + FMAP_SECTION_COREBOOT_START +
 				offset + data_offset, info, length) || length <= 18 ||
 			    memcmp(info, "COREBOOT_VERSION: ", 18))
 				return false;
+			/* Hash metadata does not transform the signed raw identity data. */
+			for (size_t attribute = attributes; attribute && attribute < data_offset;) {
+				uint32_t attribute_size;
+				size_t digest_size;
+
+				if (data_offset - attribute < 12 ||
+				    be32dec(header + attribute) != CBFS_FILE_ATTR_TAG_HASH)
+					return false;
+				attribute_size = be32dec(header + attribute + 4);
+				switch (be32dec(header + attribute + 8)) {
+				case 1: digest_size = 20; break;
+				case 2: digest_size = 32; break;
+				case 3: digest_size = 64; break;
+				case 4: digest_size = 28; break;
+				case 5: digest_size = 48; break;
+				default: return false;
+				}
+				if (attribute_size != 12 + digest_size ||
+				    attribute_size > data_offset - attribute)
+					return false;
+				attribute += attribute_size;
+			}
 			for (end = 18; end < length && info[end] != '\n'; end++)
 				if (info[end] < ' ' || info[end] > '~')
 					return false;
