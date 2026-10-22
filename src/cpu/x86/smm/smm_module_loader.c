@@ -360,19 +360,17 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		smm_pci_resource_store_init(mod_params);
 
 	if (CONFIG(SMMSTORE)) {
-		struct smmstore_params_info info;
-		if (smmstore_get_info(&info) < 0) {
-			printk(BIOS_INFO, "SMMSTORE: Failed to get meta data\n");
-			return;
-		}
+		uintptr_t base;
+		size_t size;
 
-		void *ptr = cbmem_add(CBMEM_ID_SMM_COMBUFFER, info.block_size);
-		if (!ptr) {
-			printk(BIOS_ERR, "SMMSTORE: Failed to add com buffer\n");
+		if (smmstore_init_com_buffer(&base, &size) < 0) {
+			if (CONFIG(CDK2_S4_LAYOUT_REQUIRED))
+				die("SMMSTORE: S4 mailbox unavailable\n");
+			printk(BIOS_ERR, "SMMSTORE: Failed to allocate com buffer\n");
 			return;
 		}
-		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
-		mod_params->smmstore_com_buffer_size = info.block_size;
+		mod_params->smmstore_com_buffer_base = base;
+		mod_params->smmstore_com_buffer_size = size;
 	}
 
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)

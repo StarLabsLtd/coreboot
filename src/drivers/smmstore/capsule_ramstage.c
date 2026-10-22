@@ -7,6 +7,7 @@
 #include <console/console.h>
 #include <drivers/efi/firmware_info.h>
 #include <fmap_config.h>
+#include <smmstore.h>
 #include <string.h>
 
 void lb_smm_capsule(struct lb_header *header)
@@ -16,13 +17,14 @@ void lb_smm_capsule(struct lb_header *header)
 	struct lb_efi_fw_info firmware;
 	struct lb_capsule_broker_endpoint endpoint;
 	const struct cbmem_entry *staging = cbmem_entry_find(CBMEM_ID_CAPSULE_STAGING);
-	const struct cbmem_entry *communication = cbmem_entry_find(CBMEM_ID_SMM_COMBUFFER);
 	struct lb_capsule_handoff *handoff = (void *)policy;
 	uint32_t count;
 	uint8_t fmap[FMAP_SIZE];
+	uintptr_t communication;
+	size_t communication_size;
 
 	/* lb_authvar_service has already initialized the real SMM owners synchronously. */
-	if (!staging || !communication ||
+	if (!staging || smmstore_get_com_buffer(&communication, &communication_size) < 0 ||
 	    !efi_firmware_info(&firmware) ||
 	    rdev_readat(boot_device_ro(), fmap, FMAP_OFFSET, sizeof(fmap)) != sizeof(fmap) ||
 	    !smm_capsule_regions(fmap, sizeof(fmap), handoff->regions, &count))
@@ -48,7 +50,9 @@ void lb_smm_capsule(struct lb_header *header)
 	handoff->smmstore_offset = FMAP_SECTION_SMMSTORE_START;
 	handoff->smmstore_size = FMAP_SECTION_SMMSTORE_SIZE;
 	memcpy(lb_new_record(header), &policy, handoff->size);
-	smm_capsule_endpoint(&endpoint, (uintptr_t)cbmem_entry_start(communication),
+	smm_capsule_endpoint(&endpoint, communication,
 		(uintptr_t)cbmem_entry_start(staging));
+	if (endpoint.communication_size > communication_size)
+		die("Capsules: communication buffer too small\n");
 	memcpy(lb_new_record(header), &endpoint, sizeof(endpoint));
 }

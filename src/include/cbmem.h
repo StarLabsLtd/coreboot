@@ -104,6 +104,12 @@ void cbmem_run_init_hooks(int is_recovery);
 void cbmem_add_bootmem(void);
 /* Return the cbmem memory used */
 int cbmem_get_region(void **baseptr, size_t *size);
+/* Set the minimum address for future CBMEM allocations. Returns 0 on success,
+ * < 0 if existing allocations cross the bound or it cannot be represented.
+ * The allocator may impose a higher minimum. Replaces any previous bound;
+ * the bound survives recovery, but not empty initialization.
+ */
+int cbmem_set_lower_bound(uintptr_t lower_bound);
 void cbmem_list(void);
 void cbmem_add_records_to_cbtable(struct lb_header *header);
 

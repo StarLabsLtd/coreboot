@@ -2,7 +2,7 @@
 
 all-$(CONFIG_SMMSTORE) += store.c
 
-ramstage-$(CONFIG_SMMSTORE) += ramstage.c
+ramstage-$(CONFIG_SMMSTORE) += ramstage.c communication.c
 
 smm-$(CONFIG_SMMSTORE) += store.c smi.c
 

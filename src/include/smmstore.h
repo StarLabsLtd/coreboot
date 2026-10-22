@@ -118,6 +118,9 @@ uint32_t smmstore_create_srk_pin(void);
 uint32_t smmstore_close_security(void);
 #if ENV_RAMSTAGE
 int smmstore_get_info(struct smmstore_params_info *info);
+int smmstore_init_com_buffer(uintptr_t *base, size_t *size);
+int smmstore_get_com_buffer(uintptr_t *base, size_t *size);
+void smmstore_add_bootmem(void);
 #endif
 struct region_device;
 int smmstore_lookup_region(struct region_device *rstore);

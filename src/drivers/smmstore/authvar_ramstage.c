@@ -11,14 +11,14 @@
 
 void lb_authvar_service(struct lb_header *header)
 {
-	const struct cbmem_entry *communication = cbmem_entry_find(CBMEM_ID_SMM_COMBUFFER);
 	struct lb_authvar_service_endpoint endpoint;
 	struct lb_record *record;
+	uintptr_t communication;
+	size_t communication_size;
 
-	if (!communication)
+	if (smmstore_get_com_buffer(&communication, &communication_size) < 0)
 		die("Authenticated variables: communication buffer unavailable\n");
-	smm_authvar_endpoint(&endpoint, (uintptr_t)cbmem_entry_start(communication),
-		cbmem_entry_size(communication));
+	smm_authvar_endpoint(&endpoint, communication, communication_size);
 	if (payload_mm_authvar_service_endpoint_validate(&endpoint) != CB_SUCCESS)
 		die("Authenticated variables: invalid communication geometry\n");
 	/* Only a successful, synchronous protected-owner initialization admits it. */

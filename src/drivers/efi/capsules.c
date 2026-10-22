@@ -6,6 +6,7 @@
 #include <bootmode.h>
 #include <bootstate.h>
 #include <cbmem.h>
+#include <commonlib/cdk2_s4_memory.h>
 #include <console/console.h>
 #include <cpu/x86/pae.h>
 #include <drivers/efi/efivars.h>
@@ -824,6 +825,11 @@ void efi_parse_capsules(void)
 		       IORESOURCE_ASSIGNED | IORESOURCE_CACHEABLE, IORESOURCE_MEM |
 		       IORESOURCE_FIXED | IORESOURCE_STORED | IORESOURCE_ASSIGNED |
 		       IORESOURCE_CACHEABLE, BM_MEM_RAM);
+
+	/* Neither capsule sources nor their coalesced copy may occupy S4 state. */
+	if (CONFIG(CDK2_S4_LAYOUT_REQUIRED))
+		memranges_insert(&memory_map, CDK2_S4_MEMORY_BASE, CDK2_S4_MEMORY_SIZE,
+				 BM_MEM_RESERVED);
 
 	if (ENV_X86_32)
 		init_pae_pagetables(&pae_page_tables);
