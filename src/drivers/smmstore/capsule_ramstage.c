@@ -29,7 +29,7 @@ void lb_smm_capsule(struct lb_header *header)
 		die("Capsules: protected update policy unavailable\n");
 	handoff->region_count = count;
 	handoff->tag = LB_TAG_CAPSULE_HANDOFF;
-	handoff->size = sizeof(*handoff) + handoff->region_count * sizeof(policy.regions[0]);
+	handoff->size = sizeof(*handoff) + handoff->region_count * sizeof(handoff->regions[0]);
 	handoff->revision = LB_CAPSULE_HANDOFF_REVISION;
 	handoff->header_size = sizeof(*handoff);
 	handoff->flags = LB_CAPSULE_HANDOFF_REQUIRED_FLAGS;
