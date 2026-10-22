@@ -44,6 +44,9 @@
 
 /* SoC overrides. */
 
+/* A broadcast SMI may reach another CPU before the APMC issuer enters SMM. */
+#define APMC_NODE_TIMEOUT_US 1000
+
 __weak const struct smm_save_state_ops *get_smm_save_state_ops(void)
 {
 	return &em64t101_smm_ops;
@@ -712,36 +715,37 @@ static int em64t100_set_reg(const enum cpu_reg reg, const int node, void *in, co
 
 static int em64t100_apmc_node(u8 cmd)
 {
-	int node;
+	for (int elapsed = 0; elapsed < APMC_NODE_TIMEOUT_US; elapsed++) {
+		for (int node = 0; node < CONFIG_MAX_CPUS; node++) {
+			em64t100_smm_state_save_area_t *state;
+			u32 io_misc_info;
+			u8 reg_al;
 
-	for (node = 0; node < CONFIG_MAX_CPUS; node++) {
-		em64t100_smm_state_save_area_t *state;
-		u32 io_misc_info;
-		u8 reg_al;
+			state = smm_get_current_save_state(node);
+			if (!state)
+				continue;
 
-		state = smm_get_save_state(node);
-		if (!state)
-			continue;
+			io_misc_info = state->io_misc_info;
 
-		io_misc_info = state->io_misc_info;
+			/* Synchronous I/O (bit0 == 1). */
+			if (!(io_misc_info & (1 << 0)))
+				continue;
 
-		/* Synchronous I/O (bit0 == 1). */
-		if (!(io_misc_info & (1 << 0)))
-			continue;
+			/* Write (bit4 == 0). */
+			if (io_misc_info & (1 << 4))
+				continue;
 
-		/* Write (bit4 == 0). */
-		if (io_misc_info & (1 << 4))
-			continue;
+			/* APMC port. */
+			if (((io_misc_info >> 16) & 0xff) != APM_CNT)
+				continue;
 
-		/* APMC port. */
-		if (((io_misc_info >> 16) & 0xff) != APM_CNT)
-			continue;
+			reg_al = (u8)state->rax;
+			if (reg_al != cmd)
+				continue;
 
-		reg_al = (u8)state->rax;
-		if (reg_al != cmd)
-			continue;
-
-		return node;
+			return node;
+		}
+		udelay(1);
 	}
 
 	return -1;
@@ -817,36 +821,37 @@ static int em64t101_set_reg(const enum cpu_reg reg, const int node, void *in, co
 
 static int em64t101_apmc_node(u8 cmd)
 {
-	int node;
+	for (int elapsed = 0; elapsed < APMC_NODE_TIMEOUT_US; elapsed++) {
+		for (int node = 0; node < CONFIG_MAX_CPUS; node++) {
+			em64t101_smm_state_save_area_t *state;
+			u32 io_misc_info;
+			u8 reg_al;
 
-	for (node = 0; node < CONFIG_MAX_CPUS; node++) {
-		em64t101_smm_state_save_area_t *state;
-		u32 io_misc_info;
-		u8 reg_al;
+			state = smm_get_current_save_state(node);
+			if (!state)
+				continue;
 
-		state = smm_get_save_state(node);
-		if (!state)
-			continue;
+			io_misc_info = state->io_misc_info;
 
-		io_misc_info = state->io_misc_info;
+			/* Synchronous I/O (bit0 == 1). */
+			if (!(io_misc_info & (1 << 0)))
+				continue;
 
-		/* Synchronous I/O (bit0 == 1). */
-		if (!(io_misc_info & (1 << 0)))
-			continue;
+			/* Write (bit4 == 0). */
+			if (io_misc_info & (1 << 4))
+				continue;
 
-		/* Write (bit4 == 0). */
-		if (io_misc_info & (1 << 4))
-			continue;
+			/* APMC port. */
+			if (((io_misc_info >> 16) & 0xff) != APM_CNT)
+				continue;
 
-		/* APMC port. */
-		if (((io_misc_info >> 16) & 0xff) != APM_CNT)
-			continue;
+			reg_al = (u8)state->rax;
+			if (reg_al != cmd)
+				continue;
 
-		reg_al = (u8)state->rax;
-		if (reg_al != cmd)
-			continue;
-
-		return node;
+			return node;
+		}
+		udelay(1);
 	}
 
 	return -1;
