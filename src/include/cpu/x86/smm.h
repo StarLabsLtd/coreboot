@@ -103,6 +103,9 @@ struct smm_runtime {
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
+#if CONFIG(SMM_AUTHVAR)
+	bool authvar_s3_resume;
+#endif
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	uintptr_t opal_s3_scratch_base;
 	size_t opal_s3_scratch_size;
@@ -266,6 +269,7 @@ bool smm_acpi_global_lock_acquire(void);
 bool smm_acpi_global_lock_release(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
+bool smm_authvar_is_s3_resume(void);
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size);
 #endif

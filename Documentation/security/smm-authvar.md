@@ -8,13 +8,21 @@ actions, authenticated capsule delivery and S4 allocation integration are not
 provided by this route.
 
 The owner, policy registry, crypto workspace, media buffers and complete request
-and response snapshots reside in the installed SMM module. Its BSS participates
+and response snapshots reside in the installed SMM module. Its allocation participates
 in the existing module loader's size and overlap checks. The selected producer
 requests 16 MiB TSEG through the existing FSP setting; IED, stage cache and OPAL
 reservations retain their normal ownership.
 The existing per-CPU SMM stack setting becomes 16 KiB for this owner: the
 authenticated-update call chain includes a roughly 4.5 KiB X.509 verifier frame
 in addition to its callers. A smaller explicit stack setting is rejected.
+
+Only the owner allocation occupies a retained NOLOAD tail, outside the transient
+handler BSS. The loader clears it on cold boot and preserves it on S3; normal
+SMM locks, CPU maps and driver initialization are rebuilt. S3 requires coreboot's
+TSEG stage cache so the retained callbacks keep their original image/placement.
+Each entry checks the original communication geometry and reattaches the SPI
+backend after the hardware gate. Missing retained state cannot reopen a fresh
+owner on resume. No second owner snapshot or generic rmodule ABI is introduced.
 
 Before publishing the endpoint, ramstage synchronously initializes the installed
 service. Every service entry requires current CPU rendezvous and SMRR readback,

@@ -597,6 +597,22 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 		return -1;
 
 	struct smm_runtime *smihandler_params = rmodule_parameters(&smi_handler);
+	if (CONFIG(SMM_AUTHVAR)) {
+		const struct rmodule_header *header = smi_handler.header;
+		const size_t link = header->module_link_start_address;
+		const size_t bss_end = header->bss_end;
+
+		/* Only the NOLOAD owner tail is retained; the loader reset other BSS. */
+		if (bss_end < link || bss_end - link >= handler_size ||
+		    bss_end - link < (size_t)smi_handler.payload_size)
+			return -1;
+		if (!acpi_is_wakeup_s3())
+			memset((void *)(handler_base + bss_end - link), 0,
+				handler_size - (bss_end - link));
+	}
+#if CONFIG(SMM_AUTHVAR)
+	smihandler_params->authvar_s3_resume = acpi_is_wakeup_s3();
+#endif
 	params->handler = rmodule_entry(&smi_handler);
 	setup_smihandler_params(smihandler_params, params);
 

@@ -20,7 +20,7 @@ _Static_assert(SMM_BLOCK_SIZE <= PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE &&
 _Static_assert(CONFIG_SMM_MODULE_STACK_SIZE >= 0x4000,
 	"authenticated-variable verification requires a 16 KiB SMM stack");
 
-/* The module loader reserves this BSS in SMRAM with the handler itself. */
+/* The module loader reserves this retained tail in SMRAM with the handler. */
 #define OWNER_WORKSPACE_SIZE (5U * AUTHVAR_OWNER_MAX_STORE_SIZE + \
 	4U * PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_RECORDS * \
 		sizeof(struct payload_mm_authvar_store_entry) + \
@@ -42,7 +42,7 @@ static struct {
 	_Alignas(8) uint8_t response[SMM_BLOCK_SIZE];
 	struct lb_authvar_service_endpoint endpoint;
 	enum { OWNER_UNINITIALIZED, OWNER_FAILED, OWNER_READY } state;
-} private;
+} private __attribute__((section(".smm_authvar")));
 
 static uint64_t read_media(void *context, uint32_t offset, void *buffer, size_t size)
 {
@@ -93,15 +93,35 @@ static uint64_t commit(void *context, const void *store, size_t size,
 	return authvar_media_commit(context, &media_io, store, size, append, record);
 }
 
+static bool bind_media_device(void)
+{
+	const struct region region = {
+		.offset = FMAP_SECTION_SMMSTORE_START,
+		.size = FMAP_SECTION_SMMSTORE_SIZE,
+	};
+
+	/* Use compiled bounds and controller reads, not CBMEM FMAP or cached ROM. */
+	return region_sz(&region) == sizeof(private.image) &&
+		boot_device_rw_subregion(&region, &private.store) == 0;
+}
+
+static bool owner_ready(void)
+{
+	uintptr_t communication;
+	size_t size;
+
+	smm_get_smmstore_com_buffer(&communication, &size);
+	/* Resume may reprobe SPI, but must never redirect the retained endpoint. */
+	return private.state == OWNER_READY &&
+		communication == private.endpoint.communication_base &&
+		size == private.endpoint.communication_size && bind_media_device();
+}
+
 static bool initialize(void)
 {
 	uintptr_t communication;
 	size_t communication_size;
 	struct authvar_media *media = &private.media;
-	const struct region region = {
-		.offset = FMAP_SECTION_SMMSTORE_START,
-		.size = FMAP_SECTION_SMMSTORE_SIZE,
-	};
 	uint64_t status;
 
 	/* An uncertain recovery or mutation must never reopen initialization. */
@@ -111,11 +131,7 @@ static bool initialize(void)
 	    !communication || (communication & 7U) ||
 	    communication_size - 1U > UINTPTR_MAX - communication ||
 	    smm_points_to_smram((void *)communication, communication_size) ||
-	    region_sz(&region) != sizeof(private.image))
-		return false;
-	/* Mutable CBMEM FMAP caches must not choose the protected writer's extent. */
-	/* Controller reads observe durable writes even while ROM mappings are cached. */
-	if (boot_device_rw_subregion(&region, &private.store) < 0)
+	    !bind_media_device())
 		return false;
 
 	*media = (struct authvar_media) {
@@ -151,7 +167,7 @@ uint64_t smm_authvar_store_uint_option(const char *name, uint32_t value)
 	uint16_t *wide = (void *)private.request;
 	size_t capacity = PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE / sizeof(*wide);
 
-	if (!name || !*name || private.state != OWNER_READY ||
+	if (!name || !*name || !owner_ready() ||
 	    private.service.owner.failed || private.service.owner.restart_required)
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	for (size_t i = 0; i < capacity; i++) {
@@ -170,9 +186,15 @@ uint64_t smm_authvar_store_uint_option(const char *name, uint32_t value)
 /* The caller holds the SMI lock, has parked every peer, and checked protection. */
 uint32_t smm_authvar_exec(void)
 {
-	if (private.state == OWNER_UNINITIALIZED)
+	if (private.state == OWNER_UNINITIALIZED) {
+		/* S3 must retain the owner, not create a new boot-services lifetime. */
+		if (smm_authvar_is_s3_resume()) {
+			private.state = OWNER_FAILED;
+			return SMMSTORE_RET_FAILURE;
+		}
 		return initialize() ? SMMSTORE_RET_SUCCESS : SMMSTORE_RET_FAILURE;
-	if (private.state != OWNER_READY)
+	}
+	if (!owner_ready())
 		return SMMSTORE_RET_FAILURE;
 
 	/* No shared length, pointer or policy byte survives this fixed-size copy. */
