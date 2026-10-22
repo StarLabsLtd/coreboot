@@ -507,7 +507,8 @@ bool cse_is_hfs1_cos_default(void);
 bool cse_is_me_operational(void);
 
 /*
- * Check whether ME/CSME is requested enabled via the `me_state` option.
+ * Check whether ME/CSME is requested enabled. DAVE with PTT requires ME;
+ * otherwise the request comes from the `me_state` option.
  * Returns true when `me_state` is 0 ("Enabled") and false when it is 1
  * ("Disabled").
  */

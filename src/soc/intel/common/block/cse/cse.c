@@ -301,6 +301,10 @@ bool cse_is_me_operational(void)
 
 bool cse_is_me_state_requested_enabled(void)
 {
+	/* PTT-backed DAVE ignores an older option store's ME-disable setting. */
+	if (CONFIG(DAVE_MODE) && CONFIG(HAVE_INTEL_PTT))
+		return true;
+
 	const unsigned int me_state_default = CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED);
 	const unsigned int me_state =
 		get_uint_option_checked("me_state", me_state_default, OPTION_BOOL);
@@ -1419,10 +1423,11 @@ static void cse_set_state(struct device *dev)
 	}
 
 	/*
-	 * Check if the CMOS value "me_state" exists, if it doesn't, then
-	 * don't do anything.
+	 * DAVE with PTT overrides the option, including a persisted disabled state.
+	 * Otherwise, leave ME unchanged if the option does not exist.
 	 */
 	const unsigned int cmos_me_state =
+		CONFIG(DAVE_MODE) && CONFIG(HAVE_INTEL_PTT) ? 0 :
 		get_uint_option_checked("me_state", UINT_MAX, OPTION_BOOL);
 
 	if (cmos_me_state == UINT_MAX)
