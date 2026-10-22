@@ -327,7 +327,7 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 		/* The compiled list and region array have the same validated order. */
 		while (*entry) {
 			const char *start;
-			size_t size;
+			size_t word_length;
 
 			while (*entry == ' ' || *entry == '\t')
 				entry++;
@@ -336,8 +336,8 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 			start = entry;
 			while (*entry && *entry != ' ' && *entry != '\t')
 				entry++;
-			size = entry - start;
-			if (size == length && !memcmp(start, names[i], length)) {
+			word_length = entry - start;
+			if (word_length == length && !memcmp(start, names[i], length)) {
 				if (region >= region_count || (*selected & (1U << region)))
 					return CAPSULE_BROKER_IMAGE_REFUSED;
 				*selected |= 1U << region;
