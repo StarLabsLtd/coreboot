@@ -269,6 +269,10 @@ static void southbridge_smi_gsmi(
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
+#if CONFIG(SMM_AUTHVAR)
+static bool authvar_protection_ready(void);
+#endif
+
 static void southbridge_smi_store(
 	const struct smm_save_state_ops *save_state_ops)
 {
@@ -292,6 +296,18 @@ static void southbridge_smi_store(
 		return;
 
 	const uint8_t command = sub_command & ~SMMSTORE_CMD_USE_FULL_FLASH;
+#if CONFIG(SMM_AUTHVAR)
+	/* Reject raw mutation before opening a controller write window. */
+	if ((sub_command & SMMSTORE_CMD_USE_FULL_FLASH) ||
+	    command == SMMSTORE_CMD_RAW_WRITE || command == SMMSTORE_CMD_RAW_CLEAR) {
+		ret = SMMSTORE_RET_DENIED;
+		goto reply;
+	}
+	if (!authvar_protection_ready()) {
+		ret = SMMSTORE_RET_FAILURE;
+		goto reply;
+	}
+#endif
 	const bool writes = command == SMMSTORE_CMD_RAW_WRITE ||
 		command == SMMSTORE_CMD_RAW_CLEAR || command == SMMSTORE_CMD_SRK_CREATE;
 	bool restore_wp = false;
@@ -303,6 +319,9 @@ static void southbridge_smi_store(
 		if (writes)
 			fast_spi_smm_write_end(restore_wp);
 	}
+#if CONFIG(SMM_AUTHVAR)
+reply:
+#endif
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
