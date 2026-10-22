@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
 #include <string.h>
 
 #include <boot/authvar_image_policy.h>

@@ -112,6 +112,9 @@ struct smmstore_region {
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
 	smmstore_use_full_flash = 0;
+	if (CONFIG(SMM_AUTHVAR) && ((*cmd & SMMSTORE_CMD_USE_FULL_FLASH) ||
+	    *cmd == SMMSTORE_CMD_RAW_WRITE || *cmd == SMMSTORE_CMD_RAW_CLEAR))
+		return -1;
 	if (security_closed && (*cmd & SMMSTORE_CMD_USE_FULL_FLASH))
 		return -1;
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {

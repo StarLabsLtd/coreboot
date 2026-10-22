@@ -27,6 +27,7 @@
 #include <inttypes.h>
 #include <spi_flash.h>
 #include <smmstore.h>
+#include <drivers/smmstore/authvar.h>
 #include <types.h>
 #include <version.h>
 
@@ -663,6 +664,9 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 		lb_spi_flash(head);
 
 	add_cbmem_pointers(head);
+
+	if (CONFIG(SMM_AUTHVAR))
+		lb_authvar_service(head);
 
 	/* SMMSTORE */
 	if (CONFIG(SMMSTORE))

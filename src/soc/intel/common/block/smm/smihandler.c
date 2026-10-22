@@ -2,6 +2,7 @@
 
 #include <arch/hlt.h>
 #include <arch/io.h>
+#include <arch/pci_io_cfg.h>
 #include <console/console.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/msr.h>
@@ -15,12 +16,17 @@
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
+#include <drivers/smmstore/authvar.h>
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/oc_wdt.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/smihandler.h>
+#if CONFIG(SMM_AUTHVAR)
+#include <intelblocks/systemagent.h>
+#include <fast_spi_def.h>
+#endif
 #include <intelblocks/tco.h>
 #include <intelblocks/uart.h>
 #include <intelblocks/wadt_wake.h>
@@ -327,7 +333,7 @@ static int soc_lock_gpios(void)
 	return ret;
 }
 
-static void enable_smm_code_access_check(void)
+static bool enable_smm_code_access_check(void)
 {
 	msr_t smm_mca_cap;
 	msr_t smm_feature_control;
@@ -337,12 +343,12 @@ static void enable_smm_code_access_check(void)
 	 * and implement this feature elsewhere.
 	 */
 	if (CONFIG(XEON_SP_COMMON_BASE) || CONFIG(SOC_INTEL_SNOWRIDGE))
-		return;
+		return false;
 
 	smm_mca_cap = rdmsr(SMM_MCA_CAP_MSR);
 	if (!(smm_mca_cap.hi & SMM_CODE_ACCESS_CHK_MASK)) {
 		printk(BIOS_WARNING, "SMM code access check is not supported\n");
-		return;
+		return false;
 	}
 
 	/* Despite the prolific EDK2 implementation of this feature
@@ -353,13 +359,87 @@ static void enable_smm_code_access_check(void)
 		if (!(smm_feature_control.lo & SMM_CODE_CHK_MSR_EN))
 			printk(BIOS_WARNING,
 			       "SMM feature control was locked without SMM code access check\n");
-		return;
+		return !!(smm_feature_control.lo & SMM_CODE_CHK_MSR_EN);
 	}
 
 	smm_feature_control.lo |= SMM_CODE_CHK_MSR_EN | SMM_FEATURE_CONTROL_MSR_LOCK;
 	wrmsr(SMM_FEATURE_CONTROL_MSR, smm_feature_control);
+	smm_feature_control = rdmsr(SMM_FEATURE_CONTROL_MSR);
+	if ((smm_feature_control.lo & (SMM_CODE_CHK_MSR_EN | SMM_FEATURE_CONTROL_MSR_LOCK)) !=
+	    (SMM_CODE_CHK_MSR_EN | SMM_FEATURE_CONTROL_MSR_LOCK)) {
+		printk(BIOS_ERR, "SMM code access check did not lock\n");
+		return false;
+	}
 	printk(BIOS_DEBUG, "Enabled SMM code access check\n");
+	return true;
 }
+
+#if CONFIG(SMM_AUTHVAR)
+static bool authvar_protection_ready(void)
+{
+	uintptr_t base;
+	size_t size;
+	uint32_t tseg, bgsm, bios_control;
+	const uint32_t bios_locks = SPI_BIOS_CONTROL_LOCK_ENABLE | SPI_BIOS_CONTROL_EISS;
+
+	/* Establish ECAM decoding through port I/O before trusting MMCONF reads. */
+#if CONFIG(ECAM_MMCONF_SUPPORT)
+	uint32_t length;
+
+	switch (CONFIG_ECAM_MMCONF_BUS_NUMBER) {
+	case 256: length = PCIEXBAR_LENGTH_256MB; break;
+	case 128: length = PCIEXBAR_LENGTH_128MB; break;
+	case 64: length = PCIEXBAR_LENGTH_64MB; break;
+	default: return false;
+	}
+	if (pci_io_read_config32(PCI_DEV(0, 0, 0), PCIEXBAR + 4) ||
+	    pci_io_read_config32(PCI_DEV(0, 0, 0), PCIEXBAR) !=
+		(CONFIG_ECAM_MMCONF_BASE_ADDRESS | length << 1 | PCIEXBAR_PCIEXBAREN))
+		return false;
+	uint32_t tolud = pci_io_read_config32(PCI_DEV(0, 0, 0), TOLUD) & 0xfff00000U;
+
+	if (tolud > CONFIG_ECAM_MMCONF_BASE_ADDRESS || tolud > SPI_BASE_ADDRESS)
+		return false;
+#endif
+	tseg = pci_read_config32(PCI_DEV(0, 0, 0), TSEG);
+	bgsm = pci_read_config32(PCI_DEV(0, 0, 0), BGSM);
+	bios_control = pci_read_config32(PCH_DEV_SPI, SPI_BIOS_CONTROL);
+	smm_region(&base, &size);
+	/* BAR0 remains writable; parked peers cannot relocate it during this call. */
+	if (pci_read_config32(PCH_DEV_SPI, PCI_BASE_ADDRESS_0) != SPI_BASE_ADDRESS ||
+	    !(pci_read_config16(PCH_DEV_SPI, PCI_COMMAND) & PCI_COMMAND_MEMORY))
+		return false;
+	/* ADL/RPL protect device accesses with locked TSEG/BGSM bounds. */
+	if (!size || !IS_POWER_OF_2(size) || !IS_ALIGNED(base, size) ||
+	    base > UINT32_MAX || size > UINT32_MAX - base ||
+	    !(tseg & 1U) || !(bgsm & 1U) ||
+	    (tseg & 0xfff00000U) != base || (bgsm & 0xfff00000U) != base + size ||
+	    (bios_control & (bios_locks | SPI_BIOS_CONTROL_WPD)) != bios_locks)
+		return false;
+	/* Never move this before MP relocation's ramstage trampoline has retired. */
+	return enable_smm_code_access_check();
+}
+
+enum cb_err smm_authvar_set_uint_option(const char *name, uint32_t value)
+{
+	if (!smm_wait_for_cpus() || !authvar_protection_ready())
+		return CB_EFI_ACCESS_ERROR;
+	return smm_authvar_store_uint_option(name, value) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ?
+		CB_SUCCESS : CB_EFI_ACCESS_ERROR;
+}
+
+static void southbridge_smi_authvar(const struct smm_save_state_ops *ops)
+{
+	uint32_t result = SMMSTORE_RET_FAILURE;
+	int node = ops->apmc_node(APM_CNT_AUTHVAR);
+
+	if (node < 0)
+		return;
+	if (smm_wait_for_cpus() && authvar_protection_ready())
+		result = smm_authvar_exec();
+	ops->set_reg(RAX, node, &result, sizeof(result));
+}
+#endif
 
 static int finalize(void)
 {
@@ -420,6 +500,11 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_SMMSTORE:
 		if (CONFIG(SMMSTORE))
 			southbridge_smi_store(save_state_ops);
+		break;
+	case APM_CNT_AUTHVAR:
+#if CONFIG(SMM_AUTHVAR)
+		southbridge_smi_authvar(save_state_ops);
+#endif
 		break;
 	case APM_CNT_FINALIZE:
 		{

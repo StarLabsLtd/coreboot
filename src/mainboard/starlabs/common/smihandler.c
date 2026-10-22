@@ -619,11 +619,11 @@ int mainboard_smi_apmc(u8 data)
 			break;
 		response_value = value;
 
-		if (!smm_wait_for_cpus()) {
+		if (!CONFIG(SMM_AUTHVAR) && !smm_wait_for_cpus()) {
 			status = CB_ERR;
 			break;
 		}
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI) && !CONFIG(SMM_AUTHVAR)
 		bool restore_wp;
 
 		if (!fast_spi_smm_write_begin(&restore_wp)) {
@@ -632,7 +632,7 @@ int mainboard_smi_apmc(u8 data)
 		}
 #endif
 		status = set_uint_option(opt->name, value);
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI) && !CONFIG(SMM_AUTHVAR)
 		fast_spi_smm_write_end(restore_wp);
 #endif
 		if (status == CB_SUCCESS)

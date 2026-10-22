@@ -9,9 +9,14 @@
 #include <console/uart.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/msr.h>
+#include <cpu/x86/mtrr.h>
 #include <rmodule.h>
 #include <types.h>
 #include <security/intel/stm/SmmStm.h>
+#if CONFIG(SMM_AUTHVAR)
+#include <intelblocks/msr.h>
+#endif
 
 #if CONFIG(SPI_FLASH_SMM)
 #include <spi-generic.h>
@@ -25,6 +30,30 @@ enum { SMI_LOCKED, SMI_UNLOCKED };
 static uint8_t smi_handler_status = SMI_UNLOCKED;
 static uint32_t smi_request_epoch;
 static uint32_t smi_parked_epoch[CONFIG_MAX_CPUS];
+#if CONFIG(SMM_AUTHVAR)
+static bool smi_smrr_valid[CONFIG_MAX_CPUS];
+
+static bool smrr_valid(void)
+{
+	uintptr_t base;
+	size_t size;
+	msr_t cap = rdmsr(MTRR_CAP_MSR);
+	msr_t smrr_base, mask;
+	uint32_t expected_mask;
+
+	smm_region(&base, &size);
+	if (!(cap.lo & MTRR_CAP_SMRR) || !size || !IS_POWER_OF_2(size) ||
+	    !IS_ALIGNED(base, size) || base > UINT32_MAX || size - 1U > UINT32_MAX - base)
+		return false;
+	smrr_base = rdmsr(IA32_SMRR_PHYS_BASE);
+	mask = rdmsr(IA32_SMRR_PHYS_MASK);
+	expected_mask = (~(size - 1U) & ~0xfffU) | MTRR_PHYS_MASK_VALID;
+	if (cap.lo & SMRR_LOCK_SUPPORTED)
+		expected_mask |= SMRR_PHYS_MASK_LOCK;
+	return !smrr_base.hi && !mask.hi &&
+		smrr_base.lo == (base | MTRR_TYPE_WRBACK) && mask.lo == expected_mask;
+}
+#endif
 static int smi_leader = -1;
 
 static const volatile
@@ -54,6 +83,10 @@ bool smm_wait_for_cpus(void)
 		return false;
 	/* Never reuse an epoch: an old arrival must not authorize a new write. */
 	epoch++;
+#if CONFIG(SMM_AUTHVAR)
+	if (!smrr_valid())
+		return false;
+#endif
 	__atomic_store_n(&smi_request_epoch, epoch, __ATOMIC_RELEASE);
 	for (unsigned int cpu = 0; cpu < count; cpu++) {
 		if (cpu == (unsigned int)smi_leader)
@@ -63,6 +96,10 @@ bool smm_wait_for_cpus(void)
 				return false;
 			cpu_relax();
 		}
+#if CONFIG(SMM_AUTHVAR)
+		if (!smi_smrr_valid[cpu])
+			return false;
+#endif
 	}
 	return true;
 }
@@ -226,6 +263,9 @@ asmlinkage void smm_handler_start(void *arg)
 				__ATOMIC_ACQUIRE);
 
 			if (epoch != acknowledged_epoch) {
+#if CONFIG(SMM_AUTHVAR)
+				smi_smrr_valid[cpu] = smrr_valid();
+#endif
 				__atomic_store_n(&smi_parked_epoch[cpu], epoch, __ATOMIC_RELEASE);
 				acknowledged_epoch = epoch;
 			}

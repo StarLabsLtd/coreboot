@@ -34,6 +34,8 @@ typedef uint64_t authvar_policy_get_fn(void *context, const uint16_t *name,
 	const void *guid, uint32_t *attributes, size_t *size, void *data);
 
 /* Calls, including the borrowed getter, are serialized with registry changes. */
+bool authvar_policy_has_match(const struct authvar_policy *policy,
+	const uint16_t *name, size_t name_size, const void *guid);
 uint64_t authvar_policy_register(struct authvar_policy *policy,
 	const struct authvar_policy_entry *entry);
 /* rejected identifies only a policy refusal, not a failure returned by get. */

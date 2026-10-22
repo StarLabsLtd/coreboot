@@ -12,6 +12,23 @@ config SMMSTORE
 
 if SMMSTORE
 
+config SMM_AUTHVAR
+	bool "SMM-owned authenticated UEFI variables"
+	default n
+	depends on SOC_INTEL_ALDERLAKE && SMM_TSEG && PAYLOAD_CDK2
+	depends on DISABLE_ACPI_HIBERNATE
+	depends on BOOTMEDIA_SMM_BWP && !BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
+	select SPI_FLASH_SMM
+	help
+	  Keep the authenticated variable owner and policy in SMRAM. Raw flash
+	  mutation through SMMSTORE is unavailable in this composition; firmware
+	  updates require a separate authenticated transport. The protected route
+	  does not yet support the payload's S4-stable allocation composition.
+
+config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	bool
+	default y if SMM_AUTHVAR
+
 config DAVE_FACTORY_PROVISIONING
 	bool "Office-only DAVE provisioning image"
 	default n

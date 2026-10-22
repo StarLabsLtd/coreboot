@@ -59,6 +59,12 @@ static const struct authvar_policy_entry *best_policy(
 	return best;
 }
 
+bool authvar_policy_has_match(const struct authvar_policy *policy,
+	const uint16_t *name, size_t name_size, const void *guid)
+{
+	return best_policy(policy, name, name_size, guid, false) != NULL;
+}
+
 uint64_t authvar_policy_register(struct authvar_policy *store,
 	const struct authvar_policy_entry *entry)
 {

@@ -2,6 +2,7 @@
 
 #include <option.h>
 #include <smmstore.h>
+#include <drivers/smmstore/authvar.h>
 
 #include <Uefi/UefiBaseType.h>
 
@@ -79,6 +80,9 @@ enum cb_err efi_option_get_uints(struct efi_uint_option *options, size_t count)
 
 enum cb_err efi_option_set_uint(const char *name, uint32_t value)
 {
+#if ENV_SMM && CONFIG(SMM_AUTHVAR)
+	return smm_authvar_set_uint_option(name, value);
+#else
 	struct region_device rdev;
 	uint32_t var = value;
 
@@ -89,6 +93,7 @@ enum cb_err efi_option_set_uint(const char *name, uint32_t value)
 		return CB_CMOS_OTABLE_DISABLED;
 
 	return efi_fv_set_option(&rdev, &EficorebootNvDataGuid, name, &var, sizeof(var));
+#endif
 }
 
 enum cb_err get_uint_option_status(const char *name, unsigned int fallback,
