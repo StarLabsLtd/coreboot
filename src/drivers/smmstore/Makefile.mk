@@ -31,7 +31,7 @@ endif
 
 ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT),y)
 smm-y += capsule.c capsule_image.c capsule_policy.c capsule_layout.c
-smm-srcs += src/lib/uuid.c
+smm-srcs += src/lib/uuid.c src/lib/hexstrtobin.c
 ramstage-y += capsule_ramstage.c capsule_layout.c
 $(call src-to-obj,smm,src/drivers/smmstore/capsule_image.c): CFLAGS_smm += \
 	-I$(src)/../3rdparty/mbedtls/include -I$(src)/lib/payload_mm_crypto \
