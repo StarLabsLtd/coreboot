@@ -317,15 +317,14 @@ uint32_t smm_capsule_exec(struct smm_authvar_dispatch *service)
 		*info = (struct capsule_broker_transport_info) {
 			.revision = request->revision, .size = sizeof(*info),
 			.generation = request->generation, .transaction = request->transaction,
-			.current_version = capsule.firmware.version,
-			.lowest_supported_version = capsule.firmware.lowest_supported_version,
-			.image_size = CONFIG_ROM_SIZE,
-			.capabilities = LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES,
 			.result = CAPSULE_BROKER_RESULT_EXECUTION,
 		};
-		memcpy(&info->image_type, capsule.firmware.guid, sizeof(info->image_type));
 		if (!service->owner.runtime && read_state(service, state)) {
+			memcpy(&info->image_type, capsule.firmware.guid, sizeof(info->image_type));
+			info->current_version = capsule.firmware.version;
 			info->lowest_supported_version = state_floor(state);
+			info->image_size = CONFIG_ROM_SIZE;
+			info->capabilities = LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES;
 			info->state_flags = (state[2] ? 1U : 0U) | (state[3] ? 2U : 0U);
 			info->last_attempt_status = state[2] ? le32dec(state + 12) : 0;
 			info->last_attempt_version = state[3] ? le32dec(state + 16) : 0;
