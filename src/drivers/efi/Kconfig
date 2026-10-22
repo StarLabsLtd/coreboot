@@ -83,6 +83,7 @@ config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 config DRIVERS_EFI_GENERATE_CAPSULE
 	bool "Generate an update capsule during the build"
 	depends on (PAYLOAD_EDK2 || PAYLOAD_CDK2) && DRIVERS_EFI_UPDATE_CAPSULES
+	depends on !DAVE_FACTORY_PROVISIONING
 	help
 	  Generates a signed UEFI capsule from the final ROM image. CDK2 uses
 	  coreboot's native host utility; EDK2 uses its BaseTools.
