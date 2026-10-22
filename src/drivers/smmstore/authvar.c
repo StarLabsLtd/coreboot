@@ -34,8 +34,6 @@ static struct {
 	_Alignas(16) uint8_t owner_workspace[OWNER_WORKSPACE_SIZE];
 	struct authvar_media media;
 	struct region_device store;
-	struct region_device store_read, store_write;
-	struct incoherent_rdev store_device;
 	uint8_t image[CONFIG_SMMSTORE_SIZE];
 	uint8_t candidate[CONFIG_SMMSTORE_SIZE];
 	uint8_t verify[SMM_BLOCK_SIZE];
@@ -104,7 +102,6 @@ static bool initialize(void)
 		.offset = FMAP_SECTION_SMMSTORE_START,
 		.size = FMAP_SECTION_SMMSTORE_SIZE,
 	};
-	const struct region_device *store;
 	uint64_t status;
 
 	/* An uncertain recovery or mutation must never reopen initialization. */
@@ -117,12 +114,8 @@ static bool initialize(void)
 	    region_sz(&region) != sizeof(private.image))
 		return false;
 	/* Mutable CBMEM FMAP caches must not choose the protected writer's extent. */
-	if (boot_device_ro_subregion(&region, &private.store_read) < 0 ||
-	    boot_device_rw_subregion(&region, &private.store_write) < 0)
-		return false;
-	store = incoherent_rdev_init(&private.store_device, &region,
-		&private.store_read, &private.store_write);
-	if (!store || rdev_chain_full(&private.store, store))
+	/* Controller reads observe durable writes even while ROM mappings are cached. */
+	if (boot_device_rw_subregion(&region, &private.store) < 0)
 		return false;
 
 	*media = (struct authvar_media) {
