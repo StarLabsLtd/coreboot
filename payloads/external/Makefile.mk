@@ -200,7 +200,7 @@ $(obj)/smm/smm.elf: .EXTRA_PREREQS += $(cdk2_fixed_policy_asset_rules) \
 $(obj)/smm/smm.elf: | cdk2-force
 endif
 
-ifeq ($(CONFIG_CDK2_NATIVE_SYSTEM_FMP),y)
+ifneq ($(filter y,$(CONFIG_CDK2_NATIVE_SYSTEM_FMP) $(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)),)
 CDK2_CAPSULE_CERT := $(objutil)/efi_capsule/capsule-cert
 CDK2_CAPSULE_TRUST := $(CDK2_OUTPUT)/capsule-trust.c
 CDK2_CAPSULE_ROOT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
