@@ -32,6 +32,11 @@ static bool security_closed;
 #error "DAVE_MODE requires a dedicated SRK_PIN_V1 flash region"
 #endif
 
+#if CONFIG(DAVE_MODE) && (!CONFIG(BOOTMEDIA_SMM_BWP) || \
+			 CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION))
+#error "DAVE_MODE requires fixed SMM-only SPI write protection"
+#endif
+
 #if defined(FMAP_SECTION_SRK_PIN_V1_START)
 _Static_assert(IS_ALIGNED(FMAP_SECTION_SRK_PIN_V1_START, SMM_BLOCK_SIZE),
 	       "SRK pin must start at an erase-block boundary");
