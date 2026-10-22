@@ -171,6 +171,35 @@ ifeq ($(CONFIG_PAYLOAD_CDK2),y)
 CDK2_SOURCE := payloads/external/cdk2/cdk2
 CDK2_CONFIG := $(CDK2_OUTPUT)/.config
 
+ifeq ($(CONFIG_SMM_AUTHVAR)$(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),yy)
+include $(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.mk
+smm-srcs += $(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.c
+authvar_asset_source := $(call src-to-obj,smm,$(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.c)
+authvar_key_objects := $(foreach asset,$(CDK2_FIXED_POLICY_ASSETS),\
+	$(call src-to-obj,smm,$(obj)/smm-authvar/$(notdir $(asset)).manual))
+smm-srcs += $(addprefix $(obj)/smm-authvar/,\
+	$(addsuffix .manual,$(notdir $(CDK2_FIXED_POLICY_ASSETS))))
+
+$(foreach asset,$(CDK2_FIXED_POLICY_ASSETS),\
+	$(eval $(call src-to-obj,smm,$(obj)/smm-authvar/$(notdir $(asset)).manual): \
+		$(CDK2_SOURCE)/$(asset)))
+$(authvar_key_objects): | cdk2-force
+	@printf "    OBJCOPY    %s\n" "$@"
+	mkdir -p "$(dir $@)"
+	cd "$(dir $<)" && $(OBJCOPY_smm) -I binary \
+		$(if $(filter y,$(CONFIG_ARCH_SMM_X86_32)),-O elf32-i386 -B i386,-O elf64-x86-64 -B i386:x86-64) \
+		--rename-section .data=.rodata.authvar_keys,alloc,load,readonly,data,contents \
+		"$(notdir $<)" "$(abspath $@)"
+$(authvar_asset_source) $(authvar_key_objects): .EXTRA_PREREQS += \
+	$(cdk2_fixed_policy_asset_rules) $(DOTCONFIG) payloads/external/Makefile.mk
+$(authvar_asset_source) $(call src-to-obj,smm,src/drivers/smmstore/authvar.c): | cdk2-force
+$(call src-to-obj,smm,src/drivers/smmstore/authvar.c): CFLAGS_smm += \
+	-iquote$(CDK2_SOURCE)/src/modules/variable_runtime
+$(obj)/smm/smm.elf: .EXTRA_PREREQS += $(cdk2_fixed_policy_asset_rules) \
+	payloads/external/Makefile.mk
+$(obj)/smm/smm.elf: | cdk2-force
+endif
+
 ifeq ($(CONFIG_CDK2_NATIVE_SYSTEM_FMP),y)
 CDK2_CAPSULE_CERT := $(objutil)/efi_capsule/capsule-cert
 CDK2_CAPSULE_TRUST := $(CDK2_OUTPUT)/capsule-trust.c

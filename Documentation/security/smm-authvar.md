@@ -2,10 +2,9 @@
 
 `SMM_AUTHVAR` selects a protected variable owner for the native CDK2 payload.
 The current producer supports Alder Lake/Raptor Lake, fixed SMM BIOS write
-protection, variable-managed Secure Boot and S4 disabled. Ordinary payload-owned
-SMMSTORE remains a separate composition. Protected fixed keys, confirmed Setup
-actions, authenticated capsule delivery and S4 allocation integration are not
-provided by this route.
+protection and S4 disabled. Ordinary payload-owned SMMSTORE remains a separate
+composition. Confirmed Setup actions, authenticated capsule delivery and S4
+allocation integration are not provided by this route.
 
 The owner, policy registry, crypto workspace, media buffers and complete request
 and response snapshots reside in the installed SMM module. Its allocation participates
@@ -23,6 +22,14 @@ TSEG stage cache so the retained callbacks keep their original image/placement.
 Each entry checks the original communication geometry and reattaches the SPI
 backend after the hardware gate. Missing retained state cannot reopen a fresh
 owner on resume. No second owner snapshot or generic rmodule ABI is introduced.
+
+Variable-managed and firmware-fixed Secure Boot use the same owner. Fixed mode
+links CDK2's plain public-asset descriptor into SMM rather than copying a key
+list into the producer. PK/KEK/db and policy controls remain locked, while dbx
+accepts authenticated updates that retain the firmware baseline. Incompatible
+or unprovisioned stores are rejected. A durable startup dbx maintenance update
+requires a cold reset before the endpoint is published. The separate offline
+factory-image target remains an initial-installation operation, not migration.
 
 Before publishing the endpoint, ramstage synchronously initializes the installed
 service. Every service entry requires current CPU rendezvous and SMRR readback,

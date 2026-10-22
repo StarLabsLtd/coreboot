@@ -13,6 +13,10 @@
 #include <intelblocks/fast_spi.h>
 #include <smmstore.h>
 #include <string.h>
+#if CONFIG(CDK2_SECURE_BOOT_FIXED_KEYS)
+#include "fixed_policy_assets.h"
+#include <cf9_reset.h>
+#endif
 
 _Static_assert(SMM_BLOCK_SIZE <= PAYLOAD_MM_AUTHVAR_SERVICE_MAX_MESSAGE_SIZE &&
 	SMM_BLOCK_SIZE >= PAYLOAD_MM_AUTHVAR_SERVICE_MIN_MESSAGE_SIZE,
@@ -31,6 +35,9 @@ _Static_assert(CONFIG_SMM_MODULE_STACK_SIZE >= 0x4000,
 
 static struct {
 	struct smm_authvar_dispatch service;
+#if CONFIG(CDK2_SECURE_BOOT_FIXED_KEYS)
+	struct fixed_policy_assets fixed;
+#endif
 	_Alignas(16) uint8_t owner_workspace[OWNER_WORKSPACE_SIZE];
 	struct authvar_media media;
 	struct region_device store;
@@ -150,11 +157,20 @@ static bool initialize(void)
 
 	if (!required || required > sizeof(private.owner_workspace))
 		return false;
+#if CONFIG(CDK2_SECURE_BOOT_FIXED_KEYS)
+	cdk2_fixed_secure_boot_assets(&private.fixed);
+	private.service.fixed = &private.fixed.policy;
+#endif
 	status = authvar_owner_init(&private.service.owner, media->store, media->store_size,
 		commit, media, private.owner_workspace, sizeof(private.owner_workspace),
-		CONFIG(CDK2_SECURE_BOOT), NULL, NULL);
+		CONFIG(CDK2_SECURE_BOOT), private.service.fixed, NULL);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return false;
+#if CONFIG(CDK2_SECURE_BOOT_FIXED_KEYS)
+	/* A durable startup dbx update must reset before publishing verified policy. */
+	if (private.service.owner.restart_required)
+		full_reset();
+#endif
 	smm_authvar_endpoint(&private.endpoint, communication, communication_size);
 	if (payload_mm_authvar_service_endpoint_validate(&private.endpoint) != CB_SUCCESS)
 		return false;
