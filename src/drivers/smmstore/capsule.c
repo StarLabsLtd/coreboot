@@ -274,9 +274,12 @@ uint32_t smm_capsule_exec(struct smm_authvar_dispatch *service)
 	if (request->revision != CAPSULE_BROKER_TRANSPORT_RAM_REVISION ||
 	    request->size != sizeof(*request) || request->flags ||
 	    request->generation != 1 || !request->transaction ||
-	    request->transaction <= capsule.transaction)
+	    (request->operation != CAPSULE_BROKER_TRANSPORT_CLOSE_RAM &&
+	     request->transaction <= capsule.transaction))
 		return SMMSTORE_RET_FAILURE;
-	capsule.transaction = request->transaction;
+	/* Independent clients may close; closure grants no replayable authority. */
+	if (request->operation != CAPSULE_BROKER_TRANSPORT_CLOSE_RAM)
+		capsule.transaction = request->transaction;
 	memset(capsule.response, 0, sizeof(capsule.response));
 	memcpy(capsule.response, request, sizeof(*request));
 	*result = (struct capsule_broker_transport_result) {
