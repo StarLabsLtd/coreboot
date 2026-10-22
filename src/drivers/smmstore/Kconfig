@@ -12,6 +12,16 @@ config SMMSTORE
 
 if SMMSTORE
 
+config DAVE_FACTORY_PROVISIONING
+	bool "Office-only DAVE provisioning image"
+	default n
+	depends on DAVE_MODE
+	help
+	  Permit one-time SRK pin creation in the separate trusted-office image.
+	  Install this image only with an external programmer in the trusted
+	  office environment. Keep this disabled in customer firmware; no
+	  runtime setting can enable pin creation there.
+
 config SMMSTORE_SIZE
 	hex "size of the SMMSTORE FMAP region"
 	default 0x80000

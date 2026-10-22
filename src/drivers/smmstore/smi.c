@@ -6,6 +6,7 @@
 #include <smmstore.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 /*
  * Check that the given range is legal.
@@ -27,9 +28,10 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 {
 	uint32_t ret = SMMSTORE_RET_FAILURE;
 	static bool initialized = false;
+	int handled = smmstore_preprocess_cmd(&command, param);
 
-	if (smmstore_preprocess_cmd(&command, param))
-		return SMMSTORE_RET_SUCCESS;
+	if (handled)
+		return handled > 0 ? SMMSTORE_RET_SUCCESS : SMMSTORE_RET_DENIED;
 
 	if (!param)
 		return SMMSTORE_RET_FAILURE;
@@ -45,38 +47,47 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 	}
 
 	switch (command) {
+	case SMMSTORE_CMD_SRK_READ:
+		return smmstore_read_srk_pin();
+	case SMMSTORE_CMD_SRK_CREATE:
+		return smmstore_create_srk_pin();
+	case SMMSTORE_CMD_SECURITY_CLOSE:
+		return smmstore_close_security();
 	case SMMSTORE_CMD_RAW_READ: {
 		printk(BIOS_DEBUG, "Raw read from SMM store, param = %p\n", param);
-		struct smmstore_params_raw_read *params = param;
+		struct smmstore_params_raw_read params;
 
-		if (range_check(params, sizeof(*params)) != 0)
+		if (range_check(param, sizeof(params)) != 0)
 			break;
+		memcpy(&params, param, sizeof(params));
 
-		if (smmstore_rawread_region(params->block_id, params->bufoffset,
-					    params->bufsize) == 0)
+		if (smmstore_rawread_region(params.block_id, params.bufoffset,
+					    params.bufsize) == 0)
 			ret = SMMSTORE_RET_SUCCESS;
 		break;
 	}
 	case SMMSTORE_CMD_RAW_WRITE: {
 		printk(BIOS_DEBUG, "Raw write to SMM store, param = %p\n", param);
-		struct smmstore_params_raw_write *params = param;
+		struct smmstore_params_raw_write params;
 
-		if (range_check(params, sizeof(*params)) != 0)
+		if (range_check(param, sizeof(params)) != 0)
 			break;
+		memcpy(&params, param, sizeof(params));
 
-		if (smmstore_rawwrite_region(params->block_id, params->bufoffset,
-					     params->bufsize) == 0)
+		if (smmstore_rawwrite_region(params.block_id, params.bufoffset,
+					     params.bufsize) == 0)
 			ret = SMMSTORE_RET_SUCCESS;
 		break;
 	}
 	case SMMSTORE_CMD_RAW_CLEAR: {
 		printk(BIOS_DEBUG, "Raw clear SMM store, param = %p\n", param);
-		struct smmstore_params_raw_clear *params = param;
+		struct smmstore_params_raw_clear params;
 
-		if (range_check(params, sizeof(*params)) != 0)
+		if (range_check(param, sizeof(params)) != 0)
 			break;
+		memcpy(&params, param, sizeof(params));
 
-		if (smmstore_rawclear_region(params->block_id) == 0)
+		if (smmstore_rawclear_region(params.block_id) == 0)
 			ret = SMMSTORE_RET_SUCCESS;
 		break;
 	}

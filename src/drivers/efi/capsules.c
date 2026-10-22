@@ -11,6 +11,7 @@
 #include <drivers/efi/efivars.h>
 #include <drivers/efi/capsules.h>
 #include <fmap.h>
+#include <fmap_config.h>
 #include <memrange.h>
 #include <smm_call.h>
 #include <smmstore.h>
@@ -148,6 +149,14 @@ static bool capsule_regions(struct lb_capsule_smmstore_region *regions,
 		if (first < region_offset(&store) + region_sz(&store) &&
 		    region_offset(&store) < end)
 			return false;
+#if defined(FMAP_SECTION_SRK_PIN_V1_START)
+		if ((first < (uint64_t)FMAP_SECTION_SRK_PIN_V1_START +
+			     FMAP_SECTION_SRK_PIN_V1_SIZE && FMAP_SECTION_SRK_PIN_V1_START < end) ||
+		    (first < ALIGN_UP((uint64_t)FMAP_SECTION_FMAP_START +
+				      FMAP_SECTION_FMAP_SIZE, block_size) &&
+		     ALIGN_DOWN(FMAP_SECTION_FMAP_START, block_size) < end))
+			return false;
+#endif
 		for (uint32_t i = 0; i < *count; i++) {
 			const struct lb_capsule_smmstore_region *other = &regions[i];
 

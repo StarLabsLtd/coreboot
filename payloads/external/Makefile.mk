@@ -258,6 +258,25 @@ cdk2-factory-image:
 	@false
 endif
 
+.PHONY: dave-office-image
+ifeq ($(CONFIG_DAVE_MODE),y)
+dave-office-image:
+	@set -e; \
+	work=$$(mktemp -d "$(abspath $(obj))/dave-office.XXXXXXXX"); \
+	sed '/^CONFIG_DAVE_FACTORY_PROVISIONING=/d; /^# CONFIG_DAVE_FACTORY_PROVISIONING is not set$$/d' \
+		"$(DOTCONFIG)" > "$$work/config"; \
+	printf '\nCONFIG_DAVE_FACTORY_PROVISIONING=y\n' >> "$$work/config"; \
+	$(MAKE) DOTCONFIG="$$work/config" obj="$$work/build" olddefconfig; \
+	grep -qx 'CONFIG_DAVE_FACTORY_PROVISIONING=y' "$$work/config"; \
+	$(MAKE) DOTCONFIG="$$work/config" obj="$$work/build"; \
+	printf 'Office provisioning image (programmer installation only): %s\n' \
+		"$$work/build/coreboot.rom"
+else
+dave-office-image:
+	@echo 'dave-office-image requires a DAVE_MODE customer configuration' >&2
+	@false
+endif
+
 endif
 
 ifeq ($(CONFIG_EDK2_ENABLE_IPXE),y)

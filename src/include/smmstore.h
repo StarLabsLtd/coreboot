@@ -9,11 +9,28 @@
 #define SMMSTORE_RET_SUCCESS 0
 #define SMMSTORE_RET_FAILURE 1
 #define SMMSTORE_RET_UNSUPPORTED 2
+#define SMMSTORE_RET_BUSY 3
+#define SMMSTORE_RET_NOT_FOUND 4
+#define SMMSTORE_RET_DENIED 5
 
 #define SMMSTORE_CMD_INIT_DEPRECATED 4
 #define SMMSTORE_CMD_RAW_READ 5
 #define SMMSTORE_CMD_RAW_WRITE 6
 #define SMMSTORE_CMD_RAW_CLEAR 7
+#define SMMSTORE_CMD_SRK_READ 10
+#define SMMSTORE_CMD_SRK_CREATE 11
+#define SMMSTORE_CMD_SECURITY_CLOSE 12
+
+struct smmstore_srk_info {
+	uint32_t revision;
+	uint32_t offset;
+	uint32_t size;
+	uint32_t fmap_offset;
+	uint32_t fmap_size;
+	uint8_t name[34];
+} __packed;
+
+_Static_assert(sizeof(struct smmstore_srk_info) == 54, "SRK pin interface layout");
 
 /*
  * Used by capsule updates as a standalone command or modifier to v2 commands.
@@ -96,12 +113,15 @@ int smmstore_init(void *buf, size_t len);
 int smmstore_rawread_region(uint32_t block_id, uint32_t offset, uint32_t bufsize);
 int smmstore_rawwrite_region(uint32_t block_id, uint32_t offset, uint32_t bufsize);
 int smmstore_rawclear_region(uint32_t block_id);
+uint32_t smmstore_read_srk_pin(void);
+uint32_t smmstore_create_srk_pin(void);
+uint32_t smmstore_close_security(void);
 #if ENV_RAMSTAGE
 int smmstore_get_info(struct smmstore_params_info *info);
 #endif
 struct region_device;
 int smmstore_lookup_region(struct region_device *rstore);
-/* Returns 0 if normal parsing should continue, 1 otherwise */
+/* Zero continues dispatch, positive completes successfully, negative denies. */
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param);
 
 /* Advertise SMMSTORE support */

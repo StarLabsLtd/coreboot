@@ -6,6 +6,7 @@
 #include <amdblocks/smi.h>
 #include <amdblocks/smm.h>
 #include <arch/io.h>
+#include <console/console.h>
 #include <cpu/amd/amd64_save_state.h>
 #include <cpu/x86/smm.h>
 #include <drivers/option/cfr_runtime.h>
@@ -80,6 +81,11 @@ void handle_smi_store(void)
 	u8 sub_command;
 	amd64_smm_state_save_area_t *io_smi;
 	u32 reg_ebx;
+
+	if (!smm_wait_for_cpus()) {
+		printk(BIOS_WARNING, "SMMSTORE: CPU rendezvous failed\n");
+		return;
+	}
 
 	io_smi = find_save_state(APM_CNT_SMMSTORE);
 	if (!io_smi)

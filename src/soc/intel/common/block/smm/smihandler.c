@@ -287,7 +287,7 @@ static void southbridge_smi_store(
 
 	const uint8_t command = sub_command & ~SMMSTORE_CMD_USE_FULL_FLASH;
 	const bool writes = command == SMMSTORE_CMD_RAW_WRITE ||
-		command == SMMSTORE_CMD_RAW_CLEAR;
+		command == SMMSTORE_CMD_RAW_CLEAR || command == SMMSTORE_CMD_SRK_CREATE;
 	bool restore_wp = false;
 
 	ret = SMMSTORE_RET_FAILURE;
