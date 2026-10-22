@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LicenseRef-LICENSE-TBC */
 /* Copyright (c) 2026 Star Labs Systems. All rights reserved. */
 
+#include <acpi/acpi.h>
 #include <bootstate.h>
 #include <console/console.h>
 #include <security/tpm/tspi.h>
@@ -16,6 +17,12 @@ static void dave_open_phase(void *unused)
 	static const char domain[] = "Star Labs pre-OS authentication phase open v1";
 	struct vb2_sha256_context hash;
 	uint8_t digest[VB2_SHA256_DIGEST_SIZE];
+
+	/* A missing OS wake vector can fall through the S3 resume path. The
+	 * payload must not treat retained TPM authority as a fresh cold boot.
+	 */
+	if (acpi_is_wakeup_s3())
+		die("DAVE: cannot enter authentication after failed S3 resume\n");
 
 	/* Logging a deferred measurement is insufficient: the payload must prove
 	 * the actual PCR value through its pinned, authenticated TPM session.
