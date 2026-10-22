@@ -153,6 +153,9 @@ asmlinkage void smm_handler_start(void *params);
  * account CPUs which are configured to not save their state to RAM. */
 void *smm_get_save_state(int cpu);
 
+/* With the handler lock held, return NULL until this CPU has entered this SMI. */
+void *smm_get_current_save_state(unsigned int cpu);
+
 /* Returns true if the region overlaps with the SMM */
 bool smm_region_overlaps_handler(const struct region *r);
 
