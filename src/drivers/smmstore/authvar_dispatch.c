@@ -2,6 +2,7 @@
 #include "authvar_dispatch.h"
 #include <boot/authvar_image_policy.h>
 #include <boot/payload_mm_authvar_format.h>
+#include <boot/payload_mm_authvar_policy.h>
 #include <string.h>
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 #include "capsule.h"
@@ -95,33 +96,150 @@ static uint64_t policy_get(void *context, const uint16_t *name, const void *guid
 	return status;
 }
 
-static uint64_t set_variable(struct smm_authvar_dispatch *service,
+static uint64_t check_write_policy(struct smm_authvar_dispatch *service,
 	const uint16_t *name, const void *guid, uint32_t attributes,
-	size_t size, const void *data)
+	size_t size, const void *data, bool confirmed_delete)
 {
 	struct payload_mm_authvar_auth2_view auth;
 	const struct authvar_policy_entry *rejected;
-	size_t payload_size = size;
-	size_t reclaimed;
-	uint64_t status;
+	size_t payload_size = confirmed_delete ? 0 : size;
 
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 	/* Only the authenticated broker can publish durable update outcomes. */
 	if (smm_capsule_state_name(name, guid))
 		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
 #endif
-	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
+	if ((attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) && !confirmed_delete) {
 		if (payload_mm_authvar_auth2_parse(data, size, &auth) !=
 		    PAYLOAD_MM_AUTHVAR_FORMAT_OK)
 			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
 		payload_size = auth.payload.size;
 	}
-	status = authvar_policy_check(&service->policy, name, guid,
+	return authvar_policy_check(&service->policy, name, guid,
 		attributes, payload_size, policy_get, &service->owner, &rejected);
+}
+
+static uint64_t set_variable(struct smm_authvar_dispatch *service,
+	const uint16_t *name, const void *guid, uint32_t attributes,
+	size_t size, const void *data, bool confirmed)
+{
+	size_t reclaimed;
+	uint64_t status;
+
+	status = check_write_policy(service, name, guid, attributes, size, data, false);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return status;
 	return authvar_owner_set(&service->owner, name, guid,
-		attributes, size, data, false, service->fixed, &reclaimed);
+		attributes, size, data, confirmed, service->fixed, &reclaimed);
+}
+
+static void close_authority(struct smm_authvar_dispatch *service)
+{
+	service->authority.closed = true;
+	memset(service->authority.capability, 0, sizeof(service->authority.capability));
+}
+
+static bool authorize_confirmed(struct smm_authvar_dispatch *service,
+	const struct payload_mm_authvar_confirmed_frame *request)
+{
+	struct authvar_boot_authority *authority = &service->authority;
+	uint8_t difference = 0;
+
+	if (authority->closed || !authority->generation ||
+	    service->owner.ready || service->owner.runtime ||
+	    request->service.request_id <= authority->last_request_id)
+		return false;
+	for (size_t i = 0; i < sizeof(authority->capability); i++)
+		difference |= authority->capability[i] ^ request->capability[i];
+	if (difference)
+		return false;
+	/* Ordinary calls share the payload counter; only confirmed IDs are retained. */
+	authority->last_request_id = request->service.request_id;
+	return true;
+}
+
+static uint64_t confirmed_action(struct smm_authvar_dispatch *service,
+	const struct payload_mm_authvar_confirmed_frame *frame)
+{
+	struct payload_mm_authvar_policy_request request = {
+		.operation = PAYLOAD_MM_AUTHVAR_SERVICE_SET,
+		.attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+	};
+	uint8_t value = frame->value;
+	enum payload_mm_authvar_mode_key key;
+	uint64_t status;
+
+	switch (frame->service.flags) {
+	case PAYLOAD_MM_AUTHVAR_CONFIRMED_ENABLE:
+		key = PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE;
+		break;
+	case PAYLOAD_MM_AUTHVAR_CONFIRMED_CUSTOM_MODE:
+		key = PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE;
+		break;
+	case PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK:
+		key = PAYLOAD_MM_AUTHVAR_MODE_KEY_PK;
+		request.attributes |= PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
+		break;
+	default:
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	}
+	if (!payload_mm_authvar_mode_request(key, &request))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (frame->service.flags != PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE_PK)
+		return set_variable(service, request.name, request.vendor_guid,
+			request.attributes, sizeof(value), &value, true);
+	status = check_write_policy(service, request.name, request.vendor_guid,
+		request.attributes, 0, NULL, true);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return status;
+	return authvar_owner_delete_pk(&service->owner);
+}
+
+static uint64_t confirmed_key(struct smm_authvar_dispatch *service,
+	const struct payload_mm_authvar_confirmed_key_frame *frame)
+{
+	struct payload_mm_authvar_policy_request request;
+	const void *data = frame + 1;
+	size_t size = frame->confirmed.service.data_size;
+	uint64_t status;
+
+	if (!payload_mm_authvar_confirmed_key_request(frame->key_id, frame->mutation,
+		data, size, &request))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	status = check_write_policy(service, request.name, request.vendor_guid,
+		request.attributes, size, data,
+		frame->mutation == PAYLOAD_MM_AUTHVAR_CONFIRMED_DELETE);
+	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
+		return status;
+	return authvar_owner_confirmed_key(&service->owner, frame->key_id,
+		frame->mutation, data, size);
+}
+
+static enum cb_err dispatch_confirmed(struct smm_authvar_dispatch *service,
+	const struct lb_authvar_service_endpoint *endpoint,
+	const struct payload_mm_authvar_confirmed_frame *request,
+	struct payload_mm_authvar_confirmed_frame *response, size_t size)
+{
+	uint64_t status;
+
+	memset(response, 0, size);
+	memcpy(response, request, request->service.header_size);
+	memset(response->capability, 0, sizeof(response->capability));
+	if (service->owner.failed || service->owner.restart_required)
+		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	else if (!authorize_confirmed(service, request))
+		status = PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
+	else if (request->service.revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION)
+		status = confirmed_key(service, (const void *)request);
+	else
+		status = confirmed_action(service, request);
+	if (service->owner.failed || service->owner.restart_required)
+		close_authority(service);
+	response->service.status = status;
+	response->service.completion = PAYLOAD_MM_AUTHVAR_SERVICE_COMPLETE;
+	return payload_mm_authvar_service_response_validate(endpoint, request, response, size);
 }
 
 uint64_t smm_authvar_dispatch_option(struct smm_authvar_dispatch *service,
@@ -134,7 +252,7 @@ uint64_t smm_authvar_dispatch_option(struct smm_authvar_dispatch *service,
 
 	return set_variable(service, name, guid,
 		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
-		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS, sizeof(value), &value);
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS, sizeof(value), &value, false);
 }
 
 enum cb_err smm_authvar_dispatch(struct smm_authvar_dispatch *service,
@@ -153,9 +271,14 @@ enum cb_err smm_authvar_dispatch(struct smm_authvar_dispatch *service,
 	if (!service || !response || response == request ||
 	    payload_mm_authvar_service_request_validate(endpoint, request, size) != CB_SUCCESS)
 		return CB_ERR_ARG;
-	/* Confirmed Setup needs a separate producer-owned confirmation lifecycle. */
+	if (in->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_REVISION ||
+	    in->revision == PAYLOAD_MM_AUTHVAR_CONFIRMED_KEY_REVISION)
+		return dispatch_confirmed(service, endpoint, request, response, size);
 	if (in->revision != PAYLOAD_MM_AUTHVAR_SERVICE_REVISION)
 		return CB_ERR_ARG;
+	if (in->operation == PAYLOAD_MM_AUTHVAR_SERVICE_READY_TO_BOOT ||
+	    in->operation == PAYLOAD_MM_AUTHVAR_SERVICE_ENTER_RUNTIME)
+		close_authority(service);
 	offset = (sizeof(*in) + endpoint->maximum_name_size + 7U) & ~(size_t)7U;
 	name = (const void *)((const uint8_t *)request + sizeof(*in));
 	data = (const uint8_t *)request + offset;
@@ -200,7 +323,7 @@ enum cb_err smm_authvar_dispatch(struct smm_authvar_dispatch *service,
 	}
 	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
 		status = set_variable(service, name, in->vendor_guid, in->attributes,
-			in->data_size, data);
+			in->data_size, data, false);
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
 		status = authvar_owner_query(&service->owner, in->attributes,

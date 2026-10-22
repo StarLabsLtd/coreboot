@@ -3,6 +3,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_gnvs.h>
 #include <cbmem.h>
+#include <commonlib/authvar_boot_authority.h>
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <console/console.h>
@@ -372,6 +373,19 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		mod_params->smmstore_com_buffer_base = base;
 		mod_params->smmstore_com_buffer_size = size;
 	}
+
+#if CONFIG(SMM_AUTHVAR)
+	const struct cbmem_entry *authority = cbmem_entry_add(CBMEM_ID_AUTHVAR_BOOT_AUTHORITY,
+		AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE);
+	uintptr_t authority_base = authority ? (uintptr_t)cbmem_entry_start(authority) : 0;
+
+	if (!authority || cbmem_entry_size(authority) != AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE ||
+	    !authority_base || !IS_ALIGNED(authority_base, AUTHVAR_BOOT_AUTHORITY_PAGE_SIZE) ||
+	    authority_base > UINT32_MAX - (AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE - 1U))
+		die("Authenticated variables: boot authority allocation failed\n");
+	mod_params->authvar_boot_authority_base = authority_base;
+	mod_params->authvar_boot_authority_size = AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE;
+#endif
 
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 	void *staging = cbmem_add(CBMEM_ID_CAPSULE_STAGING, CONFIG_ROM_SIZE + 1 * MiB);

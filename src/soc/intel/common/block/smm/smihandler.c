@@ -475,6 +475,26 @@ static void southbridge_smi_authvar(const struct smm_save_state_ops *ops, uint8_
 	}
 	ops->set_reg(RAX, node, &result, sizeof(result));
 }
+
+static void southbridge_smi_authvar_close(const struct smm_save_state_ops *ops)
+{
+	uint32_t eax, ecx;
+	int node;
+
+	if (!smm_wait_for_cpus())
+		return;
+	node = ops->apmc_node(APM_CNT_AUTHVAR_CLOSE);
+	if (node < 0 || ops->get_reg(RAX, node, &eax, sizeof(eax)) ||
+	    ops->get_reg(RCX, node, &ecx, sizeof(ecx)) ||
+	    ((uint64_t)ecx << 32 | eax) != AUTHVAR_CLOSE_WIRE_SENTINEL ||
+	    !authvar_protection_ready() || smm_authvar_close_exec() != CB_SUCCESS)
+		return;
+	/* Register acknowledgment is separate from attacker-writable mailbox bytes. */
+	eax = (uint32_t)AUTHVAR_CLOSE_WIRE_SUCCESS;
+	ecx = AUTHVAR_CLOSE_WIRE_SUCCESS >> 32;
+	ops->set_reg(RAX, node, &eax, sizeof(eax));
+	ops->set_reg(RCX, node, &ecx, sizeof(ecx));
+}
 #endif
 
 static int finalize(void)
@@ -545,6 +565,11 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_CAPSULE:
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 		southbridge_smi_authvar(save_state_ops, APM_CNT_CAPSULE);
+#endif
+		break;
+	case APM_CNT_AUTHVAR_CLOSE:
+#if CONFIG(SMM_AUTHVAR)
+		southbridge_smi_authvar_close(save_state_ops);
 #endif
 		break;
 	case APM_CNT_FINALIZE:

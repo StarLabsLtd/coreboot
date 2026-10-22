@@ -155,6 +155,12 @@ void smm_get_capsule_staging(uintptr_t *base, size_t *size)
 #endif
 
 #if CONFIG(SMM_AUTHVAR)
+void smm_get_authvar_boot_authority(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.authvar_boot_authority_base;
+	*size = smm_runtime.authvar_boot_authority_size;
+}
+
 bool smm_authvar_is_s3_resume(void)
 {
 	return smm_runtime.authvar_s3_resume;

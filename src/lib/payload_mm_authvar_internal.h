@@ -4,16 +4,10 @@
 #define PAYLOAD_MM_AUTHVAR_INTERNAL_H
 
 #include <boot/payload_mm_authvar.h>
+#include <boot/payload_mm_authvar_policy.h>
 
 struct payload_mm_authvar_candidate_binding;
 struct payload_mm_authvar_store_index;
-
-enum payload_mm_authvar_mode_key {
-	PAYLOAD_MM_AUTHVAR_MODE_KEY_PK,
-	PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
-	PAYLOAD_MM_AUTHVAR_MODE_KEY_VENDOR_KEYS_NV,
-	PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE,
-};
 
 struct payload_mm_authvar_bundle_mutation;
 

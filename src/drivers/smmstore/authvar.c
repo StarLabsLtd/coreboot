@@ -8,9 +8,11 @@
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <console/console.h>
+#include <arch/cpu.h>
 #include <cpu/x86/smm.h>
 #include <fmap_config.h>
 #include <intelblocks/fast_spi.h>
+#include <random.h>
 #include <smmstore.h>
 #include <string.h>
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
@@ -51,6 +53,7 @@ static struct {
 	_Alignas(8) uint8_t request[SMM_BLOCK_SIZE];
 	_Alignas(8) uint8_t response[SMM_BLOCK_SIZE];
 	struct lb_authvar_service_endpoint endpoint;
+	uintptr_t authority_base;
 	enum { OWNER_UNINITIALIZED, OWNER_FAILED, OWNER_READY } state;
 } private __attribute__((section(".smm_authvar")));
 
@@ -127,6 +130,70 @@ static bool owner_ready(void)
 		size == private.endpoint.communication_size && bind_media_device();
 }
 
+static bool authority_backing_valid(uintptr_t base, size_t size)
+{
+	uintptr_t communication = private.endpoint.communication_base;
+	size_t communication_size = private.endpoint.communication_size;
+
+	return base && IS_ALIGNED(base, AUTHVAR_BOOT_AUTHORITY_PAGE_SIZE) &&
+		size == AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE &&
+		base <= UINT32_MAX - (size - 1U) &&
+		!smm_points_to_smram((void *)base, size) &&
+		(base + size <= communication || communication + communication_size <= base);
+}
+
+static void close_authority(void)
+{
+	memset(private.service.authority.capability, 0,
+		sizeof(private.service.authority.capability));
+	private.service.authority.closed = true;
+	if (private.authority_base)
+		memset((void *)private.authority_base, 0, AUTHVAR_BOOT_AUTHORITY_PAGE_SIZE);
+}
+
+static bool initialize_authority(void)
+{
+	struct authvar_boot_authority *authority = &private.service.authority;
+	struct authvar_boot_seed *seed;
+	uintptr_t base;
+	size_t size;
+	uint8_t nonzero = 0;
+
+	smm_get_authvar_boot_authority(&base, &size);
+	if (!authority_backing_valid(base, size) || !(cpuid(1).ecx & (1U << 30)))
+		return false;
+	private.authority_base = base;
+	memset((void *)base, 0, size);
+	if (get_random_number_64(&authority->generation) != CB_SUCCESS ||
+	    !authority->generation)
+		goto failed;
+	for (size_t i = 0; i < sizeof(authority->capability); i += sizeof(uint32_t)) {
+		uint32_t random = 0;
+		enum cb_err status = get_random_number_32(&random);
+
+		if (status == CB_SUCCESS)
+			memcpy(authority->capability + i, &random, sizeof(random));
+		memset(&random, 0, sizeof(random));
+		asm volatile("" : : "m"(random) : "memory");
+		if (status != CB_SUCCESS)
+			goto failed;
+	}
+	for (size_t i = 0; i < sizeof(authority->capability); i++)
+		nonzero |= authority->capability[i];
+	if (!nonzero)
+		goto failed;
+	seed = (void *)base;
+	seed->revision = LB_AUTHVAR_PRESENCE_ENDPOINT_REVISION;
+	seed->size = sizeof(*seed);
+	seed->generation = authority->generation;
+	memcpy(seed->capability, authority->capability, sizeof(seed->capability));
+	return true;
+
+failed:
+	close_authority();
+	return false;
+}
+
 static bool initialize(void)
 {
 	uintptr_t communication;
@@ -181,6 +248,8 @@ static bool initialize(void)
 	if (!smm_capsule_initialize())
 		return false;
 #endif
+	if (!initialize_authority())
+		return false;
 	private.state = OWNER_READY;
 	return true;
 }
@@ -209,6 +278,8 @@ uint64_t smm_authvar_store_uint_option(const char *name, uint32_t value)
 /* The caller holds the SMI lock, has parked every peer, and checked protection. */
 uint32_t smm_authvar_exec(void)
 {
+	if (smm_authvar_is_s3_resume())
+		close_authority();
 	if (private.state == OWNER_UNINITIALIZED) {
 		/* S3 must retain the owner, not create a new boot-services lifetime. */
 		if (smm_authvar_is_s3_resume()) {
@@ -229,11 +300,52 @@ uint32_t smm_authvar_exec(void)
 		memset(private.response, 0, sizeof(private.response));
 		return SMMSTORE_RET_FAILURE;
 	}
+	if (private.service.authority.closed || private.service.owner.failed ||
+	    private.service.owner.restart_required)
+		close_authority();
 	memcpy((void *)(uintptr_t)private.endpoint.communication_base, private.response,
 		sizeof(private.response));
 	memset(private.request, 0, sizeof(private.request));
 	memset(private.response, 0, sizeof(private.response));
 	return SMMSTORE_RET_SUCCESS;
+}
+
+/* No media lookup: revocation must work even when variable storage has failed. */
+enum cb_err smm_authvar_close_exec(void)
+{
+	struct authvar_boot_authority *authority = &private.service.authority;
+	struct authvar_close_message request;
+	struct authvar_close_message *mailbox;
+	uintptr_t base;
+	size_t size;
+
+	smm_get_authvar_boot_authority(&base, &size);
+	if (!private.authority_base || base != private.authority_base ||
+	    !authority_backing_valid(base, size) || !authority->generation)
+		return CB_ERR;
+	mailbox = (void *)(base + AUTHVAR_BOOT_AUTHORITY_PAGE_SIZE);
+	memcpy(&request, mailbox, sizeof(request));
+	/* Even a malformed close cannot leave the finite authority open. */
+	close_authority();
+	if (request.revision != AUTHVAR_CLOSE_REVISION || request.size != sizeof(request) ||
+	    !request.source || (request.source & (request.source - 1U)) ||
+	    (request.source & ~LB_AUTHVAR_CLOSE_SOURCE_MASK) || request.flags ||
+	    request.generation != authority->generation ||
+	    request.request_id <= authority->last_close_request_id ||
+	    (request.source & authority->closed_sources) ||
+	    request.status != AUTHVAR_CLOSE_STATUS_PENDING ||
+	    request.completion != AUTHVAR_CLOSE_PENDING)
+		return CB_ERR;
+	for (size_t i = 0; i < ARRAY_SIZE(request.reserved); i++) {
+		if (request.reserved[i])
+			return CB_ERR;
+	}
+	authority->last_close_request_id = request.request_id;
+	authority->closed_sources |= request.source;
+	request.status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	memcpy(mailbox, &request, sizeof(request));
+	__atomic_store_n(&mailbox->completion, 0, __ATOMIC_RELEASE);
+	return CB_SUCCESS;
 }
 
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)

@@ -24,16 +24,6 @@ struct payload_mm_authvar_coordinator_result {
 	u8 volatile_modes;
 };
 
-/* Bind an internal request to one of the existing fixed mode-key identities. */
-bool payload_mm_authvar_mode_request(uint32_t key,
-	struct payload_mm_authvar_policy_request *request);
-
-bool payload_mm_authvar_confirmed_key_request(uint32_t key, uint32_t mutation,
-	const void *data, size_t size, struct payload_mm_authvar_policy_request *request);
-
-#if ENV_TEST
-#endif
-
 uint64_t payload_mm_authvar_coordinator_prepare(
 	const struct payload_mm_authvar_coordinator_policy *coordinator,
 	const struct payload_mm_authvar_store_index *index,
