@@ -67,6 +67,11 @@ bool smm_capsule_regions(const void *data, size_t size,
 		    ALIGN_DOWN(FMAP_SECTION_SRK_PIN_V1_START, CONFIG_SMMSTORE_BLOCK_SIZE) <
 			offset + length_bytes)
 			return false;
+		if (offset < ALIGN_UP((uint64_t)FMAP_SECTION_FMAP_START +
+			FMAP_SECTION_FMAP_SIZE, CONFIG_SMMSTORE_BLOCK_SIZE) &&
+		    ALIGN_DOWN(FMAP_SECTION_FMAP_START, CONFIG_SMMSTORE_BLOCK_SIZE) <
+			offset + length_bytes)
+			return false;
 #endif
 		for (size_t i = 0; i < *count; i++)
 			if (offset < regions[i].flash_offset + regions[i].size &&
