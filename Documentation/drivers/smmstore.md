@@ -72,8 +72,9 @@ installed before calling any of the SMMSTORE read or write operations.
 Usually, coreboot will install this buffer to transfer data between
 ring0 and the [SMM] handler.
 
-For CDK2's producer-derived S4 layout, the buffer occupies the fixed top64KiB
-of the shared8MiB window defined in `commonlib/cdk2_s4_memory.h`. The SMM
+For CDK2's producer-derived S4 layout, the buffer occupies the fixed top 64 KiB
+of the shared 8 MiB window defined in `commonlib/cdk2_s4_memory.h`. A smaller
+logical flash block still uses this complete mailbox. The SMM
 loader checks RAM coverage and current ownership before installing it. CBMEM
 growth, capsule coalescing and payload loading exclude that window; final
 memory-table publication independently checks remaining RAM ownership. The

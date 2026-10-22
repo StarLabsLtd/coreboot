@@ -132,7 +132,7 @@ int smmstore_init_com_buffer(uintptr_t *base, size_t *size)
 		return 0;
 	}
 	smm_region(&smram, &smram_size);
-	if (info.block_size != CDK2_S4_MAILBOX_SIZE || !mailbox_is_free_ram() ||
+	if (!info.block_size || info.block_size > CDK2_S4_MAILBOX_SIZE || !mailbox_is_free_ram() ||
 	    overlaps_mailbox(smram, smram_size) ||
 	    overlaps_mailbox((uintptr_t)_program, REGION_SIZE(program)) ||
 	    overlaps_mailbox((uintptr_t)_stack, REGION_SIZE(stack)) ||
