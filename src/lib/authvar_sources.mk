@@ -8,6 +8,7 @@ authvar_libraries := coordinator candidate authority authority_provider controll
 authvar_sources := $(addprefix src/lib/payload_mm_authvar_,$(addsuffix .c,$(authvar_libraries))) \
 	src/lib/authvar_media.c src/lib/authvar_owner.c src/lib/authvar_policy.c \
 	src/lib/payload_mm_crypto/cms.c src/lib/payload_mm_crypto/crypto.c \
+	src/lib/payload_mm_crypto/owner.c \
 	src/lib/payload_mm_crypto/mbedtls_verify_wrap.c
 authvar_mbedtls := asn1parse bignum bignum_core bignum_mod bignum_mod_raw \
 	constant_time md oid pk pkparse platform_util rsa rsa_alt_helpers sha256 \
