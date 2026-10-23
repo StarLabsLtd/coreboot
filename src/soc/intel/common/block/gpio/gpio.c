@@ -331,6 +331,96 @@ static uint16_t pad_config_offset(const struct pad_community *comm, gpio_t pad)
 	return offset + comm->pad_cfg_base;
 }
 
+#if !CONFIG(PCR_COMMON_IOSF_1_0)
+static int gpio_sbi_access(const struct pad_community *comm, uint16_t offset,
+			   uint8_t opcode, uint32_t *data)
+{
+	struct pcr_sbi_msg msg = {
+		.pid = comm->port,
+		.offset = offset,
+		.opcode = opcode,
+		.is_posted = false,
+		.fast_byte_enable = 0xf,
+		.bar = 0,
+		.fid = 0,
+	};
+	uint8_t response = 0;
+
+	return pcr_execute_sideband_msg(PCH_DEV_P2SB, &msg, data, &response);
+}
+
+static int gpio_sbi_prepare(bool *was_hidden)
+{
+	if (!ENV_SMM)
+		return -1;
+
+	*was_hidden = p2sb_dev_is_hidden(PCH_DEV_P2SB);
+	if (*was_hidden && !p2sb_dev_unhide(PCH_DEV_P2SB))
+		return -1;
+
+	return 0;
+}
+
+static int gpio_sbi_finish(bool was_hidden, int ret)
+{
+	if (was_hidden && !p2sb_dev_hide(PCH_DEV_P2SB))
+		return -1;
+
+	return ret;
+}
+
+int gpio_sbi_get_tx(gpio_t pad, int *value)
+{
+	const struct pad_community *comm = gpio_find_community(pad);
+	uint16_t offset;
+	bool was_hidden;
+	uint32_t data;
+
+	if (!comm || !value)
+		return -1;
+
+	if (gpio_sbi_prepare(&was_hidden))
+		return -1;
+
+	offset = pad_config_offset(comm, pad);
+	if (gpio_sbi_access(comm, offset, PCR_READ, &data))
+		return gpio_sbi_finish(was_hidden, -1);
+
+	*value = !!(data & PAD_CFG0_TX_STATE);
+	return gpio_sbi_finish(was_hidden, 0);
+}
+
+int gpio_sbi_set_tx(gpio_t pad, int value)
+{
+	const struct pad_community *comm = gpio_find_community(pad);
+	uint16_t offset;
+	bool was_hidden;
+	uint32_t data;
+	int ret = -1;
+
+	if (!comm)
+		return -1;
+
+	if (gpio_sbi_prepare(&was_hidden))
+		return -1;
+
+	offset = pad_config_offset(comm, pad);
+	if (gpio_sbi_access(comm, offset, PCR_READ, &data))
+		goto out;
+
+	data &= ~PAD_CFG0_TX_STATE;
+	if (value)
+		data |= PAD_CFG0_TX_STATE;
+	if (gpio_sbi_access(comm, offset, PCR_WRITE, &data) ||
+	    gpio_sbi_access(comm, offset, PCR_READ, &data))
+		goto out;
+
+	ret = !!(data & PAD_CFG0_TX_STATE) == !!value ? 0 : -1;
+out:
+	return gpio_sbi_finish(was_hidden, ret);
+}
+#endif
+
 static uint32_t gpio_pad_reset_config_override(const struct pad_community *comm,
 	uint32_t config_value)
 {
