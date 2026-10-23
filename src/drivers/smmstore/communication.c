@@ -32,46 +32,75 @@ static bool mailbox_is_free_ram(void)
 	/* FSP-M has run, but device resources need not have been enumerated yet. */
 	do {
 		previous = covered;
-		if (fsp_hob_iterator_init(&iterator) != CB_SUCCESS)
+		if (fsp_hob_iterator_init(&iterator) != CB_SUCCESS) {
+			printk(BIOS_ERR, "SMMSTORE: FSP HOB list unavailable\n");
 			return false;
+		}
 		while (fsp_hob_iterator_get_next_resource(&iterator, &resource) == CB_SUCCESS) {
-			if (resource->length > UINT64_MAX - resource->addr)
+			if (resource->length > UINT64_MAX - resource->addr) {
+				printk(BIOS_ERR, "SMMSTORE: FSP resource range overflows\n");
 				return false;
+			}
 			if (resource->type != EFI_RESOURCE_SYSTEM_MEMORY) {
-				if (overlaps_mailbox(resource->addr, resource->length))
+				if (overlaps_mailbox(resource->addr, resource->length)) {
+					printk(BIOS_ERR, "SMMSTORE: mailbox overlaps FSP resource type %u at %#llx, size %#llx\n",
+					       resource->type, (unsigned long long)resource->addr,
+					       (unsigned long long)resource->length);
 					return false;
+				}
 			} else if (resource->addr <= covered &&
 				   resource->addr + resource->length > covered) {
 				covered = resource->addr + resource->length;
 			}
 		}
 	} while (covered < CDK2_S4_MAILBOX_BASE + CDK2_S4_MAILBOX_SIZE && covered > previous);
-	if (covered < CDK2_S4_MAILBOX_BASE + CDK2_S4_MAILBOX_SIZE)
+	if (covered < CDK2_S4_MAILBOX_BASE + CDK2_S4_MAILBOX_SIZE) {
+		printk(BIOS_ERR, "SMMSTORE: mailbox RAM coverage ends at %#llx\n",
+		       (unsigned long long)covered);
 		return false;
+	}
 
 #if CONFIG_UDK_VERSION >= CONFIG_UDK_2017_VERSION
 	/* RAM resources alone do not describe the producer's live allocations. */
 	const struct hob_header *hob = fsp_get_hob_list();
-	if (hob->type != HOB_TYPE_HANDOFF || hob->length < sizeof(EFI_HOB_HANDOFF_INFO_TABLE))
+	if (hob->type != HOB_TYPE_HANDOFF || hob->length < sizeof(EFI_HOB_HANDOFF_INFO_TABLE)) {
+		printk(BIOS_ERR, "SMMSTORE: first FSP HOB has type %#x, size %u; PHIT required\n",
+		       hob->type, hob->length);
 		return false;
+	}
 	const EFI_HOB_HANDOFF_INFO_TABLE *handoff = (const void *)hob;
+	printk(BIOS_DEBUG, "SMMSTORE: FSP arena [%#llx, %#llx), free [%#llx, %#llx)\n",
+	       (unsigned long long)handoff->EfiMemoryBottom,
+	       (unsigned long long)handoff->EfiMemoryTop,
+	       (unsigned long long)handoff->EfiFreeMemoryBottom,
+	       (unsigned long long)handoff->EfiFreeMemoryTop);
 	if (handoff->EfiMemoryTop < handoff->EfiMemoryBottom ||
 	    overlaps_mailbox(handoff->EfiMemoryBottom,
-			     handoff->EfiMemoryTop - handoff->EfiMemoryBottom))
+			     handoff->EfiMemoryTop - handoff->EfiMemoryBottom)) {
+		printk(BIOS_ERR, "SMMSTORE: invalid FSP arena or mailbox overlaps producer-owned memory\n");
 		return false;
+	}
 	for (; hob->type != HOB_TYPE_END_OF_HOB_LIST; hob = fsp_next_hob(hob)) {
 		if (hob->type != HOB_TYPE_MEMORY_ALLOCATION)
 			continue;
-		if (hob->length < sizeof(EFI_HOB_MEMORY_ALLOCATION))
+		if (hob->length < sizeof(EFI_HOB_MEMORY_ALLOCATION)) {
+			printk(BIOS_ERR, "SMMSTORE: FSP allocation HOB is truncated\n");
 			return false;
+		}
 		const EFI_HOB_MEMORY_ALLOCATION *allocation = (const void *)hob;
 		if (allocation->AllocDescriptor.MemoryType != EfiConventionalMemory &&
 		    overlaps_mailbox(allocation->AllocDescriptor.MemoryBaseAddress,
-				     allocation->AllocDescriptor.MemoryLength))
+				     allocation->AllocDescriptor.MemoryLength)) {
+			printk(BIOS_ERR, "SMMSTORE: mailbox overlaps FSP allocation type %u at %#llx, size %#llx\n",
+			       allocation->AllocDescriptor.MemoryType,
+			       (unsigned long long)allocation->AllocDescriptor.MemoryBaseAddress,
+			       (unsigned long long)allocation->AllocDescriptor.MemoryLength);
 			return false;
+		}
 	}
 	return true;
 #else
+	printk(BIOS_ERR, "SMMSTORE: FSP PHIT layout is unavailable for this UDK version\n");
 	return false;
 #endif
 }
@@ -120,8 +149,10 @@ int smmstore_init_com_buffer(uintptr_t *base, size_t *size)
 	uintptr_t smram;
 	size_t smram_size;
 
-	if (smmstore_get_info(&info) < 0)
+	if (smmstore_get_info(&info) < 0) {
+		printk(BIOS_ERR, "SMMSTORE: cannot read store geometry\n");
 		return -1;
+	}
 	if (!CONFIG(CDK2_S4_LAYOUT_REQUIRED)) {
 		void *buffer = cbmem_add(CBMEM_ID_SMM_COMBUFFER, info.block_size);
 
@@ -132,15 +163,38 @@ int smmstore_init_com_buffer(uintptr_t *base, size_t *size)
 		return 0;
 	}
 	smm_region(&smram, &smram_size);
-	if (!info.block_size || info.block_size > CDK2_S4_MAILBOX_SIZE || !mailbox_is_free_ram() ||
-	    overlaps_mailbox(smram, smram_size) ||
-	    overlaps_mailbox((uintptr_t)_program, REGION_SIZE(program)) ||
-	    overlaps_mailbox((uintptr_t)_stack, REGION_SIZE(stack)) ||
-	    cbmem_set_lower_bound(CDK2_S4_MEMORY_BASE + CDK2_S4_MEMORY_SIZE))
+	printk(BIOS_DEBUG, "SMMSTORE: reserving S4 mailbox at %#llx, size %#llx, block size %#x\n",
+	       (unsigned long long)CDK2_S4_MAILBOX_BASE,
+	       (unsigned long long)CDK2_S4_MAILBOX_SIZE, info.block_size);
+	if (!info.block_size || info.block_size > CDK2_S4_MAILBOX_SIZE) {
+		printk(BIOS_ERR, "SMMSTORE: block does not fit the S4 mailbox\n");
 		return -1;
+	}
+	if (!mailbox_is_free_ram())
+		return -1;
+	if (overlaps_mailbox(smram, smram_size)) {
+		printk(BIOS_ERR, "SMMSTORE: mailbox overlaps SMRAM at %#lx, size %#zx\n",
+		       (unsigned long)smram, smram_size);
+		return -1;
+	}
+	if (overlaps_mailbox((uintptr_t)_program, REGION_SIZE(program))) {
+		printk(BIOS_ERR, "SMMSTORE: mailbox overlaps ramstage at %p, size %#zx\n",
+		       _program, REGION_SIZE(program));
+		return -1;
+	}
+	if (overlaps_mailbox((uintptr_t)_stack, REGION_SIZE(stack))) {
+		printk(BIOS_ERR, "SMMSTORE: mailbox overlaps stack at %p, size %#zx\n",
+		       _stack, REGION_SIZE(stack));
+		return -1;
+	}
+	if (cbmem_set_lower_bound(CDK2_S4_MEMORY_BASE + CDK2_S4_MEMORY_SIZE)) {
+		printk(BIOS_ERR, "SMMSTORE: cannot reserve the S4 span below CBMEM\n");
+		return -1;
+	}
 	fixed_mailbox_initialized = true;
 	*base = CDK2_S4_MAILBOX_BASE;
 	*size = CDK2_S4_MAILBOX_SIZE;
+	printk(BIOS_DEBUG, "SMMSTORE: S4 mailbox reserved\n");
 	return 0;
 }
 
