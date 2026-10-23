@@ -80,6 +80,56 @@ const mbedtls_pk_info_t mbedtls_rsa_info = {
 	.debug_func = NULL,
 };
 
+#if defined(MBEDTLS_PK_HAVE_ECC_KEYS)
+/* EC public-key containers adapted from Mbed TLS pk_wrap.c.
+ * Copyright The Mbed TLS Contributors.
+ * The union configuration enables EC parsing, not EC certificate trust.
+ * Certificate admission still requires RSA; no private-key operations belong here.
+ */
+static size_t ec_get_bitlen(mbedtls_pk_context *pk)
+{
+	return mbedtls_pk_ec(*pk)->grp.pbits;
+}
+
+static int ec_can_do(mbedtls_pk_type_t type)
+{
+	return type == MBEDTLS_PK_ECKEY || type == MBEDTLS_PK_ECKEY_DH;
+}
+
+static void *ec_alloc(void)
+{
+	mbedtls_ecp_keypair *key = mbedtls_calloc(1, sizeof(*key));
+
+	if (key)
+		mbedtls_ecp_keypair_init(key);
+	return key;
+}
+
+static void ec_free(void *context)
+{
+	mbedtls_ecp_keypair_free(context);
+	mbedtls_free(context);
+}
+
+const mbedtls_pk_info_t mbedtls_eckey_info = {
+	.type = MBEDTLS_PK_ECKEY,
+	.name = "EC",
+	.get_bitlen = ec_get_bitlen,
+	.can_do = ec_can_do,
+	.ctx_alloc_func = ec_alloc,
+	.ctx_free_func = ec_free,
+};
+
+const mbedtls_pk_info_t mbedtls_eckeydh_info = {
+	.type = MBEDTLS_PK_ECKEY_DH,
+	.name = "EC_DH",
+	.get_bitlen = ec_get_bitlen,
+	.can_do = ec_can_do,
+	.ctx_alloc_func = ec_alloc,
+	.ctx_free_func = ec_free,
+};
+#endif
+
 int __wrap_mbedtls_rsa_parse_pubkey(mbedtls_rsa_context *rsa,
 	const unsigned char *key, size_t key_len);
 

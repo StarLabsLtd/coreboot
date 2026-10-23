@@ -34,6 +34,9 @@ dave_smm_mbedtls := aes bignum bignum_core bignum_mod bignum_mod_raw \
 	constant_time ecdh ecp ecp_curves hmac_drbg md platform_util sha256
 smm_crypto_sources += $(addprefix 3rdparty/mbedtls/library/,$(addsuffix .c,$(dave_smm_mbedtls)))
 smm_crypto_flags += -DDAVE_TPM_SMM_CRYPTO
+ifeq ($(CONFIG_SMM_AUTHVAR),y)
+smm_crypto_sources += 3rdparty/mbedtls/library/pk_ecc.c
+endif
 endif
 
 ifneq ($(strip $(smm_crypto_sources)),)
