@@ -5,6 +5,7 @@
 #include <device/pci_def.h>
 #include <intelblocks/p2sb.h>
 #include <soc/iomap.h>
+#include <soc/pcr_ids.h>
 
 void p2sb_soc_get_sb_mask(uint32_t *ep_mask, size_t count)
 {
@@ -30,6 +31,12 @@ void p2sb_soc_get_sb_mask(uint32_t *ep_mask, size_t count)
 	mask = (1 << 31) | (1 << 30);
 
 	ep_mask[P2SB_EP_MASK_7_REG] = mask;
+
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD)) {
+		/* Preserve FSP's restrictions on endpoints 0xc0 and 0xc1. */
+		ep_mask[P2SB_EP_MASK_6_REG] = (1 << 0) | (1 << 1) |
+					    (1U << (PID_GPIOCOM5 % 32));
+	}
 }
 
 static void ioe_p2sb_read_resources(struct device *dev)
