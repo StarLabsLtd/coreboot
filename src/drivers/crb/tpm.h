@@ -8,8 +8,12 @@
 /* address of locality 0 (CRB) */
 #define TPM_CRB_BASE_ADDRESS        CONFIG_CRB_TPM_BASE_ADDRESS
 
+#define CRB_LOCALITY_COUNT 5U
+#define CRB_LOCALITY_SIZE 0x1000U
+
 #define CRB_REG(LOCTY, REG)                                 \
-	(void *)(uintptr_t)(CONFIG_CRB_TPM_BASE_ADDRESS + (LOCTY << 12) + REG)
+	(void *)((uintptr_t)CONFIG_CRB_TPM_BASE_ADDRESS + \
+		 (uintptr_t)(LOCTY) * CRB_LOCALITY_SIZE + (REG))
 
 /* hardware registers */
 #define CRB_REG_LOC_STATE		0x00
@@ -21,6 +25,7 @@
 
 /* LOC STATE BIT MASKS */
 #define LOC_STATE_LOC_ASSIGN	0x02
+#define LOC_STATE_ACTIVE_LOC	0x1c
 #define LOC_STATE_REG_VALID_STS	0x80
 
 /* LOC STS BIT MASKS */
