@@ -20,6 +20,8 @@
 
 #include "tpm.h"
 
+#define TPM_HEADER_SIZE 10U
+
 static struct control_area {
 	uint32_t request;
 	uint32_t status;
@@ -233,14 +235,14 @@ size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
 {
 	tpm_result_t rc;
 
-	if (command_size > control_area.command_size) {
-		printk(BIOS_ERR, "TPM: Command size is too big.\n");
-		return -1;
+	if (command_size < TPM_HEADER_SIZE || command_size > control_area.command_size) {
+		printk(BIOS_ERR, "TPM: Invalid command size.\n");
+		return 0;
 	}
 
-	if (control_area.response_size < max_response) {
-		printk(BIOS_ERR, "TPM: Response size could be too big.\n");
-		return -1;
+	if (max_response < TPM_HEADER_SIZE || control_area.response_size < TPM_HEADER_SIZE) {
+		printk(BIOS_ERR, "TPM: Response buffer is too small.\n");
+		return 0;
 	}
 
 	cur_loc = crb_activate_locality();
@@ -249,13 +251,13 @@ size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
 	rc = crb_wait_for_reg32(CRB_REG(0, CRB_REG_START), 250, CRB_REG_START_START, 0x0);
 	if (rc) {
 		printk(BIOS_ERR, "TPM Error (%#x): Cmd Bit not cleared.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	rc = crb_switch_to_ready();
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Can not transition into ready state.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	// Write to Command Buffer
@@ -276,22 +278,24 @@ size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
 	rc = crb_wait_for_reg32(CRB_REG(cur_loc, CRB_REG_START), 3500, CRB_REG_START_START, 0);
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Command Timed out.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	// Check for errors
 	rc = crb_wait_for_reg32(CRB_REG(cur_loc, CRB_REG_STATUS), 200, CRB_REG_STATUS_ERROR, 0);
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Command errored.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	// Get Response Length
 	uint32_t length = be32_to_cpu(read32(control_area.response_bfr + 2));
 
-	/* Response has to have at least 6 bytes */
-	if (length < 6)
-		return 1;
+	if (length < TPM_HEADER_SIZE || length > max_response ||
+	    length > control_area.response_size) {
+		printk(BIOS_ERR, "TPM: Invalid response size: %u\n", length);
+		return 0;
+	}
 
 	// Copy Response
 	memcpy(tpm2_response, control_area.response_bfr, length);
@@ -299,7 +303,7 @@ size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
 	rc = crb_switch_to_ready();
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Can not transition into ready state again.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	return length;

@@ -63,6 +63,7 @@ struct crb_tpm_info {
 
 tpm_result_t crb_tpm_init(void);
 void crb_tpm_get_info(struct crb_tpm_info *crb_tpm_info);
+/* Return the complete response length, or zero on failure. */
 size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
 			       void *tpm2_response, size_t max_response);
 bool crb_tpm_is_active(void);

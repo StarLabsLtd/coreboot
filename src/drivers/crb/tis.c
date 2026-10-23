@@ -36,7 +36,7 @@ static const char *tis_get_dev_name(struct crb_tpm_info *info)
 static tpm_result_t crb_tpm_sendrecv(const uint8_t *sendbuf, size_t sbuf_size, uint8_t *recvbuf,
 				     size_t *rbuf_len)
 {
-	int len = crb_tpm_process_command(sendbuf, sbuf_size, recvbuf, *rbuf_len);
+	size_t len = crb_tpm_process_command(sendbuf, sbuf_size, recvbuf, *rbuf_len);
 
 	if (len == 0)
 		return TPM_CB_FAIL;
