@@ -11,6 +11,7 @@
 #include <device/pci_type.h>
 #include <security/tcg/opal_s3.h>
 #include <security/tcg/opal_s3_smm.h>
+#include <security/tpm/dave/resume.h>
 #include <vendorcode/tcg/opal/opal_unlock.h>
 #include <stddef.h>
 #include <string.h>
@@ -327,6 +328,11 @@ static u32 opal_s3_unlock_if_armed(void)
 		printk(BIOS_ERR, "OPAL: unlock rejected (invalid sequence)\n");
 		opal_s3_clear_secret();
 		return 0x12;
+	}
+
+	if (CONFIG(DAVE_MODE) && !dave_s3_verify_tpm()) {
+		opal_s3_clear_secret();
+		return 0x13;
 	}
 
 	smm_get_opal_s3_scratch_buffer(&scratch_base, &scratch_size);

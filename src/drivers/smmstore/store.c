@@ -11,6 +11,8 @@
 #include <string.h>
 #include <types.h>
 
+#include "srk.h"
+
 #define SMMSTORE_REGION "SMMSTORE"
 
 #define SMMSTORE_MIN_SIZE (64 * KiB)
@@ -361,6 +363,21 @@ static uint32_t read_srk_record(struct region_device *pin, struct srk_pin_record
 	    record->name[0] != 0 || record->name[1] != 0x0b)
 		return srk_pin_erased(pin) ? SMMSTORE_RET_NOT_FOUND : SMMSTORE_RET_FAILURE;
 	return SMMSTORE_RET_SUCCESS;
+}
+#endif
+
+#if ENV_SMM && CONFIG(DAVE_MODE) && CONFIG(TCG_OPAL_S3_UNLOCK)
+bool smmstore_copy_srk_pin(uint8_t name[34])
+{
+	struct srk_pin_record record;
+	struct region_device pin;
+	bool valid = read_srk_record(&pin, &record) == SMMSTORE_RET_SUCCESS;
+
+	memset(name, 0, 34);
+	if (valid)
+		memcpy(name, record.name, 34);
+	memset(&record, 0, sizeof(record));
+	return valid;
 }
 #endif
 

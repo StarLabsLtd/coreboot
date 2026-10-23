@@ -257,7 +257,11 @@ ramstage-$(CONFIG_DEBUG_NULL_DEREF_BREAKPOINTS) += null_breakpoint.c
 ramstage-$(CONFIG_DEBUG_STACK_OVERFLOW_BREAKPOINTS) += stack_canary_breakpoint.c
 ramstage-$(CONFIG_GENERATE_PIRQ_TABLE) += pirq_routing.c
 ramstage-y += rdrand.c
-smm-$(CONFIG_SMM_AUTHVAR) += rdrand.c
+ifeq ($(CONFIG_SMM_AUTHVAR),y)
+smm-y += rdrand.c
+else ifeq ($(CONFIG_DAVE_MODE)$(CONFIG_TCG_OPAL_S3_UNLOCK),yy)
+smm-y += rdrand.c
+endif
 ramstage-$(CONFIG_GENERATE_SMBIOS_TABLES) += smbios.c
 ramstage-y += tables.c
 ramstage-$(CONFIG_COOP_MULTITASKING) += thread.c
