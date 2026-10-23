@@ -10,6 +10,9 @@ config CDK2_COREBOOT_CAPSULE_PROFILE
 
 source "payloads/external/cdk2/cdk2/Kconfig"
 
+config DAVE_MODE
+	select SECURITY_FAIL_CLOSED
+
 config PAYLOAD_FILE
 	default "$(obj)/cdk2/native/cdk2-coreboot-image.elf"
 
