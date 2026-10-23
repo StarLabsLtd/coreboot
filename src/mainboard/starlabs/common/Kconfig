@@ -88,7 +88,7 @@ config BOOTMEDIA_SMM_BWP
 
 config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 	bool
-	default n if DAVE_MODE
+	default n if PAYLOAD_CDK2
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
 
 config USE_LEGACY_8254_TIMER
