@@ -12,6 +12,7 @@
 #include <gpio.h>
 #include <intelblocks/itss.h>
 #include <intelblocks/p2sb.h>
+#include <intelblocks/p2sblib.h>
 #include <intelblocks/pcr.h>
 #include <security/vboot/vboot_common.h>
 #include <soc/pci_devs.h>
