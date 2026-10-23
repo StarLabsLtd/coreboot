@@ -9,8 +9,8 @@
 #include <stdint.h>
 
 /* Keep the native caller's status representation without an EFI dependency. */
-#define DAVE_TPM_ERROR_BIT UINT64_C(0x8000000000000000)
-#define DAVE_TPM_SUCCESS UINT64_C(0)
+#define DAVE_TPM_ERROR_BIT (1ULL << 63)
+#define DAVE_TPM_SUCCESS 0ULL
 #define DAVE_TPM_INVALID_PARAMETER (DAVE_TPM_ERROR_BIT | 2U)
 #define DAVE_TPM_DEVICE_ERROR (DAVE_TPM_ERROR_BIT | 7U)
 #define DAVE_TPM_NOT_FOUND (DAVE_TPM_ERROR_BIT | 14U)
