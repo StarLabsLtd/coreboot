@@ -26,6 +26,7 @@
 #include <intelblocks/oc_wdt.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/smihandler.h>
+#include <intelblocks/smm_gpio.h>
 #if CONFIG(SMM_AUTHVAR)
 #include <intelblocks/systemagent.h>
 #include <fast_spi_def.h>
@@ -584,6 +585,12 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_CFR_RUNTIME_APPLY:
 		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
 			cfr_runtime_apply_smi();
+		break;
+	case APM_CNT_GPIO:
+		if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)) {
+			smm_gpio_handler();
+			return;
+		}
 		break;
 	}
 

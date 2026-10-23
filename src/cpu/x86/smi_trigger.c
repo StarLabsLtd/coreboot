@@ -6,6 +6,10 @@
 #include <smm_call.h>
 #include <stdint.h>
 
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)
+#include <intelblocks/smm_gpio_defs.h>
+#endif
+
 static void apmc_log(const char *fn, u8 cmd)
 {
 	switch (cmd) {
@@ -31,6 +35,10 @@ static void apmc_log(const char *fn, u8 cmd)
 		break;
 	case APM_CNT_SMMINFO:
 		break;
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)
+	case APM_CNT_GPIO:
+		break;
+#endif
 	default:
 		printk(BIOS_DEBUG, "%s: Unknown APMC 0x%02x.\n", fn, cmd);
 		break;
