@@ -27,7 +27,19 @@
 #define OPAL_S3_UNLOCK_RETRIES          10
 
 #define OPAL_S3_STATE_SIGNATURE 0x33534c4f /* "OLS3" */
+#if CONFIG(DAVE_MODE)
+#define OPAL_S3_STATE_VERSION   0x0002
+#define OPAL_S3_SECRET_COUNT OPAL_S3_DAVE_MAX_SECRETS
+enum dave_s3_registration {
+	DAVE_S3_EMPTY,
+	DAVE_S3_STAGING,
+	DAVE_S3_COMMITTED,
+	DAVE_S3_CLOSED,
+};
+#else
 #define OPAL_S3_STATE_VERSION   0x0001
+#define OPAL_S3_SECRET_COUNT OPAL_S3_MAX_SECRETS
+#endif
 
 #define OPAL_S3_ARMED_NONE      0
 #define OPAL_S3_ARMED_S3        1
@@ -59,16 +71,24 @@ struct __packed opal_s3_state {
 	u16 size;
 
 	u8 armed_state;
+#if CONFIG(DAVE_MODE)
+	u8 expected_count;
+	u8 received_mask;
+	u8 registration;
+#else
 	u8 reserved0;
 	u16 reserved1;
+#endif
 
 	u32 sleep_cycle;
 	u32 armed_cycle;
 
-	struct opal_s3_secret secret[OPAL_S3_MAX_SECRETS];
+	struct opal_s3_secret secret[OPAL_S3_SECRET_COUNT];
 };
 
+#if !CONFIG(DAVE_MODE)
 static struct opal_s3_state state_fallback;
+#endif
 
 static struct opal_s3_state *opal_s3_get_state(void)
 {
@@ -81,7 +101,11 @@ static struct opal_s3_state *opal_s3_get_state(void)
 		return (struct opal_s3_state *)(uintptr_t)base;
 #endif
 
+#if CONFIG(DAVE_MODE)
+	return NULL;
+#else
 	return &state_fallback;
+#endif
 }
 
 static bool opal_s3_validate_scratch(uintptr_t base, size_t size, uintptr_t *aligned_base_out,
@@ -126,12 +150,106 @@ static bool opal_s3_validate_scratch(uintptr_t base, size_t size, uintptr_t *ali
 static u32 opal_s3_clear_secret(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
+#if CONFIG(DAVE_MODE)
+	bool frozen;
+
+	if (!st)
+		return 0x20;
+	frozen = st->signature == OPAL_S3_STATE_SIGNATURE &&
+		st->version == OPAL_S3_STATE_VERSION && st->size == sizeof(*st) &&
+		st->registration >= DAVE_S3_COMMITTED;
+#endif
 
 	opal_explicit_bzero(st, sizeof(*st));
+#if CONFIG(DAVE_MODE)
+	st->signature = OPAL_S3_STATE_SIGNATURE;
+	st->version = OPAL_S3_STATE_VERSION;
+	st->size = sizeof(*st);
+	/* Forgetting committed credentials never reopens registration to the OS. */
+	st->registration = frozen ? DAVE_S3_CLOSED : DAVE_S3_EMPTY;
+#endif
 
 	return 0;
 }
 
+#if CONFIG(DAVE_MODE)
+static u32 dave_s3_register(u8 command, const struct opal_s3_dave_ctx *ctx)
+{
+	struct opal_s3_state *st = opal_s3_get_state();
+	struct opal_s3_secret *secret;
+	pci_devfn_t device;
+
+	if (!st || st->signature != OPAL_S3_STATE_SIGNATURE ||
+	    st->version != OPAL_S3_STATE_VERSION || st->size != sizeof(*st))
+		return 0x20;
+	if (st->registration >= DAVE_S3_COMMITTED || st->armed_state != OPAL_S3_ARMED_NONE)
+		return 0x21;
+	if (ctx->signature != OPAL_S3_SMM_CTX_SIGNATURE ||
+	    ctx->version != OPAL_S3_DAVE_CTX_VERSION || ctx->size != sizeof(*ctx) ||
+	    ctx->expected_count > ARRAY_SIZE(st->secret) || ctx->reserved1 ||
+	    ctx->reserved2[0] || ctx->reserved2[1])
+		return 9;
+	if (command == OPAL_SMM_SUBCMD_COMMIT) {
+		uintptr_t scratch, aligned;
+		size_t size, aligned_size;
+
+		if (ctx->entry_index != UINT8_MAX || ctx->bus || ctx->dev || ctx->func ||
+		    ctx->base_comid || ctx->password_len ||
+		    ctx->expected_count != st->expected_count ||
+		    st->received_mask != (1U << st->expected_count) - 1U)
+			return 9;
+		for (size_t i = 0; i < sizeof(ctx->password); i++) {
+			if (ctx->password[i])
+				return 9;
+		}
+		for (size_t i = 0; i < ARRAY_SIZE(st->secret); i++) {
+			if (!!st->secret[i].valid != (i < st->expected_count))
+				return 9;
+		}
+		smm_get_opal_s3_scratch_buffer(&scratch, &size);
+		if (!opal_s3_validate_scratch(scratch, size, &aligned, &aligned_size))
+			return 2;
+		st->registration = DAVE_S3_COMMITTED;
+		return 0;
+	}
+	if (command != OPAL_SMM_SUBCMD_SET_SECRET || !ctx->expected_count ||
+	    ctx->entry_index >= ctx->expected_count || ctx->dev > 31 || ctx->func > 7 ||
+	    !ctx->base_comid || ctx->password_len != OPAL_S3_MAX_PASSWORD_LEN ||
+	    (st->registration == DAVE_S3_STAGING && st->expected_count != ctx->expected_count) ||
+	    (st->received_mask & (1U << ctx->entry_index)))
+		return 9;
+	for (size_t i = 0; i < sizeof(ctx->password); i++) {
+		if (!((ctx->password[i] >= 'A' && ctx->password[i] <= 'Z') ||
+		      (ctx->password[i] >= '2' && ctx->password[i] <= '7')))
+			return 9;
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(st->secret); i++) {
+		secret = &st->secret[i];
+		if (secret->valid && secret->bus == ctx->bus &&
+		    secret->dev == ctx->dev && secret->func == ctx->func)
+			return 9;
+	}
+	device = PCI_DEV(ctx->bus, ctx->dev, ctx->func);
+	if ((pci_read_config32(device, PCI_CLASS_REVISION) >> 8) != 0x010802)
+		return 9;
+	secret = &st->secret[ctx->entry_index];
+	secret->bus = ctx->bus;
+	secret->dev = ctx->dev;
+	secret->func = ctx->func;
+	secret->base_comid = ctx->base_comid;
+	secret->password_len = ctx->password_len;
+	memcpy(secret->password, ctx->password, sizeof(secret->password));
+	secret->nvme_bar0_low = pci_read_config32(device, PCI_BASE_ADDRESS_0);
+	secret->nvme_bar0_high = pci_read_config32(device, PCI_BASE_ADDRESS_0 + 4);
+	secret->valid = 1;
+	st->expected_count = ctx->expected_count;
+	st->received_mask |= 1U << ctx->entry_index;
+	st->registration = DAVE_S3_STAGING;
+	return 0;
+}
+#endif
+
+#if !CONFIG(DAVE_MODE)
 static struct opal_s3_secret *opal_s3_find_secret(struct opal_s3_state *st,
 						  const struct opal_s3_smm_ctx *ctx)
 {
@@ -253,14 +371,21 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	return 0;
 }
 
+#endif
+
 static void opal_s3_arm_for_s3(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
 	bool any_secret = false;
 
-	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
+	if (!st || st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
 	    st->size != sizeof(*st))
 		return;
+#if CONFIG(DAVE_MODE)
+	if (st->registration != DAVE_S3_COMMITTED ||
+	    st->received_mask != (1U << st->expected_count) - 1U)
+		return;
+#endif
 
 	if (st->armed_state == OPAL_S3_ARMED_S3)
 		return;
@@ -272,7 +397,7 @@ static void opal_s3_arm_for_s3(void)
 		any_secret = true;
 		st->secret[i].unlocked_cycle = 0;
 	}
-	if (!any_secret)
+	if (!any_secret && !CONFIG(DAVE_MODE))
 		return;
 
 	st->sleep_cycle++;
@@ -317,7 +442,7 @@ static u32 opal_s3_unlock_if_armed(void)
 	size_t aligned_size = 0;
 	bool keep_armed = false;
 
-	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
+	if (!st || st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
 	    st->size != sizeof(*st))
 		return 0x10;
 
@@ -339,6 +464,10 @@ static u32 opal_s3_unlock_if_armed(void)
 	if (!opal_s3_validate_scratch(scratch_base, scratch_size, &aligned_base,
 				      &aligned_size)) {
 		printk(BIOS_ERR, "OPAL: scratch invariant failed at unlock\n");
+		if (CONFIG(DAVE_MODE)) {
+			opal_s3_clear_secret();
+			return 2;
+		}
 		st->armed_state = OPAL_S3_ARMED_NONE;
 		st->armed_cycle = 0;
 		return 2;
@@ -393,6 +522,10 @@ static u32 opal_s3_unlock_if_armed(void)
 		s->unlocked_cycle = st->sleep_cycle;
 	}
 
+	if (CONFIG(DAVE_MODE) && rc) {
+		opal_s3_clear_secret();
+		return rc;
+	}
 	if (!keep_armed) {
 		st->armed_state = OPAL_S3_ARMED_NONE;
 		st->armed_cycle = 0;
@@ -403,7 +536,11 @@ static u32 opal_s3_unlock_if_armed(void)
 
 int opal_s3_smi_apmc(u8 apmc)
 {
+#if CONFIG(DAVE_MODE)
+	struct opal_s3_dave_ctx ctx;
+#else
 	struct opal_s3_smm_ctx ctx;
+#endif
 	int node;
 	u64 rax;
 	u64 rbx;
@@ -442,7 +579,11 @@ int opal_s3_smi_apmc(u8 apmc)
 
 	switch (subcmd) {
 	case OPAL_SMM_SUBCMD_SET_SECRET:
+#if CONFIG(DAVE_MODE)
+	case OPAL_SMM_SUBCMD_COMMIT:
+#else
 	case OPAL_SMM_SUBCMD_CLEAR_DEVICE:
+#endif
 		if (!rbx || rbx != (uintptr_t)rbx ||
 		    rbx > UINTPTR_MAX - (sizeof(ctx) - 1)) {
 			ret = 1;
@@ -454,14 +595,22 @@ int opal_s3_smi_apmc(u8 apmc)
 		}
 		/* Validate and consume the same copy, never mutable caller memory. */
 		memcpy(&ctx, (const void *)(uintptr_t)rbx, sizeof(ctx));
+#if CONFIG(DAVE_MODE)
+		ret = dave_s3_register(subcmd, &ctx);
+#else
 		if (subcmd == OPAL_SMM_SUBCMD_SET_SECRET)
 			ret = opal_s3_set_secret(&ctx);
 		else
 			ret = opal_s3_clear_device(&ctx);
+#endif
 		opal_explicit_bzero(&ctx, sizeof(ctx));
 		break;
 	case OPAL_SMM_SUBCMD_CLEAR_SECRET:
+#if CONFIG(DAVE_MODE)
+		ret = rbx ? 9 : opal_s3_clear_secret();
+#else
 		ret = opal_s3_clear_secret();
+#endif
 		break;
 	default:
 		ret = 0xfffffffe;

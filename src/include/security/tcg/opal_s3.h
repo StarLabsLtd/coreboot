@@ -3,6 +3,7 @@
 #ifndef SECURITY_TCG_OPAL_S3_H
 #define SECURITY_TCG_OPAL_S3_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -15,6 +16,8 @@
 #define OPAL_SMM_SUBCMD_SET_SECRET   0x01
 #define OPAL_SMM_SUBCMD_CLEAR_SECRET 0x02
 #define OPAL_SMM_SUBCMD_CLEAR_DEVICE 0x03
+/* Version 3 reuses command 3 for complete-set commitment, not device removal. */
+#define OPAL_SMM_SUBCMD_COMMIT       0x03
 
 /* CLEAR_DEVICE uses the same context with only its header, BDF and ComID set. */
 
@@ -46,5 +49,29 @@ struct opal_s3_smm_ctx {
 	uint8_t reserved2[3];
 	uint8_t password[OPAL_S3_MAX_PASSWORD_LEN];
 } __attribute__((packed));
+
+#define OPAL_S3_DAVE_CTX_VERSION 0x0003
+#define OPAL_S3_DAVE_MAX_SECRETS 2
+
+struct opal_s3_dave_ctx {
+	uint32_t signature;
+	uint16_t version;
+	uint16_t size;
+	uint8_t bus;
+	uint8_t dev;
+	uint8_t func;
+	uint8_t expected_count;
+	uint16_t base_comid;
+	uint16_t reserved1;
+	uint8_t password_len;
+	uint8_t entry_index;
+	uint8_t reserved2[2];
+	uint8_t password[OPAL_S3_MAX_PASSWORD_LEN];
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct opal_s3_smm_ctx) == 52, "OPAL S3 version 1 wire size");
+_Static_assert(sizeof(struct opal_s3_dave_ctx) == 52, "OPAL S3 version 3 wire size");
+_Static_assert(offsetof(struct opal_s3_dave_ctx, expected_count) == 11 &&
+	offsetof(struct opal_s3_dave_ctx, entry_index) == 17, "OPAL S3 version 3 fields");
 
 #endif
