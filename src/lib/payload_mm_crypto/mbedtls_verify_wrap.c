@@ -88,7 +88,7 @@ const mbedtls_pk_info_t mbedtls_rsa_info = {
  */
 static size_t ec_get_bitlen(mbedtls_pk_context *pk)
 {
-	return mbedtls_pk_ec(*pk)->grp.pbits;
+	return mbedtls_pk_ec(*pk)->MBEDTLS_PRIVATE(grp).pbits;
 }
 
 static int ec_can_do(mbedtls_pk_type_t type)
