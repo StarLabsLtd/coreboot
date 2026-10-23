@@ -126,7 +126,7 @@ static bool committed(struct tpm_reader *reader)
 	marker.attributes = get32(public + 8);
 	marker.size = get16(public + 46);
 	memcpy(marker.name, name, sizeof(name));
-	if (payload_mm_crypto_begin(&crypto_owner) != PAYLOAD_MM_VERIFY_OK)
+	if (payload_mm_crypto_begin_reusable(&crypto_owner) != PAYLOAD_MM_VERIFY_OK)
 		return false;
 	status = dave_tpm_start_session(reader, &session, false);
 	if (status == DAVE_TPM_SUCCESS)
@@ -154,12 +154,12 @@ static bool closed(struct tpm_reader *reader)
 	/* Each session's EC objects are freed before ending its arena lifetime.
 	 * No allocation or cleanup state is reused across the property reads.
 	 */
-	if (payload_mm_crypto_begin(&crypto_owner) != PAYLOAD_MM_VERIFY_OK)
+	if (payload_mm_crypto_begin_reusable(&crypto_owner) != PAYLOAD_MM_VERIFY_OK)
 		return false;
 	status = dave_tpm_permanent_attributes(reader, &attributes);
 	if (!finish_crypto(status) || (attributes & 0x107) != 0x107)
 		return false;
-	if (payload_mm_crypto_begin(&crypto_owner) != PAYLOAD_MM_VERIFY_OK)
+	if (payload_mm_crypto_begin_reusable(&crypto_owner) != PAYLOAD_MM_VERIFY_OK)
 		return false;
 	status = dave_tpm_lockout_parameters(reader, &lockout);
 	if (!finish_crypto(status) || lockout.max_tries != 32 ||
