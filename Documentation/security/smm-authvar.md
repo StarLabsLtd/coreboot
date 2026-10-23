@@ -1,10 +1,15 @@
 # SMM-owned UEFI variables
 
 `SMM_AUTHVAR` selects a protected variable owner for the native CDK2 payload.
-The current producer supports Alder Lake/Raptor Lake, fixed SMM BIOS write
-protection and S4 disabled. Ordinary payload-owned SMMSTORE remains a separate
-composition. Confirmed Setup actions, authenticated capsule delivery and S4
-allocation integration are not provided by this route.
+The current producer supports Alder Lake/Raptor Lake with fixed SMM BIOS write
+protection. S4 requires the shared fixed communication mailbox and the payload's
+stable allocation bins; otherwise hibernation must be disabled. Ordinary
+payload-owned SMMSTORE remains a separate composition.
+
+Confirmed Setup actions use the owner's finite-action endpoint and boot-phase
+closure. Authenticated firmware updates use the separately selected typed capsule
+transport, not raw SMMSTORE writes or the variable mailbox. Selecting the variable
+owner alone does not provide a firmware-update resource.
 
 The owner, policy registry, crypto workspace, media buffers and complete request
 and response snapshots reside in the installed SMM module. Its allocation participates
