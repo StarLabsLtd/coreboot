@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <bootstate.h>
 #include <console/console.h>
+#include <cpu/x86/smm.h>
 #include <device/device.h>
 #include <fsp/debug.h>
 #include <intelblocks/cpulib.h>
@@ -353,6 +354,9 @@ static int gpio_sbi_access(const struct pad_community *comm, uint16_t offset,
 static int gpio_sbi_prepare(bool *was_hidden)
 {
 	if (!ENV_SMM)
+		return -1;
+	/* SBI address/data registers are shared with CPUs outside SMM. */
+	if (!smm_wait_for_cpus())
 		return -1;
 
 	*was_hidden = p2sb_dev_is_hidden(PCH_DEV_P2SB);
