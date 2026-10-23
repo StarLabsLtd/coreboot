@@ -64,7 +64,8 @@ static void fast_spi_lockdown_cfg(int chipset_lockdown)
 	fast_spi_set_opcode_menu();
 
 	/* Discrete Lock Flash PR registers */
-	fast_spi_pr_dlock();
+	if (fast_spi_pr_dlock() && CONFIG(SECURITY_FAIL_CLOSED))
+		die("Required SPI protected range lockdown failed\n");
 
 	/* Check if SPI transaction is pending */
 	fast_spi_cycle_in_progress();

@@ -140,17 +140,42 @@ void fast_spi_set_eiss(void)
 	fast_spi_read_post_write(SPI_BIOS_CONTROL);
 }
 
+static void fast_spi_check_opcode_menu(void *spibar)
+{
+	if (!CONFIG(FAST_SPI_SUPPORTS_SWSEQ))
+		return;
+
+	const uint16_t preop = read16(spibar + SPIBAR_PREOP);
+	const uint16_t optype = read16(spibar + SPIBAR_OPTYPE);
+	const uint32_t lower = read32(spibar + SPIBAR_OPMENU_LOWER);
+	const uint32_t upper = read32(spibar + SPIBAR_OPMENU_UPPER);
+
+	if (preop == SPI_OPPREFIX && optype == SPI_OPTYPE &&
+	    lower == SPI_OPMENU_LOWER && upper == SPI_OPMENU_UPPER)
+		return;
+
+	printk(BIOS_ERR, "FAST_SPI: opcode lockdown failed: "
+	       "PREOP=%#x OPTYPE=%#x OPMENU=%#x:%#x\n",
+	       preop, optype, upper, lower);
+	if (CONFIG(SECURITY_FAIL_CLOSED))
+		die("Required SPI opcode lockdown failed\n");
+}
+
 /*
  * Set FAST_SPI opcode menu.
  */
 void fast_spi_set_opcode_menu(void)
 {
+	if (!CONFIG(FAST_SPI_SUPPORTS_SWSEQ))
+		return;
+
 	void *spibar = fast_spi_get_bar();
 
 	write16(spibar + SPIBAR_PREOP, SPI_OPPREFIX);
 	write16(spibar + SPIBAR_OPTYPE, SPI_OPTYPE);
 	write32(spibar + SPIBAR_OPMENU_LOWER, SPI_OPMENU_LOWER);
 	write32(spibar + SPIBAR_OPMENU_UPPER, SPI_OPMENU_UPPER);
+	fast_spi_check_opcode_menu(spibar);
 }
 
 /*
@@ -166,28 +191,44 @@ void fast_spi_lock_bar(void)
 {
 	void *spibar = fast_spi_get_bar();
 	uint16_t hsfs = SPIBAR_HSFSTS_FLOCKDN | SPIBAR_HSFSTS_PRR34_LOCKDN;
+	uint16_t value;
 
 	if (CONFIG(FAST_SPI_DISABLE_WRITE_STATUS))
 		hsfs |= SPIBAR_HSFSTS_WRSDIS;
 
 	write16(spibar + SPIBAR_HSFSTS_CTL, hsfs);
+	value = read16(spibar + SPIBAR_HSFSTS_CTL);
+	if ((value & hsfs) != hsfs) {
+		printk(BIOS_ERR, "FAST_SPI: HSFSTS lockdown failed: %#x\n", value);
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Required SPI controller lockdown failed\n");
+	}
+
+	fast_spi_check_opcode_menu(spibar);
 }
 
 /*
  * Set FAST_SPIBAR + DLOCK (0x0C) register bits to discrete lock the
  * FAST_SPI Protected Range (PR) registers.
  */
-void fast_spi_pr_dlock(void)
+int fast_spi_pr_dlock(void)
 {
 	void *spibar = fast_spi_get_bar();
 	uint32_t dlock;
+	const uint32_t pr_dlock_mask = SPIBAR_DLOCK_PR0LOCKDN |
+		SPIBAR_DLOCK_PR1LOCKDN | SPIBAR_DLOCK_PR2LOCKDN |
+		SPIBAR_DLOCK_PR3LOCKDN | SPIBAR_DLOCK_PR4LOCKDN;
 
 	dlock = read32(spibar + SPIBAR_DLOCK);
-	dlock |= (SPIBAR_DLOCK_PR0LOCKDN | SPIBAR_DLOCK_PR1LOCKDN
-			| SPIBAR_DLOCK_PR2LOCKDN | SPIBAR_DLOCK_PR3LOCKDN
-			| SPIBAR_DLOCK_PR4LOCKDN);
+	dlock |= pr_dlock_mask;
 
 	write32(spibar + SPIBAR_DLOCK, dlock);
+	if ((read32(spibar + SPIBAR_DLOCK) & pr_dlock_mask) != pr_dlock_mask) {
+		printk(BIOS_ERR, "FAST_SPI: protected range lockdown failed\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -196,6 +237,7 @@ void fast_spi_pr_dlock(void)
 void fast_spi_vscc0_lock(void)
 {
 	void *spibar = fast_spi_get_bar();
+	uint32_t value;
 
 	/*
 	 * SPI Flash Programming Guide Section 5.5.2 describes Vendor Component Lock (VCL).
@@ -205,6 +247,12 @@ void fast_spi_vscc0_lock(void)
 	 * functionality.
 	 */
 	setbits32(spibar + SPIBAR_SFDP0_VSCC0, SPIBAR_VSCC0_VCL);
+	value = read32(spibar + SPIBAR_SFDP0_VSCC0);
+	if (!(value & SPIBAR_VSCC0_VCL)) {
+		printk(BIOS_ERR, "FAST_SPI: VSCC0 lockdown failed: %#x\n", value);
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Required SPI vendor lock failed\n");
+	}
 }
 
 /*
