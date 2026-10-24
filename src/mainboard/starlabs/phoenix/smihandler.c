@@ -41,6 +41,10 @@ static bool usb4_sleep(unsigned int router)
 	    (pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_PM_CTRL_POWER_STATE_D3HOT)
 		return false;
 
+	/* Other CPUs must not interleave SMN index/data accesses with this exchange. */
+	if (!smm_wait_for_cpus())
+		return false;
+
 	/* SMI can interrupt an OS SMN index/data access. Restore its index. */
 	saved_index = pci_read_config32(SOC_GNB_DEV, SMN_INDEX_ADDR);
 	if (send_smu_message_timeout(SMC_MSG_USB4_SLEEP, &payload, 100000) != CB_SUCCESS)
