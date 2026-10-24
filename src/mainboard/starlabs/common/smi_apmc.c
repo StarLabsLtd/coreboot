@@ -11,7 +11,7 @@ int __weak variant_smi_apmc(u8 command)
 
 int mainboard_smi_apmc(u8 command)
 {
-	if (CONFIG(STARLABS_ACPI_EFI_OPTION_SMI) && !CONFIG(PAYLOAD_MM_INTERFACE) &&
+	if (CONFIG(STARLABS_ACPI_EFI_OPTION_SMI) &&
 	    command == STARLABS_APMC_CMD_EFI_OPTION)
 		return starlabs_efi_option_smi(command);
 
