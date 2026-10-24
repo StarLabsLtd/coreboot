@@ -195,7 +195,8 @@ config STARLABS_NVME_POWER_SEQUENCE
 	  `variant_nvme_power_sequence_post_pads()`.
 
 config TCG_OPAL_S3_UNLOCK
-	default y if !PAYLOAD_CDK2 || SOC_INTEL_COMMON_BLOCK_SMM
+	default y if ARCH_X86 && HAVE_SMI_HANDLER && HAVE_ACPI_RESUME && PCI && \
+		(!PAYLOAD_CDK2 || SOC_INTEL_COMMON_BLOCK_SMM)
 
 config MB_COMMON_DIR
 	string
