@@ -9,10 +9,72 @@
 #include <intelblocks/msr.h>
 #include <intelblocks/power_limit.h>
 #include <intelblocks/systemagent.h>
+#include <intelblocks/vtd.h>
+#include <program_loading.h>
 #include <soc/iomap.h>
 #include <soc/soc_chip.h>
 #include <soc/systemagent.h>
 #include <static.h>
+
+static void dump_vtd_state(uintptr_t base)
+{
+	uint32_t version = vtd_read32(base, VER_REG);
+	uint32_t protected_memory;
+	uint64_t capability;
+
+	if (version == 0 || version == UINT32_MAX) {
+		printk(BIOS_DEBUG, "VT-d @ %08lx: register interface unavailable\n", base);
+		return;
+	}
+	capability = vtd_read64(base, CAP_REG);
+	if (capability == UINT64_MAX) {
+		printk(BIOS_DEBUG, "VT-d @ %08lx: capabilities unavailable\n", base);
+		return;
+	}
+	printk(BIOS_DEBUG, "VT-d @ %08lx: version %08x, CAP %016llx\n",
+		base, version, capability);
+	printk(BIOS_DEBUG, "VT-d @ %08lx: GSTS %08x, RTADDR %016llx, FSTS %08x\n",
+		base, vtd_read32(base, GSTS_REG), vtd_read64(base, RTADDR_REG),
+		vtd_read32(base, FSTS_REG));
+	if (!(capability & (CAP_PMR_LO | CAP_PMR_HI))) {
+		printk(BIOS_DEBUG, "VT-d @ %08lx: protected memory ranges unsupported\n", base);
+		return;
+	}
+	protected_memory = vtd_read32(base, PMEN_REG);
+	printk(BIOS_DEBUG, "VT-d @ %08lx: PMEN %08x\n", base, protected_memory);
+	if (protected_memory == UINT32_MAX || !(protected_memory & PMEN_PRS))
+		return;
+	if (capability & CAP_PMR_LO)
+		printk(BIOS_DEBUG, "VT-d @ %08lx: protected low base %08x, limit %08x\n",
+			base, vtd_read32(base, PLMBASE_REG), vtd_read32(base, PLMLIMIT_REG));
+	if (capability & CAP_PMR_HI)
+		printk(BIOS_DEBUG, "VT-d @ %08lx: protected high base %016llx, limit %016llx\n",
+			base, vtd_read64(base, PHMBASE_REG), vtd_read64(base, PHMLIMIT_REG));
+}
+
+void platform_prog_run(struct prog *prog)
+{
+	const struct device *root;
+	uint64_t graphics_bar;
+
+	if (prog_type(prog) != PROG_PAYLOAD || !console_log_level(BIOS_DEBUG))
+		return;
+	root = pcidev_path_on_root(PCI_DEVFN_ROOT);
+	if (root == NULL || (pci_read_config32(root, CAPID0_A) & VTD_DISABLE)) {
+		printk(BIOS_DEBUG, "VT-d payload handoff: capability unavailable\n");
+		return;
+	}
+	/* All platform finalizers have run; this snapshot does not change DMA policy. */
+	printk(BIOS_DEBUG, "VT-d payload handoff state:\n");
+	graphics_bar = MCHBAR64(GFXVTBAR);
+	if (graphics_bar != UINT64_MAX && (graphics_bar & VTBAR_ENABLED) &&
+	    (graphics_bar & VTBAR_MASK) != 0 &&
+	    (graphics_bar & VTBAR_MASK) <= UINTPTR_MAX - GFXVT_BASE_SIZE + 1)
+		dump_vtd_state(graphics_bar & VTBAR_MASK);
+	else
+		printk(BIOS_DEBUG, "VT-d graphics unit: register interface unavailable\n");
+	dump_vtd_state(VTVC0_BASE_ADDRESS);
+}
 
 /*
  * SoC implementation
