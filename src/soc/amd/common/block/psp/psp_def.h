@@ -269,7 +269,7 @@ struct mbox_rom_armor_flash_command;
  * protection configuration in PSP firmware ('Writable' bit set on PSP directory entries) and
  * BIOS directory types 0x6d (whitelisted flash regions) and return the result via the same command buffer.
  *
- * Returns 0 on success, negative error code on failure.
+ * Returns 0 on success, nonzero mailbox or PSP status on failure.
  */
 int psp_rom_armor_spi_transaction(const struct mbox_rom_armor_flash_command *cmd_buf);
 
