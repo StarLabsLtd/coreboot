@@ -25,4 +25,8 @@ struct smu_payload {
 int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload *arg);
 enum cb_err send_smu_message(enum smu_message_id message_id, struct smu_payload *arg);
 
+/* As above, with a caller-selected timeout for each mailbox wait. */
+enum cb_err send_smu_message_timeout(enum smu_message_id message_id,
+				    struct smu_payload *arg, unsigned int timeout_us);
+
 #endif /* AMD_BLOCK_SMU_H */

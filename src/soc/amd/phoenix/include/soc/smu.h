@@ -12,6 +12,8 @@
 
 enum smu_message_id {
 	SMC_MSG_S3ENTRY = 0x0b,
+	SMC_MSG_SET_TOOLS_DRAM_ADDR = 0x0e,
+	SMC_MSG_USB4_SLEEP = 0x61,
 };
 
 /*
