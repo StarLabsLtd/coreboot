@@ -416,7 +416,7 @@ print:
 prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
-		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
+		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools Source/C Source/Python 2>&1; \
 
 $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 	prep print
