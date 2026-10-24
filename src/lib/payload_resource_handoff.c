@@ -493,19 +493,37 @@ static bool bus_has_assignment(const struct bus *bus, unsigned int depth, bool *
 	return false;
 }
 
-static const struct device *pci_child(const struct bus *bus, uint8_t devfn, bool *valid)
+static const struct device *next_pci_child(const struct bus *bus, unsigned int *next_devfn,
+	bool *valid)
 {
 	const struct device *device;
 	const struct device *match = NULL;
 	size_t child_count = 0;
+	unsigned int devfn = UINT8_MAX + 1;
 
 	for (device = bus->children; device; device = device->sibling) {
 		if (++child_count > LB_PRH_PCI_TOPOLOGY_MAX_ENTRIES) {
 			*valid = false;
 			return NULL;
 		}
+		if (device->enabled && device->path.type == DEVICE_PATH_PCI &&
+		    device->path.pci.devfn >= *next_devfn && device->path.pci.devfn < devfn)
+			devfn = device->path.pci.devfn;
+	}
+	*next_devfn = devfn + 1;
+	if (devfn > UINT8_MAX)
+		return NULL;
+
+	/* Ownership can read platform policy; check only the selected BDF. */
+	child_count = 0;
+	for (device = bus->children; device; device = device->sibling) {
+		if (++child_count > LB_PRH_PCI_TOPOLOGY_MAX_ENTRIES) {
+			*valid = false;
+			return NULL;
+		}
 		if (!device->enabled || device->path.type != DEVICE_PATH_PCI ||
-		    device->path.pci.devfn != devfn || payload_resource_firmware_owned(device))
+		    device->path.pci.devfn != devfn ||
+		    payload_resource_firmware_owned(device))
 			continue;
 		if (match) {
 			*valid = false;
@@ -542,8 +560,8 @@ static bool collect_topology_bus(const struct bus *bus, uint16_t parent,
 
 	if (!bus || depth > PRH_PCI_TOPOLOGY_MAX_DEPTH)
 		return false;
-	for (unsigned int devfn = 0; devfn <= UINT8_MAX; devfn++) {
-		const struct device *device = pci_child(bus, devfn, &valid);
+	for (unsigned int devfn = 0; devfn <= UINT8_MAX;) {
+		const struct device *device = next_pci_child(bus, &devfn, &valid);
 		bool has_descendant;
 		bool has_assignment;
 		bool bridge;
