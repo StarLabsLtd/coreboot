@@ -12,6 +12,22 @@ config SMMSTORE
 
 if SMMSTORE
 
+config SMMSTORE_SRK_PIN
+	bool "Protect the provisioned TPM SRK identity"
+	depends on BOOTMEDIA_SMM_BWP && SOC_INTEL_COMMON_BLOCK_SMM
+	help
+	  Keep the provisioned TPM SRK Name in the protected SRK_PIN_V1 FMAP
+	  region. Both ordinary and capsule raw writes exclude its erase blocks.
+
+config SMMSTORE_SRK_PROVISION
+	bool "Permit initial SRK pin creation in trusted provisioning firmware"
+	depends on SMMSTORE_SRK_PIN
+	default n
+	help
+	  Permit one initial binding on a physically checked board. This image
+	  must remain in the trusted provisioning environment. Existing or
+	  partially written records cannot be replaced or erased through SMM.
+
 config SMMSTORE_SIZE
 	hex "size of the SMMSTORE FMAP region"
 	default 0x80000

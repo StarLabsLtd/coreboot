@@ -125,6 +125,7 @@ config BOOTMEDIA_SMM_BWP
 
 config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 	bool "Boot media only writable in SMM can be controlled via option API"
+	depends on !SMMSTORE_SRK_PIN
 	depends on !CONSOLE_SPI_FLASH
 	depends on BOOT_DEVICE_SPI_FLASH && HAVE_SMI_HANDLER
 	depends on SOUTHBRIDGE_INTEL_COMMON_SPI || SOC_INTEL_COMMON_BLOCK_SPI

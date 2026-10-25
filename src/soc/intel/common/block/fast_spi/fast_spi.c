@@ -166,6 +166,11 @@ static void fast_spi_check_opcode_menu(void *spibar)
  * Set FAST_SPI opcode menu. Platform chip protection replaces WRSR with
  * read-only RDSR and removes the status-write enable prefixes before FLOCKDN.
  */
+bool fast_spi_eiss_status(void)
+{
+	return pci_read_config8(PCH_DEV_SPI, SPI_BIOS_CONTROL) & SPI_BIOS_CONTROL_EISS;
+}
+
 void fast_spi_set_opcode_menu(void)
 {
 	if (!CONFIG(FAST_SPI_SUPPORTS_SWSEQ))
