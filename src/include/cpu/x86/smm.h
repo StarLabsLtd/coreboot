@@ -92,6 +92,7 @@ struct smm_runtime {
 	u32 save_state_size;
 	u32 num_cpus;
 	u32 gnvs_ptr;
+	bool s3_resume;
 	uint32_t *acpi_global_lock;
 	u32 cbmemc_size;
 	void *cbmemc;
@@ -264,6 +265,8 @@ void smm_pci_resource_store_init(struct smm_runtime *smm_runtime);
 bool smm_acpi_global_lock_acquire(void);
 /* True means the caller must signal BIOS_RLS to wake an OS waiter. */
 bool smm_acpi_global_lock_release(void);
+
+bool smm_is_s3_resume(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
