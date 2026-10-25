@@ -872,10 +872,11 @@ config HAVE_ACPI_RESUME
 	default n
 
 config DISABLE_ACPI_HIBERNATE
-	bool
+	bool "Disable ACPI S4 hibernation" if HAVE_ACPI_TABLES
 	default n
 	help
-	  Removes S4 from the available sleepstates
+	  Remove S4 from the available ACPI sleep states. This does not disable
+	  S3 suspend or change its resume support.
 
 config RESUME_PATH_SAME_AS_BOOT
 	bool
