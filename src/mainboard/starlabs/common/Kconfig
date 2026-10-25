@@ -6,6 +6,26 @@ config EDK2_BOOTSPLASH_FILE
 	string
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
 
+if PAYLOAD_CDK2
+
+config BMP_LOGO
+	default y if LINEAR_FRAMEBUFFER
+
+config USE_COREBOOT_FOR_BMP_RENDERING
+	default y
+
+config BMP_LOGO_FILE_NAME
+	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
+
+config STARLABS_CDK2_DEFAULTS
+	def_bool y
+	imply CDK2_SECURE_BOOT
+	imply CDK2_NATIVE_USB_KEYBOARD
+	imply CDK2_LINEAR_SETUP_HOTKEY
+	imply CDK2_GOP_HIDPI
+
+endif
+
 config CONSOLE_SERIAL
 	default n if !EDK2_DEBUG
 
@@ -16,7 +36,8 @@ config EC_STARLABS_ITE_BIN_PATH
 	string
 	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/\$(CONFIG_VARIANT_DIR)/ec.bin" if \
 		BOARD_STARLABS_ADL_SERIES || BOARD_STARLABS_CEZANNE_SERIES || \
-		BOARD_STARLABS_STARBOOK_SERIES || BOARD_STARLABS_STARFIGHTER_SERIES
+		BOARD_STARLABS_STARBOOK_SERIES || BOARD_STARLABS_STARFIGHTER_SERIES || \
+		BOARD_STARLABS_PHOENIX_SERIES
 
 if BOARD_STARLABS_ADL_SERIES || BOARD_STARLABS_STARBOOK_SERIES || \
 	BOARD_STARLABS_STARFIGHTER_SERIES
@@ -246,7 +267,8 @@ config STARLABS_NVME_POWER_SEQUENCE
 	  `variant_nvme_power_sequence_post_pads()`.
 
 config TCG_OPAL_S3_UNLOCK
-	default y
+	default y if ARCH_X86 && HAVE_SMI_HANDLER && HAVE_ACPI_RESUME && PCI && \
+		(!PAYLOAD_CDK2 || SOC_INTEL_COMMON_BLOCK_SMM)
 
 config MB_COMMON_DIR
 	string
