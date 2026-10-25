@@ -6,10 +6,14 @@
 #include <bootmode.h>
 #include <bootstate.h>
 #include <cbmem.h>
+#include <commonlib/cdk2_s4_memory.h>
 #include <console/console.h>
 #include <cpu/x86/pae.h>
 #include <drivers/efi/efivars.h>
 #include <drivers/efi/capsules.h>
+#include <drivers/smmstore/capsule.h>
+#include <fmap.h>
+#include <fmap_config.h>
 #include <memrange.h>
 #include <smm_call.h>
 #include <smmstore.h>
@@ -108,6 +112,103 @@ struct memory_range coalesce_buffer;
 /* Where individual coalesced capsules are located and their count. */
 static struct memory_range uefi_capsules[MAX_CAPSULES];
 static int uefi_capsule_count;
+
+static bool enable_capsule_smi(void);
+
+static bool capsule_regions(struct lb_capsule_smmstore_region *regions,
+	uint32_t *count)
+{
+	const char *names = CONFIG_DRIVERS_EFI_CAPSULE_REGIONS;
+	struct region store;
+	const uint32_t block_size = CONFIG_SMMSTORE_BLOCK_SIZE;
+
+	*count = 0;
+	if (fmap_locate_area("SMMSTORE", &store))
+		return false;
+	while (*names) {
+		struct region area;
+		char name[LB_CAPSULE_SMMSTORE_REGION_NAME_SIZE] = { 0 };
+		size_t length = 0;
+		uint64_t first, end;
+
+		while (*names == ' ' || *names == '\t')
+			names++;
+		if (!*names)
+			break;
+		while (*names && *names != ' ' && *names != '\t') {
+			if (length == sizeof(name) - 1 || *names <= ' ' || *names > '~')
+				return false;
+			name[length++] = *names++;
+		}
+		if (*count == LB_CAPSULE_SMMSTORE_MAX_REGIONS ||
+		    fmap_locate_area(name, &area) || !region_sz(&area) ||
+		    region_offset(&area) > CONFIG_ROM_SIZE ||
+		    region_sz(&area) > CONFIG_ROM_SIZE - region_offset(&area))
+			return false;
+		first = ALIGN_DOWN(region_offset(&area), block_size);
+		end = ALIGN_UP(region_offset(&area) + region_sz(&area), block_size);
+		/* Interrupted edge-block updates must never erase variable storage. */
+		if (first < region_offset(&store) + region_sz(&store) &&
+		    region_offset(&store) < end)
+			return false;
+#if defined(FMAP_SECTION_SRK_PIN_V1_START)
+		if ((first < (uint64_t)FMAP_SECTION_SRK_PIN_V1_START +
+			     FMAP_SECTION_SRK_PIN_V1_SIZE && FMAP_SECTION_SRK_PIN_V1_START < end) ||
+		    (first < ALIGN_UP((uint64_t)FMAP_SECTION_FMAP_START +
+				      FMAP_SECTION_FMAP_SIZE, block_size) &&
+		     ALIGN_DOWN(FMAP_SECTION_FMAP_START, block_size) < end))
+			return false;
+#endif
+		for (uint32_t i = 0; i < *count; i++) {
+			const struct lb_capsule_smmstore_region *other = &regions[i];
+
+			if (!strcmp(other->name, name) ||
+			    (region_offset(&area) < (uint64_t)other->offset + other->size &&
+			     other->offset < region_offset(&area) + region_sz(&area)))
+				return false;
+		}
+		memcpy(regions[*count].name, name, sizeof(name));
+		regions[*count].offset = region_offset(&area);
+		regions[*count].size = region_sz(&area);
+		(*count)++;
+	}
+	return *count != 0;
+}
+
+static void capsule_update_info(struct lb_header *header, bool writer_ready)
+{
+	struct lb_capsule_smmstore_region regions[LB_CAPSULE_SMMSTORE_MAX_REGIONS];
+	struct lb_capsule_smmstore *update;
+	struct lb_capsule_delivery_policy *delivery;
+	uint32_t count;
+
+	if (CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)) {
+		lb_smm_capsule(header);
+		goto delivery_policy;
+	}
+	if (!capsule_regions(regions, &count)) {
+		printk(BIOS_ERR, "capsules: invalid update region policy\n");
+		return;
+	}
+	update = (void *)lb_new_record(header);
+	update->tag = LB_TAG_CAPSULE_SMMSTORE;
+	update->size = sizeof(*update) + count * sizeof(regions[0]);
+	update->flags = writer_ready ? LB_CAPSULE_SMMSTORE_WRITER_READY : 0;
+	update->region_count = count;
+	memcpy(update->regions, regions, count * sizeof(regions[0]));
+
+delivery_policy:
+	delivery = (void *)lb_new_record(header);
+	memset(delivery, 0, sizeof(*delivery));
+	delivery->tag = LB_TAG_CAPSULE_DELIVERY_POLICY;
+	delivery->size = sizeof(*delivery);
+	delivery->revision = LB_CAPSULE_DELIVERY_POLICY_REVISION;
+	delivery->header_size = sizeof(*delivery);
+	delivery->allowed_transports = LB_CAPSULE_DELIVERY_RAM;
+	if (CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT))
+		delivery->allowed_transports |= LB_CAPSULE_DELIVERY_DISK;
+	delivery->max_nonpopulate = CONFIG_ROM_SIZE + 1 * MiB;
+}
 
 static bool efi_is_disk_capsules_boot(void)
 {
@@ -707,7 +808,9 @@ void efi_parse_capsules(void)
 		return;
 	}
 
-	if (CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT) && efi_is_disk_capsules_boot()) {
+	/* Disk requests wait for a normal boot; valid RAM capsules retain priority. */
+	if (CONFIG(DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT) &&
+	    get_boot_mode() != LB_BOOT_MODE_S4_RESUME && efi_is_disk_capsules_boot()) {
 		set_boot_mode(LB_BOOT_MODE_FLASH_UPDATE);
 		return;
 	}
@@ -722,6 +825,11 @@ void efi_parse_capsules(void)
 		       IORESOURCE_ASSIGNED | IORESOURCE_CACHEABLE, IORESOURCE_MEM |
 		       IORESOURCE_FIXED | IORESOURCE_STORED | IORESOURCE_ASSIGNED |
 		       IORESOURCE_CACHEABLE, BM_MEM_RAM);
+
+	/* Neither capsule sources nor their coalesced copy may occupy S4 state. */
+	if (CONFIG(CDK2_S4_LAYOUT_REQUIRED))
+		memranges_insert(&memory_map, CDK2_S4_MEMORY_BASE, CDK2_S4_MEMORY_SIZE,
+				 BM_MEM_RESERVED);
 
 	if (ENV_X86_32)
 		init_pae_pagetables(&pae_page_tables);
@@ -795,6 +903,9 @@ exit:
 void lb_efi_capsules(struct lb_header *header)
 {
 	int i;
+
+	capsule_update_info(header, CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT) ?
+		false : enable_capsule_smi());
 	for (i = 0; i < uefi_capsule_count; ++i) {
 		struct lb_range *capsule = (void *)lb_new_record(header);
 
@@ -839,7 +950,7 @@ BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_EXIT, parse_capsules, NULL);
 
 #endif
 
-static void enable_capsule_smi(void *unused)
+static bool enable_capsule_smi(void)
 {
 	uint32_t ret;
 	const bool supported = get_boot_mode() == LB_BOOT_MODE_FLASH_UPDATE;
@@ -848,6 +959,5 @@ static void enable_capsule_smi(void *unused)
 
 	printk(BIOS_INFO, "%sabled capsule update SMI handler\n",
 	       ret == SMMSTORE_RET_SUCCESS ? "En" : "Dis");
+	return supported && ret == SMMSTORE_RET_SUCCESS;
 }
-
-BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, enable_capsule_smi, NULL);

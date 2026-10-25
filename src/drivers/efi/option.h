@@ -6,6 +6,14 @@
 #include <types.h>
 
 enum cb_err efi_option_get_uint(const char *name, uint32_t *value);
+
+struct efi_uint_option {
+	const char *name;
+	uint32_t value;
+	enum cb_err result;
+};
+
+enum cb_err efi_option_get_uints(struct efi_uint_option *options, size_t count);
 enum cb_err efi_option_set_uint(const char *name, uint32_t value);
 enum cb_err efi_option_initialize_store(void);
 

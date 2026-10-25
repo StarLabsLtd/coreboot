@@ -33,6 +33,25 @@ enum cb_err efi_fv_get_option(const struct region_device *rdev,
 			      void *dest,
 			      uint32_t *size);
 
+struct efi_fv_option {
+	const char *name;
+	void *data;
+	uint32_t size;
+	enum cb_err result;
+};
+
+/**
+ * Read several variables for one GUID while validating the store once.
+ *
+ * Each option's result reports whether that variable was found and copied.
+ * The function result reports errors affecting the store as a whole.  The
+ * complete store is structurally validated even after all options are found.
+ */
+enum cb_err efi_fv_get_options(const struct region_device *rdev,
+			       const EFI_GUID *guid,
+			       struct efi_fv_option *options,
+			       size_t count);
+
 /**
  * efi_fv_set_option
  * Use the provided EFI variable store inside the region device as variable store.
