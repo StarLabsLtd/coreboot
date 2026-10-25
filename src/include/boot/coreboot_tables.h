@@ -4,8 +4,11 @@
 #define COREBOOT_TABLES_H
 
 #include <commonlib/coreboot_tables.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+struct device;
 
 /* function prototypes for building the coreboot table */
 
@@ -32,6 +35,32 @@ static inline void lb_serial_set_baseaddr(struct lb_serial *serial, uint64_t bas
 
 enum cb_err fill_lb_pcie(struct lb_pcie *pcie);
 
+enum cb_err fill_lb_ec_battery(struct lb_ec_battery_descriptor *descriptor);
+enum cb_err lb_add_ec_battery_descriptor(struct lb_header *header,
+				       const struct lb_ec_battery_descriptor *descriptor);
+
+/* Optional initialized UART contract; unavailable controllers remain undeclared. */
+enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial);
+
+size_t fill_lb_i2c_hid(struct lb_prh_i2c_hid *devices, size_t capacity);
+
+/* Adds an authoritative payload-resource PCI root-bridge handoff. */
+enum cb_err lb_add_payload_resource_handoff(struct lb_header *header);
+enum cb_err lb_finalize_payload_resource_handoff(void);
+uint16_t payload_resource_read_command(const struct device *device);
+void payload_resource_write_command(const struct device *device, uint16_t command);
+uint32_t payload_resource_read_bar(const struct device *device, uint8_t bar);
+bool payload_resource_firmware_owned(const struct device *device);
+/* Platforms may override the default native assigned-device boot policy. */
+bool payload_resource_revision4_ready(void);
+/* True only after a revision 4 handoff was completely serialized. */
+bool payload_resource_revision4_published(void);
+uint64_t payload_resource_revision4_generation(void);
+size_t payload_resource_revision4_boot_count(void);
+bool payload_resource_revision4_boot_requester(uint16_t segment, uint16_t bdf);
+/* Return true for a boot controller; lower priorities are serialized first. */
+bool payload_resource_boot_controller(const struct device *device, uint16_t *priority);
+
 void lb_string_platform_blob_version(struct lb_header *header);
 
 /* Define this in mainboard.c to add board-specific table entries. */
@@ -46,9 +75,11 @@ void lb_efi_capsules(struct lb_header *header);
 /* Define this function to get the frame buffer returning lb_framebuffer object
    on success and NULL on error. */
 const struct lb_framebuffer *get_lb_framebuffer(void);
+const struct lb_framebuffer *payload_resource_framebuffer(void);
 
 /* Allow arch to add records. */
 void lb_arch_add_records(struct lb_header *header);
+void lb_add_local_apic_timer(struct lb_header *header);
 
 /*
  * Function to retrieve MAC address(es) from the VPD and store them in the
