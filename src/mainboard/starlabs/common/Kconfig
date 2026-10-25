@@ -60,6 +60,8 @@ menu "Star Labs Settings"
 
 config DAVE_MODE
 	bool "Enable DAVE mode"
+	depends on !BOARD_STARLABS_STARFIGHTER_MTL || VBOOT || \
+		(SMMSTORE && BOOTMEDIA_SMM_BWP && SOC_INTEL_COMMON_BLOCK_SMM)
 	select SECURITY_FAIL_CLOSED
 	help
 	  DAVE mode is the secure, locked-down variant.
@@ -70,6 +72,7 @@ config BOOTMEDIA_SMM_BWP
 
 config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 	bool
+	depends on !SMMSTORE_SRK_PIN
 	default n if DAVE_MODE
 	default y if SOC_INTEL_COMMON_BLOCK_SMM || BOARD_STARLABS_LITE_SERIES
 
