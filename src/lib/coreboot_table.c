@@ -21,6 +21,7 @@
 #include <cbfs.h>
 #include <cbmem.h>
 #include <bootmem.h>
+#include <bootsplash.h>
 #include <bootmode.h>
 #include <bootsplash.h>
 #include <inttypes.h>
@@ -582,6 +583,10 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	if (CONFIG(DRIVERS_OPTION_CFR))
 		lb_cfr_setup_menu(head);
 
+	/* Retain the displayed bitmap before publishing final CBMEM ownership. */
+	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
+		bootsplash_render_primary();
+
 	/* Serialize resource map into mem table types (LB_MEM_*) */
 	bootmem_write_memory_table(lb_memory(head));
 
@@ -605,6 +610,12 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	lb_record_version_timestamp(head);
 	/* Record our framebuffer */
 	lb_framebuffer(head);
+	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
+		struct lb_boot_splash splash;
+
+		if (bootsplash_get_handoff(&splash))
+			memcpy(lb_new_record(head), &splash, sizeof(splash));
+	}
 
 	/* Record our GPIO settings (ChromeOS specific) */
 	if (CONFIG(CHROMEOS))
