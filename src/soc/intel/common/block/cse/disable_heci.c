@@ -4,6 +4,7 @@
 
 #include <commonlib/helpers.h>
 #include <console/console.h>
+#include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <intelblocks/cse.h>
@@ -24,7 +25,17 @@
 /* Disable HECI using PCR */
 static int heci1_disable_using_pcr(void)
 {
-	return soc_disable_heci1_using_pcr();
+	int ret = soc_disable_heci1_using_pcr();
+
+	if (ret)
+		return ret;
+#if ENV_RAMSTAGE
+	struct device *device = pcidev_path_on_root(PCH_DEVFN_CSE);
+
+	if (device && !is_cse_enabled())
+		device->hidden = true;
+#endif
+	return 0;
 }
 
 bool cse_disable_mei_devices(void)
@@ -38,6 +49,16 @@ bool cse_disable_mei_devices(void)
 		printk(BIOS_ERR, "CSE: Failed to disable MEI devices\n");
 		return false;
 	}
+
+#if ENV_RAMSTAGE
+	for (int i = 0; i < CONFIG_MAX_HECI_DEVICES; i++) {
+		struct device *device =
+			pcidev_path_on_root(PCI_DEVFN(PCH_DEV_SLOT_CSE, i));
+
+		if (device)
+			device->hidden = true;
+	}
+#endif
 
 	return true;
 }

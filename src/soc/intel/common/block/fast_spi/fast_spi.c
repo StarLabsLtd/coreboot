@@ -23,6 +23,12 @@
 #include <spi-generic.h>
 #include <security/vboot/vbnv.h>
 
+#if ENV_SMM
+#include <cpu/intel/msr.h>
+#include <cpu/x86/msr.h>
+#include <delay.h>
+#endif
+
 #define FLASH_MMIO_SIZE		(16 * MiB)
 #define FLASH_BASE_ADDR		((0xffffffff - FLASH_MMIO_SIZE) + 1)
 
@@ -158,7 +164,7 @@ static void fast_spi_check_opcode_menu(void *spibar)
 	printk(BIOS_ERR, "FAST_SPI: opcode lockdown failed: "
 	       "PREOP=%#x OPTYPE=%#x OPMENU=%#x:%#x\n",
 	       preop, optype, upper, lower);
-	if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL))
+	if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL) || CONFIG(SECURITY_FAIL_CLOSED))
 		die("Required SPI opcode lockdown failed\n");
 }
 
@@ -217,7 +223,7 @@ void fast_spi_lock_bar(void)
 	value = read16(spibar + SPIBAR_HSFSTS_CTL);
 	if ((value & hsfs) != hsfs) {
 		printk(BIOS_ERR, "FAST_SPI: HSFSTS lockdown failed: %#x\n", value);
-		if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL))
+		if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL) || CONFIG(SECURITY_FAIL_CLOSED))
 			die("Required SPI controller lockdown failed\n");
 	}
 
@@ -267,7 +273,7 @@ void fast_spi_vscc0_lock(void)
 	value = read32(spibar + SPIBAR_SFDP0_VSCC0);
 	if (!(value & SPIBAR_VSCC0_VCL)) {
 		printk(BIOS_ERR, "FAST_SPI: VSCC0 lockdown failed: %#x\n", value);
-		if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL))
+		if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL) || CONFIG(SECURITY_FAIL_CLOSED))
 			die("Required SPI vendor lock failed\n");
 	}
 }
@@ -547,6 +553,72 @@ int vboot_finish_vbnv_write(void)
 	fast_spi_enable_wp();
 	return fast_spi_wpd_status() ? -1 : 0;
 }
+#if ENV_SMM
+static void fast_spi_smm_set_insmm(bool enable)
+{
+	if (!CONFIG(HAVE_INSMM_STS))
+		return;
+
+	msr_t msr = { .lo = read32p(0xfed30880), .hi = 0 };
+
+	if (enable)
+		msr.lo |= 1;
+	else
+		msr.lo &= ~1;
+	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
+}
+
+#define FAST_SPI_SYNC_SMI_CLEAR_TRIES 8
+#define FAST_SPI_SYNC_SMI_SETTLE_USEC 50
+
+static bool fast_spi_smm_drain_sync_smi(void)
+{
+	for (unsigned int i = 0; i < FAST_SPI_SYNC_SMI_CLEAR_TRIES; i++) {
+		if (!fast_spi_clear_sync_smi_status())
+			return true;
+		udelay(FAST_SPI_SYNC_SMI_SETTLE_USEC);
+	}
+	return !fast_spi_clear_sync_smi_status();
+}
+
+bool fast_spi_smm_write_begin(bool *restore_wp)
+{
+	*restore_wp = false;
+	if (!CONFIG(SPI_FLASH_SMM) || fast_spi_cycle_in_progress())
+		return false;
+	if (fast_spi_wpd_status())
+		return true;
+
+	fast_spi_smm_set_insmm(true);
+	/* SYNC_SS must be clear before setting WPD to avoid a three-strike error. */
+	if (!fast_spi_smm_drain_sync_smi()) {
+		fast_spi_smm_set_insmm(false);
+		return false;
+	}
+	fast_spi_disable_wp();
+	if (!fast_spi_wpd_status()) {
+		fast_spi_smm_write_end(true);
+		return false;
+	}
+	*restore_wp = true;
+	return true;
+}
+
+void fast_spi_smm_write_end(bool restore_wp)
+{
+	/* A failed transfer can leave SCIP set after its error return. */
+	if (CONFIG(SPI_FLASH_SMM) && fast_spi_cycle_in_progress())
+		die("SPI controller did not become idle in SMM\n");
+	if (restore_wp) {
+		fast_spi_enable_wp();
+		if (fast_spi_wpd_status())
+			die("SPI write protection was not restored\n");
+		fast_spi_smm_set_insmm(false);
+	}
+	if (!fast_spi_smm_drain_sync_smi())
+		die("SPI synchronous SMI status did not settle\n");
+}
+#endif
 
 void fast_spi_set_bde(void)
 {
@@ -632,6 +704,13 @@ static void fast_spi_read_resources(struct device *dev)
 {
 	/* Read standard PCI resources. */
 	pci_dev_read_resources(dev);
+
+	/* Keep the boot-flash register window stable across chipset finalization. */
+	struct resource *bar = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	if (bar && bar->size) {
+		bar->base = (uintptr_t)fast_spi_get_bar();
+		bar->flags |= IORESOURCE_FIXED | IORESOURCE_ASSIGNED;
+	}
 
 	/* Add SPI flash MMIO window as a reserved resource. */
 	mmio_range(dev, 0, FLASH_BASE_ADDR, FLASH_MMIO_SIZE);

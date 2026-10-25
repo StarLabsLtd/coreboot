@@ -11,6 +11,9 @@
 #define CAP_REG		0x8
 #define  CAP_PMR_LO	BIT(5)
 #define  CAP_PMR_HI	BIT(6)
+#define GSTS_REG	0x1c
+#define RTADDR_REG	0x20
+#define FSTS_REG	0x34
 #define PMEN_REG	0x64
 #define   PMEN_EPM	BIT(31)
 #define   PMEN_PRS	BIT(0)

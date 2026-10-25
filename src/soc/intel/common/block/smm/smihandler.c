@@ -2,6 +2,7 @@
 
 #include <arch/hlt.h>
 #include <arch/io.h>
+#include <arch/pci_io_cfg.h>
 #include <boot_device.h>
 #include <console/console.h>
 #include <cpu/x86/cache.h>
@@ -16,6 +17,10 @@
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <drivers/option/cfr_runtime.h>
+#include <drivers/smmstore/authvar.h>
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+#include <drivers/smmstore/capsule.h>
+#endif
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
@@ -24,6 +29,10 @@
 #include <intelblocks/smihandler.h>
 #include <intelblocks/smm_gpio.h>
 #include <intelblocks/smm_gpio_defs.h>
+#if CONFIG(SMM_AUTHVAR)
+#include <intelblocks/systemagent.h>
+#include <fast_spi_def.h>
+#endif
 #include <intelblocks/tco.h>
 #include <intelblocks/uart.h>
 #include <intelblocks/wadt_wake.h>
@@ -74,20 +83,6 @@ __weak void mainboard_smi_gpi_handler(
 __weak void mainboard_smi_espi_handler(void)
 {
 	/* no-op */
-}
-
-#define SMMSTORE_SYNC_SMI_SETTLE_USEC 50
-#define SMMSTORE_SYNC_SMI_CLEAR_TRIES 8
-
-static void smmstore_drain_sync_smi(void)
-{
-	int i;
-
-	for (i = 0; i < SMMSTORE_SYNC_SMI_CLEAR_TRIES; i++) {
-		if (!fast_spi_clear_sync_smi_status())
-			return;
-		udelay(SMMSTORE_SYNC_SMI_SETTLE_USEC);
-	}
 }
 
 /* Inherited from cpu/x86/smm.h resulting in a different signature */
@@ -165,6 +160,10 @@ void smihandler_southbridge_sleep(
 	slp_typ = acpi_sleep_from_pm1(reg32);
 
 	opal_s3_smi_sleep(slp_typ);
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+	if (slp_typ >= ACPI_S3)
+		smm_capsule_close();
+#endif
 
 	/* Do any mainboard sleep handling */
 	mainboard_smi_sleep(slp_typ);
@@ -283,22 +282,9 @@ static void southbridge_smi_gsmi(
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
-static void set_insmm_sts(const bool enable_writes)
-{
-	if (!CONFIG(HAVE_INSMM_STS))
-		return;
-
-	msr_t msr = {
-		.lo = read32p(0xfed30880),
-		.hi = 0,
-	};
-	if (enable_writes)
-		msr.lo |= 1;
-	else
-		msr.lo &= ~1;
-
-	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
-}
+#if CONFIG(SMM_AUTHVAR)
+static bool authvar_protection_ready(void);
+#endif
 
 static void southbridge_smi_store(
 	const struct smm_save_state_ops *save_state_ops)
@@ -307,6 +293,10 @@ static void southbridge_smi_store(
 	int node;
 	uint32_t eax_val, reg_ebx;
 
+	if (!smm_wait_for_cpus()) {
+		printk(BIOS_WARNING, "SMMSTORE: CPU rendezvous failed\n");
+		return;
+	}
 	node = save_state_ops->apmc_node(APM_CNT_SMMSTORE);
 	if (node < 0)
 		return;
@@ -318,27 +308,34 @@ static void southbridge_smi_store(
 	if (save_state_ops->get_reg(RBX, node, &reg_ebx, sizeof(reg_ebx)) != 0)
 		return;
 
-	const bool wp_enabled = !fast_spi_wpd_status();
-	if (wp_enabled) {
-		set_insmm_sts(true);
-		/*
-		 * As per BWG, clearing "SPI_BIOS_CONTROL_SYNC_SS"
-		 * bit is a must prior setting SPI_BIOS_CONTROL_WPD" bit
-		 * to avoid 3-strike error.
-		 */
-		smmstore_drain_sync_smi();
-		fast_spi_disable_wp();
+	const uint8_t command = sub_command & ~SMMSTORE_CMD_USE_FULL_FLASH;
+#if CONFIG(SMM_AUTHVAR)
+	/* Reject raw mutation before opening a controller write window. */
+	if ((sub_command & SMMSTORE_CMD_USE_FULL_FLASH) ||
+	    command == SMMSTORE_CMD_RAW_WRITE || command == SMMSTORE_CMD_RAW_CLEAR) {
+		ret = SMMSTORE_RET_DENIED;
+		goto reply;
 	}
+	if (!authvar_protection_ready()) {
+		ret = SMMSTORE_RET_FAILURE;
+		goto reply;
+	}
+#endif
+	const bool writes = command == SMMSTORE_CMD_RAW_WRITE ||
+		command == SMMSTORE_CMD_RAW_CLEAR || command == SMMSTORE_CMD_SRK_CREATE;
+	bool restore_wp = false;
 
-	/* drivers/smmstore/smi.c */
-	ret = smmstore_exec(sub_command, (void *)(uintptr_t)reg_ebx);
-	smmstore_drain_sync_smi();
+	ret = SMMSTORE_RET_FAILURE;
+	if (!writes || fast_spi_smm_write_begin(&restore_wp)) {
+		/* drivers/smmstore/smi.c */
+		ret = smmstore_exec(sub_command, (void *)(uintptr_t)reg_ebx);
+		if (writes)
+			fast_spi_smm_write_end(restore_wp);
+	}
+#if CONFIG(SMM_AUTHVAR)
+reply:
+#endif
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
-
-	if (wp_enabled) {
-		fast_spi_enable_wp();
-		set_insmm_sts(false);
-	}
 }
 
 __weak int soc_gpio_lock_finalize(void)
@@ -368,7 +365,7 @@ static int soc_lock_gpios(void)
 	return ret;
 }
 
-static void enable_smm_code_access_check(void)
+static bool enable_smm_code_access_check(void)
 {
 	msr_t smm_mca_cap;
 	msr_t smm_feature_control;
@@ -378,12 +375,12 @@ static void enable_smm_code_access_check(void)
 	 * and implement this feature elsewhere.
 	 */
 	if (CONFIG(XEON_SP_COMMON_BASE) || CONFIG(SOC_INTEL_SNOWRIDGE))
-		return;
+		return false;
 
 	smm_mca_cap = rdmsr(SMM_MCA_CAP_MSR);
 	if (!(smm_mca_cap.hi & SMM_CODE_ACCESS_CHK_MASK)) {
 		printk(BIOS_WARNING, "SMM code access check is not supported\n");
-		return;
+		return false;
 	}
 
 	/* Despite the prolific EDK2 implementation of this feature
@@ -394,13 +391,117 @@ static void enable_smm_code_access_check(void)
 		if (!(smm_feature_control.lo & SMM_CODE_CHK_MSR_EN))
 			printk(BIOS_WARNING,
 			       "SMM feature control was locked without SMM code access check\n");
-		return;
+		return !!(smm_feature_control.lo & SMM_CODE_CHK_MSR_EN);
 	}
 
 	smm_feature_control.lo |= SMM_CODE_CHK_MSR_EN | SMM_FEATURE_CONTROL_MSR_LOCK;
 	wrmsr(SMM_FEATURE_CONTROL_MSR, smm_feature_control);
+	smm_feature_control = rdmsr(SMM_FEATURE_CONTROL_MSR);
+	if ((smm_feature_control.lo & (SMM_CODE_CHK_MSR_EN | SMM_FEATURE_CONTROL_MSR_LOCK)) !=
+	    (SMM_CODE_CHK_MSR_EN | SMM_FEATURE_CONTROL_MSR_LOCK)) {
+		printk(BIOS_ERR, "SMM code access check did not lock\n");
+		return false;
+	}
 	printk(BIOS_DEBUG, "Enabled SMM code access check\n");
+	return true;
 }
+
+#if CONFIG(SMM_AUTHVAR)
+static bool authvar_protection_ready(void)
+{
+	uintptr_t base;
+	size_t size;
+	uint32_t tseg, bgsm, bios_control;
+	const uint32_t bios_locks = SPI_BIOS_CONTROL_LOCK_ENABLE | SPI_BIOS_CONTROL_EISS;
+
+	/* Establish ECAM decoding through port I/O before trusting MMCONF reads. */
+#if CONFIG(ECAM_MMCONF_SUPPORT)
+	uint32_t length;
+
+	switch (CONFIG_ECAM_MMCONF_BUS_NUMBER) {
+	case 256: length = PCIEXBAR_LENGTH_256MB; break;
+	case 128: length = PCIEXBAR_LENGTH_128MB; break;
+	case 64: length = PCIEXBAR_LENGTH_64MB; break;
+	default: return false;
+	}
+	if (pci_io_read_config32(PCI_DEV(0, 0, 0), PCIEXBAR + 4) ||
+	    pci_io_read_config32(PCI_DEV(0, 0, 0), PCIEXBAR) !=
+		(CONFIG_ECAM_MMCONF_BASE_ADDRESS | length << 1 | PCIEXBAR_PCIEXBAREN))
+		return false;
+	uint32_t tolud = pci_io_read_config32(PCI_DEV(0, 0, 0), TOLUD) & 0xfff00000U;
+
+	if (tolud > CONFIG_ECAM_MMCONF_BASE_ADDRESS || tolud > SPI_BASE_ADDRESS)
+		return false;
+#endif
+	tseg = pci_read_config32(PCI_DEV(0, 0, 0), TSEG);
+	bgsm = pci_read_config32(PCI_DEV(0, 0, 0), BGSM);
+	bios_control = pci_read_config32(PCH_DEV_SPI, SPI_BIOS_CONTROL);
+	smm_region(&base, &size);
+	/* BAR0 remains writable; parked peers cannot relocate it during this call. */
+	if (pci_read_config32(PCH_DEV_SPI, PCI_BASE_ADDRESS_0) != SPI_BASE_ADDRESS ||
+	    !(pci_read_config16(PCH_DEV_SPI, PCI_COMMAND) & PCI_COMMAND_MEMORY))
+		return false;
+	/* ADL/RPL protect device accesses with locked TSEG/BGSM bounds. */
+	if (!size || !IS_POWER_OF_2(size) || !IS_ALIGNED(base, size) ||
+	    base > UINT32_MAX || size > UINT32_MAX - base ||
+	    !(tseg & 1U) || !(bgsm & 1U) ||
+	    (tseg & 0xfff00000U) != base || (bgsm & 0xfff00000U) != base + size ||
+	    (bios_control & (bios_locks | SPI_BIOS_CONTROL_WPD)) != bios_locks)
+		return false;
+	/* Never move this before MP relocation's ramstage trampoline has retired. */
+	return enable_smm_code_access_check();
+}
+
+enum cb_err smm_authvar_set_uint_option(const char *name, uint32_t value)
+{
+	if (!smm_wait_for_cpus() || !authvar_protection_ready())
+		return CB_EFI_ACCESS_ERROR;
+	return smm_authvar_store_uint_option(name, value) == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ?
+		CB_SUCCESS : CB_EFI_ACCESS_ERROR;
+}
+
+static void southbridge_smi_authvar(const struct smm_save_state_ops *ops, uint8_t command)
+{
+	uint32_t result = SMMSTORE_RET_FAILURE;
+	int node;
+
+	/* Other CPUs' save states are current only after they have entered SMM. */
+	if (!smm_wait_for_cpus())
+		return;
+	node = ops->apmc_node(command);
+	if (node < 0)
+		return;
+	if (authvar_protection_ready()) {
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+		if (command == APM_CNT_CAPSULE)
+			result = smm_authvar_capsule_exec();
+		else
+#endif
+			result = smm_authvar_exec();
+	}
+	ops->set_reg(RAX, node, &result, sizeof(result));
+}
+
+static void southbridge_smi_authvar_close(const struct smm_save_state_ops *ops)
+{
+	uint32_t eax, ecx;
+	int node;
+
+	if (!smm_wait_for_cpus())
+		return;
+	node = ops->apmc_node(APM_CNT_AUTHVAR_CLOSE);
+	if (node < 0 || ops->get_reg(RAX, node, &eax, sizeof(eax)) ||
+	    ops->get_reg(RCX, node, &ecx, sizeof(ecx)) ||
+	    ((uint64_t)ecx << 32 | eax) != AUTHVAR_CLOSE_WIRE_SENTINEL ||
+	    !authvar_protection_ready() || smm_authvar_close_exec() != CB_SUCCESS)
+		return;
+	/* Register acknowledgment is separate from attacker-writable mailbox bytes. */
+	eax = (uint32_t)AUTHVAR_CLOSE_WIRE_SUCCESS;
+	ecx = AUTHVAR_CLOSE_WIRE_SUCCESS >> 32;
+	ops->set_reg(RAX, node, &eax, sizeof(eax));
+	ops->set_reg(RCX, node, &ecx, sizeof(ecx));
+}
+#endif
 
 static int finalize(void)
 {
@@ -421,8 +522,7 @@ static int finalize(void)
 	boot_device_init();
 
 	if (enable_smm_bios_protection()) {
-		fast_spi_enable_wp();
-		set_insmm_sts(false);
+		fast_spi_smm_write_end(true);
 	}
 
 	/*
@@ -465,6 +565,21 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_SMMSTORE:
 		if (CONFIG(SMMSTORE))
 			southbridge_smi_store(save_state_ops);
+		break;
+	case APM_CNT_AUTHVAR:
+#if CONFIG(SMM_AUTHVAR)
+		southbridge_smi_authvar(save_state_ops, APM_CNT_AUTHVAR);
+#endif
+		break;
+	case APM_CNT_CAPSULE:
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+		southbridge_smi_authvar(save_state_ops, APM_CNT_CAPSULE);
+#endif
+		break;
+	case APM_CNT_AUTHVAR_CLOSE:
+#if CONFIG(SMM_AUTHVAR)
+		southbridge_smi_authvar_close(save_state_ops);
+#endif
 		break;
 	case APM_CNT_FINALIZE:
 		{
@@ -547,8 +662,7 @@ void smihandler_southbridge_tco(
 		 * box.
 		 */
 		printk(BIOS_DEBUG, "Switching SPI back to RO\n");
-		fast_spi_enable_wp();
-		set_insmm_sts(false);
+		fast_spi_smm_write_end(true);
 	}
 
 	/* Any TCO event? */

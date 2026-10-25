@@ -7,7 +7,7 @@
 
 /* Clear any SPI outstanding status bits, i.e., FCERR, FDONE etc. */
 void fast_spi_clear_outstanding_status(void);
-/* Check if SPI transaction is pending */
+/* Wait for the SPI transaction to complete; returns zero on success. */
 int fast_spi_cycle_in_progress(void);
 /*
  * Disable the BIOS write protect and Enable Prefetching and Caching.
@@ -89,6 +89,16 @@ void fast_spi_enable_wp(void);
  * Disable SPI Write protect.
  */
 void fast_spi_disable_wp(void);
+#if ENV_SMM
+/*
+ * Begin requires the SMI lock with all peers parked. Already-open protection
+ * is retained for ordinary store access; restore_wp records only a gate
+ * opened by begin. No media write is permitted when begin returns false.
+ */
+bool fast_spi_smm_write_begin(bool *restore_wp);
+/* Enforce idle and the requested protection, also for finalization/violations. */
+void fast_spi_smm_write_end(bool restore_wp);
+#endif
 /*
  * Get base and size of extended BIOS decode window used at runtime in host address space. If
  * the BIOS region is not greater than 16MiB, then this function returns 0 for both base and

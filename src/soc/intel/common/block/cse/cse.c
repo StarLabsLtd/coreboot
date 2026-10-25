@@ -3,8 +3,10 @@
 #define __SIMPLE_DEVICE__
 
 #include <assert.h>
+#include <boot/coreboot_tables.h>
 #include <commonlib/helpers.h>
 #include <console/console.h>
+#include <device/device.h>
 #include <device/mmio.h>
 #include <delay.h>
 #include <device/pci.h>
@@ -299,6 +301,10 @@ bool cse_is_me_operational(void)
 
 bool cse_is_me_state_requested_enabled(void)
 {
+	/* PTT-backed DAVE ignores an older option store's ME-disable setting. */
+	if (CONFIG(DAVE_MODE) && CONFIG(HAVE_INTEL_PTT))
+		return true;
+
 	const unsigned int me_state_default = CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED);
 	const unsigned int me_state =
 		get_uint_option_checked("me_state", me_state_default, OPTION_BOOL);
@@ -1410,10 +1416,11 @@ static void cse_set_state(struct device *dev)
 	}
 
 	/*
-	 * Check if the CMOS value "me_state" exists, if it doesn't, then
-	 * don't do anything.
+	 * DAVE with PTT overrides the option, including a persisted disabled state.
+	 * Otherwise, leave ME unchanged if the option does not exist.
 	 */
 	const unsigned int cmos_me_state =
+		CONFIG(DAVE_MODE) && CONFIG(HAVE_INTEL_PTT) ? 0 :
 		get_uint_option_checked("me_state", UINT_MAX, OPTION_BOOL);
 
 	if (cmos_me_state == UINT_MAX)
@@ -1478,6 +1485,32 @@ static void cse_set_state(struct device *dev)
 		me_reset_with_count();
 }
 
+static bool cse_should_hide_heci1(void)
+{
+	return soc_disable_heci1_at_pre_boot() || cse_is_hfs1_com_soft_temp_disable();
+}
+
+#if CONFIG(PAYLOAD_RESOURCE_HANDOFF)
+bool payload_resource_firmware_owned(const struct device *device)
+{
+	if (device->path.type != DEVICE_PATH_PCI)
+		return false;
+	if (device->hidden)
+		return true;
+	if (device != pcidev_path_on_root(PCH_DEVFN_CSE))
+		return false;
+	if (CONFIG(USE_FSP_NOTIFY_PHASE_READY_TO_BOOT) &&
+	    CONFIG(USE_FSP_NOTIFY_PHASE_END_OF_FIRMWARE) &&
+	    soc_disable_heci1_at_pre_boot())
+		return true;
+	if (CONFIG(SOC_INTEL_CSE_SEND_EOP_BY_PAYLOAD) ||
+	    CONFIG(USE_FSP_NOTIFY_PHASE_READY_TO_BOOT))
+		return false;
+	/* Resource tables precede the finalizer that removes HECI1 from PCI. */
+	return cse_should_hide_heci1();
+}
+#endif
+
 /*
  * `cse_final_ready_to_boot` function is native implementation of equivalent events
  * performed by FSP NotifyPhase(Ready To Boot) API invocations.
@@ -1492,7 +1525,7 @@ static void cse_final_ready_to_boot(void)
 {
 	cse_control_global_reset_lock();
 
-	if (soc_disable_heci1_at_pre_boot() || cse_is_hfs1_com_soft_temp_disable()) {
+	if (cse_should_hide_heci1()) {
 		cse_set_to_d0i3();
 		heci1_disable();
 	}
