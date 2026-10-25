@@ -5,13 +5,6 @@
 #include <device/pci_ops.h>
 #include <intelblocks/lpss.h>
 
-/* Clock register */
-#define LPSS_CLOCK_CTL_REG	0x200
-#define LPSS_CNT_CLOCK_EN	1
-#define LPSS_CNT_CLK_UPDATE	(1 << 31)
-#define LPSS_CLOCK_DIV_N(n)	(((n) & 0x7fff) << 16)
-#define LPSS_CLOCK_DIV_M(m)	(((m) & 0x7fff) << 1)
-
 /*
  * Bit 1:0 controls LPSS controller reset.
  *
