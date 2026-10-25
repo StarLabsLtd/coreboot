@@ -35,6 +35,13 @@ ifneq ($(strip $(call strip_quotes,$(CONFIG_PAYLOAD_OPTIONS))),)
       ADDITIONAL_PAYLOAD_CONFIG+=$(strip $(call strip_quotes,$(CONFIG_PAYLOAD_OPTIONS)))
 endif
 
+ifeq ($(CONFIG_PAYLOAD_CDK2),y)
+CDK2_OUTPUT := $(obj)/cdk2
+CDK2_PAYLOAD := $(CDK2_OUTPUT)/native/cdk2-coreboot-image.elf
+# The native payload is built in this output tree, never supplied by a caller.
+override CONFIG_PAYLOAD_FILE := $(CDK2_PAYLOAD)
+endif
+
 cbfs-files-y += $(CONFIG_CBFS_PREFIX)/payload
 $(CONFIG_CBFS_PREFIX)/payload-file := $(CONFIG_PAYLOAD_FILE)
 ifeq ($(CONFIG_PAYLOAD_IS_FLAT_BINARY),y)
@@ -157,6 +164,161 @@ payloads/external/depthcharge/depthcharge/build/depthcharge.elf depthcharge: $(D
 		OVERRIDE_DEFCONFIG_64=$(CONFIG_LP_DEFCONFIG_OVERRIDE_X64)
 
 # edk2
+
+# CDK2
+
+ifeq ($(CONFIG_PAYLOAD_CDK2),y)
+ifeq ($(CONFIG_IFWI_MEASURED_BOOT)$(CONFIG_TPM_MEASURED_BOOT),yy)
+ifneq ($(CONFIG_TPM_HASH_SHA256),y)
+$(error IFWI supplies SHA-256 measurements; native TPM handoff requires TPM_HASH_SHA256)
+endif
+endif
+CDK2_SOURCE := payloads/external/cdk2/cdk2
+CDK2_CONFIG := $(CDK2_OUTPUT)/.config
+
+ifeq ($(CONFIG_SMM_AUTHVAR)$(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),yy)
+include $(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.mk
+smm-srcs += $(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.c
+authvar_asset_source := $(call src-to-obj,smm,$(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.c)
+authvar_key_objects := $(foreach asset,$(CDK2_FIXED_POLICY_ASSETS),\
+	$(call src-to-obj,smm,$(obj)/smm-authvar/$(notdir $(asset)).manual))
+smm-srcs += $(addprefix $(obj)/smm-authvar/,\
+	$(addsuffix .manual,$(notdir $(CDK2_FIXED_POLICY_ASSETS))))
+
+$(foreach asset,$(CDK2_FIXED_POLICY_ASSETS),\
+	$(eval $(call src-to-obj,smm,$(obj)/smm-authvar/$(notdir $(asset)).manual): \
+		$(CDK2_SOURCE)/$(asset)))
+$(authvar_key_objects): | cdk2-force
+	@printf "    OBJCOPY    %s\n" "$@"
+	mkdir -p "$(dir $@)"
+	cd "$(dir $<)" && $(OBJCOPY_smm) -I binary \
+		$(if $(filter y,$(CONFIG_ARCH_SMM_X86_32)),-O elf32-i386 -B i386,-O elf64-x86-64 -B i386:x86-64) \
+		--rename-section .data=.rodata.authvar_keys,alloc,load,readonly,data,contents \
+		"$(notdir $<)" "$(abspath $@)"
+$(authvar_asset_source) $(authvar_key_objects): .EXTRA_PREREQS += \
+	$(cdk2_fixed_policy_asset_rules) $(DOTCONFIG) payloads/external/Makefile.mk
+$(authvar_asset_source) $(call src-to-obj,smm,src/drivers/smmstore/authvar.c): | cdk2-force
+$(call src-to-obj,smm,src/drivers/smmstore/authvar.c): CFLAGS_smm += \
+	-iquote$(CDK2_SOURCE)/src/modules/variable_runtime
+$(obj)/smm/smm.elf: .EXTRA_PREREQS += $(cdk2_fixed_policy_asset_rules) \
+	payloads/external/Makefile.mk
+$(obj)/smm/smm.elf: | cdk2-force
+endif
+
+ifneq ($(filter y,$(CONFIG_CDK2_NATIVE_SYSTEM_FMP) $(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)),)
+CDK2_CAPSULE_CERT := $(objutil)/efi_capsule/capsule-cert
+CDK2_CAPSULE_TRUST := $(CDK2_OUTPUT)/capsule-trust.c
+CDK2_CAPSULE_ROOT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
+
+$(CDK2_CAPSULE_CERT): $(top)/util/efi_capsule/capsule_cert.c
+	mkdir -p $(dir $@)
+	$(HOSTCC) $(HOSTCFLAGS) -o $@ $< -lcrypto
+
+$(CDK2_CAPSULE_TRUST): $(CDK2_CAPSULE_CERT) $(CDK2_CAPSULE_ROOT) $(DOTCONFIG) cdk2-force
+	@test -n "$(CDK2_CAPSULE_ROOT)" || { \
+		echo 'DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT is required for CDK2 firmware updates' >&2; \
+		exit 1; \
+	}
+	mkdir -p $(dir $@)
+	$(CDK2_CAPSULE_CERT) "$(CDK2_CAPSULE_ROOT)" > $@.tmp
+	if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
+
+ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT),y)
+smm-srcs += $(CDK2_CAPSULE_TRUST)
+$(call src-to-obj,smm,$(CDK2_CAPSULE_TRUST)): CFLAGS_smm += -I$(CDK2_SOURCE)/include
+$(call src-to-obj,smm,$(CDK2_CAPSULE_TRUST)): .EXTRA_PREREQS += \
+	payloads/external/Makefile.mk $(DOTCONFIG)
+endif
+endif
+
+# Preserve both sides of the configuration boundary. The outer configuration
+# records platform policy while the nested configuration records CDK2's
+# resolved view of that policy.
+cbfs-files-y += cdk2/coreboot-config
+cdk2/coreboot-config-file := $(DOTCONFIG)
+cdk2/coreboot-config-type := raw
+cdk2/coreboot-config-compression := LZMA
+
+cbfs-files-y += cdk2/config
+cdk2/config-file := $(CDK2_CONFIG)
+cdk2/config-type := raw
+cdk2/config-compression := LZMA
+
+# The nested build owns its source dependencies. Always enter it so an edit in
+# the pinned source checkout cannot leave a stale payload in the outer build.
+.PHONY: cdk2-force
+cdk2-force:
+	@git submodule update --init --checkout --recursive -- $(CDK2_SOURCE)
+	@payloads/external/cdk2/verify-source.sh $(CDK2_SOURCE)
+
+$(CDK2_CONFIG): $(CDK2_PAYLOAD)
+
+$(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(obj)/config.h $(objutil)/kconfig/conf $(CDK2_CAPSULE_TRUST)
+	+$(MAKE) -C $(CDK2_SOURCE) coreboot-stage \
+		COREBOOT_SOURCE="$(abspath .)" \
+		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+		COREBOOT_CONFIG_HEADER="$(abspath $(obj)/config.h)" \
+		COREBOOT_OUTPUT_DIR="$(abspath $(CDK2_OUTPUT))" \
+		CDK2_CAPSULE_TRUST_SOURCE="$(abspath $(CDK2_CAPSULE_TRUST))" \
+		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+		HOSTCC="$(HOSTCC)" CC="$(CC_x86_64)" \
+		LD="$(word 1,$(LD_x86_64))" \
+		OBJCOPY="$(OBJCOPY_x86_64)" NM="$(NM_x86_64)" \
+		READELF="$(READELF_x86_64)"
+	@grep -qx 'CONFIG_CDK2_STRICT_DIRECT_RUNTIME=y' $(CDK2_CONFIG) || { \
+		echo 'CDK2 integration requires the source-built strict direct route' >&2; \
+		exit 1; \
+	}
+
+# Manufacturing only: never seed an existing store through an ordinary update.
+.PHONY: cdk2-factory-image
+ifeq ($(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),y)
+cdk2-factory-image: $(CBFSTOOL) | files_added
+	+@set -e; \
+	work=$$(mktemp -d "$(abspath $(obj))/cdk2-factory.XXXXXXXX"); \
+	trap 'rm -f "$$work/store.bin" "$$work/readback.bin" "$$work/coreboot.factory.rom"; rmdir "$$work"' EXIT; \
+	trap 'exit 1' HUP INT TERM; \
+	$(MAKE) -C $(CDK2_SOURCE) fixed-store-image \
+		COREBOOT_SOURCE="$(abspath .)" \
+		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+		COREBOOT_CONFIG_HEADER="$(abspath $(obj)/config.h)" \
+		CDK2_BUILD_DIR="$(abspath $(CDK2_OUTPUT))" \
+		CDK2_FIXED_STORE_OUTPUT="$$work/store.bin" \
+		CDK2_FIXED_STORE_SIZE="$(CONFIG_SMMSTORE_SIZE)" \
+		CDK2_FIXED_STORE_BLOCK_SIZE="$(CONFIG_SMMSTORE_BLOCK_SIZE)" \
+		HOSTCC="$(HOSTCC)"; \
+	cp "$(obj)/coreboot.rom" "$$work/coreboot.factory.rom"; \
+	$(CBFSTOOL) "$$work/coreboot.factory.rom" write -r SMMSTORE -f "$$work/store.bin"; \
+	$(CBFSTOOL) "$$work/coreboot.factory.rom" read -r SMMSTORE -f "$$work/readback.bin"; \
+	cmp "$$work/store.bin" "$$work/readback.bin"; \
+	mv "$$work/coreboot.factory.rom" "$(obj)/coreboot.factory.rom"; \
+	printf 'Created %s for new-device provisioning only\n' "$(obj)/coreboot.factory.rom"
+else
+cdk2-factory-image:
+	@echo 'cdk2-factory-image requires CDK2_SECURE_BOOT_FIXED_KEYS' >&2
+	@false
+endif
+
+.PHONY: dave-office-image
+ifeq ($(CONFIG_DAVE_MODE),y)
+dave-office-image:
+	@set -e; \
+	work=$$(mktemp -d "$(abspath $(obj))/dave-office.XXXXXXXX"); \
+	sed '/^CONFIG_DAVE_FACTORY_PROVISIONING=/d; /^# CONFIG_DAVE_FACTORY_PROVISIONING is not set$$/d' \
+		"$(DOTCONFIG)" > "$$work/config"; \
+	printf '\nCONFIG_DAVE_FACTORY_PROVISIONING=y\n' >> "$$work/config"; \
+	$(MAKE) DOTCONFIG="$$work/config" obj="$$work/build" olddefconfig; \
+	grep -qx 'CONFIG_DAVE_FACTORY_PROVISIONING=y' "$$work/config"; \
+	$(MAKE) DOTCONFIG="$$work/config" obj="$$work/build"; \
+	printf 'Office provisioning image (programmer installation only): %s\n' \
+		"$$work/build/coreboot.rom"
+else
+dave-office-image:
+	@echo 'dave-office-image requires a DAVE_MODE customer configuration' >&2
+	@false
+endif
+
+endif
 
 ifeq ($(CONFIG_EDK2_ENABLE_IPXE),y)
 IPXE_EFI := payloads/external/iPXE/ipxe/ipxe.rom
