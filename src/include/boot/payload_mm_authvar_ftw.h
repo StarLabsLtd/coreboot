@@ -1,0 +1,78 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef BOOT_PAYLOAD_MM_AUTHVAR_FTW_H
+#define BOOT_PAYLOAD_MM_AUTHVAR_FTW_H
+
+#include <commonlib/payload_mm_authvar_fv.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <types.h>
+
+#define PAYLOAD_MM_AUTHVAR_FTW_WORK_HEADER_SIZE 32U
+#define PAYLOAD_MM_AUTHVAR_FTW_WRITE_HEADER_SIZE 40U
+#define PAYLOAD_MM_AUTHVAR_FTW_WRITE_RECORD_SIZE 40U
+#define PAYLOAD_MM_AUTHVAR_FTW_WORK_STATE_OFFSET 20U
+#define PAYLOAD_MM_AUTHVAR_FTW_STATE_ERASED 0xffU
+#define PAYLOAD_MM_AUTHVAR_FTW_WORK_VALID 0xfeU
+#define PAYLOAD_MM_AUTHVAR_FTW_WORK_INVALID 0xfcU
+#define PAYLOAD_MM_AUTHVAR_FTW_HEADER_ALLOCATED 0xfeU
+#define PAYLOAD_MM_AUTHVAR_FTW_HEADER_WRITES_ALLOCATED 0xfcU
+#define PAYLOAD_MM_AUTHVAR_FTW_HEADER_ABORTED 0xfaU
+#define PAYLOAD_MM_AUTHVAR_FTW_HEADER_COMPLETE 0xf8U
+#define PAYLOAD_MM_AUTHVAR_FTW_RECORD_SPARE_COMPLETE 0xfdU
+#define PAYLOAD_MM_AUTHVAR_FTW_RECORD_DESTINATION_COMPLETE 0xf9U
+
+extern const uint8_t payload_mm_authvar_ftw_coreboot_caller_guid[16];
+extern const uint8_t payload_mm_authvar_ftw_working_block_guid[16];
+
+enum payload_mm_authvar_ftw_action {
+	PAYLOAD_MM_AUTHVAR_FTW_FAIL_CLOSED = 0,
+	PAYLOAD_MM_AUTHVAR_FTW_CLEAN,
+	PAYLOAD_MM_AUTHVAR_FTW_INITIALIZE_WORKSPACE,
+	PAYLOAD_MM_AUTHVAR_FTW_DISCARD_UNCOMMITTED,
+	PAYLOAD_MM_AUTHVAR_FTW_RECLAIM_WORKSPACE,
+	PAYLOAD_MM_AUTHVAR_FTW_ABORT_OLD,
+	PAYLOAD_MM_AUTHVAR_FTW_REPLAY_SPARE,
+	PAYLOAD_MM_AUTHVAR_FTW_COMPLETE_NEW,
+	PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE,
+	PAYLOAD_MM_AUTHVAR_FTW_CLEANUP_SPARE,
+};
+
+enum payload_mm_authvar_ftw_workspace {
+	PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_NONE = 0,
+	PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_WORKING,
+	PAYLOAD_MM_AUTHVAR_FTW_WORKSPACE_SPARE,
+};
+
+enum payload_mm_authvar_ftw_queue_disposition {
+	PAYLOAD_MM_AUTHVAR_FTW_QUEUE_NONE = 0,
+	PAYLOAD_MM_AUTHVAR_FTW_QUEUE_EMPTY,
+	PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD,
+};
+
+struct payload_mm_authvar_ftw_plan {
+	enum payload_mm_authvar_ftw_action action;
+	/* All geometry offsets are relative to the complete SMMSTORE region. */
+	struct payload_mm_authvar_fv_geometry geometry;
+	/* These sizes come only from the decoder-validated active/spare FV. */
+	uint32_t fv_header_size;
+	uint32_t variable_store_size;
+	/* Queue coordinates are relative to, and span only, the workspace below. */
+	uint32_t queue_offset;
+	uint32_t queue_entry_size;
+	/*
+	 * DISCARD_UNCOMMITTED erases this complete geometry working/spare range;
+	 * no queue, FV, SMMSTORE, or media-absolute offset may replace it.
+	 * CLEANUP_SPARE erases only the complete spare range after the active FV
+	 * and working queue prove it is stale transaction residue. Its queue
+	 * coordinates are zero and disposition is NONE. The executor verifies the
+	 * whole range erased and re-decodes before cache bind or a later transaction.
+	 */
+	enum payload_mm_authvar_ftw_workspace workspace;
+	enum payload_mm_authvar_ftw_queue_disposition queue_disposition;
+};
+
+enum cb_err payload_mm_authvar_ftw_plan(const void *region, size_t region_size,
+	size_t block_size, struct payload_mm_authvar_ftw_plan *plan);
+
+#endif
