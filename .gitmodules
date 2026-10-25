@@ -79,3 +79,6 @@
 	url = https://github.com/openSIL/openSIL.git
 	branch = turin_poc
 
+[submodule "3rdparty/mbedtls"]
+	path = 3rdparty/mbedtls
+	url = https://github.com/Mbed-TLS/mbedtls.git
