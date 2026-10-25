@@ -73,7 +73,7 @@ static void mainboard_fill_ssdt(const struct device *dev)
 	const bool sleep_enable = eeprom->profile != ATLAS_PROF_REALTIME_PERFORMANCE ? 1 : 0;
 	acpigen_ssdt_override_sleep_states(false, false,
 					   CONFIG(HAVE_ACPI_RESUME) && sleep_enable,
-					   sleep_enable);
+					   !CONFIG(DISABLE_ACPI_HIBERNATE) && sleep_enable);
 }
 
 static void mainboard_enable(struct device *dev)

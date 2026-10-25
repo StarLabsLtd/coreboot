@@ -131,6 +131,7 @@ static inline int pci_base_address_is_memory_space(unsigned int attr)
 }
 
 void pci_dev_disable_bus_master(const struct device *dev);
+void pci_disable_bus_mastering(void);
 
 static __always_inline
 #if ENV_PCI_SIMPLE_DEVICE
