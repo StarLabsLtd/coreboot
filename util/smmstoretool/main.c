@@ -27,12 +27,14 @@ static void help_get(FILE *f, const struct subcommand_t *info);
 static void help_guids(FILE *f, const struct subcommand_t *info);
 static void help_help(FILE *f, const struct subcommand_t *info);
 static void help_list(FILE *f, const struct subcommand_t *info);
+static void help_migrate(FILE *f, const struct subcommand_t *info);
 static void help_remove(FILE *f, const struct subcommand_t *info);
 static void help_set(FILE *f, const struct subcommand_t *info);
 static int process_get(int argc, char *argv[], const char store_file[]);
 static int process_guids(int argc, char *argv[], const char store_file[]);
 static int process_help(int argc, char *argv[], const char store_file[]);
 static int process_list(int argc, char *argv[], const char store_file[]);
+static int process_migrate(int argc, char *argv[], const char store_file[]);
 static int process_remove(int argc, char *argv[], const char store_file[]);
 static int process_set(int argc, char *argv[], const char store_file[]);
 
@@ -66,6 +68,12 @@ static const struct subcommand_t sub_commands[] = {
 		.description = "remove a variable from the store",
 		.print_help = &help_remove,
 		.process = &process_remove,
+	},
+	{
+		.name = "migrate-cdk2-padded",
+		.description = "convert a known legacy CDK2 SMMSTORE backup",
+		.print_help = &help_migrate,
+		.process = &process_migrate,
 	},
 	{
 		.name = "set",
@@ -240,6 +248,21 @@ static void help_list(FILE *f, const struct subcommand_t *info)
 {
 	fprintf(f, "List variables in the store:\n");
 	fprintf(f, "  %s smm-store-file|rom %s\n", program_name, info->name);
+}
+
+static void help_migrate(FILE *f, const struct subcommand_t *info)
+{
+	fprintf(f, "Convert a raw legacy CDK2 SMMSTORE region to a new file:\n");
+	fprintf(f, "  %s smm-store-backup %s output-file\n", program_name, info->name);
+	fprintf(f, "The input must have clean FTW state; output must not exist.\n");
+}
+
+static int process_migrate(int argc, char *argv[], const char store_file[])
+{
+	if (argc != 2)
+		print_sub_command_usage(argv[0]);
+	return storage_migrate_cdk2_padded(store_file, argv[1]) ?
+		EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 static int process_list(int argc, char *argv[], const char store_file[])
