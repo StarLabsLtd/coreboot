@@ -12,4 +12,7 @@
  */
 enum cb_err pci_xhci_get_wake_gpe(const struct device *dev, int *gpe);
 
+/* Called inside the controller's ACPI Device, after its standard properties. */
+void mainboard_xhci_acpi_fill_ssdt(const struct device *dev);
+
 #endif /* __DRIVERS_USB_PCI_XHCI__ */

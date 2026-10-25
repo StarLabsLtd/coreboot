@@ -92,6 +92,13 @@ static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 					 privacy_gpio_index, 0,
 					 config->privacy_gpio.active_low);
 	}
+	if (config->usb4_host_interface) {
+		if (!dsd)
+			dsd = acpi_dp_new_table("_DSD");
+		acpi_dp_add_reference(dsd, "usb4-host-interface",
+				      config->usb4_host_interface);
+		acpi_dp_add_integer(dsd, "usb4-port-number", config->usb4_port_number);
+	}
 	if (dsd)
 		acpi_dp_write(dsd);
 
