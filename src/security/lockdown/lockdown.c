@@ -61,7 +61,7 @@ void boot_device_security_lockdown(void)
 		printk(BIOS_INFO, "BM-LOCKDOWN: Enabled bootmedia protection\n");
 	} else {
 		printk(BIOS_ERR, "BM-LOCKDOWN: Failed to enable bootmedia protection\n");
-		if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL))
+		if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL) || CONFIG(SECURITY_FAIL_CLOSED))
 			die("Required boot-media protection failed\n");
 	}
 
@@ -71,13 +71,13 @@ void boot_device_security_lockdown(void)
 		 */
 		if (fmap_locate_area_as_rdev("BOOTBLOCK", &dev) < 0) {
 			printk(BIOS_ERR, "BM-LOCKDOWN: Could not find region 'BOOTBLOCK'\n");
-			if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL))
+			if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL) || CONFIG(SECURITY_FAIL_CLOSED))
 				die("Required BOOTBLOCK region is missing\n");
 		} else if (boot_device_wp_region(&dev, lock_type) >= 0) {
 			printk(BIOS_INFO, "BM-LOCKDOWN: Enabled bootmedia protection for BOOTBLOCK\n");
 		} else {
 			printk(BIOS_ERR, "BM-LOCKDOWN: Failed to enable bootmedia protection for BOOTBLOCK\n");
-			if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL))
+			if (CONFIG(BOOTMEDIA_LOCK_FAILURE_FATAL) || CONFIG(SECURITY_FAIL_CLOSED))
 				die("Required BOOTBLOCK protection failed\n");
 		}
 	}

@@ -3,7 +3,8 @@
 config SECURITY_FAIL_CLOSED
 	bool "Stop boot when security protection fails"
 	help
-	  Stop boot if GPIO locking or early DMA protection reports a failure.
+	  Stop boot if GPIO locking, boot-media protection or early DMA protection
+	  reports a failure.
 	  Otherwise report the failure and continue without claiming that the
 	  failed protection is active. Checks and error reporting are enabled
 	  regardless of this setting.

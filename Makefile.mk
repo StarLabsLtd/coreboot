@@ -1187,12 +1187,22 @@ endif
 FMAP_FMAP_BASE := $(FMAP_CURRENT_BASE)
 FMAP_FMAP_SIZE := 0x1000
 
+ifeq ($(CONFIG_DAVE_MODE),y)
+FMAP_FMAP_BASE := $(call int-align, $(FMAP_CURRENT_BASE), $(CONFIG_SMMSTORE_BLOCK_SIZE))
+FMAP_FMAP_SIZE := $(CONFIG_SMMSTORE_BLOCK_SIZE)
+FMAP_SRK_BASE := $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE))
+FMAP_SRK_ENTRY := SRK_PIN_V1@$(call _tohex,$(FMAP_SRK_BASE)) $(call _tohex,$(CONFIG_SMMSTORE_BLOCK_SIZE))
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_SRK_BASE) $(CONFIG_SMMSTORE_BLOCK_SIZE))
+else
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE))
+endif
+
 #
 # X86 COREBOOT default cbfs FMAP region
 #
 # position of CBFS, relative to BIOS_BASE
 # will extend to the end of the flash/bios region
-FMAP_CBFS_BASE := $(call int-align, $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE)), 0x1000)
+FMAP_CBFS_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x1000)
 
 else # ifeq ($(CONFIG_ARCH_X86),y)
 
@@ -1249,6 +1259,7 @@ define FMAP_EMIT_X86_BIOS
 	$(if $(strip $(FMAP_CONSOLE_ENTRY)),printf '\t\t%s\n' '$(FMAP_CONSOLE_ENTRY)';) \
 	$(if $(strip $(FMAP_HSPHY_FW_ENTRY)),printf '\t\t%s\n' '$(FMAP_HSPHY_FW_ENTRY)';) \
 	printf '\t\tFMAP@0x%x 0x%x\n' $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE); \
+	$(if $(strip $(FMAP_SRK_ENTRY)),printf '\t\t%s\n' '$(FMAP_SRK_ENTRY)';) \
 	printf '\t\tCOREBOOT(CBFS)@0x%x\n' $(FMAP_CBFS_BASE); \
 	printf '\t}\n';
 endef
