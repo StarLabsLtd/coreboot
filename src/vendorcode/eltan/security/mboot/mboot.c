@@ -88,7 +88,7 @@ tpm_result_t tpm2_get_capability_pcrs(TPML_PCR_SELECTION *Pcrs)
 		printk(BIOS_DEBUG, "Pcrs->count = %d\n", Pcrs->count);
 		for (index = 0; index < Pcrs->count; index++) {
 			Pcrs->pcrSelections[index].hash =
-				be16toh(TpmCap.data.assignedPCR.pcrSelections[index].hash);
+				TpmCap.data.assignedPCR.pcrSelections[index].hash;
 			printk(BIOS_DEBUG, "Pcrs->pcrSelections[%d].hash = %#x\n", index,
 			       Pcrs->pcrSelections[index].hash);
 			Pcrs->pcrSelections[index].sizeofSelect =

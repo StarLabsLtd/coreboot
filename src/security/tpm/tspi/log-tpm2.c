@@ -395,14 +395,19 @@ void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 {
 	struct tpm_2_log_table *tclt;
 	size_t name_len;
+	int appended = 0;
 
 	if (!name) {
+		if (CONFIG(PAYLOAD_CDK2))
+			die("Cannot record unnamed TPM event\n");
 		printk(BIOS_WARNING, "TPM LOG: entry name not set\n");
 		return;
 	}
 
 	tclt = tpm_log_init();
 	if (!tclt) {
+		if (CONFIG(PAYLOAD_CDK2))
+			die("Cannot record TPM event without a log\n");
 		printk(BIOS_WARNING, "TPM LOG: non-existent!\n");
 		return;
 	}
@@ -411,18 +416,20 @@ void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 
 	/* Pre-RAM logs always use fixed slots; only CBMEM can contain packed entries. */
 	if (!ENV_HAS_CBMEM || tpm2_log_uses_fixed_entries(tclt))
-		tpm2_log_append_fixed_event(tclt, pcr, EV_ACTION, digest_algo, digest,
+		appended = tpm2_log_append_fixed_event(tclt, pcr, EV_ACTION, digest_algo, digest,
 					    digest_len, name, name_len);
 	else if (ENV_HAS_CBMEM && tpm2_log_uses_packed_entries(tclt)) {
 		uint8_t event_name[TPM_20_LOG_DATA_MAX_LENGTH];
 
 		memcpy(event_name, name, name_len);
 		event_name[name_len++] = '\0';
-		tpm2_log_append_packed_event(tclt, pcr, EV_ACTION, digest_algo, digest,
+		appended = tpm2_log_append_packed_event(tclt, pcr, EV_ACTION, digest_algo, digest,
 					     digest_len, event_name, name_len);
 	} else {
 		printk(BIOS_WARNING, "TPM LOG: unknown entry layout\n");
 	}
+	if (!appended && CONFIG(PAYLOAD_CDK2))
+		die("Cannot hand off incomplete TPM event log\n");
 }
 
 int tpm2_log_add_compact_hash(const char *name, uint32_t pcr,
@@ -485,7 +492,13 @@ void tpm2_preram_log_clear(void)
 	 * packed CBMEM log when CBMEM is created.
 	 */
 	struct tpm_2_log_table *tclt = (struct tpm_2_log_table *)_tpm_log;
-	tclt->vendor.max_entries = htole16(MAX_PRERAM_TPM_LOG_ENTRIES);
+	if (REGION_SIZE(tpm_log) < sizeof(*tclt))
+		die("TPM pre-RAM log header does not fit its reservation\n");
+	size_t capacity = (REGION_SIZE(tpm_log) - sizeof(*tclt)) /
+		sizeof(struct tpm_2_log_entry);
+	if (capacity > MAX_PRERAM_TPM_LOG_ENTRIES)
+		capacity = MAX_PRERAM_TPM_LOG_ENTRIES;
+	tclt->vendor.max_entries = htole16(capacity);
 	tclt->vendor.num_entries = htole16(0);
 	tclt->vendor.entry_size = htole32(sizeof(struct tpm_2_log_entry));
 }
@@ -506,6 +519,8 @@ void tpm2_log_copy_entries(const void *from, void *to)
 		uint32_t pcr;
 
 		if (!from_entry) {
+			if (CONFIG(PAYLOAD_CDK2))
+				die("Cannot copy malformed TPM event\n");
 			printk(BIOS_WARNING, "TPM LOG: malformed entry\n");
 			return;
 		}
@@ -518,7 +533,10 @@ void tpm2_log_copy_entries(const void *from, void *to)
 		if (!tpm2_log_append_packed_event(to_log, pcr, event_type, TPM_MEASURE_ALGO,
 						  tpm2_log_entry_digest(from_entry),
 						  vb2_digest_size(TPM_MEASURE_ALGO),
-						  tpm2_log_entry_data(from_entry), data_length))
+						  tpm2_log_entry_data(from_entry), data_length)) {
+			if (CONFIG(PAYLOAD_CDK2))
+				die("Cannot retain complete pre-RAM TPM event log\n");
 			return;
+		}
 	}
 }

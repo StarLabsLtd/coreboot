@@ -81,6 +81,8 @@ static tpm_result_t tpm_setup_s3_helper(void)
 
 static tpm_result_t tpm_setup_epilogue(tpm_result_t rc)
 {
+	if (CONFIG(PAYLOAD_CDK2) && CONFIG(TPM_MEASURED_BOOT) && rc != TPM_SUCCESS)
+		die("Cannot hand off failed TPM setup or measurement replay: %#x\n", rc);
 	if (rc != TPM_SUCCESS)
 		post_code(POSTCODE_TPM_FAILURE);
 	else
@@ -194,7 +196,7 @@ tpm_result_t tpm_setup(int s3flag)
 	if (CONFIG(TPM_MEASURED_BOOT))
 		rc = tspi_measure_cache_to_pcr();
 
-	tpm_is_setup = 1;
+	tpm_is_setup = rc == TPM_SUCCESS;
 	return tpm_setup_epilogue(rc);
 }
 
@@ -231,8 +233,12 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 {
 	tpm_result_t rc;
 
-	if (!digest)
-		return TPM_IOERROR;
+	if (!digest) {
+		rc = TPM_IOERROR;
+		goto failed;
+	}
+	if (CONFIG(PAYLOAD_CDK2) && tpm_is_expected_absent())
+		return TPM_SUCCESS;
 
 	if (CONFIG(TPM_MEASURED_BOOT)) {
 		rc = tspi_ensure_event_log_initialized();
@@ -244,7 +250,7 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 		rc = tlcl_lib_init();
 		if (rc != TPM_SUCCESS) {
 			printk(BIOS_ERR, "TPM Error (%#x): Can't initialize library.\n", rc);
-			return rc;
+			goto failed;
 		}
 
 		printk(BIOS_DEBUG, "TPM: Extending digest for `%s` into PCR %d\n", name, pcr);
@@ -252,7 +258,7 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 		if (rc != TPM_SUCCESS) {
 			printk(BIOS_ERR, "TPM Error (%#x): Extending hash for `%s` into PCR %d failed.\n",
 			       rc, name, pcr);
-			return rc;
+			goto failed;
 		}
 	}
 
@@ -263,6 +269,11 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 	       name, pcr, tspi_tpm_is_setup() ? "measured" : "logged");
 
 	return TPM_SUCCESS;
+
+failed:
+	if (CONFIG(PAYLOAD_CDK2))
+		die("Cannot retain complete TPM measurements: %#x\n", rc);
+	return rc;
 }
 
 #if CONFIG(TPM_PREBOOT_AUTH_PHASE) && ENV_RAMSTAGE
@@ -296,7 +307,7 @@ tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 {
 	uint8_t digest[TPM_PCR_MAX_LEN], digest_len;
 	uint8_t buf[HASH_DATA_CHUNK_SIZE];
-	uint32_t offset;
+	size_t offset;
 	size_t len;
 	struct vb2_digest_context ctx;
 
@@ -316,7 +327,7 @@ tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 	 */
 	for (offset = 0; offset < region_device_sz(rdev); offset += len) {
 		len = MIN(sizeof(buf), region_device_sz(rdev) - offset);
-		if (rdev_readat(rdev, buf, offset, len) < 0) {
+		if (rdev_readat(rdev, buf, offset, len) != len) {
 			printk(BIOS_ERR, "TPM: Not able to read region %s.\n",
 			       rname);
 			return TPM_CB_READ_FAILURE;

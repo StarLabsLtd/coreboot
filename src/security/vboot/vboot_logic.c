@@ -340,7 +340,9 @@ void verstage_main(void)
 		if (rv == VB2_ERROR_API_PHASE1_RECOVERY) {
 			printk(BIOS_INFO, "Recovery requested (%#x)\n", rv);
 			vboot_save_data(ctx);
-			extend_pcrs(ctx); /* ignore failures */
+			rv = extend_pcrs(ctx);
+			if (CONFIG(PAYLOAD_CDK2) && rv)
+				die("Cannot hand off incomplete vboot recovery measurements: %#x\n", rv);
 			goto verstage_main_exit;
 		}
 		vboot_save_and_reboot(ctx, rv);

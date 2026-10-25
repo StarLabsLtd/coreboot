@@ -17,7 +17,7 @@
 #define TPM2_RC_SUCCESS    0
 #define TPM2_RC_NV_DEFINED 0x14c
 
-#define HASH_COUNT 2 /* SHA-1 and SHA-256 are supported */
+#define HASH_COUNT 5 /* SHA-1, SHA-256, SHA-384, SHA-512 and SM3-256. */
 
 /* Basic TPM2 types. */
 typedef uint16_t TPM_SU;

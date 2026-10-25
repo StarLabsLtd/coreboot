@@ -65,7 +65,7 @@ bool fetch_pre_rbp_data(struct boot_policy_manifest *bpm_info)
 			printk(BIOS_DEBUG, "TXE Hash: %hhn\n", bpm_info->txe_hash);
 			hexdump((void *)bpm_info->txe_hash, SHA256_DIGEST_SIZE);
 
-			tpm_extend_pcr(0, TPM_ALG_SHA256, bpm_info->txe_hash,
+			tpm_extend_pcr(0, VB2_HASH_SHA256, bpm_info->txe_hash,
 				SHA256_DIGEST_SIZE, "TXE");
 		}
 
@@ -78,7 +78,7 @@ bool fetch_pre_rbp_data(struct boot_policy_manifest *bpm_info)
 			printk(BIOS_DEBUG, "IBBL Hash: %hhn\n", bpm_info->ibbl_hash);
 			hexdump((void *)bpm_info->ibbl_hash, SHA256_DIGEST_SIZE);
 
-			tpm_extend_pcr(0, TPM_ALG_SHA256, bpm_info->ibbl_hash,
+			tpm_extend_pcr(0, VB2_HASH_SHA256, bpm_info->ibbl_hash,
 			SHA256_DIGEST_SIZE, "IBBL");
 
 		}
@@ -107,7 +107,7 @@ void fetch_post_rbp_data(struct boot_policy_manifest *bpm_info)
 			printk(BIOS_DEBUG, "IBB Hash: %hhn\n", bpm_info->ibb_hash);
 			hexdump((void *)bpm_info->ibb_hash, SHA256_DIGEST_SIZE);
 
-			tpm_extend_pcr(0, TPM_ALG_SHA256, bpm_info->ibb_hash,
+			tpm_extend_pcr(0, VB2_HASH_SHA256, bpm_info->ibb_hash,
 				SHA256_DIGEST_SIZE, "IBBM");
 		}
 	}

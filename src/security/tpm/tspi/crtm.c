@@ -258,11 +258,15 @@ static void recover_tpm_log(int is_recovery)
 	void *ram_log = tpm_log_cbmem_init();
 
 	if (tpm_log_get_size(preram_log) > MAX_PRERAM_TPM_LOG_ENTRIES) {
+		if (CONFIG(PAYLOAD_CDK2))
+			die("Cannot retain malformed pre-RAM TPM history\n");
 		printk(BIOS_WARNING, "TPM LOG: pre-RAM log is too full, possible corruption\n");
 		return;
 	}
 
 	if (ram_log == NULL) {
+		if (CONFIG(PAYLOAD_CDK2))
+			die("Cannot retain TPM history without CBMEM\n");
 		printk(BIOS_WARNING, "TPM LOG: CBMEM not available, something went wrong\n");
 		return;
 	}

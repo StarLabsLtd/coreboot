@@ -109,6 +109,8 @@ static int marshal_TPML_DIGEST_VALUES(struct obuf *ob,
 	int i;
 	int rc = 0;
 
+	if (!dvalues->count || dvalues->count > ARRAY_SIZE(dvalues->digests))
+		return -1;
 	rc |= obuf_write_be32(ob, dvalues->count);
 	for (i = 0; i < dvalues->count; i++)
 		rc |= marshal_TPMT_HA(ob, &dvalues->digests[i]);
@@ -497,7 +499,15 @@ static int unmarshal_get_capability(struct ibuf *ib,
 		for (i = 0; i < gcr->cd.data.assignedPCR.count; i++) {
 			TPMS_PCR_SELECTION *pp =
 				&gcr->cd.data.assignedPCR.pcrSelections[i];
-			rc |= ibuf_read(ib, pp, sizeof(TPMS_PCR_SELECTION));
+			uint16_t hash;
+
+			memset(pp, 0, sizeof(*pp));
+			if (ibuf_read_be16(ib, &hash) ||
+			    ibuf_read_be8(ib, &pp->sizeofSelect) ||
+			    pp->sizeofSelect > sizeof(pp->pcrSelect) ||
+			    ibuf_read(ib, pp->pcrSelect, pp->sizeofSelect))
+				return -1;
+			pp->hash = hash;
 		}
 		break;
 	default:
@@ -684,9 +694,11 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 		       command, ibuf_remaining(ib));
 		return NULL;
 	}
-	if (rc)
+	if (rc) {
 		printk(BIOS_WARNING, "%s had one or more failures.\n",
 					__func__);
+		return NULL;
+	}
 
 	/* The entire message have been parsed. */
 	return &tpm2_static_resp;

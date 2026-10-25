@@ -775,6 +775,8 @@ static void lpc_tpm_read_resources(struct device *dev)
 {
 	/* Static 5K memory region specified in Kconfig */
 	mmio_range(dev, 0, CONFIG_TPM_TIS_BASE_ADDRESS, 0x5000);
+	if (CONFIG(PAYLOAD_CDK2) && CONFIG(DRIVERS_EMULATION_QEMU_FW_CFG))
+		tpm_ppi_add_resources(dev, 1);
 }
 
 static void lpc_tpm_set_resources(struct device *dev)
@@ -806,6 +808,14 @@ static void lpc_tpm_set_resources(struct device *dev)
 #if CONFIG(HAVE_ACPI_TABLES)
 static void lpc_tpm_fill_ssdt(const struct device *dev)
 {
+	/* The native payload consumes the imported device's PPI mailbox. */
+	if (CONFIG(PAYLOAD_CDK2) && CONFIG(DRIVERS_EMULATION_QEMU_FW_CFG) &&
+	    acpi_tables_from_fw_cfg()) {
+		if (!CONFIG(TPM_PPI))
+			tpm_ppi_disable_mmio();
+		return;
+	}
+
 	/* Windows 11 requires the following path for TPM to be detected */
 	const char *path = "\\_SB_.PCI0";
 
