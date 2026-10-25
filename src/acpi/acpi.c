@@ -45,6 +45,13 @@
 
 static acpi_rsdp_t *valid_rsdp(acpi_rsdp_t *rsdp);
 
+static bool using_fw_cfg_tables;
+
+bool acpi_tables_from_fw_cfg(void)
+{
+	return using_fw_cfg_tables;
+}
+
 u8 acpi_checksum(u8 *table, u32 length)
 {
 	u8 ret = 0;
@@ -1609,6 +1616,7 @@ static unsigned long write_acpi_tables(const unsigned long start)
 	current = acpi_align_current(current);
 
 	/* Special case for qemu */
+	using_fw_cfg_tables = false;
 	fw = fw_cfg_acpi_tables(current);
 	if (fw) {
 		rsdp = NULL;
@@ -1622,11 +1630,15 @@ static unsigned long write_acpi_tables(const unsigned long start)
 		}
 		if (!rsdp)
 			return fw;
+		using_fw_cfg_tables = true;
 
 		current = fw;
 		current = acpi_align_current(current);
 		if (rsdp->xsdt_address == 0) {
 			acpi_rsdt_t *existing_rsdt = (acpi_rsdt_t *)(uintptr_t)rsdp->rsdt_address;
+			memcpy(oem_id, rsdp->oem_id, sizeof(oem_id));
+			memcpy(oem_table_id, existing_rsdt->header.oem_table_id,
+			       sizeof(oem_table_id));
 
 			/*
 			 * Qemu only provides a smaller ACPI 1.0 RSDP, thus
@@ -1637,6 +1649,7 @@ static unsigned long write_acpi_tables(const unsigned long start)
 			coreboot_rsdp = (uintptr_t)rsdp;
 
 			xsdt = (acpi_xsdt_t *)current;
+			memset(xsdt, 0, sizeof(*xsdt));
 			current += sizeof(acpi_xsdt_t);
 			current = acpi_align_current(current);
 
@@ -1657,33 +1670,14 @@ static unsigned long write_acpi_tables(const unsigned long start)
 		/* Add BOOT0000 for Linux google firmware driver */
 		printk(BIOS_DEBUG, "ACPI:     * SSDT\n");
 		ssdt = (acpi_header_t *)current;
-		current += sizeof(acpi_header_t);
-
 		memset((void *)ssdt, 0, sizeof(acpi_header_t));
-
-		memcpy(&ssdt->signature, "SSDT", 4);
-		ssdt->revision = get_acpi_table_revision(SSDT);
-		memcpy(&ssdt->oem_id, OEM_ID, 6);
-		memcpy(&ssdt->oem_table_id, oem_table_id, 8);
-		ssdt->oem_revision = 42;
-		memcpy(&ssdt->asl_compiler_id, ASLC, 4);
-		ssdt->asl_compiler_revision = asl_revision;
-		ssdt->length = sizeof(acpi_header_t);
-
-		acpigen_set_current((char *)current);
-
-		/* Write object to declare coreboot tables */
-		acpi_ssdt_write_cbtable();
-
-		/* (Re)calculate length and checksum. */
-		ssdt->length = current - (unsigned long)ssdt;
-		ssdt->checksum = acpi_checksum((void *)ssdt, ssdt->length);
-
 		acpi_create_ssdt_generator(ssdt, NULL);
+		ssdt->checksum = 0;
+		ssdt->checksum = acpi_checksum((void *)ssdt, ssdt->length);
 
 		acpi_add_table(rsdp, ssdt);
 
-		return current;
+		return acpi_align_current((unsigned long)ssdt + ssdt->length);
 	}
 
 	dsdt_file = cbfs_map(CONFIG_CBFS_PREFIX "/dsdt.aml", &dsdt_size);
