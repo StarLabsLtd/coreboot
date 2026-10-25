@@ -140,35 +140,27 @@ static TPM_ALG_ID tpmalg_from_vb2_hash(enum vb2_hash_algorithm hash_type)
 	}
 }
 
-/*
- * The caller will provide the digest in a 32 byte buffer, let's consider it a
- * sha256 digest.
- */
 tpm_result_t tlcl2_extend(int pcr_num, const uint8_t *digest_data,
 			  enum vb2_hash_algorithm digest_type)
 {
-	struct tpm2_pcr_extend_cmd pcr_ext_cmd;
+	struct tpm2_pcr_extend_cmd command = { 0 };
 	struct tpm2_response *response;
-	TPM_ALG_ID alg;
+	TPM_ALG_ID alg = tpmalg_from_vb2_hash(digest_type);
 
-	alg = tpmalg_from_vb2_hash(digest_type);
-	if (alg == TPM_ALG_ERROR)
+	if (pcr_num < 0 || pcr_num >= IMPLEMENTATION_PCR)
+		return TPM_CB_INVALID_ARG;
+	if (alg == TPM_ALG_ERROR || !digest_data)
 		return TPM_CB_HASH_ERROR;
-
-	pcr_ext_cmd.pcrHandle = HR_PCR + pcr_num;
-	pcr_ext_cmd.digests.count = 1;
-	pcr_ext_cmd.digests.digests[0].hashAlg = alg;
-	/* Always copying to sha512 as it's the largest one */
-	memcpy(pcr_ext_cmd.digests.digests[0].digest.sha512, digest_data,
-	       vb2_digest_size(digest_type));
-
-	response = tlcl2_process_command(TPM2_PCR_Extend, &pcr_ext_cmd);
-
+	command.pcrHandle = HR_PCR + pcr_num;
+	command.digests.count = 1;
+	command.digests.digests[0].hashAlg = alg;
+	memcpy(command.digests.digests[0].digest.sha512, digest_data,
+		vb2_digest_size(digest_type));
+	response = tlcl2_process_command(TPM2_PCR_Extend, &command);
 	printk(BIOS_INFO, "%s: response is %#x\n",
-	       __func__, response ? response->hdr.tpm_code : -1);
+		__func__, response ? response->hdr.tpm_code : -1);
 	if (!response || response->hdr.tpm_code)
 		return TPM_IOERROR;
-
 	return TPM_SUCCESS;
 }
 
@@ -450,18 +442,20 @@ tpm_result_t tlcl2_get_capability(TPM_CAP capability, uint32_t property,
 	cmd.property = property;
 	cmd.propertyCount = property_count;
 
-	if (property_count > 1) {
-		printk(BIOS_ERR, "%s: property_count more than one not "
-		       "supported yet\n", __func__);
-		return TPM_IOERROR;
-	}
+	if (!capability_data || !property_count ||
+	    (capability == TPM_CAP_PCRS ? property_count > HASH_COUNT : property_count > 1))
+		return TPM_CB_INVALID_ARG;
 
 	response = tlcl2_process_command(TPM2_GetCapability, &cmd);
 
-	if (!response) {
+	if (!response || response->hdr.tpm_code) {
 		printk(BIOS_ERR, "%s: Command Failed\n", __func__);
 		return TPM_IOERROR;
 	}
+	if (response->gc.cd.capability != capability ||
+	    (capability == TPM_CAP_PCRS && property_count == HASH_COUNT &&
+	     response->gc.more_data))
+		return TPM_CB_INTERNAL_INCONSISTENCY;
 
 	memcpy(capability_data, &response->gc.cd, sizeof(TPMS_CAPABILITY_DATA));
 	return TPM_SUCCESS;
