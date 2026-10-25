@@ -91,6 +91,10 @@ static void migrate_power_state(int is_recovery)
 		return;
 	}
 	memcpy(ps_cbmem, &power_state, sizeof(*ps_cbmem));
+	/* Older payload consumers do not recognize the S4 boot-mode value. */
+	if (CONFIG(PAYLOAD_CDK2) && power_state.prev_sleep_state == ACPI_S4 &&
+	    get_boot_mode() == LB_BOOT_MODE_NORMAL)
+		set_boot_mode(LB_BOOT_MODE_S4_RESUME);
 }
 CBMEM_CREATION_HOOK(migrate_power_state);
 
