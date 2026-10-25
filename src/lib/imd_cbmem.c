@@ -208,6 +208,27 @@ int cbmem_get_region(void **baseptr, size_t *size)
 	return imd_region_used(&imd, baseptr, size);
 }
 
+int cbmem_set_lower_bound(uintptr_t lower_bound)
+{
+	void *baseptr;
+	uintptr_t base;
+	size_t size, max_size;
+
+	if (cbmem_get_region(&baseptr, &size))
+		return -1;
+	base = (uintptr_t)baseptr;
+	if (!size || size > UINTPTR_MAX - base || base < lower_bound)
+		return -1;
+	max_size = base + size - lower_bound;
+	/* IMD stores the root-relative lower limit in a signed 32-bit offset. */
+	if (max_size > INT32_MAX)
+		max_size = INT32_MAX;
+	/* A root-only limit encodes zero, which IMD treats as unlimited. */
+	if (max_size <= CBMEM_ROOT_MIN_SIZE || size > max_size)
+		return -1;
+	return imd_limit_size(&imd, max_size);
+}
+
 #if ENV_PAYLOAD_LOADER || (CONFIG(EARLY_CBMEM_LIST) && ENV_HAS_CBMEM)
 /*
  * -fdata-sections doesn't work so well on read only strings. They all

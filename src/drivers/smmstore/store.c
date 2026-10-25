@@ -175,6 +175,10 @@ uint32_t smmstore_srk_exec(uint8_t command, void *buffer)
 
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
+	smmstore_use_full_flash = 0;
+	if (CONFIG(SMM_AUTHVAR) && ((*cmd & SMMSTORE_CMD_USE_FULL_FLASH) ||
+	    *cmd == SMMSTORE_CMD_RAW_WRITE || *cmd == SMMSTORE_CMD_RAW_CLEAR))
+		return -1;
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
 		if (has_capsules == -1 && *cmd == SMMSTORE_CMD_USE_FULL_FLASH) {
 			has_capsules = !!(uintptr_t)param;
@@ -195,9 +199,9 @@ int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 	return 0;
 }
 
-static enum cb_err lookup_store_region(struct region *region)
+static enum cb_err lookup_store_region(struct region *region, bool full_flash)
 {
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && smmstore_use_full_flash) {
+	if (full_flash) {
 		const struct region_device *rdev = boot_device_rw();
 
 		if (rdev == NULL)
@@ -217,6 +221,12 @@ static enum cb_err lookup_store_region(struct region *region)
 	return CB_SUCCESS;
 }
 
+struct smmstore_region {
+	struct region_device read;
+	struct region_device write;
+	struct incoherent_rdev device;
+};
+
 /*
  * Return a region device that points into the store file.
  *
@@ -229,23 +239,22 @@ static enum cb_err lookup_store_region(struct region *region)
  * returns 0 on success, -1 on failure
  * outputs the valid store rdev in rstore
  */
-static int lookup_store(struct region_device *rstore, size_t *physical_offset)
+static int lookup_store(struct region_device *rstore, struct smmstore_region *store,
+			bool full_flash, size_t *physical_offset)
 {
-	static struct region_device read_rdev, write_rdev;
-	static struct incoherent_rdev store_irdev;
 	struct region region;
 	const struct region_device *rdev;
 
-	if (lookup_store_region(&region) != CB_SUCCESS)
+	if (lookup_store_region(&region, full_flash) != CB_SUCCESS)
 		return -1;
 
-	if (boot_device_ro_subregion(&region, &read_rdev) < 0)
+	if (boot_device_ro_subregion(&region, &store->read) < 0)
 		return -1;
 
-	if (boot_device_rw_subregion(&region, &write_rdev) < 0)
+	if (boot_device_rw_subregion(&region, &store->write) < 0)
 		return -1;
 
-	rdev = incoherent_rdev_init(&store_irdev, &region, &read_rdev, &write_rdev);
+	rdev = incoherent_rdev_init(&store->device, &region, &store->read, &store->write);
 
 	if (rdev == NULL)
 		return -1;
@@ -262,11 +271,12 @@ int smmstore_lookup_region(struct region_device *rstore)
 	static int done;
 	static int ret;
 	static struct region_device rdev;
+	static struct smmstore_region store;
 
 	if (!done) {
 		done = 1;
 
-		if (lookup_store(&rdev, NULL)) {
+		if (lookup_store(&rdev, &store, false, NULL)) {
 			printk(BIOS_WARNING,
 			       "smm store: Unable to find SMM store FMAP region '%s'\n",
 				SMMSTORE_REGION);
@@ -310,9 +320,10 @@ int smmstore_init(void *buf, size_t len)
  */
 int smmstore_get_info(struct smmstore_params_info *out)
 {
+	static struct smmstore_region backing;
 	struct region_device store;
 
-	if (lookup_store(&store, NULL) < 0) {
+	if (lookup_store(&store, &backing, false, NULL) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}
@@ -339,7 +350,9 @@ int smmstore_get_info(struct smmstore_params_info *out)
 static int lookup_block_in_store(struct region_device *store, uint32_t block_id,
 				 size_t *physical_offset)
 {
-	if (lookup_store(store, physical_offset) < 0) {
+	static struct smmstore_region backing;
+
+	if (lookup_store(store, &backing, smmstore_use_full_flash != 0, physical_offset) < 0) {
 		printk(BIOS_ERR, "smm store: lookup of store failed\n");
 		return -1;
 	}

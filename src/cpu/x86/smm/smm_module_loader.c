@@ -3,6 +3,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_gnvs.h>
 #include <cbmem.h>
+#include <commonlib/authvar_boot_authority.h>
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
 #include <commonlib/bsd/cb_err.h>
@@ -439,20 +440,40 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		smm_pci_resource_store_init(mod_params);
 
 	if (CONFIG(SMMSTORE)) {
-		struct smmstore_params_info info;
-		if (smmstore_get_info(&info) < 0) {
-			printk(BIOS_INFO, "SMMSTORE: Failed to get meta data\n");
-			return;
-		}
+		uintptr_t base;
+		size_t size;
 
-		void *ptr = cbmem_add(CBMEM_ID_SMM_COMBUFFER, info.block_size);
-		if (!ptr) {
-			printk(BIOS_ERR, "SMMSTORE: Failed to add com buffer\n");
+		if (smmstore_init_com_buffer(&base, &size) < 0) {
+			if (CONFIG(CDK2_S4_LAYOUT_REQUIRED))
+				die("SMMSTORE: S4 mailbox unavailable\n");
+			printk(BIOS_ERR, "SMMSTORE: Failed to allocate com buffer\n");
 			return;
 		}
-		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
-		mod_params->smmstore_com_buffer_size = info.block_size;
+		mod_params->smmstore_com_buffer_base = base;
+		mod_params->smmstore_com_buffer_size = size;
 	}
+
+#if CONFIG(SMM_AUTHVAR)
+	const struct cbmem_entry *authority = cbmem_entry_add(CBMEM_ID_AUTHVAR_BOOT_AUTHORITY,
+		AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE);
+	uintptr_t authority_base = authority ? (uintptr_t)cbmem_entry_start(authority) : 0;
+
+	if (!authority || cbmem_entry_size(authority) != AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE ||
+	    !authority_base || !IS_ALIGNED(authority_base, AUTHVAR_BOOT_AUTHORITY_PAGE_SIZE) ||
+	    authority_base > UINT32_MAX - (AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE - 1U))
+		die("Authenticated variables: boot authority allocation failed\n");
+	mod_params->authvar_boot_authority_base = authority_base;
+	mod_params->authvar_boot_authority_size = AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE;
+#endif
+
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+	void *staging = cbmem_add(CBMEM_ID_CAPSULE_STAGING, CONFIG_ROM_SIZE + 1 * MiB);
+
+	if (!staging)
+		die("Capsules: staging allocation failed\n");
+	mod_params->capsule_staging_base = (uintptr_t)staging;
+	mod_params->capsule_staging_size = CONFIG_ROM_SIZE + 1 * MiB;
+#endif
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	/*
@@ -634,6 +655,20 @@ static enum cb_err smm_handler_install_handler(const struct region *region,
 {
 	if (rmodule_load((void *)region_offset(region), &smi_handler))
 		return -1;
+	if (CONFIG(SMM_AUTHVAR)) {
+		const struct rmodule_header *header = smi_handler.header;
+		const size_t link = header->module_link_start_address;
+		const size_t bss_end = header->bss_end;
+		const size_t handler_size = rmodule_memory_size(&smi_handler);
+
+		/* The owner tail survives S3; ordinary BSS was reset by the loader. */
+		if (bss_end < link || bss_end - link >= handler_size ||
+		    bss_end - link < (size_t)smi_handler.payload_size)
+			return CB_ERR;
+		if (!acpi_is_wakeup_s3())
+			memset((void *)(region_offset(region) + bss_end - link), 0,
+				handler_size - (bss_end - link));
+	}
 	params->handler = rmodule_entry(&smi_handler);
 
 	return CB_SUCCESS;

@@ -28,4 +28,5 @@ Intel Authenticated Code Modules <intel/acm.md>
 :maxdepth: 1
 
 System Management Mode <smm.md>
+SMM-owned UEFI variables <smm-authvar.md>
 ```

@@ -12,10 +12,10 @@ void lb_smmstorev2(struct lb_header *header)
 {
 	struct lb_record *rec;
 	struct lb_smmstorev2 *store;
-	const struct cbmem_entry *e;
+	uintptr_t communication;
+	size_t communication_size;
 
-	e = cbmem_entry_find(CBMEM_ID_SMM_COMBUFFER);
-	if (!e)
+	if (smmstore_get_com_buffer(&communication, &communication_size) < 0)
 		return;
 
 	struct smmstore_params_info info;
@@ -26,8 +26,8 @@ void lb_smmstorev2(struct lb_header *header)
 
 	store->tag = LB_TAG_SMMSTOREV2;
 	store->size = sizeof(*store);
-	store->com_buffer = (uintptr_t)cbmem_entry_start(e);
-	store->com_buffer_size = cbmem_entry_size(e);
+	store->com_buffer = communication;
+	store->com_buffer_size = communication_size;
 	if (info.mmap_addr < 4ULL * GiB)
 		store->mmap_addr_deprecated = info.mmap_addr;
 	else

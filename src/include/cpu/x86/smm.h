@@ -27,6 +27,9 @@
 #define APM_CNT_FINALIZE	0xcb
 #define APM_CNT_LEGACY		0xcc
 #define APM_CNT_CFR_RUNTIME_APPLY	CFR_RUNTIME_APPLY_APM_CNT_COMMAND
+#define APM_CNT_AUTHVAR		0xe4
+#define APM_CNT_CAPSULE		0xe5
+#define APM_CNT_AUTHVAR_CLOSE	0xfe
 #define APM_CNT_ROM_ARMOR	0xea
 #define APM_CNT_MBI_UPDATE	0xeb
 #define APM_CNT_SMMINFO		0xec
@@ -103,6 +106,14 @@ struct smm_runtime {
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
+	uintptr_t capsule_staging_base;
+	size_t capsule_staging_size;
+#endif
+#if CONFIG(SMM_AUTHVAR)
+	uintptr_t authvar_boot_authority_base;
+	size_t authvar_boot_authority_size;
+#endif
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	uintptr_t opal_s3_scratch_base;
 	size_t opal_s3_scratch_size;
@@ -149,6 +160,12 @@ extern struct global_nvs *gnvs;
 
 /* Entry point for SMM modules. */
 asmlinkage void smm_handler_start(void *params);
+
+/*
+ * Called by the SMI leader before a shared write gate or save-state scan.
+ * Success keeps all peers parked until the handler releases its lock.
+ */
+bool smm_wait_for_cpus(void);
 
 /* Retrieve SMM save state for a given CPU. WARNING: This does not take into
  * account CPUs which are configured to not save their state to RAM. */
@@ -269,6 +286,8 @@ bool smm_acpi_global_lock_release(void);
 bool smm_is_s3_resume(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
+void smm_get_capsule_staging(uintptr_t *base, size_t *size);
+void smm_get_authvar_boot_authority(uintptr_t *base, size_t *size);
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size);
 #endif
