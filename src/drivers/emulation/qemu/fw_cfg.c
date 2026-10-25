@@ -13,7 +13,7 @@
 static int fw_cfg_detected;
 static uint8_t fw_ver;
 
-static void fw_cfg_dma(int control, void *buf, int len);
+static int fw_cfg_dma(uint32_t control, void *buf, int len);
 
 static int fw_cfg_present(void)
 {
@@ -38,7 +38,7 @@ static int fw_cfg_present(void)
 static void fw_cfg_select(uint16_t entry)
 {
 	if (fw_ver & FW_CFG_VERSION_DMA)
-		fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | entry << 16, NULL, 0);
+		fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | (uint32_t)entry << 16, NULL, 0);
 	else
 		mb_fw_cfg_write_control(entry);
 }
@@ -83,6 +83,59 @@ int fw_cfg_check_file(FWCfgFile *file, const char *name)
 	if (!fw_cfg_present())
 		return -1;
 	return fw_cfg_find_file(file, name);
+}
+
+void fw_cfg_smi_broadcast(void)
+{
+	const uint64_t broadcast = 1;
+	FWCfgFile supported, requested, accepted;
+	uint64_t features;
+	uint8_t ok;
+
+	if (!fw_cfg_present() || !(fw_ver & FW_CFG_VERSION_DMA) ||
+	    fw_cfg_find_file(&supported, "etc/smi/supported-features") ||
+	    fw_cfg_find_file(&requested, "etc/smi/requested-features") ||
+	    fw_cfg_find_file(&accepted, "etc/smi/features-ok")) {
+		printk(BIOS_INFO, "QEMU: SMI broadcast negotiation unavailable\n");
+		return;
+	}
+	if (supported.size != sizeof(features) || requested.size != sizeof(features) ||
+	    accepted.size != sizeof(ok)) {
+		printk(BIOS_ERR, "QEMU: invalid SMI feature file sizes\n");
+		return;
+	}
+	if (fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | FW_CFG_DMA_CTL_READ |
+		       (uint32_t)supported.select << 16, &features, sizeof(features)))
+		goto transfer_error;
+	if (!(le64_to_cpu(features) & broadcast)) {
+		printk(BIOS_INFO, "QEMU: SMI broadcast unsupported\n");
+		return;
+	}
+
+	features = cpu_to_le64(broadcast);
+	if (fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | FW_CFG_DMA_CTL_WRITE |
+		       (uint32_t)requested.select << 16, &features, sizeof(features)) ||
+	    fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | FW_CFG_DMA_CTL_READ |
+		       (uint32_t)requested.select << 16, &features, sizeof(features)))
+		goto transfer_error;
+	if (le64_to_cpu(features) != broadcast) {
+		printk(BIOS_ERR, "QEMU: SMI broadcast request did not match\n");
+		return;
+	}
+
+	/* Selecting features-ok locks the request until the next machine reset. */
+	if (fw_cfg_dma(FW_CFG_DMA_CTL_SELECT | FW_CFG_DMA_CTL_READ |
+		       (uint32_t)accepted.select << 16, &ok, sizeof(ok)))
+		goto transfer_error;
+	if (ok != 1) {
+		printk(BIOS_ERR, "QEMU: SMI broadcast request rejected\n");
+		return;
+	}
+	printk(BIOS_INFO, "QEMU: SMI broadcast enabled\n");
+	return;
+
+transfer_error:
+	printk(BIOS_ERR, "QEMU: SMI broadcast negotiation transfer failed\n");
 }
 
 static int fw_cfg_e820_select(uint32_t *size)
@@ -515,7 +568,7 @@ void smbios_system_set_uuid(u8 *uuid)
  * Configure DMA setup
  */
 
-static void fw_cfg_dma(int control, void *buf, int len)
+static int fw_cfg_dma(uint32_t control, void *buf, int len)
 {
 	volatile FwCfgDmaAccess dma;
 	uintptr_t dma_desc_addr;
@@ -530,8 +583,12 @@ static void fw_cfg_dma(int control, void *buf, int len)
 	dma_desc_addr_hi = sizeof(uintptr_t) > sizeof(uint32_t)
 				? (uint32_t)(dma_desc_addr >> 32) : 0;
 
+	/* Publish the descriptor and write buffer before starting DMA. */
+	asm volatile ("" ::: "memory");
 	mb_fw_cfg_set_dma(be32_to_cpu(dma_desc_addr_hi), be32_to_cpu(dma_desc_addr_lo));
 
 	while (be32_to_cpu(dma.control) & ~FW_CFG_DMA_CTL_ERROR)
 		;
+	asm volatile ("" ::: "memory");
+	return be32_to_cpu(dma.control) & FW_CFG_DMA_CTL_ERROR ? -1 : 0;
 }
