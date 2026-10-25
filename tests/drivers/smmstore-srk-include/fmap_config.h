@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+/* An overlapping store exercises the raw guard independently of FMAP lookup. */
+#define FMAP_SECTION_FLASH_START 0
+#define FMAP_SECTION_FLASH_SIZE 0x40000
+#define FMAP_SECTION_SMMSTORE_START 0
+#define FMAP_SECTION_SMMSTORE_SIZE 0x40000
+#define FMAP_SECTION_FMAP_START 0x10000
+#define FMAP_SECTION_FMAP_SIZE 0x1000
+#define FMAP_SECTION_SRK_PIN_V1_START 0x20000
+#define FMAP_SECTION_SRK_PIN_V1_SIZE 0x10000

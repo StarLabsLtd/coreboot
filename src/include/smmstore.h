@@ -9,11 +9,32 @@
 #define SMMSTORE_RET_SUCCESS 0
 #define SMMSTORE_RET_FAILURE 1
 #define SMMSTORE_RET_UNSUPPORTED 2
+#define SMMSTORE_RET_NOT_FOUND 4
+#define SMMSTORE_RET_DENIED 5
 
 #define SMMSTORE_CMD_INIT_DEPRECATED 4
 #define SMMSTORE_CMD_RAW_READ 5
 #define SMMSTORE_CMD_RAW_WRITE 6
 #define SMMSTORE_CMD_RAW_CLEAR 7
+#define SMMSTORE_CMD_SRK_READ 10
+#define SMMSTORE_CMD_SRK_CREATE 11
+#define SMMSTORE_CMD_SECURITY_CLOSE 12
+
+/* Revision 1 excludes these fixed erase ranges from every raw mutation. */
+struct smmstore_srk_info {
+	uint32_t revision;
+	uint32_t offset;
+	uint32_t size;
+	uint32_t fmap_offset;
+	uint32_t fmap_size;
+	uint8_t name[34];
+} __packed;
+
+#if CONFIG(SMMSTORE_SRK_PIN)
+uint32_t smmstore_srk_exec(uint8_t command, void *buffer);
+#endif
+
+
 
 /*
  * Used by capsule updates as a standalone command or modifier to v2 commands.
