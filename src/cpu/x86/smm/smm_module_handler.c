@@ -82,6 +82,11 @@ bool smm_acpi_global_lock_release(void)
 	return value & ACPI_GLOBAL_LOCK_PENDING;
 }
 
+bool smm_is_s3_resume(void)
+{
+	return smm_runtime.s3_resume;
+}
+
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 {
 	*base = smm_runtime.smmstore_com_buffer_base;

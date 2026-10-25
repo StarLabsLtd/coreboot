@@ -27,6 +27,14 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 {
 	uint32_t ret = SMMSTORE_RET_FAILURE;
 	static bool initialized = false;
+#if CONFIG(SMMSTORE_SRK_PIN)
+	static void *com_buffer;
+#endif
+
+	/* Do not reopen capsule access after the S3 handler is reloaded. */
+	if (CONFIG(SMMSTORE_SRK_PIN) && smm_is_s3_resume() &&
+	    (command & SMMSTORE_CMD_USE_FULL_FLASH))
+		return SMMSTORE_RET_UNSUPPORTED;
 
 	if (smmstore_preprocess_cmd(&command, param))
 		return SMMSTORE_RET_SUCCESS;
@@ -41,10 +49,19 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 
 		if (smmstore_init((void *)base, size))
 			return SMMSTORE_RET_FAILURE;
+#if CONFIG(SMMSTORE_SRK_PIN)
+		com_buffer = (void *)base;
+#endif
 		initialized = true;
 	}
 
 	switch (command) {
+#if CONFIG(SMMSTORE_SRK_PIN)
+	case SMMSTORE_CMD_SRK_READ:
+	case SMMSTORE_CMD_SRK_CREATE:
+	case SMMSTORE_CMD_SECURITY_CLOSE:
+		return smmstore_srk_exec(command, com_buffer);
+#endif
 	case SMMSTORE_CMD_RAW_READ: {
 		printk(BIOS_DEBUG, "Raw read from SMM store, param = %p\n", param);
 		struct smmstore_params_raw_read *params = param;
