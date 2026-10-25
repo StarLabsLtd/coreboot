@@ -79,6 +79,9 @@ static void post_mp_init(void)
 	/* Limit access to SMRAM to SMM module. */
 	smm_close();
 
+	/* Negotiate APMC delivery to all CPUs before enabling SMIs. */
+	fw_cfg_smi_broadcast();
+
 	/* Now that all APs have been relocated as well as the BSP let SMIs start flowing. */
 	global_smi_enable();
 
