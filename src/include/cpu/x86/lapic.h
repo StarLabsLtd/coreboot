@@ -10,6 +10,9 @@
 #include <halt.h>
 #include <stdint.h>
 
+/* Platforms without an authoritative TSC timebase provide another calibration. */
+uint32_t measured_lapic_timer_hz(void);
+
 static __always_inline uint32_t xapic_read(unsigned int reg)
 {
 	return read32((volatile void *)(uintptr_t)(LAPIC_DEFAULT_BASE + reg));
