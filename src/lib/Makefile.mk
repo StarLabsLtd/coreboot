@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+ramstage-$(CONFIG_PAYLOAD_RESOURCE_HANDOFF) += payload_resource_handoff.c
+
 ifeq ($(CONFIG_UBSAN),y)
 ramstage-y += ubsan.c
 CFLAGS_ramstage += -fsanitize=undefined

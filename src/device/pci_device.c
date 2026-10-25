@@ -196,6 +196,10 @@ struct resource *pci_get_resource(struct device *dev, unsigned long index)
 	if (resource->limit > limit)
 		resource->limit = limit;
 
+	if (resource->flags)
+		printk(BIOS_DEBUG, "%s BAR %02lx: probed size 0x%llx, alignment 2^%u\n",
+			dev_path(dev), index, resource->size, resource->align);
+
 	return resource;
 }
 
@@ -1220,8 +1224,9 @@ struct device *pci_probe_dev(struct device *dev, struct bus *bus,
 		dev->ops->enable(dev);
 
 	/* Display the device. */
-	printk(BIOS_DEBUG, "%s [%04x/%04x] %s%s\n", dev_path(dev),
-	       dev->vendor, dev->device, dev->enabled ? "enabled" : "disabled",
+	printk(BIOS_DEBUG, "%s [%04x/%04x] header %02x %s%s\n", dev_path(dev),
+	       dev->vendor, dev->device, dev->hdr_type,
+	       dev->enabled ? "enabled" : "disabled",
 	       dev->ops ? "" : " No operations");
 
 	return dev;
@@ -1615,16 +1620,20 @@ void pci_dev_disable_bus_master(const struct device *dev)
 	pci_update_config16(dev, PCI_COMMAND, ~PCI_COMMAND_MASTER, 0x0);
 }
 
-static void pci_disable_bus_mastering_before_payload(void *unused)
+void pci_disable_bus_mastering(void)
 {
 	struct device *dev;
 
-	if (!CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
-		return;
-
 	for (dev = all_devices; dev; dev = dev->next)
-		if (is_enabled_pci(dev))
+		if (is_enabled_pci(dev) && !dev->hidden &&
+		    (dev->class >> 8) != PCI_CLASS_BRIDGE_HOST)
 			pci_dev_disable_bus_master(dev);
+}
+
+static void pci_disable_bus_mastering_before_payload(void *unused)
+{
+	if (CONFIG(PAYLOAD_OWNS_PCI_DEVICES))
+		pci_disable_bus_mastering();
 }
 
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY,

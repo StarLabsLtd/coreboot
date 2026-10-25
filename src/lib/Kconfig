@@ -1,5 +1,13 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config PAYLOAD_RESOURCE_HANDOFF
+	bool "Publish assigned PCI resources to the payload"
+	depends on PCI && ECAM_MMCONF_SUPPORT
+	help
+	  Serialize coreboot-assigned PCI resources and initialized framebuffer
+	  ownership for a payload that consumes the resource handoff. Bus mastering
+	  is disabled and verified before publishing delegated device resources.
+
 config MISSING_BOARD_RESET
 	bool
 	help
