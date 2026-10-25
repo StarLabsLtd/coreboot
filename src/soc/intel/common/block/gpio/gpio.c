@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <bootstate.h>
 #include <console/console.h>
+#include <cpu/x86/smm.h>
 #include <device/device.h>
 #include <fsp/debug.h>
 #include <intelblocks/cpulib.h>
@@ -354,18 +355,21 @@ static int gpio_sbi_prepare(bool *was_hidden)
 {
 	if (!ENV_SMM)
 		return -1;
+	/* SBI address/data registers are shared with CPUs outside SMM. */
+	if (!smm_wait_for_cpus())
+		return -1;
 
 	*was_hidden = p2sb_dev_is_hidden(PCH_DEV_P2SB);
-	if (*was_hidden)
-		p2sb_dev_unhide(PCH_DEV_P2SB);
+	if (*was_hidden && !p2sb_dev_unhide(PCH_DEV_P2SB))
+		return -1;
 
 	return 0;
 }
 
 static int gpio_sbi_finish(bool was_hidden, int ret)
 {
-	if (was_hidden)
-		p2sb_dev_hide(PCH_DEV_P2SB);
+	if (was_hidden && !p2sb_dev_hide(PCH_DEV_P2SB))
+		return -1;
 
 	return ret;
 }
@@ -600,6 +604,53 @@ void *gpio_dwx_address(const gpio_t pad)
 
 	config_offset = pad_config_offset(comm, pad);
 	return pcr_reg_address(comm->port, config_offset);
+}
+
+bool gpio_input_address(gpio_t pad, uintptr_t *address)
+{
+	const struct pad_community *comm = gpio_find_community(pad);
+	const uint32_t input_mask = PAD_CFG0_MODE_MASK | PAD_CFG0_RX_DISABLE |
+		PAD_CFG0_TX_DISABLE | PAD_CFG0_TRIG_MASK;
+	uint16_t offset;
+
+	if (!comm || !address)
+		return false;
+	offset = pad_config_offset(comm, pad);
+	if ((pcr_read32(comm->port, offset) & input_mask) != PAD_CFG0_TX_DISABLE)
+		return false;
+	*address = (uintptr_t)pcr_reg_address(comm->port, offset);
+	return true;
+}
+
+bool gpio_ioapic_input_address(unsigned int irq, uintptr_t *address)
+{
+	size_t count;
+	const struct pad_community *communities = soc_gpio_get_community(&count);
+	uintptr_t match = 0;
+
+	if (!irq || irq > PAD_CFG1_IRQ_MASK || !address)
+		return false;
+	for (size_t index = 0; index < count; index++) {
+		const struct pad_community *comm = &communities[index];
+
+		for (gpio_t pad = comm->first_pad; pad <= comm->last_pad; pad++) {
+			uint16_t offset = pad_config_offset(comm, pad);
+			uint32_t config = pcr_read32(comm->port, offset);
+			uintptr_t input_address;
+
+			if (!(config & PAD_CFG0_ROUTE_IOAPIC) ||
+			    (pcr_read32(comm->port, PAD_CFG1_OFFSET(offset)) &
+			     PAD_CFG1_IRQ_MASK) != irq)
+				continue;
+			if (match || !gpio_input_address(pad, &input_address))
+				return false;
+			match = input_address;
+		}
+	}
+	if (!match)
+		return false;
+	*address = match;
+	return true;
 }
 
 uint8_t gpio_get_pad_portid(const gpio_t pad)
