@@ -27,11 +27,10 @@
 
 #define OPAL_S3_STATE_SIGNATURE 0x33534c4f /* "OLS3" */
 #define OPAL_S3_STATE_VERSION   0x0001
+#define OPAL_S3_SECRET_COUNT OPAL_S3_MAX_SECRETS
 
 #define OPAL_S3_ARMED_NONE      0
 #define OPAL_S3_ARMED_S3        1
-
-#define OPAL_S3_MAX_SECRETS 8
 
 struct __packed opal_s3_secret {
 	u8 valid;
@@ -66,7 +65,7 @@ struct __packed opal_s3_state {
 	u32 sleep_cycle;
 	u32 armed_cycle;
 
-	struct opal_s3_secret secret[OPAL_S3_MAX_SECRETS];
+	struct opal_s3_secret secret[OPAL_S3_SECRET_COUNT];
 };
 
 static struct opal_s3_state state_fallback;
@@ -162,6 +161,32 @@ static struct opal_s3_secret *opal_s3_alloc_secret(struct opal_s3_state *st)
 	return NULL;
 }
 
+static u32 opal_s3_clear_device(const struct opal_s3_smm_ctx *ctx)
+{
+	struct opal_s3_state *st = opal_s3_get_state();
+	struct opal_s3_secret *s;
+
+	if (ctx->signature != OPAL_S3_SMM_CTX_SIGNATURE)
+		return 3;
+	if (ctx->version != OPAL_S3_SMM_CTX_VERSION)
+		return 4;
+	if (ctx->size != sizeof(*ctx))
+		return 5;
+	if (ctx->dev > 31 || ctx->func > 7 || !ctx->base_comid ||
+	    ctx->reserved0 || ctx->reserved1 || ctx->password_len ||
+	    ctx->reserved2[0] || ctx->reserved2[1] || ctx->reserved2[2])
+		return 9;
+
+	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
+	    st->size != sizeof(*st))
+		return 0;
+
+	s = opal_s3_find_secret(st, ctx);
+	if (s)
+		opal_explicit_bzero(s, sizeof(*s));
+	return 0;
+}
+
 static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
@@ -171,12 +196,6 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	uintptr_t aligned_base = 0;
 	size_t aligned_size = 0;
 	pci_devfn_t nvme_dev;
-
-	if (!ctx)
-		return 1;
-
-	if (smm_points_to_smram(ctx, sizeof(*ctx)))
-		return 2;
 
 	if (ctx->signature != OPAL_S3_SMM_CTX_SIGNATURE)
 		return 3;
@@ -234,12 +253,13 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	return 0;
 }
 
+
 static void opal_s3_arm_for_s3(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
 	bool any_secret = false;
 
-	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
+	if (!st || st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
 	    st->size != sizeof(*st))
 		return;
 
@@ -298,12 +318,13 @@ static u32 opal_s3_unlock_if_armed(void)
 	size_t aligned_size = 0;
 	bool keep_armed = false;
 
-	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
+	if (!st || st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
 	    st->size != sizeof(*st))
 		return 0x10;
 
 	if (st->armed_state == OPAL_S3_ARMED_NONE)
 		return 0x11;
+
 
 	if (st->armed_cycle != st->sleep_cycle) {
 		printk(BIOS_ERR, "OPAL: unlock rejected (invalid sequence)\n");
@@ -355,7 +376,6 @@ static u32 opal_s3_unlock_if_armed(void)
 			s->unlocked_cycle = st->sleep_cycle;
 			continue;
 		}
-
 		if (opal_s3_unlock_should_keep_armed(one_rc)) {
 			keep_armed = true;
 			if (rc == 0 || rc == 1)
@@ -379,6 +399,7 @@ static u32 opal_s3_unlock_if_armed(void)
 
 int opal_s3_smi_apmc(u8 apmc)
 {
+	struct opal_s3_smm_ctx ctx;
 	int node;
 	u64 rax;
 	u64 rbx;
@@ -387,7 +408,7 @@ int opal_s3_smi_apmc(u8 apmc)
 	u32 unlock_rc;
 
 	switch (apmc) {
-	case APM_CNT_OPAL_S3_UNLOCK:
+	case APM_CNT_OPAL_S3_UNLOCK: {
 		unlock_rc = opal_s3_unlock_if_armed();
 
 		node = get_apmc_node(apmc);
@@ -396,6 +417,7 @@ int opal_s3_smi_apmc(u8 apmc)
 			(void)set_save_state_reg(RAX, node, (void *)&rax_out, sizeof(rax_out));
 		}
 		return 1;
+	}
 
 	case APM_CNT_OPAL_SVC:
 		break;
@@ -417,7 +439,23 @@ int opal_s3_smi_apmc(u8 apmc)
 
 	switch (subcmd) {
 	case OPAL_SMM_SUBCMD_SET_SECRET:
-		ret = opal_s3_set_secret((const struct opal_s3_smm_ctx *)(uintptr_t)rbx);
+	case OPAL_SMM_SUBCMD_CLEAR_DEVICE:
+		if (!rbx || rbx != (uintptr_t)rbx ||
+		    rbx > UINTPTR_MAX - (sizeof(ctx) - 1)) {
+			ret = 1;
+			break;
+		}
+		if (smm_points_to_smram((const void *)(uintptr_t)rbx, sizeof(ctx))) {
+			ret = 2;
+			break;
+		}
+		/* Validate and consume the same copy, never mutable caller memory. */
+		memcpy(&ctx, (const void *)(uintptr_t)rbx, sizeof(ctx));
+		if (subcmd == OPAL_SMM_SUBCMD_SET_SECRET)
+			ret = opal_s3_set_secret(&ctx);
+		else
+			ret = opal_s3_clear_device(&ctx);
+		opal_explicit_bzero(&ctx, sizeof(ctx));
 		break;
 	case OPAL_SMM_SUBCMD_CLEAR_SECRET:
 		ret = opal_s3_clear_secret();
