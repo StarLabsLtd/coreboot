@@ -11,9 +11,6 @@ static uint8_t abort_token;
 
 #define ABORT_GUARD ((struct payload_mm_crypto_owner *)(void *)&abort_token)
 
-#ifdef PAYLOAD_MM_AUTH_TEST
-#endif
-
 static bool allocation_request_valid(
 	struct payload_mm_crypto_owner *owner, size_t count, size_t size,
 	size_t *bytes)
@@ -81,8 +78,6 @@ void *payload_mm_crypto_calloc(size_t count, size_t size)
 		return NULL;
 	}
 
-#ifdef PAYLOAD_MM_AUTH_TEST
-#endif
 	aligned = (bytes + 15U) & ~(size_t)15U;
 	allocation = owner->arena + owner->arena_used;
 	owner->arena_used += aligned;
@@ -107,8 +102,6 @@ enum payload_mm_verify_status payload_mm_crypto_begin(struct payload_mm_crypto_o
 	if (!__atomic_compare_exchange_n(&active_owner, &expected, ABORT_GUARD,
 		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
 		return PAYLOAD_MM_VERIFY_BUSY;
-#ifdef PAYLOAD_MM_AUTH_TEST
-#endif
 	if (owner->busy) {
 		__atomic_store_n(&active_owner, NULL, __ATOMIC_RELEASE);
 		return PAYLOAD_MM_VERIFY_BUSY;
@@ -149,8 +142,6 @@ bool payload_mm_crypto_abort(struct payload_mm_crypto_owner *owner)
 	if (owner == NULL)
 		return false;
 	expected = __atomic_load_n(&active_owner, __ATOMIC_ACQUIRE);
-#ifdef PAYLOAD_MM_AUTH_TEST
-#endif
 	if (expected != NULL && expected != owner)
 		return false;
 	if (!__atomic_compare_exchange_n(&active_owner, &expected, ABORT_GUARD,
