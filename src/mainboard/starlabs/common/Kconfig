@@ -60,6 +60,7 @@ menu "Star Labs Settings"
 
 config DAVE_MODE
 	bool "Enable DAVE mode"
+	select EDK2_DISABLE_BOOT_MANAGER_WAIT if PAYLOAD_EDK2
 	select SECURITY_FAIL_CLOSED
 	help
 	  DAVE mode is the secure, locked-down variant.
