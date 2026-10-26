@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <bootstate.h>
 #include <console/console.h>
 #include <security/tpm/tspi.h>
@@ -15,10 +16,19 @@ static const uint8_t preboot_auth_open[VB2_SHA256_DIGEST_SIZE] = {
 
 static void open_preboot_auth_phase(void *unused)
 {
+	/* A failed S3 wake must not reuse retained authority as a cold boot. */
+	if (acpi_is_wakeup_s3())
+		die("Cannot open authentication after failed S3 resume\n");
+
 	if (tpm_extend_pcr_compact_hash(6, VB2_HASH_SHA256, preboot_auth_open,
 				      sizeof(preboot_auth_open),
 				      "Star Labs pre-OS authentication phase open v1") != TPM_SUCCESS)
 		die("Unable to open TPM pre-OS authentication phase\n");
 }
 
+/* Native table publication snapshots the event-log extent. */
+#if CONFIG(PAYLOAD_CDK2)
+BOOT_STATE_INIT_ENTRY(BS_WRITE_TABLES, BS_ON_ENTRY, open_preboot_auth_phase, NULL);
+#else
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, open_preboot_auth_phase, NULL);
+#endif
