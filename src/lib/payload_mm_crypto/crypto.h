@@ -13,11 +13,6 @@ enum payload_mm_crypto_failure_source {
 
 enum payload_mm_verify_status payload_mm_crypto_begin(
 	struct payload_mm_crypto_owner *owner);
-#ifdef DAVE_TPM_SMM_CRYPTO
-/* All live library objects must be freed before ending this session arena. */
-enum payload_mm_verify_status payload_mm_crypto_begin_reusable(
-	struct payload_mm_crypto_owner *owner);
-#endif
 enum payload_mm_verify_status payload_mm_crypto_end(
 	struct payload_mm_crypto_owner *owner,
 	enum payload_mm_verify_status status);
