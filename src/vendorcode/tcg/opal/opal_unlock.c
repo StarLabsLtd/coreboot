@@ -346,11 +346,11 @@ static TCG_RESULT opal_util_update_global_locking_range(OPAL_SESSION *Session,
 	NULL_CHECK(Password);
 	NULL_CHECK(Buffer);
 
-	/* Try admin1 authority. */
-	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength, Password,
-				 OPAL_LOCKING_SP_ADMIN1_AUTHORITY, Buffer, BufferSize,
-				 &MethodStatus);
-	if ((Ret == TcgResultSuccess) && (MethodStatus == TCG_METHOD_STATUS_CODE_SUCCESS)) {
+	Ret = opal_start_session(Session, OPAL_UID_LOCKING_SP, TRUE, PasswordLength,
+				 Password, OPAL_LOCKING_SP_ADMIN1_AUTHORITY, Buffer,
+				 BufferSize, &MethodStatus);
+	if ((Ret == TcgResultSuccess) &&
+	    (MethodStatus == TCG_METHOD_STATUS_CODE_SUCCESS)) {
 		Ret = opal_update_global_locking_range(Session, ReadLocked, WriteLocked,
 						       Buffer, BufferSize, &MethodStatus);
 		opal_end_session(Session, Buffer, BufferSize);
@@ -420,9 +420,9 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password,
 	io_buf = queue_base + OPAL_NVME_QUEUE_BYTES;
 
 	if (opal_nvme_init(&nvme, dev, scratch, scratch_size)) {
-		/* Fail closed and ensure stale DMA-visible buffers are cleared. */
-		opal_explicit_bzero(queue_base, OPAL_NVME_SCRATCH_MIN_BYTES);
-		return 1;
+		/* Only pre-ownership unavailability may wait for a powered-off root. */
+		rc = nvme.regs ? 5 : 1;
+		goto out;
 	}
 
 	memset(&Session, 0, sizeof(Session));
@@ -434,13 +434,10 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password,
 	Ret = opal_util_update_global_locking_range(&Session, password, password_len, FALSE,
 						    FALSE, io_buf, OPAL_NVME_PAGE_SIZE);
 
-	opal_explicit_bzero(io_buf, OPAL_NVME_PAGE_SIZE);
-
-	/* Clear DMA-visible admin queues as well. */
-	opal_explicit_bzero(queue_base, OPAL_NVME_QUEUE_BYTES);
-	opal_nvme_deinit(&nvme);
-
 	rc = (Ret == TcgResultSuccess) ? 0 : 3;
+out:
+	opal_nvme_deinit(&nvme);
+	opal_explicit_bzero(queue_base, OPAL_NVME_SCRATCH_MIN_BYTES);
 	return rc;
 
 out_early:

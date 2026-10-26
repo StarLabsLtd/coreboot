@@ -2,6 +2,7 @@
 
 #include "opal_nvme.h"
 
+#include <cf9_reset.h>
 #include <console/console.h>
 #include <commonlib/bsd/helpers.h>
 #include <cpu/x86/smm.h>
@@ -9,6 +10,7 @@
 #include <device/mmio.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <halt.h>
 #include <string.h>
 #include <timer.h>
 
@@ -114,6 +116,10 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 	struct stopwatch sw;
 	bool timed_out = false;
 
+	/* A timed-out transport stays closed until the next initialization. */
+	if (!nvme->regs)
+		return -1;
+
 	memcpy(s, cmd, sizeof(*cmd));
 	nvme->sq_tail = (nvme->sq_tail + 1) & (NVME_QUEUE_SIZE - 1);
 	write32(nvme->sq_db, nvme->sq_tail);
@@ -130,6 +136,7 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 
 	if (timed_out) {
 		printk(BIOS_ERR, "OPAL NVMe: admin cmd timeout\n");
+		opal_nvme_deinit(nvme);
 		return -1;
 	}
 
@@ -147,8 +154,6 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	u64 regs;
 	u16 pmcap;
 	u8 *p = scratch;
-	u32 cc;
-	u32 csts;
 
 	memset(nvme, 0, sizeof(*nvme));
 	nvme->dev = dev;
@@ -193,34 +198,6 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	nvme->sq_db = (u32 *)(nvme->regs + 0x1000 + (0 * nvme->dstrd_bytes));
 	nvme->cq_db = (u32 *)(nvme->regs + 0x1000 + (1 * nvme->dstrd_bytes));
 
-	/*
-	 * If controller is already running, avoid disturbing it when it is
-	 * already configured for our private scratch queues and appears idle.
-	 * Otherwise, reinitialize to private queues to avoid interacting with
-	 * OS-owned admin queues.
-	 */
-	cc = read32(nvme->regs + 0x14);
-	csts = read32(nvme->regs + 0x1c);
-
-	if ((cc & NVME_CC_EN) && (csts & 0x1)) {
-		const u64 asq = read64(nvme->regs + 0x28);
-		const u64 acq = read64(nvme->regs + 0x30);
-		const u32 aqa = read32(nvme->regs + 0x24);
-		const u32 expected_aqa = ((NVME_QUEUE_SIZE - 1) << 16) | (NVME_QUEUE_SIZE - 1);
-		const u32 sq_tail = read32(nvme->sq_db) & 0xffff;
-		const u32 cq_head = read32(nvme->cq_db) & 0xffff;
-
-		if (asq == (u64)(uintptr_t)nvme->sq && acq == (u64)(uintptr_t)nvme->cq &&
-		    aqa == expected_aqa && sq_tail == 0 && cq_head == 0) {
-			nvme->sq_tail = 0;
-			nvme->cq_head = 0;
-			nvme->cq_phase = (read32(&nvme->cq[0].dw[3]) >> 16) & 0x1;
-			return 0;
-		}
-
-		printk(BIOS_DEBUG, "OPAL NVMe: controller running, reinitializing\n");
-	}
-
 	/* Disable controller and wait for RDY=0. */
 	write32(nvme->regs + 0x14, 0);
 	if (nvme_wait_ready(nvme->regs, false)) {
@@ -254,8 +231,17 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 
 void opal_nvme_deinit(struct opal_nvme *nvme)
 {
-	/* Keep controller state as-is; OS will reinitialize if needed. */
-	(void)nvme;
+	if (!nvme->regs)
+		return;
+	write32(nvme->regs + 0x14, 0);
+	if (nvme_wait_ready(nvme->regs, false)) {
+		/* Scratch may still be a DMA target: do not wipe or lend it again. */
+		printk(BIOS_ERR, "OPAL NVMe: cannot stop controller\n");
+		if (CONFIG(HAVE_CF9_RESET))
+			full_reset();
+		die("OPAL NVMe: unsafe to resume\n");
+	}
+	nvme->regs = NULL;
 }
 
 static int nvme_security_cmd(struct opal_nvme *nvme, u8 opcode, u8 protocol, u16 sp_specific,
