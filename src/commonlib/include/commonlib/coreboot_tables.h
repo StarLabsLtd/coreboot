@@ -99,6 +99,7 @@ enum {
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_BOOT_REASON		= 0x004b,
 	LB_TAG_LOCAL_APIC_TIMER_INFO	= 0x004e,
+	LB_TAG_PAYLOAD_SPI_CONSOLE	= 0x0050,
 	LB_TAG_BOOT_SPLASH		= 0x0051,
 	LB_TAG_AUTHVAR_SERVICE_ENDPOINT	= 0x0055,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x005b,
@@ -898,6 +899,26 @@ struct lb_smmstorev2 {
 					   this table must check the 'size' field to detect if its
 					   written out by coreboot. */
 };
+
+struct lb_payload_spi_console {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t version;
+	uint16_t request_header_size;
+	lb_uint64_t com_buffer;
+	uint32_t com_buffer_size;
+	uint32_t max_chunk;
+	uint32_t boot_limit;
+	uint8_t apm_cmd;
+	uint8_t reserved[3];
+};
+
+_Static_assert(sizeof(struct lb_payload_spi_console) == 36,
+	"payload SPI console table ABI changed");
+_Static_assert(offsetof(struct lb_payload_spi_console, com_buffer) == 12,
+	"payload SPI console buffer offset changed");
+_Static_assert(offsetof(struct lb_payload_spi_console, apm_cmd) == 32,
+	"payload SPI console command offset changed");
 
 enum lb_tpm_ppi_tpm_version {
 	LB_TPM_VERSION_UNSPEC = 0,

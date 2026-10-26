@@ -5,6 +5,7 @@
 #include <arch/pci_io_cfg.h>
 #include <boot_device.h>
 #include <console/console.h>
+#include <console/payload_spi_console.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/smm.h>
@@ -284,6 +285,25 @@ static void southbridge_smi_gsmi(
 
 #if CONFIG(SMM_AUTHVAR)
 static bool authvar_protection_ready(void);
+#endif
+
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+static void southbridge_smi_payload_console(const struct smm_save_state_ops *save_state_ops)
+{
+	bool restore_wp = false;
+
+	if (!smm_wait_for_cpus() ||
+	    save_state_ops->apmc_node(PAYLOAD_SPI_CONSOLE_APM_CMD) < 0)
+		return;
+#if CONFIG(SMM_AUTHVAR)
+	if (!authvar_protection_ready())
+		return;
+#endif
+	if (!fast_spi_smm_write_begin(&restore_wp))
+		return;
+	payload_spi_console_smi();
+	fast_spi_smm_write_end(restore_wp);
+}
 #endif
 
 static void southbridge_smi_store(
@@ -595,10 +615,17 @@ void smihandler_southbridge_apmc(
 			cfr_runtime_apply_smi();
 		break;
 	case APM_CNT_GPIO:
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+		/* The console and GPIO services share this command, exclusively. */
+		_Static_assert(APM_CNT_GPIO == PAYLOAD_SPI_CONSOLE_APM_CMD,
+			"payload console command changed");
+		southbridge_smi_payload_console(save_state_ops);
+#else
 		if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)) {
 			smm_gpio_handler();
 			return;
 		}
+#endif
 		break;
 	}
 

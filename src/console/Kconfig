@@ -316,6 +316,18 @@ config CONSOLE_SPI_FLASH
 	  The 'CONSOLE' area can be extracted from the FMAP with :
 	  cbfstool rom.bin read -r CONSOLE -f console.log
 
+config PAYLOAD_SPI_FLASH_CONSOLE
+	bool "Allow payload diagnostics through the SMM SPI console"
+	depends on CONSOLE_SPI_FLASH && CONSOLE_CBMEM && SMMSTORE
+	depends on SOC_INTEL_COMMON_BLOCK_SMM && SOC_INTEL_COMMON_BLOCK_SPI
+	depends on !SOC_INTEL_COMMON_BLOCK_SMM_GPIO
+	select BOOTMEDIA_SMM_BWP
+	help
+	  Provide a bounded append-only service for the existing CONSOLE FMAP
+	  region through a separate mailbox. Writes retain SMM flash protection.
+	  The service does not erase old logs and stops when the region is full.
+	  Enable only for development: flash logging consumes device endurance.
+
 config CONSOLE_SPI_FLASH_BUFFER_SIZE
 	hex "Room allocated for console output in FMAP"
 	default 0x20000

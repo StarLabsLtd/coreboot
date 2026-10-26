@@ -106,6 +106,10 @@ struct smm_runtime {
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+	uintptr_t payload_spi_console_buffer_base;
+	size_t payload_spi_console_buffer_size;
+#endif
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 	uintptr_t capsule_staging_base;
 	size_t capsule_staging_size;
@@ -286,6 +290,9 @@ bool smm_acpi_global_lock_release(void);
 bool smm_is_s3_resume(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
+#endif
 void smm_get_capsule_staging(uintptr_t *base, size_t *size);
 void smm_get_authvar_boot_authority(uintptr_t *base, size_t *size);
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)

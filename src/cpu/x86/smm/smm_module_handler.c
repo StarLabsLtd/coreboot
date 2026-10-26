@@ -154,6 +154,14 @@ bool smm_is_s3_resume(void)
 	return smm_runtime.s3_resume;
 }
 
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.payload_spi_console_buffer_base;
+	*size = smm_runtime.payload_spi_console_buffer_size;
+}
+#endif
+
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 {
 	*base = smm_runtime.smmstore_com_buffer_base;

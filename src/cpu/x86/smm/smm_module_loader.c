@@ -8,6 +8,7 @@
 #include <commonlib/region.h>
 #include <commonlib/bsd/cb_err.h>
 #include <console/console.h>
+#include <console/payload_spi_console.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
 #include <cpu/x86/gdt.h>
@@ -457,6 +458,22 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		mod_params->smmstore_com_buffer_base = base;
 		mod_params->smmstore_com_buffer_size = size;
 	}
+
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+	/* SMMSTORE has already reserved its S4 mailbox and raised the CBMEM floor. */
+	const struct cbmem_entry *spi_console = cbmem_entry_add(CBMEM_ID_PAYLOAD_SPI_CONSOLE,
+		PAYLOAD_SPI_CONSOLE_BUFFER_SIZE);
+	uintptr_t spi_console_base = spi_console ? (uintptr_t)cbmem_entry_start(spi_console) : 0;
+
+	if (spi_console && cbmem_entry_size(spi_console) == PAYLOAD_SPI_CONSOLE_BUFFER_SIZE &&
+	    spi_console_base &&
+	    spi_console_base <= UINT32_MAX - (PAYLOAD_SPI_CONSOLE_BUFFER_SIZE - 1U)) {
+		mod_params->payload_spi_console_buffer_base = spi_console_base;
+		mod_params->payload_spi_console_buffer_size = PAYLOAD_SPI_CONSOLE_BUFFER_SIZE;
+	} else {
+		printk(BIOS_ERR, "Payload SPI console: communication buffer unavailable\n");
+	}
+#endif
 
 #if CONFIG(SMM_AUTHVAR)
 	const struct cbmem_entry *authority = cbmem_entry_add(CBMEM_ID_AUTHVAR_BOOT_AUTHORITY,
