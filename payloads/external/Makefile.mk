@@ -168,6 +168,9 @@ payloads/external/depthcharge/depthcharge/build/depthcharge.elf depthcharge: $(D
 # CDK2
 
 ifeq ($(CONFIG_PAYLOAD_CDK2),y)
+ifeq ($(CONFIG_SMM_AUTHVAR)$(CONFIG_VBOOT),yy)
+$(error Protected variables do not support vboot capsule regions; use ordinary SMMSTORE)
+endif
 ifeq ($(CONFIG_IFWI_MEASURED_BOOT)$(CONFIG_TPM_MEASURED_BOOT),yy)
 ifneq ($(CONFIG_TPM_HASH_SHA256),y)
 $(error IFWI supplies SHA-256 measurements; native TPM handoff requires TPM_HASH_SHA256)

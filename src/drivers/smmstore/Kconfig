@@ -41,6 +41,8 @@ config SMM_AUTHVAR
 	  mutation through SMMSTORE is unavailable in this composition; firmware
 	  updates require a separate authenticated transport. S4 uses the shared
 	  fixed communication mailbox and the payload's stable allocation bins.
+	  The native protected update transport does not support vboot's split
+	  firmware regions. Vboot builds must retain the ordinary SMMSTORE owner.
 
 config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
 	bool
