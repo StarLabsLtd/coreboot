@@ -188,6 +188,47 @@ static const struct fmap *find_fmap(const uint8_t *rom, size_t size)
 	return found;
 }
 
+static bool vboot_nvram_reset(const uint8_t *rom, size_t rom_size,
+	const struct fmap *map, const struct fmap_area *nvram)
+{
+	uint64_t offset = le32toh(nvram->offset);
+	uint64_t end = offset + le32toh(nvram->size);
+	bool found_wp_ro = false;
+
+	if (strcmp((const char *)nvram->name, "RW_NVRAM"))
+		return false;
+	for (size_t i = 0; i < le16toh(map->nareas); i++) {
+		const struct fmap_area *area = &map->areas[i];
+		uint64_t start = le32toh(area->offset);
+		uint64_t size = le32toh(area->size);
+		bool wp_ro;
+
+		if (area == nvram)
+			continue;
+		if (!memchr(area->name, 0, sizeof(area->name)))
+			return false;
+		wp_ro = !strcmp((const char *)area->name, "WP_RO");
+		if (wp_ro) {
+			if (found_wp_ro)
+				return false;
+			found_wp_ro = true;
+		}
+		if (!wp_ro && !(le16toh(area->flags) & FMAP_AREA_PRESERVE) &&
+		    strcmp((const char *)area->name, "FMAP") &&
+		    strcmp((const char *)area->name, "SMMSTORE") &&
+		    strcmp((const char *)area->name, "SRK_PIN_V1"))
+			continue;
+		if (!size || start > rom_size || size > rom_size - start ||
+		    (offset < start + size && start < end))
+			return false;
+	}
+	/* The vboot release policy resets NVRAM; it never installs saved state. */
+	for (size_t i = offset; i < end; i++)
+		if (rom[i] != 0xff)
+			return false;
+	return found_wp_ro;
+}
+
 static uint8_t *build_payload(const uint8_t *rom, size_t rom_size,
 	const struct fmap *map, const struct options *options, size_t *payload_size)
 {
@@ -229,7 +270,8 @@ static uint8_t *build_payload(const uint8_t *rom, size_t rom_size,
 		}
 		if (!area || !le32toh(area->size) || le32toh(area->offset) > rom_size ||
 		    le32toh(area->size) > rom_size - le32toh(area->offset) ||
-		    (le16toh(area->flags) & FMAP_AREA_PRESERVE)) {
+		    ((le16toh(area->flags) & FMAP_AREA_PRESERVE) &&
+		     !vboot_nvram_reset(rom, rom_size, map, area))) {
 			fprintf(stderr, "Invalid or preserved capsule region: %s\n", name);
 			goto out;
 		}
