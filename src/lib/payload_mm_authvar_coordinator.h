@@ -19,7 +19,6 @@ struct payload_mm_authvar_coordinator_policy {
 };
 
 struct payload_mm_authvar_coordinator_result {
-	struct payload_mm_authvar_candidate_result candidate;
 	enum payload_mm_authvar_authority_outcome outcome;
 	u8 volatile_modes;
 };

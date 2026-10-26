@@ -9,7 +9,6 @@
 #include <string.h>
 
 #include "payload_mm_authvar_internal.h"
-#include "payload_mm_crypto/crypto.h"
 
 static const u8 vendor_keys_nv_guid[16] = {
 	0xe0, 0xe4, 0x73, 0x90, 0xec, 0x60, 0x6e, 0x4b,
@@ -802,7 +801,7 @@ static bool result_disjoint_from_inputs(
 	const struct payload_mm_authvar_candidate_binding *binding,
 	const void *candidate, struct payload_mm_authvar_store_entry *scan_entries,
 	size_t scan_entry_capacity,
-	struct payload_mm_authvar_candidate_result *result,
+	u8 *volatile_modes,
 	size_t *scan_entry_bytes)
 {
 	size_t index_entry_bytes;
@@ -834,21 +833,21 @@ static bool result_disjoint_from_inputs(
 		};
 
 		for (size_t i = 0; i < ARRAY_SIZE(inputs); i++)
-			if (ranges_overlap(result, sizeof(*result), inputs[i].data, inputs[i].size) ||
+			if (ranges_overlap(volatile_modes, sizeof(*volatile_modes), inputs[i].data, inputs[i].size) ||
 			    ranges_overlap(candidate, index->store_size, inputs[i].data, inputs[i].size) ||
 			    ranges_overlap(scan_entries, *scan_entry_bytes, inputs[i].data, inputs[i].size))
 				return false;
 	}
-	if (ranges_overlap(result, sizeof(*result), index, sizeof(*index)) ||
-	    ranges_overlap(result, sizeof(*result), bundle, sizeof(*bundle)) ||
-	    ranges_overlap(result, sizeof(*result), policy, sizeof(*policy)) ||
-	    ranges_overlap(result, sizeof(*result), binding, sizeof(*binding)) ||
-	    ranges_overlap(result, sizeof(*result), candidate, index->store_size) ||
-	    ranges_overlap(result, sizeof(*result), scan_entries,
+	if (ranges_overlap(volatile_modes, sizeof(*volatile_modes), index, sizeof(*index)) ||
+	    ranges_overlap(volatile_modes, sizeof(*volatile_modes), bundle, sizeof(*bundle)) ||
+	    ranges_overlap(volatile_modes, sizeof(*volatile_modes), policy, sizeof(*policy)) ||
+	    ranges_overlap(volatile_modes, sizeof(*volatile_modes), binding, sizeof(*binding)) ||
+	    ranges_overlap(volatile_modes, sizeof(*volatile_modes), candidate, index->store_size) ||
+	    ranges_overlap(volatile_modes, sizeof(*volatile_modes), scan_entries,
 			   *scan_entry_bytes) ||
-	    ranges_overlap(result, sizeof(*result), index->store,
+	    ranges_overlap(volatile_modes, sizeof(*volatile_modes), index->store,
 			   index->store_size) ||
-	    ranges_overlap(result, sizeof(*result), index->entries,
+	    ranges_overlap(volatile_modes, sizeof(*volatile_modes), index->entries,
 			   index_entry_bytes))
 		return false;
 	for (size_t i = 0U; i < mutation_count; i++) {
@@ -857,9 +856,9 @@ static bool result_disjoint_from_inputs(
 
 		if (!range_valid(item->name, item->name_size) ||
 		    !range_valid(item->data, item->data_size) ||
-		    ranges_overlap(result, sizeof(*result), item->name,
+		    ranges_overlap(volatile_modes, sizeof(*volatile_modes), item->name,
 				   item->name_size) ||
-		    ranges_overlap(result, sizeof(*result), item->data,
+		    ranges_overlap(volatile_modes, sizeof(*volatile_modes), item->data,
 				   item->data_size))
 			return false;
 	}
@@ -874,9 +873,8 @@ uint64_t payload_mm_authvar_candidate_build(
 	void *candidate_buffer, size_t candidate_capacity,
 	struct payload_mm_authvar_store_entry *scan_entries,
 	size_t scan_entry_capacity,
-	struct payload_mm_authvar_candidate_result *result)
+	u8 *volatile_modes)
 {
-	struct payload_mm_authvar_candidate_result draft = { 0 };
 	struct payload_mm_authvar_store_index scan = {
 		.entries = scan_entries,
 		.entry_capacity = scan_entry_capacity <= UINT32_MAX ?
@@ -887,27 +885,25 @@ uint64_t payload_mm_authvar_candidate_build(
 	size_t entry_bytes;
 	size_t used = PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE;
 	u32 count = 0U;
-	enum payload_mm_verify_status hash_status;
 
 	/* Prove the typed top-level objects before dereferencing any of them. */
 	if (!index || !bundle || !policy || !binding || !candidate ||
-	    !scan_entries || !result || (uintptr_t)index % _Alignof(*index) ||
+	    !scan_entries || !volatile_modes || (uintptr_t)index % _Alignof(*index) ||
 	    (uintptr_t)bundle % _Alignof(*bundle) ||
 	    (uintptr_t)policy % _Alignof(*policy) ||
 	    (uintptr_t)binding % _Alignof(*binding) ||
 	    (uintptr_t)scan_entries % _Alignof(*scan_entries) ||
-	    (uintptr_t)result % _Alignof(*result) ||
 	    !range_valid(index, sizeof(*index)) ||
 	    !range_valid(bundle, sizeof(*bundle)) ||
 	    !range_valid(policy, sizeof(*policy)) ||
 	    !range_valid(binding, sizeof(*binding)) ||
-	    !range_valid(result, sizeof(*result)))
+	    !range_valid(volatile_modes, sizeof(*volatile_modes)))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
-	/* Alias/range failure leaves result untouched because clearing is unsafe. */
+	/* Alias/range failure leaves volatile_modes untouched because clearing is unsafe. */
 	if (!result_disjoint_from_inputs(index, bundle, policy, binding,
-					 candidate, scan_entries, scan_entry_capacity, result, &entry_bytes))
+					 candidate, scan_entries, scan_entry_capacity, volatile_modes, &entry_bytes))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
-	memset(result, 0, sizeof(*result));
+	memset(volatile_modes, 0, sizeof(*volatile_modes));
 	if (!payload_mm_authvar_store_index_valid(index) ||
 	    !bundle_valid(bundle, binding->at_runtime) ||
 	    !binding->generation || !binding->token || binding->at_runtime > 1U ||
@@ -994,20 +990,6 @@ uint64_t payload_mm_authvar_candidate_build(
 	    !final_certdb_matches(&scan, bundle) ||
 	    !projection_matches(index, &scan, bundle, binding))
 		return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-	hash_status = payload_mm_sha256(index->store, index->store_size,
-					draft.source_digest);
-	if (hash_status != PAYLOAD_MM_VERIFY_OK)
-		return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-	hash_status = payload_mm_sha256(candidate, index->store_size,
-					draft.candidate_digest);
-	if (hash_status != PAYLOAD_MM_VERIFY_OK)
-		return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-	draft.binding = *binding;
-	draft.policy = *policy;
-	draft.source_used_size = index->used_size;
-	draft.candidate_used_size = (uint32_t)used;
-	draft.candidate_record_count = count;
-	draft.volatile_modes = bundle->volatile_modes;
-	*result = draft;
+	*volatile_modes = bundle->volatile_modes;
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
