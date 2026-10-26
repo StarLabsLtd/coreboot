@@ -304,11 +304,11 @@ ifeq ($(CONFIG_DAVE_MODE),y)
 dave-office-image:
 	@set -e; \
 	work=$$(mktemp -d "$(abspath $(obj))/dave-office.XXXXXXXX"); \
-	sed '/^CONFIG_DAVE_FACTORY_PROVISIONING=/d; /^# CONFIG_DAVE_FACTORY_PROVISIONING is not set$$/d' \
+	sed '/^CONFIG_SMMSTORE_SRK_PROVISION=/d; /^# CONFIG_SMMSTORE_SRK_PROVISION is not set$$/d' \
 		"$(DOTCONFIG)" > "$$work/config"; \
-	printf '\nCONFIG_DAVE_FACTORY_PROVISIONING=y\n' >> "$$work/config"; \
+	printf '\nCONFIG_SMMSTORE_SRK_PROVISION=y\n' >> "$$work/config"; \
 	$(MAKE) DOTCONFIG="$$work/config" obj="$$work/build" olddefconfig; \
-	grep -qx 'CONFIG_DAVE_FACTORY_PROVISIONING=y' "$$work/config"; \
+	grep -qx 'CONFIG_SMMSTORE_SRK_PROVISION=y' "$$work/config"; \
 	$(MAKE) DOTCONFIG="$$work/config" obj="$$work/build"; \
 	printf 'Office provisioning image (programmer installation only): %s\n' \
 		"$$work/build/coreboot.rom"
