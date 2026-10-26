@@ -159,7 +159,7 @@ config TPM_MEASURED_BOOT_RUNTIME_DATA
 
 config TPM_PREBOOT_AUTH_PHASE
 	bool
-	depends on PAYLOAD_EDK2
+	depends on PAYLOAD_EDK2 || PAYLOAD_CDK2
 	depends on TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
 	help
 	  Open PCR 6 immediately before the payload. The payload must
