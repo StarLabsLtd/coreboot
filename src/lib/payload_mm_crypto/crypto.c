@@ -228,8 +228,7 @@ static enum payload_mm_verify_status authvar_x509_chain_verify_detailed(
 	const struct payload_mm_crypto_span *leaf,
 	const struct payload_mm_crypto_span *intermediates,
 	size_t intermediate_count,
-	const struct payload_mm_crypto_span *trust_anchor,
-	enum payload_mm_crypto_failure_source *failure_source)
+	const struct payload_mm_crypto_span *trust_anchor)
 {
 	mbedtls_x509_crt chain;
 	mbedtls_x509_crt trust;
@@ -240,9 +239,6 @@ static enum payload_mm_verify_status authvar_x509_chain_verify_detailed(
 	uint32_t flags = 0U;
 	int result;
 
-	if (failure_source == NULL)
-		return PAYLOAD_MM_VERIFY_INVALID;
-	*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRANSIENT;
 	if (!valid_span(leaf, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) ||
 	    intermediate_count > PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U ||
 	    !valid_span(trust_anchor, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE))
@@ -264,20 +260,15 @@ static enum payload_mm_verify_status authvar_x509_chain_verify_detailed(
 			intermediate_count);
 	if (result != 0) {
 		status = PAYLOAD_MM_VERIFY_MALFORMED;
-		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
 	} else if (validate_rsa_certificates(&chain) != PAYLOAD_MM_VERIFY_OK) {
 		status = PAYLOAD_MM_VERIFY_REJECTED;
-		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
 	} else if (parse_certificates(&trust, trust_anchor, 1U) != 0) {
 		status = PAYLOAD_MM_VERIFY_MALFORMED;
-		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRUST;
 	} else if (validate_rsa_certificates(&trust) != PAYLOAD_MM_VERIFY_OK) {
 		status = PAYLOAD_MM_VERIFY_REJECTED;
-		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRUST;
 	} else if (mbedtls_x509_crt_verify(&chain, &trust, NULL, NULL, &flags,
 		NULL, NULL) != 0 || flags != 0U) {
 		status = PAYLOAD_MM_VERIFY_REJECTED;
-		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_SIGNATURE;
 	} else {
 		status = PAYLOAD_MM_VERIFY_OK;
 	}
@@ -334,8 +325,7 @@ enum payload_mm_verify_status payload_mm_authvar_x509_chain_verify_detailed(
 	const struct payload_mm_crypto_span *leaf,
 	const struct payload_mm_crypto_span *intermediates,
 	size_t intermediate_count,
-	const struct payload_mm_crypto_span *trust_anchor,
-	enum payload_mm_crypto_failure_source *failure_source)
+	const struct payload_mm_crypto_span *trust_anchor)
 {
 	mbedtls_x509_crt parsed[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U];
 	struct payload_mm_crypto_span ordered[
@@ -351,14 +341,12 @@ enum payload_mm_verify_status payload_mm_authvar_x509_chain_verify_detailed(
 	size_t index;
 	int result;
 
-	if (failure_source == NULL ||
-	    !valid_span(leaf, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) ||
+	if (!valid_span(leaf, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) ||
 	    !valid_span(trust_anchor, PAYLOAD_MM_CRYPTO_MAX_CERTIFICATE_SIZE) ||
 	    intermediate_count > PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U ||
 	    (intermediate_count != 0U && intermediates == NULL))
 		return PAYLOAD_MM_VERIFY_INVALID;
 
-	*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_TRUST;
 	mbedtls_x509_crt_init(&parsed_leaf);
 	mbedtls_x509_crt_init(&parsed_anchor);
 	for (index = 0U; index < ARRAY_SIZE(parsed); index++)
@@ -404,7 +392,7 @@ enum payload_mm_verify_status payload_mm_authvar_x509_chain_verify_detailed(
 		child = &parsed[match];
 	}
 	status = authvar_x509_chain_verify_detailed(leaf, ordered, ordered_count,
-		trust_anchor, failure_source);
+		trust_anchor);
 out:
 	for (index = 0U; index < ARRAY_SIZE(parsed); index++)
 		mbedtls_x509_crt_free(&parsed[index]);
