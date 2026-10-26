@@ -183,17 +183,3 @@ bool payload_mm_crypto_owner_is_clean(
 	__atomic_store_n(&active_owner, NULL, __ATOMIC_RELEASE);
 	return clean;
 }
-
-bool payload_mm_crypto_abort_active(void)
-{
-	struct payload_mm_crypto_owner *owner = __atomic_load_n(&active_owner,
-		__ATOMIC_ACQUIRE);
-
-	if (owner == NULL || owner == ABORT_GUARD ||
-	    !__atomic_compare_exchange_n(&active_owner, &owner, ABORT_GUARD,
-		false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
-		return false;
-	reset_owner(owner);
-	__atomic_store_n(&active_owner, NULL, __ATOMIC_RELEASE);
-	return true;
-}

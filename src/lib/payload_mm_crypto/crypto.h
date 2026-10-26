@@ -25,7 +25,6 @@ bool payload_mm_crypto_abort(struct payload_mm_crypto_owner *owner);
 bool payload_mm_crypto_idle(void);
 bool payload_mm_crypto_owner_is_clean(
 	const struct payload_mm_crypto_owner *owner);
-bool payload_mm_crypto_abort_active(void);
 
 enum payload_mm_verify_status payload_mm_sha256(const void *message,
 	size_t message_size, uint8_t digest[PAYLOAD_MM_SHA256_SIZE]);
