@@ -12,6 +12,8 @@ source "payloads/external/cdk2/cdk2/Kconfig"
 
 config DAVE_MODE
 	select SECURITY_FAIL_CLOSED
+	select SMMSTORE_SRK_PIN if SMMSTORE && SOC_INTEL_COMMON_BLOCK_SMM && \
+		BOOTMEDIA_SMM_BWP && !BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 
 config PAYLOAD_FILE
 	default "$(obj)/cdk2/native/cdk2-coreboot-image.elf"
