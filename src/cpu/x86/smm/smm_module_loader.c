@@ -154,9 +154,14 @@ static int smm_create_map(struct region *smram_free, const unsigned int num_cpus
 		       __func__);
 		return 0;
 	}
-	struct region padding;
-	if (smm_smram_carve_top(smram_free, 0, SMM_CODE_SEGMENT_SIZE, "PADDING", &padding) != CB_SUCCESS)
-		return 0;
+	/* ASEG shares one 64K segment with the handler; keep its remaining space. */
+	if (!CONFIG(SMM_ASEG)) {
+		struct region padding;
+
+		if (smm_smram_carve_top(smram_free, 0, SMM_CODE_SEGMENT_SIZE,
+				       "PADDING", &padding) != CB_SUCCESS)
+			return 0;
+	}
 
 	for (size_t segment = 0; segment < DIV_ROUND_UP(num_cpus, cpus_per_segment); segment++) {
 		for (size_t i = 0; i < cpus_per_segment; i++) {
