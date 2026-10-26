@@ -119,6 +119,10 @@ struct smm_runtime {
 	size_t efi_variable_service_buffer_size;
 	bool efi_variable_service_s3_resume;
 #endif
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+	uintptr_t payload_spi_console_buffer_base;
+	size_t payload_spi_console_buffer_size;
+#endif
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 	uintptr_t capsule_staging_base;
 	size_t capsule_staging_size;
@@ -305,6 +309,9 @@ void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
 void smm_get_efi_variable_service(uintptr_t *base, size_t *size);
 void smm_get_efi_variable_service_buffer(uintptr_t *base, size_t *size);
 bool smm_efi_variable_service_is_s3_resume(void);
+#endif
+#if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
+void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
 #endif
 void smm_get_capsule_staging(uintptr_t *base, size_t *size);
 void smm_get_authvar_boot_authority(uintptr_t *base, size_t *size);
