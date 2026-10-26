@@ -145,8 +145,16 @@ config EDK2_BOOT_MANAGER_ESCAPE
 	  Use Escape as the hot-key to access the Boot Manager. This replaces
 	  the default key of F2.
 
+config EDK2_DISABLE_BOOT_MANAGER_WAIT
+	bool "Disable boot-selection prompt and timeout"
+	default n
+	help
+	  Skip the boot-selection wait and do not use a persistent Timeout
+	  variable. Hotkeys and OS-requested firmware setup remain available.
+
 config EDK2_BOOT_TIMEOUT
 	int "Set the timeout for boot menu prompt"
+	depends on !EDK2_DISABLE_BOOT_MANAGER_WAIT
 	default 2
 	help
 	  The length of time in seconds for which the boot splash/menu prompt will be displayed.
