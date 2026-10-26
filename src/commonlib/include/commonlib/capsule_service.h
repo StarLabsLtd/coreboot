@@ -139,4 +139,3 @@ _Static_assert(offsetof(struct lb_capsule_broker_endpoint, generation) == 16U &&
 
 
 #endif
-
