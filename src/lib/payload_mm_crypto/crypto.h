@@ -4,13 +4,6 @@
 
 #include "payload_mm_cms.h"
 
-enum payload_mm_crypto_failure_source {
-	PAYLOAD_MM_CRYPTO_FAILURE_TRANSIENT = 0,
-	PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT,
-	PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_SIGNATURE,
-	PAYLOAD_MM_CRYPTO_FAILURE_TRUST,
-};
-
 enum payload_mm_verify_status payload_mm_crypto_begin(
 	struct payload_mm_crypto_owner *owner);
 enum payload_mm_verify_status payload_mm_crypto_end(
@@ -44,7 +37,6 @@ enum payload_mm_verify_status payload_mm_authvar_x509_chain_verify_detailed(
 	const struct payload_mm_crypto_span *leaf,
 	const struct payload_mm_crypto_span *intermediates,
 	size_t intermediate_count,
-	const struct payload_mm_crypto_span *trust_anchor,
-	enum payload_mm_crypto_failure_source *failure_source);
+	const struct payload_mm_crypto_span *trust_anchor);
 
 #endif
