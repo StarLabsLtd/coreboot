@@ -159,21 +159,12 @@ static enum payload_mm_authvar_route_result route_secure_boot(
 	    request->attributes & PAYLOAD_MM_AUTHVAR_ATTRIBUTE_AUTH_WRITE)
 		return PAYLOAD_MM_AUTHVAR_ROUTE_INVALID;
 	plan->require_signature_list = true;
-	bypass = request->custom_mode && request->trusted_physical_presence;
-	if (!bypass && request->setup_mode &&
-	    !(request->require_self_signed_pk &&
-	      plan->target == PAYLOAD_MM_AUTHVAR_TARGET_PK))
-		bypass = true;
+	bypass = request->setup_mode ||
+		(request->custom_mode && request->trusted_physical_presence);
 	if (bypass) {
 		plan->authorities[0] = PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS;
 		plan->authority_count = 1U;
-		plan->mark_vendor_keys_modified = !request->setup_mode ||
-			(request->require_self_signed_pk &&
-			 plan->target == PAYLOAD_MM_AUTHVAR_TARGET_PK);
-	} else if (request->setup_mode) {
-		plan->authorities[0] =
-			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PAYLOAD_CERT;
-		plan->authority_count = 1U;
+		plan->mark_vendor_keys_modified = !request->setup_mode;
 	} else {
 		plan->authorities[0] = PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK;
 		plan->authority_count = 1U;

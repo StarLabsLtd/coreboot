@@ -128,18 +128,6 @@ static bool trust_route(const struct provider_snapshot *snapshot)
 	return false;
 }
 
-static bool payload_cert_route(
-	const struct payload_mm_authvar_route_plan *route)
-{
-	return route && route->target == PAYLOAD_MM_AUTHVAR_TARGET_PK &&
-		route->authority_count == 1U &&
-		route->authorities[0] ==
-			PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PAYLOAD_CERT &&
-		route->authorities[1] == PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE &&
-		route->require_signature_list && route->enter_user_mode &&
-		!route->enter_setup_mode && !route->mark_vendor_keys_modified;
-}
-
 static bool inputs_valid(
 	const struct payload_mm_authvar_authority_verify_request *request,
 	const struct payload_mm_authvar_authority_verification *verification,
@@ -334,8 +322,7 @@ enum payload_mm_verify_status payload_mm_authvar_authority_provider_verify(
 		return status;
 	}
 	if (!trust_route(&snapshot))
-		return payload_cert_route(&snapshot.route) ?
-			PAYLOAD_MM_VERIFY_UNSUPPORTED : PAYLOAD_MM_VERIFY_INVALID;
+		return PAYLOAD_MM_VERIFY_INVALID;
 	status = payload_mm_authvar_trust_store_verify(request->owner,
 		request->pkcs7, request->content, request->content_count,
 		request->index, request->route, &accepted);

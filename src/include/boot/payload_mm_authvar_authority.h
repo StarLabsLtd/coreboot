@@ -27,7 +27,6 @@ struct payload_mm_authvar_authority_facts {
 	bool setup_mode;
 	bool custom_mode;
 	bool trusted_physical_presence;
-	bool require_self_signed_pk;
 };
 
 struct payload_mm_authvar_authority_verify_request {

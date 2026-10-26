@@ -341,7 +341,6 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 			.custom_mode = in_custom_mode,
 			.trusted_physical_presence =
 				coordinator->trusted_physical_presence,
-			.require_self_signed_pk = false,
 		},
 		.verify = coordinator->verify,
 		.verify_context = coordinator->verify_context,

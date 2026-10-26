@@ -51,7 +51,6 @@ enum payload_mm_authvar_authority {
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_NONE = 0,
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS,
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_PK,
-	PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PAYLOAD_CERT,
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_CURRENT_KEK,
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_NEW_PRIVATE_SIGNER,
 	PAYLOAD_MM_AUTHVAR_AUTHORITY_PRIVATE_CERTDB,
@@ -68,7 +67,6 @@ struct payload_mm_authvar_route_request {
 	bool setup_mode;
 	bool custom_mode;
 	bool trusted_physical_presence;
-	bool require_self_signed_pk;
 };
 
 struct payload_mm_authvar_route_plan {
