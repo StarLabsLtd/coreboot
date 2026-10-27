@@ -60,7 +60,9 @@ void bootblock_main_with_timestamp(uint64_t base_timestamp,
 
 	if (CONFIG(TPM_MEASURED_BOOT_INIT_BOOTBLOCK)) {
 		bool s3resume = acpi_is_wakeup_s3();
-		tpm_setup(s3resume);
+		tpm_result_t rc = tpm_setup(s3resume);
+		if (rc != TPM_SUCCESS && CONFIG(SECURITY_FAIL_CLOSED))
+			die("Unable to initialize measured boot\n");
 	}
 
 	timestamp_add_now(TS_BOOTBLOCK_END);

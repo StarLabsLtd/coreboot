@@ -339,6 +339,9 @@ void verstage_main(void)
 		 */
 		if (rv == VB2_ERROR_API_PHASE1_RECOVERY) {
 			printk(BIOS_INFO, "Recovery requested (%#x)\n", rv);
+			/* Phase 1 handles requested reboots before this recovery path. */
+			if (CONFIG(SECURITY_FAIL_CLOSED) && tpm_rc != TPM_SUCCESS)
+				die("TPM setup failed before measured recovery\n");
 			vboot_save_data(ctx);
 			/* Capsule repair needs flash writes, not an unlocked rollback floor. */
 			if (CONFIG(SECURITY_FAIL_CLOSED) &&

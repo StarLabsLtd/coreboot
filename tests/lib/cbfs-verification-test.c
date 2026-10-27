@@ -3,6 +3,7 @@
 #include <cbfs.h>
 #include <commonlib/bsd/cbfs_private.h>
 #include <commonlib/region.h>
+#include <security/tpm/tspi/crtm.h>
 #include <string.h>
 #include <tests/lib/cbfs_util.h>
 #include <tests/test.h>
@@ -11,6 +12,34 @@
 /* Mocks */
 
 static struct cbfs_boot_device cbd;
+static bool hash_failure;
+static tpm_result_t measurement_status;
+
+tpm_result_t tspi_cbfs_measurement(const char *name, uint32_t type, const struct vb2_hash *hash)
+{
+	assert_string_equal(name, TEST_DATA_1_FILENAME);
+	assert_int_equal(type, CBFS_TYPE_RAW);
+	assert_int_equal(hash->algo, TPM_MEASURE_ALGO);
+	check_expected_ptr(hash);
+	return measurement_status;
+}
+
+#if CONFIG(TPM_MEASURED_BOOT)
+void die(const char *msg, ...)
+{
+	assert_string_equal(msg, "Required CBFS measurement failed\n");
+	mock_assert(false, msg, __FILE__, __LINE__);
+	__builtin_unreachable();
+}
+#endif
+
+vb2_error_t vb2_hash_calculate(bool allow_hwcrypto, const void *buf, uint32_t size,
+			      enum vb2_hash_algorithm hash_alg, struct vb2_hash *hash)
+{
+	assert_true(hash_failure);
+	assert_int_equal(hash_alg, VB2_HASH_SHA256);
+	return VB2_ERROR_SHA_INIT_ALGORITHM;
+}
 
 const struct cbfs_boot_device *cbfs_get_boot_device(bool force_ro)
 {
@@ -106,6 +135,8 @@ enum cb_err cbfs_lookup(cbfs_dev_t dev, const char *name, union cbfs_mdata *mdat
 static int setup_test_cbfs(void **state)
 {
 	memset(&cbd, 0, sizeof(cbd));
+	hash_failure = false;
+	measurement_status = TPM_SUCCESS;
 	return 0;
 }
 
@@ -192,8 +223,60 @@ void test_init_boot_device_verify(void **state)
 	assert_int_equal(CB_SUCCESS, cbfs_init_boot_device(&cbd, &hash));
 }
 
+static void test_cbfs_measurement(void **state)
+{
+	assert_int_equal(0,
+		 rdev_chain_mem(&cbd.rdev, &file_valid_hash, sizeof(file_valid_hash)));
+	expect_value(cbfs_get_boot_device, force_ro, false);
+	will_return(cbfs_lookup, CB_SUCCESS);
+	expect_value(vb2_hash_verify, buf, &file_valid_hash.attrs_and_data[HASH_ATTR_SIZE]);
+	expect_value(vb2_hash_verify, size, TEST_DATA_1_SIZE);
+	expect_any(tspi_cbfs_measurement, hash);
+	if (measurement_status != TPM_SUCCESS && CONFIG(SECURITY_FAIL_CLOSED)) {
+		expect_assert_failure(cbfs_map(TEST_DATA_1_FILENAME, NULL));
+	} else {
+		assert_ptr_equal(cbfs_map(TEST_DATA_1_FILENAME, NULL),
+				 &file_valid_hash.attrs_and_data[HASH_ATTR_SIZE]);
+	}
+}
+
+static void test_cbfs_measurement_failure(void **state)
+{
+	measurement_status = TPM_CB_FAIL;
+	test_cbfs_measurement(state);
+}
+
+static void test_cbfs_measurement_hash_failure(void **state)
+{
+	hash_failure = true;
+	assert_int_equal(0, rdev_chain_mem(&cbd.rdev, &file_no_hash, sizeof(file_no_hash)));
+	expect_value(cbfs_get_boot_device, force_ro, false);
+	will_return(cbfs_lookup, CB_SUCCESS);
+	if (CONFIG(SECURITY_FAIL_CLOSED)) {
+		expect_assert_failure(cbfs_map(TEST_DATA_1_FILENAME, NULL));
+	} else {
+		assert_ptr_equal(cbfs_map(TEST_DATA_1_FILENAME, NULL), file_no_hash.attrs_and_data);
+	}
+}
+
 int main(void)
 {
+	if (CONFIG(TPM_MEASURED_BOOT)) {
+		if (!CONFIG(CBFS_VERIFICATION)) {
+			const struct CMUnitTest tests[] = {
+				cmocka_unit_test_setup(test_cbfs_measurement_hash_failure,
+							setup_test_cbfs),
+			};
+			return cb_run_group_tests(tests, NULL, NULL);
+		}
+
+		const struct CMUnitTest tests[] = {
+			cmocka_unit_test_setup(test_cbfs_measurement, setup_test_cbfs),
+			cmocka_unit_test_setup(test_cbfs_measurement_failure, setup_test_cbfs),
+		};
+		return cb_run_group_tests(tests, NULL, NULL);
+	}
+
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(test_cbfs_map_no_hash, setup_test_cbfs),
 		cmocka_unit_test_setup(test_cbfs_map_valid_hash, setup_test_cbfs),
