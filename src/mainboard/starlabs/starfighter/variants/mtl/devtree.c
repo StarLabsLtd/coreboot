@@ -28,7 +28,8 @@ void mb_devtree_update(void)
 	if (get_uint_option_checked("card_reader", 1, OPTION_BOOL) == 0)
 		cfg->usb2_ports[3].enable = 0;
 
-	if (!CONFIG(EDK2_DEBUG)) {
+	if (!CONFIG(CONSOLE_SERIAL) && !CONFIG(CONSOLE_SERIAL_RUNTIME) &&
+	    !CONFIG(CONSOLE_CBMEM_DUMP_TO_UART)) {
 		DEV_PTR(uart0)->enabled = 0;
 		cfg->serial_io_uart_mode[PchSerialIoIndexUART0] = PchSerialIoDisabled;
 	}

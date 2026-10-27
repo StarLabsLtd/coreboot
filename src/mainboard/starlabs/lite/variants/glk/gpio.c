@@ -8,7 +8,8 @@
 
 /* Early pad configuration in bootblock. */
 const struct pad_config early_gpio_table[] = {
-#if CONFIG(EDK2_DEBUG)
+#if CONFIG(CONSOLE_SERIAL) || CONFIG(CONSOLE_SERIAL_RUNTIME) || \
+	CONFIG(CONSOLE_CBMEM_DUMP_TO_UART)
 	/* GPIO_64:	UART2_TXD	*/
 	PAD_CFG_NF(GPIO_64, UP_20K, DEEP, NF1),
 	/* GPIO_65:	UART2_RXD	*/

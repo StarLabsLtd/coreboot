@@ -18,7 +18,8 @@ void mb_devtree_update(void)
 	struct device *wifi_dev = pcidev_on_root(0x0c, 0);
 
 	update_power_limits(cfg);
-	if (!CONFIG(EDK2_DEBUG))
+	if (!CONFIG(CONSOLE_SERIAL) && !CONFIG(CONSOLE_SERIAL_RUNTIME) &&
+	    !CONFIG(CONSOLE_CBMEM_DUMP_TO_UART))
 		DEV_PTR(uart2)->enabled = 0;
 
 	/* Enable/Disable WiFi based on CMOS settings */
