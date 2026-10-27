@@ -316,7 +316,7 @@ tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 	 */
 	for (offset = 0; offset < region_device_sz(rdev); offset += len) {
 		len = MIN(sizeof(buf), region_device_sz(rdev) - offset);
-		if (rdev_readat(rdev, buf, offset, len) < 0) {
+		if (rdev_readat(rdev, buf, offset, len) != len) {
 			printk(BIOS_ERR, "TPM: Not able to read region %s.\n",
 			       rname);
 			return TPM_CB_READ_FAILURE;
