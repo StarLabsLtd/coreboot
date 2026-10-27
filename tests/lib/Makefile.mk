@@ -37,6 +37,8 @@ tests-y += cbfs-verification-no-sha512-test
 tests-y += cbfs-verification-has-sha512-test
 tests-y += cbfs-no-verification-no-sha512-test
 tests-y += cbfs-no-verification-has-sha512-test
+tests-y += cbfs-measurement-test cbfs-measurement-permissive-test
+tests-y += cbfs-measurement-hash-failure-test cbfs-measurement-hash-failure-permissive-test
 tests-y += cbfs-lookup-no-mcache-test
 tests-y += cbfs-lookup-has-mcache-test
 tests-y += lzma-test
@@ -245,6 +247,21 @@ cbfs-no-verification-no-sha512-test-config += CONFIG_CBFS_VERIFICATION=0
 $(call copy-test,cbfs-verification-no-sha512-test,cbfs-no-verification-has-sha512-test)
 cbfs-no-verification-has-sha512-test-config += CONFIG_CBFS_VERIFICATION=0 \
 						VB2_SUPPORT_SHA512=1
+
+$(call copy-test,cbfs-verification-no-sha512-test,cbfs-measurement-test)
+cbfs-measurement-test-srcs := $(filter-out tests/stubs/die.c,$(cbfs-measurement-test-srcs))
+cbfs-measurement-test-config += CONFIG_TPM_MEASURED_BOOT=1 CONFIG_TPM_LOG_TPM2=1 \
+	CONFIG_TPM_LOG_CB=0 CONFIG_TPM_LOG_TPM1=0 CONFIG_TPM_HASH_SHA1=0 CONFIG_TPM_HASH_SHA256=1 \
+	CONFIG_SECURITY_FAIL_CLOSED=1
+
+$(call copy-test,cbfs-measurement-test,cbfs-measurement-permissive-test)
+cbfs-measurement-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
+
+$(call copy-test,cbfs-measurement-test,cbfs-measurement-hash-failure-test)
+cbfs-measurement-hash-failure-test-config += CONFIG_CBFS_VERIFICATION=0
+
+$(call copy-test,cbfs-measurement-hash-failure-test,cbfs-measurement-hash-failure-permissive-test)
+cbfs-measurement-hash-failure-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
 
 cbfs-lookup-no-mcache-test-srcs = tests/lib/cbfs-lookup-test.c \
 				tests/stubs/console.c \
