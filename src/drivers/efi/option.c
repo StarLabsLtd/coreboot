@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <fmap.h>
 #include <option.h>
 #include <smmstore.h>
 #include <drivers/smmstore/authvar.h>
@@ -33,7 +34,7 @@ enum cb_err efi_option_get_uint(const char *name, uint32_t *value)
 	if (!name || !value)
 		return CB_ERR_ARG;
 
-	if (smmstore_lookup_region(&rdev))
+	if (fmap_locate_area_as_rdev("SMMSTORE", &rdev))
 		return CB_CMOS_OTABLE_DISABLED;
 
 	size = sizeof(*value);
@@ -55,7 +56,7 @@ enum cb_err efi_option_get_uints(struct efi_uint_option *options, size_t count)
 	if (!options || !count || count > EFI_UINT_OPTION_BATCH_MAX)
 		return CB_ERR_ARG;
 
-	if (smmstore_lookup_region(&rdev))
+	if (fmap_locate_area_as_rdev("SMMSTORE", &rdev))
 		return CB_CMOS_OTABLE_DISABLED;
 
 	for (size_t i = 0; i < count; i++) {
