@@ -57,16 +57,20 @@ int mainboard_smi_finalize(void)
 	dw_i2c_smm_init(STARLABS_TOUCHPAD_I2C_BUS);
 #endif
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS)
-	if (!CONFIG(EDK2_DEBUG)) {
-		size_t num;
-		const struct pad_config *pads = variant_early_gpio_table(&num);
+	size_t num;
+	const struct pad_config *pads = variant_early_gpio_table(&num);
 
-		/* Early stages cannot apply the lock requests in this table. */
-		for (size_t i = 0; i < num; i++) {
-			if (pads[i].lock_action &&
-			    gpio_lock_pad(pads[i].pad, pads[i].lock_action))
-				ret = -1;
-		}
+	/* Restore the requested configuration before completing deferred locks. */
+	for (size_t i = 0; i < num; i++) {
+		if (!pads[i].lock_action)
+			continue;
+
+		struct pad_config pad = pads[i];
+
+		pad.lock_action = 0;
+		gpio_configure_pads(&pad, 1);
+		if (gpio_lock_pad(pad.pad, pads[i].lock_action))
+			ret = -1;
 	}
 #endif
 	return ret;
