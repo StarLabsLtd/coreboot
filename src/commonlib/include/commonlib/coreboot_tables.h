@@ -90,6 +90,7 @@ enum {
 	LB_TAG_EFI_FW_INFO		= 0x0045,
 	LB_TAG_CAPSULE			= 0x0046,
 	LB_TAG_CFR_ROOT			= 0x0047,
+	LB_TAG_CFR_FORM_ROLES		= 0x005d,
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
@@ -640,6 +641,25 @@ struct lb_cfr {
 	uint32_t version;
 	uint32_t checksum;	/* Checksum of the variable payload. */
 	/* struct lb_cfr_option_form		forms[] */
+};
+
+#define LB_CFR_FORM_ROLES_VERSION 1
+#define LB_CFR_FORM_ROLE_SECURITY 1
+
+struct lb_cfr_form_role {
+	uint32_t ordinal;
+	uint32_t role;
+};
+
+struct lb_cfr_form_roles {
+	uint32_t tag;
+	uint32_t size;
+	uint32_t version;
+	uint32_t cfr_root_size;	/* Bind the ordinals to this CFR root. */
+	uint32_t cfr_checksum;
+	uint32_t form_count;
+	uint32_t entry_count;
+	struct lb_cfr_form_role entries[];	/* Zero-based top-level form ordinals. */
 };
 
 struct lb_panel_poweroff {
