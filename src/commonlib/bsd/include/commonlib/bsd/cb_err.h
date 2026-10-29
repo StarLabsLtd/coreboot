@@ -17,6 +17,7 @@ enum cb_err {
 	CB_ERR = -1,			/**< Generic error code */
 	CB_ERR_ARG = -2,		/**< Invalid argument */
 	CB_ERR_NOT_IMPLEMENTED = -3,	/**< Function not implemented */
+	CB_ERR_BUSY = -4,		/**< Resource temporarily busy */
 
 	/* NVRAM/CMOS errors */
 	CB_CMOS_OTABLE_DISABLED = -100,		/**< Option table disabled */
