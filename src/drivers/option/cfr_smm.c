@@ -24,6 +24,7 @@ static uint8_t cfr_runtime_apply_status(enum cb_err ret)
 	case CB_ERR:
 	case CB_ERR_ARG:
 	case CB_ERR_NOT_IMPLEMENTED:
+	case CB_ERR_BUSY:
 		return (uint8_t)ret;
 	default:
 		printk(BIOS_WARNING, "CFR: unsupported runtime apply status %d\n", ret);
