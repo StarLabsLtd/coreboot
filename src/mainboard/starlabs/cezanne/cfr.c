@@ -158,6 +158,7 @@ static struct sm_obj_form leds_group = {
 };
 
 static struct sm_obj_form pcie_power_management_group = {
+	.category = LB_CFR_FORM_CATEGORY_PCIE,
 	.ui_name = "PCIe Power Management",
 	.obj_list = (const struct sm_object *[]) {
 		&pciexp_wifi_clk_pm,
