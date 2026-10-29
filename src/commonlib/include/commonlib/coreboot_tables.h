@@ -97,6 +97,7 @@ enum {
 	LB_TAG_CFR_ROOT			= 0x0047,
 	LB_TAG_CFR_FORM_ROLES		= 0x005d,
 	LB_TAG_CFR_FORM_CATEGORIES	= 0x005e,
+	LB_TAG_CFR_DEFAULT_OPTIONS	= 0x005f,
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
@@ -1060,6 +1061,18 @@ struct lb_cfr_form_roles {
 	uint32_t form_count;
 	uint32_t entry_count;
 	struct lb_cfr_form_role entries[];	/* Zero-based top-level form ordinals. */
+};
+
+#define LB_CFR_DEFAULT_OPTIONS_VERSION 1
+
+struct lb_cfr_default_options {
+	uint32_t tag;
+	uint32_t size;
+	uint32_t version;
+	uint32_t cfr_root_size;
+	uint32_t cfr_checksum;
+	uint32_t entry_count;
+	lb_uint64_t object_ids[];
 };
 
 struct lb_panel_poweroff {

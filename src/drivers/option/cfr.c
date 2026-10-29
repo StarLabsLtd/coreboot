@@ -21,6 +21,9 @@ static size_t form_count;
 static size_t role_count;
 static size_t category_count;
 static bool roles_overflow;
+static lb_uint64_t default_options[CFR_MAX_FORM_ROLES];
+static size_t default_option_count;
+static bool default_options_overflow;
 
 static void record_form_role(const struct sm_obj_form *form)
 {
@@ -409,6 +412,7 @@ static uint32_t sm_write_form(char *current, struct sm_obj_form *sm_form,
 static uint32_t sm_write_object(char *current, const struct sm_object *sm_obj)
 {
 	uint64_t dep_id, obj_id;
+	uint32_t size;
 	const uint32_t *dep_values;
 	uint32_t num_dep_values;
 	assert(sm_obj);
@@ -439,14 +443,17 @@ static uint32_t sm_write_object(char *current, const struct sm_object *sm_obj)
 	case SM_OBJ_NONE:
 		return 0;
 	case SM_OBJ_ENUM:
-		return sm_write_opt_enum(current, &sm_obj_copy.sm_enum, obj_id,
+		size = sm_write_opt_enum(current, &sm_obj_copy.sm_enum, obj_id,
 					 dep_id, dep_values, num_dep_values);
+		break;
 	case SM_OBJ_NUMBER:
-		return sm_write_opt_number(current, &sm_obj_copy.sm_number, obj_id,
+		size = sm_write_opt_number(current, &sm_obj_copy.sm_number, obj_id,
 					   dep_id, dep_values, num_dep_values);
+		break;
 	case SM_OBJ_BOOL:
-		return sm_write_opt_bool(current, &sm_obj_copy.sm_bool, obj_id,
+		size = sm_write_opt_bool(current, &sm_obj_copy.sm_bool, obj_id,
 					 dep_id, dep_values, num_dep_values);
+		break;
 	case SM_OBJ_VARCHAR:
 		return sm_write_opt_varchar(current, &sm_obj_copy.sm_varchar, obj_id,
 					    dep_id, dep_values, num_dep_values);
@@ -461,6 +468,13 @@ static uint32_t sm_write_object(char *current, const struct sm_object *sm_obj)
 		printk(BIOS_ERR, "Unknown setup menu object kind %u, ignoring\n", sm_obj_copy.kind);
 		return 0;
 	}
+	if (size && sm_obj_copy.restore_default) {
+		if (default_option_count < CFR_MAX_FORM_ROLES)
+			default_options[default_option_count++] = obj_id;
+		else
+			default_options_overflow = true;
+	}
+	return size;
 }
 
 void cfr_write_setup_menu(struct lb_cfr *cfr_root, struct sm_obj_form *sm_root[])
@@ -477,6 +491,8 @@ void cfr_write_setup_menu(struct lb_cfr *cfr_root, struct sm_obj_form *sm_root[]
 	role_count = 0;
 	category_count = 0;
 	roles_overflow = false;
+	default_option_count = 0;
+	default_options_overflow = false;
 
 	cfr_root->tag = LB_TAG_CFR_ROOT;
 	cfr_root->size = sizeof(*cfr_root);
@@ -543,4 +559,21 @@ void cfr_write_form_categories(struct lb_header *header, const struct lb_cfr *ro
 	record->form_count = form_count;
 	record->entry_count = category_count;
 	memcpy(record->entries, form_categories, category_count * sizeof(form_categories[0]));
+}
+
+void cfr_write_default_options(struct lb_header *header, const struct lb_cfr *root)
+{
+	struct lb_cfr_default_options *record;
+
+	if (root != roles_root || default_options_overflow || !default_option_count)
+		return;
+	record = (struct lb_cfr_default_options *)lb_new_record(header);
+	record->tag = LB_TAG_CFR_DEFAULT_OPTIONS;
+	record->size = sizeof(*record) + default_option_count * sizeof(record->object_ids[0]);
+	record->version = LB_CFR_DEFAULT_OPTIONS_VERSION;
+	record->cfr_root_size = root->size;
+	record->cfr_checksum = root->checksum;
+	record->entry_count = default_option_count;
+	memcpy(record->object_ids, default_options,
+	       default_option_count * sizeof(default_options[0]));
 }
