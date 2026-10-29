@@ -128,6 +128,7 @@ static struct sm_obj_form battery_group = {
 
 #if CONFIG(DRIVERS_INTEL_USB4_RETIMER)
 static struct sm_obj_form io_expansion_group = {
+	.category = LB_CFR_FORM_CATEGORY_IO,
 	.ui_name = "I/O / Expansion",
 	.obj_list = (const struct sm_object *[]) {
 		&card_reader,
@@ -159,6 +160,7 @@ static struct sm_obj_form trackpad_group = {
 };
 
 static struct sm_obj_form leds_group = {
+	.category = LB_CFR_FORM_CATEGORY_LEDS,
 	.ui_name = "LEDs",
 	.obj_list = (const struct sm_object *[]) {
 		&charge_led,
@@ -186,6 +188,7 @@ static struct sm_obj_form pcie_power_management_group = {
 };
 
 static struct sm_obj_form performance_group = {
+	.category = LB_CFR_FORM_CATEGORY_PERFORMANCE,
 	.ui_name = "Performance",
 	.obj_list = (const struct sm_object *[]) {
 		&fan_mode,
@@ -224,6 +227,7 @@ static struct sm_obj_form security_group = {
 };
 
 static struct sm_obj_form suspend_lid_group = {
+	.category = LB_CFR_FORM_CATEGORY_SUSPEND,
 	.ui_name = "Suspend & Lid",
 	.obj_list = (const struct sm_object *[]) {
 		#if CONFIG(EC_STARLABS_LID_SWITCH)
@@ -235,6 +239,7 @@ static struct sm_obj_form suspend_lid_group = {
 };
 
 static struct sm_obj_form wireless_group = {
+	.category = LB_CFR_FORM_CATEGORY_WIRELESS,
 	.ui_name = "Wireless",
 	.obj_list = (const struct sm_object *[]) {
 		&bluetooth,
