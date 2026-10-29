@@ -71,6 +71,7 @@ struct sm_object;
 
 struct sm_obj_form {
 	uint32_t flags;		/* enum cfr_option_flags */
+	uint32_t role;		/* LB_CFR_FORM_ROLE_*, for top-level forms */
 	const char *ui_name;
 	const struct sm_object **obj_list;	/* NULL terminated */
 };
@@ -173,6 +174,7 @@ struct cfr_default_override {
 void cfr_register_overrides(const struct cfr_default_override *overrides);
 
 void cfr_write_setup_menu(struct lb_cfr *cfr_root, struct sm_obj_form *sm_root[]);
+void cfr_write_form_roles(struct lb_header *header, const struct lb_cfr *root);
 
 #if ENV_RAMSTAGE
 #define __cfr_form __attribute__((used, __section__(".rodata.cfr_forms")))
