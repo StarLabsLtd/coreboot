@@ -657,6 +657,8 @@ struct lb_cfr {
 #define LB_CFR_FORM_CATEGORY_PERFORMANCE 7
 #define LB_CFR_FORM_CATEGORY_SUSPEND 8
 #define LB_CFR_FORM_CATEGORY_WIRELESS 9
+#define LB_CFR_FORM_CATEGORY_PCIE 10
+#define LB_CFR_FORM_CATEGORY_DEBUG 11
 
 struct lb_cfr_form_role {
 	uint32_t ordinal;
