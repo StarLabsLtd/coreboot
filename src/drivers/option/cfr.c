@@ -15,9 +15,11 @@ static const struct cfr_default_override *mb_overrides = NULL;
 
 #define CFR_MAX_FORM_ROLES 256
 static struct lb_cfr_form_role form_roles[CFR_MAX_FORM_ROLES];
+static struct lb_cfr_form_role form_categories[CFR_MAX_FORM_ROLES];
 static const struct lb_cfr *roles_root;
 static size_t form_count;
 static size_t role_count;
+static size_t category_count;
 static bool roles_overflow;
 
 static void record_form_role(const struct sm_obj_form *form)
@@ -30,6 +32,11 @@ static void record_form_role(const struct sm_obj_form *form)
 		form_roles[role_count].ordinal = form_count;
 		form_roles[role_count].role = form->role;
 		role_count++;
+	}
+	if (form->category) {
+		form_categories[category_count].ordinal = form_count;
+		form_categories[category_count].role = form->category;
+		category_count++;
 	}
 	form_count++;
 }
@@ -468,6 +475,7 @@ void cfr_write_setup_menu(struct lb_cfr *cfr_root, struct sm_obj_form *sm_root[]
 	roles_root = cfr_root;
 	form_count = 0;
 	role_count = 0;
+	category_count = 0;
 	roles_overflow = false;
 
 	cfr_root->tag = LB_TAG_CFR_ROOT;
@@ -518,4 +526,21 @@ void cfr_write_form_roles(struct lb_header *header, const struct lb_cfr *root)
 	record->form_count = form_count;
 	record->entry_count = role_count;
 	memcpy(record->entries, form_roles, role_count * sizeof(form_roles[0]));
+}
+
+void cfr_write_form_categories(struct lb_header *header, const struct lb_cfr *root)
+{
+	struct lb_cfr_form_roles *record;
+
+	if (root != roles_root || roles_overflow || !category_count)
+		return;
+	record = (struct lb_cfr_form_roles *)lb_new_record(header);
+	record->tag = LB_TAG_CFR_FORM_CATEGORIES;
+	record->size = sizeof(*record) + category_count * sizeof(record->entries[0]);
+	record->version = LB_CFR_FORM_ROLES_VERSION;
+	record->cfr_root_size = root->size;
+	record->cfr_checksum = root->checksum;
+	record->form_count = form_count;
+	record->entry_count = category_count;
+	memcpy(record->entries, form_categories, category_count * sizeof(form_categories[0]));
 }

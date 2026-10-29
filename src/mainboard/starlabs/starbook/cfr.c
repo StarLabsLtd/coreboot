@@ -82,6 +82,7 @@ void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
 #endif
 
 static struct sm_obj_form audio_video_group = {
+	.category = LB_CFR_FORM_CATEGORY_AUDIO,
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]) {
 		&microphone,
@@ -96,6 +97,7 @@ static struct sm_obj_form audio_video_group = {
 };
 
 static struct sm_obj_form battery_group = {
+	.category = LB_CFR_FORM_CATEGORY_BATTERY,
 	.ui_name = "Battery",
 	.obj_list = (const struct sm_object *[]) {
 		#if CONFIG(EC_STARLABS_CHARGING_SPEED)
@@ -131,6 +133,7 @@ static struct sm_obj_form io_expansion_group = {
 #endif
 
 static struct sm_obj_form keyboard_group = {
+	.category = LB_CFR_FORM_CATEGORY_KEYBOARD,
 	.ui_name = "Keyboard",
 	.obj_list = (const struct sm_object *[]) {
 		&fn_ctrl_swap,
@@ -141,6 +144,7 @@ static struct sm_obj_form keyboard_group = {
 
 #if CONFIG(STARLABS_TOUCHPAD)
 static struct sm_obj_form trackpad_group = {
+	.category = LB_CFR_FORM_CATEGORY_TRACKPAD,
 	.ui_name = "Trackpad",
 	.obj_list = (const struct sm_object *[]) {
 		&touchpad_haptics,
