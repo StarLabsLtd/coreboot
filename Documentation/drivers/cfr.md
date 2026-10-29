@@ -238,6 +238,12 @@ struct lb_cfr_runtime_apply {
    - `0xff`: `CB_ERR`
    - `0xfe`: `CB_ERR_ARG`
    - `0xfd`: `CB_ERR_NOT_IMPLEMENTED`
+   - `0xfc`: `CB_ERR_BUSY`
+
+   `CB_ERR_BUSY` means that runtime apply has not completed. Consumers should
+   allow normal OS work to continue before retrying, with a bounded delay and
+   retry count. A retry only repeats the APMC request; it does not need to
+   rewrite the stored option value.
 
    Other status values are reserved. Consumers must ignore unknown runtime
    apply methods.

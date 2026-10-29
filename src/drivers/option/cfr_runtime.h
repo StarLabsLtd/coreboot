@@ -10,7 +10,7 @@
  * Boards that advertise runtime-apply metadata must implement this hook in
  * SMM, not ramstage, for the published runtime token IDs. The common handler
  * reports the returned status through APM_STS as a signed 8-bit cb_err subset:
- * CB_SUCCESS, CB_ERR, CB_ERR_ARG or CB_ERR_NOT_IMPLEMENTED.
+ * CB_SUCCESS, CB_ERR, CB_ERR_ARG, CB_ERR_NOT_IMPLEMENTED or CB_ERR_BUSY.
  *
  * Board callbacks must validate the token, re-read and validate the stored
  * option value, and avoid unbounded or destructive work in SMM.
