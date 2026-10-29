@@ -60,6 +60,7 @@ void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
 
 #if CONFIG(SYSTEM_TYPE_LAPTOP) || CONFIG(SYSTEM_TYPE_DETACHABLE)
 static struct sm_obj_form audio_video_group = {
+	.category = LB_CFR_FORM_CATEGORY_AUDIO,
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]){
 		&microphone,
@@ -70,6 +71,7 @@ static struct sm_obj_form audio_video_group = {
 #endif
 
 static struct sm_obj_form battery_group = {
+	.category = LB_CFR_FORM_CATEGORY_BATTERY,
 	.ui_name = "Battery",
 	.obj_list =
 		(const struct sm_object *[]){
@@ -113,6 +115,7 @@ static struct sm_obj_form leds_group = {
 
 #if CONFIG(SYSTEM_TYPE_LAPTOP)
 static struct sm_obj_form keyboard_group = {
+	.category = LB_CFR_FORM_CATEGORY_KEYBOARD,
 	.ui_name = "Keyboard",
 	.obj_list = (const struct sm_object *[]){&fn_ctrl_swap, &kbl_timeout, NULL},
 };
