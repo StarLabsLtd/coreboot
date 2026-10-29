@@ -515,7 +515,7 @@ static enum cb_err apply_ec_value(uint8_t reg, uint32_t value)
 
 	/* The interrupted OS may own an incomplete EC transaction. */
 	if (!smm_acpi_global_lock_acquire())
-		return CB_ERR;
+		return CB_ERR_BUSY;
 
 	if (!send_ec_command(WR_EC) && !send_ec_data(reg) && !send_ec_data(value))
 		ret = CB_SUCCESS;
