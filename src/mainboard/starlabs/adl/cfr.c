@@ -181,6 +181,7 @@ static struct sm_obj_form performance_group = {
 };
 
 static struct sm_obj_form security_group = {
+	.role = LB_CFR_FORM_ROLE_SECURITY,
 	.ui_name = "Security",
 	.obj_list = (const struct sm_object *[]){&bios_lock, &intel_tme, &me_state,
 						 &me_state_counter,

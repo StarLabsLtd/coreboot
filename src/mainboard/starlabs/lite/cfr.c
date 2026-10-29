@@ -45,6 +45,7 @@ static struct sm_obj_form keyboard_group = {
 };
 
 static struct sm_obj_form security_group = {
+	.role = LB_CFR_FORM_ROLE_SECURITY,
 	.ui_name = "Security",
 	.obj_list = (const struct sm_object *[]) {
 #if CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION)
