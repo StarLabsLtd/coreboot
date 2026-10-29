@@ -100,6 +100,7 @@ static const struct sm_object serial_console = SM_DECLARE_BOOL({
  * present/enabled.
  */
 static const __cfr_form struct sm_obj_form console = {
+	.category	= LB_CFR_FORM_CATEGORY_DEBUG,
 	.ui_name	= "Console",
 	.obj_list	= (const struct sm_object *[]) {
 		&debug_level,
