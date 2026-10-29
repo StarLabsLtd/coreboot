@@ -268,7 +268,7 @@ static const struct sm_object touchpad_haptics = SM_DECLARE_ENUM({
 #endif
 		SM_ENUM_VALUE_END,
 	},
-});
+}, WITH_RESTORE_DEFAULT);
 
 static const struct sm_object touchpad_force_press = SM_DECLARE_ENUM({
 	.flags		= CFR_OPTFLAG_RUNTIME,
@@ -290,7 +290,7 @@ static const struct sm_object touchpad_force_press = SM_DECLARE_ENUM({
 		{ "Hulk",	STARLABS_TOUCHPAD_PRESS_FORCE_HULK },
 		SM_ENUM_VALUE_END,
 	},
-});
+}, WITH_RESTORE_DEFAULT);
 
 static const struct sm_object touchpad_force_release = SM_DECLARE_ENUM({
 	.flags		= CFR_OPTFLAG_RUNTIME,
@@ -312,7 +312,7 @@ static const struct sm_object touchpad_force_release = SM_DECLARE_ENUM({
 		{ "Hulk",	STARLABS_TOUCHPAD_RELEASE_FORCE_HULK },
 		SM_ENUM_VALUE_END,
 	},
-});
+}, WITH_RESTORE_DEFAULT);
 
 static const struct sm_object touchpad_report_rate = SM_DECLARE_ENUM({
 	.flags		= CFR_OPTFLAG_RUNTIME,
@@ -334,7 +334,7 @@ static const struct sm_object touchpad_report_rate = SM_DECLARE_ENUM({
 		{ "Plaid",	STARLABS_TOUCHPAD_RATE_PLAID },
 		SM_ENUM_VALUE_END,
 	},
-});
+}, WITH_RESTORE_DEFAULT);
 
 static const struct sm_object touchscreen = SM_DECLARE_BOOL({
 	.flags		= CFR_OPTFLAG_RUNTIME,
