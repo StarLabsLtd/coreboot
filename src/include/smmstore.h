@@ -98,8 +98,10 @@ struct smmstore_params_raw_clear {
 
 /* SMM handler */
 uint32_t smmstore_exec(uint8_t command, void *param);
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
 bool smmstore_variable_busy(void);
 bool smmstore_variable_changed(void);
+#endif
 
 int smmstore_init(void *buf, size_t len);
 int smmstore_rawread_region(uint32_t block_id, uint32_t offset, uint32_t bufsize);

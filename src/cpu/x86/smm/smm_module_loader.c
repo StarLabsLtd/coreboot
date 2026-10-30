@@ -458,6 +458,7 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		}
 		mod_params->smmstore_com_buffer_base = base;
 		mod_params->smmstore_com_buffer_size = size;
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
 		uint64_t *generation = cbmem_add(CBMEM_ID_SMMSTORE_GENERATION,
 						sizeof(*generation));
 		if (generation) {
@@ -471,6 +472,7 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 			}
 		}
 		mod_params->smmstore_generation = generation;
+#endif
 	}
 
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)

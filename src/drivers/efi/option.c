@@ -90,15 +90,19 @@ enum cb_err efi_option_set_uint(const char *name, uint32_t value)
 
 	if (!name)
 		return CB_ERR_ARG;
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
 	if (ENV_SMM && CONFIG(SMMSTORE) && smmstore_variable_busy())
 		return CB_ERR;
+#endif
 
 	if (smmstore_lookup_region(&rdev))
 		return CB_CMOS_OTABLE_DISABLED;
 
 	ret = efi_fv_set_option(&rdev, &EficorebootNvDataGuid, name, &var, sizeof(var));
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
 	if (ENV_SMM && CONFIG(SMMSTORE) && !smmstore_variable_changed())
 		return CB_ERR;
+#endif
 	return ret;
 #endif
 }

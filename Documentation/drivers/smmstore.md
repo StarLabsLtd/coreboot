@@ -221,6 +221,10 @@ struct smmstore_params_raw_clear {
 INPUT:
 - `block_id`: Block to erase
 
+The handler implements the following commands only when the
+`CDK2_SMMSTORE_VARIABLE_RUNTIME` owner is selected. Other payloads continue to
+use the existing SMMSTORE protocol.
+
 #### - SMMSTORE_CMD_VARIABLE_BEGIN = 8
 
 Begin a cooperative variable-store transaction. The SMM handler returns
