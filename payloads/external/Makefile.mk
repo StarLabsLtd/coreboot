@@ -187,7 +187,7 @@ CDK2_NATIVE_LD := $(strip $(shell \
 		[ -n "$$linker" ] || continue; \
 		if "$$linker" -V 2>/dev/null | grep -q i386pep && \
 		    "$$linker" --verbose 2>/dev/null | \
-		    grep -q '^OUTPUT_FORMAT("elf64-x86-64"'; then \
+		    grep -q 'OUTPUT_FORMAT.*elf64-x86-64'; then \
 			printf '%s' "$$linker"; break; \
 		fi; \
 	done))
@@ -198,7 +198,7 @@ endif
 CDK2_NATIVE_LD_PE64 := $(shell \
 	if "$(CDK2_NATIVE_LD)" -V 2>/dev/null | grep -q i386pep && \
 	    "$(CDK2_NATIVE_LD)" --verbose 2>/dev/null | \
-	    grep -q '^OUTPUT_FORMAT("elf64-x86-64"'; then printf y; fi)
+	    grep -q 'OUTPUT_FORMAT.*elf64-x86-64'; then printf y; fi)
 ifneq ($(CDK2_NATIVE_LD_PE64),y)
 $(error CDK2_NATIVE_LD must support i386pep and default to x86-64 ELF)
 endif
