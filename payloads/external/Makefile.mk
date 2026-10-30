@@ -179,6 +179,21 @@ endif
 CDK2_SOURCE := payloads/external/cdk2/cdk2
 CDK2_CONFIG := $(CDK2_OUTPUT)/.config
 
+# PE images need a linker with i386pep support. Coreboot's cross linker may
+# provide it, but a host linker is often the only configured PE-capable one.
+ifeq ($(strip $(CDK2_NATIVE_LD)),)
+CDK2_NATIVE_LD := $(strip $(shell \
+	for linker in "$$(command -v ld)" "$(word 1,$(LD_x86_64))"; do \
+		[ -n "$$linker" ] || continue; \
+		if "$$linker" -V 2>/dev/null | grep -q i386pep; then \
+			printf '%s' "$$linker"; break; \
+		fi; \
+	done))
+endif
+ifeq ($(strip $(CDK2_NATIVE_LD)),)
+$(error CDK2 requires a linker with i386pep support)
+endif
+
 ifeq ($(CONFIG_SMM_AUTHVAR)$(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),yy)
 include $(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.mk
 smm-srcs += $(CDK2_SOURCE)/src/modules/variable_runtime/fixed_policy_assets.c
@@ -265,6 +280,7 @@ $(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(obj)/config.h $(objutil)/kconfig/conf
 		CDK2_CAPSULE_TRUST_SOURCE="$(abspath $(CDK2_CAPSULE_TRUST))" \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
 		HOSTCC="$(HOSTCC)" CC="$(CC_x86_64)" \
+		CDK2_NATIVE_LD="$(CDK2_NATIVE_LD)" \
 		OBJCOPY="$(OBJCOPY_x86_64)" NM="$(NM_x86_64)" \
 		READELF="$(READELF_x86_64)"
 	@grep -qx 'CONFIG_CDK2_STRICT_DIRECT_RUNTIME=y' $(CDK2_CONFIG) || { \
