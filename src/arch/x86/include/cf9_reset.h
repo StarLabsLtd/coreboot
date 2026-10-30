@@ -14,7 +14,7 @@ void do_system_reset(void);
 void do_full_reset(void);
 
 /* Called by functions below before reset. */
-#if CONFIG(HAVE_CF9_RESET_PREPARE) && !ENV_SMM
+#if CONFIG(HAVE_CF9_RESET_PREPARE)
 void cf9_reset_prepare(void);
 #else
 static inline void cf9_reset_prepare(void) {}
