@@ -185,13 +185,22 @@ ifeq ($(strip $(CDK2_NATIVE_LD)),)
 CDK2_NATIVE_LD := $(strip $(shell \
 	for linker in "$$(command -v ld)" "$(word 1,$(LD_x86_64))"; do \
 		[ -n "$$linker" ] || continue; \
-		if "$$linker" -V 2>/dev/null | grep -q i386pep; then \
+		if "$$linker" -V 2>/dev/null | grep -q i386pep && \
+		    "$$linker" --verbose 2>/dev/null | \
+		    grep -q '^OUTPUT_FORMAT("elf64-x86-64"'; then \
 			printf '%s' "$$linker"; break; \
 		fi; \
 	done))
 endif
 ifeq ($(strip $(CDK2_NATIVE_LD)),)
-$(error CDK2 requires a linker with i386pep support)
+$(error CDK2 requires a linker with i386pep support and an x86-64 ELF default)
+endif
+CDK2_NATIVE_LD_PE64 := $(shell \
+	if "$(CDK2_NATIVE_LD)" -V 2>/dev/null | grep -q i386pep && \
+	    "$(CDK2_NATIVE_LD)" --verbose 2>/dev/null | \
+	    grep -q '^OUTPUT_FORMAT("elf64-x86-64"'; then printf y; fi)
+ifneq ($(CDK2_NATIVE_LD_PE64),y)
+$(error CDK2_NATIVE_LD must support i386pep and default to x86-64 ELF)
 endif
 
 ifeq ($(CONFIG_SMM_AUTHVAR)$(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),yy)
