@@ -9,8 +9,8 @@
 #include <string.h>
 
 /* SMI handlers are serialized by the common handler lock. */
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
 static bool variable_busy;
-static void *com_buffer;
 
 bool smmstore_variable_busy(void)
 {
@@ -29,6 +29,11 @@ bool smmstore_variable_changed(void)
 	(*generation)++;
 	return true;
 }
+#endif
+
+#if CONFIG(SMMSTORE_SRK_PIN)
+static void *com_buffer;
+#endif
 
 /*
  * Check that the given range is legal.
@@ -81,7 +86,9 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 
 		if (smmstore_init((void *)base, size))
 			return SMMSTORE_RET_FAILURE;
+#if CONFIG(SMMSTORE_SRK_PIN)
 		com_buffer = (void *)base;
+#endif
 		initialized = true;
 	}
 
@@ -130,6 +137,7 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 			ret = SMMSTORE_RET_SUCCESS;
 		break;
 	}
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
 	case SMMSTORE_CMD_VARIABLE_BEGIN: {
 		uint64_t *generation = smm_get_smmstore_generation();
 		uintptr_t base;
@@ -154,6 +162,7 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 		variable_busy = false;
 		ret = SMMSTORE_RET_SUCCESS;
 		break;
+#endif
 	default:
 		printk(BIOS_DEBUG, "Unknown SMM store command: 0x%02x\n", command);
 		ret = SMMSTORE_RET_UNSUPPORTED;
