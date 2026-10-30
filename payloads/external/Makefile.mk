@@ -265,7 +265,6 @@ $(CDK2_PAYLOAD): cdk2-force $(DOTCONFIG) $(obj)/config.h $(objutil)/kconfig/conf
 		CDK2_CAPSULE_TRUST_SOURCE="$(abspath $(CDK2_CAPSULE_TRUST))" \
 		CDK2_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
 		HOSTCC="$(HOSTCC)" CC="$(CC_x86_64)" \
-		LD="$(word 1,$(LD_x86_64))" \
 		OBJCOPY="$(OBJCOPY_x86_64)" NM="$(NM_x86_64)" \
 		READELF="$(READELF_x86_64)"
 	@grep -qx 'CONFIG_CDK2_STRICT_DIRECT_RUNTIME=y' $(CDK2_CONFIG) || { \
