@@ -168,6 +168,11 @@ void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 	*size = smm_runtime.smmstore_com_buffer_size;
 }
 
+uint64_t *smm_get_smmstore_generation(void)
+{
+	return smm_runtime.smmstore_generation;
+}
+
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 void smm_get_capsule_staging(uintptr_t *base, size_t *size)
 {

@@ -106,6 +106,7 @@ struct smm_runtime {
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
+	uint64_t *smmstore_generation;
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
 	uintptr_t payload_spi_console_buffer_base;
 	size_t payload_spi_console_buffer_size;
@@ -290,6 +291,7 @@ bool smm_acpi_global_lock_release(void);
 bool smm_is_s3_resume(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
+uint64_t *smm_get_smmstore_generation(void);
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
 void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
 #endif

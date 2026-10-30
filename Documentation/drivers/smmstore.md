@@ -221,6 +221,25 @@ struct smmstore_params_raw_clear {
 INPUT:
 - `block_id`: Block to erase
 
+#### - SMMSTORE_CMD_VARIABLE_BEGIN = 8
+
+Begin a cooperative variable-store transaction. The SMM handler returns
+`SMMSTORE_RET_BUSY` if another transaction is active. On success, the current
+64-bit variable-store generation is copied to the start of the communication
+buffer and the transaction remains active until `SMMSTORE_CMD_VARIABLE_END`.
+
+While a transaction is active, coreboot's SMM option writer must not update the
+UEFI variable store. This excludes cooperating writers; it is not an
+authorization boundary.
+
+#### - SMMSTORE_CMD_VARIABLE_END = 9
+
+End a transaction started by `SMMSTORE_CMD_VARIABLE_BEGIN`. A successful
+coreboot SMM option-store write increments the generation, including when the
+write reports failure after media access. The generation also advances when
+the SMM handler is reloaded after S3 so runtime clients discard caches retained
+across resume.
+
 #### Security
 
 Pointers provided by the payload or OS are checked to not overlap with
