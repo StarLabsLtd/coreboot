@@ -798,7 +798,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	s_cfg->NumOfDevIntConfig = pch_count;
 	printk(BIOS_INFO, "IRQ: Using dynamically assigned PCI IO-APIC IRQs\n");
 
-	s_cfg->PchHdaDspEnable = cse_get_audio_dsp_enable(s_cfg->PchHdaDspEnable);
+	s_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 /* Mainboard GPIO Configuration */
