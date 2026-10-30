@@ -6,6 +6,7 @@
 #include <commonlib/authvar_boot_authority.h>
 #include <commonlib/helpers.h>
 #include <commonlib/region.h>
+#include <commonlib/bsd/cbmem_id.h>
 #include <commonlib/bsd/cb_err.h>
 #include <console/console.h>
 #include <console/payload_spi_console.h>
@@ -458,6 +459,19 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		}
 		mod_params->smmstore_com_buffer_base = base;
 		mod_params->smmstore_com_buffer_size = size;
+		uint64_t *generation = cbmem_add(CBMEM_ID_SMMSTORE_GENERATION,
+						sizeof(*generation));
+		if (generation) {
+			if (acpi_is_wakeup_s3()) {
+				if (*generation == UINT64_MAX)
+					generation = NULL;
+				else
+					(*generation)++;
+			} else {
+				*generation = 0;
+			}
+		}
+		mod_params->smmstore_generation = generation;
 	}
 
 	if (CONFIG(ASS))

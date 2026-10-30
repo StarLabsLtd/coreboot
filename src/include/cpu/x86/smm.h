@@ -119,6 +119,7 @@ struct smm_runtime {
 	size_t efi_variable_service_buffer_size;
 	bool efi_variable_service_s3_resume;
 #endif
+	uint64_t *smmstore_generation;
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
 	uintptr_t payload_spi_console_buffer_base;
 	size_t payload_spi_console_buffer_size;
@@ -310,6 +311,7 @@ void smm_get_efi_variable_service(uintptr_t *base, size_t *size);
 void smm_get_efi_variable_service_buffer(uintptr_t *base, size_t *size);
 bool smm_efi_variable_service_is_s3_resume(void);
 #endif
+uint64_t *smm_get_smmstore_generation(void);
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
 void smm_get_payload_spi_console_buffer(uintptr_t *base, size_t *size);
 #endif

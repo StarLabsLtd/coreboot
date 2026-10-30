@@ -43,6 +43,8 @@ uint64_t authvar_owner_init(struct authvar_owner *owner,
 	const void *store, size_t size, authvar_owner_commit_fn *commit, void *context,
 	void *storage, size_t storage_size, bool secure_boot,
 	const struct authvar_fixed_policy *fixed, struct authvar_owner_initialization *report);
+uint64_t authvar_owner_refresh(struct authvar_owner *owner, const void *store,
+	size_t size, const struct authvar_fixed_policy *fixed);
 uint64_t authvar_owner_get(struct authvar_owner *owner,
 	const uint16_t *name, const void *guid, uint32_t *attributes,
 	size_t *data_size, void *data);

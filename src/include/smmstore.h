@@ -5,22 +5,9 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
-
-#define SMMSTORE_RET_SUCCESS 0
-#define SMMSTORE_RET_FAILURE 1
-#define SMMSTORE_RET_UNSUPPORTED 2
-#define SMMSTORE_RET_BUSY 3
-#define SMMSTORE_RET_NOT_FOUND 4
-#define SMMSTORE_RET_DENIED 5
-
-#define SMMSTORE_CMD_INIT_DEPRECATED 4
-#define SMMSTORE_CMD_RAW_READ 5
-#define SMMSTORE_CMD_RAW_WRITE 6
-#define SMMSTORE_CMD_RAW_CLEAR 7
-#define SMMSTORE_CMD_SRK_READ 10
-#define SMMSTORE_CMD_SRK_CREATE 11
-#define SMMSTORE_CMD_SECURITY_CLOSE 12
+#include <smmstore_protocol.h>
 
 /* Revision 1 excludes these fixed erase ranges from every raw mutation. */
 struct smmstore_srk_info {
@@ -46,8 +33,6 @@ _Static_assert(sizeof(struct smmstore_srk_info) == 54, "SRK pin interface layout
  * otherwise protected to avoid causing problems while trying to overwrite
  * them.
  */
-#define SMMSTORE_CMD_USE_FULL_FLASH 0x80
-
 /*
  * The SMMSTORE protocol separates the store into blocks, each of which
  * can be read/written/cleared in an independent manner. The data format
@@ -114,6 +99,8 @@ struct smmstore_params_raw_clear {
 
 /* SMM handler */
 uint32_t smmstore_exec(uint8_t command, void *param);
+bool smmstore_variable_busy(void);
+bool smmstore_variable_changed(void);
 
 int smmstore_init(void *buf, size_t len);
 int smmstore_rawread_region(uint32_t block_id, uint32_t offset, uint32_t bufsize);
