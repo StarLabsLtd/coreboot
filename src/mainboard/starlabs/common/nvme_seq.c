@@ -3,7 +3,10 @@
 #include <bootstate.h>
 #include <commonlib/bsd/compiler.h>
 #include <common/nvme_seq.h>
+#include <delay.h>
 #include <intelblocks/gpio.h>
+
+#define NVME_POWER_STABLE_DELAY_MS 100
 
 #if ENV_RAMSTAGE
 const __weak struct pad_config *variant_nvme_power_sequence_pads(size_t *num)
@@ -32,8 +35,11 @@ __weak void variant_nvme_power_sequence_post_gpio_configure(void)
 	size_t num;
 	const struct pad_config *pads = variant_nvme_power_sequence_post_pads(&num);
 
-	if (pads && num)
+	if (pads && num) {
+		/* M.2 power-up guidance recommends this delay before releasing PERST#. */
+		mdelay(NVME_POWER_STABLE_DELAY_MS);
 		gpio_configure_pads(pads, num);
+	}
 }
 #endif
 
@@ -54,7 +60,7 @@ static void starlabs_nvme_power_sequence_step2(void *unused)
 
 static void starlabs_nvme_power_sequence_step3(void *unused)
 {
-	/* Stage 3: deassert PERST# after GPIO configuration, before device init. */
+	/* Stage 3: deassert PERST# before PCIe device initialization. */
 	variant_nvme_power_sequence_post_gpio_configure();
 }
 
