@@ -6,12 +6,12 @@
 #if ENV_RAMSTAGE
 /* clang-format off */
 static const struct pad_config nvme_pads[] = {
-	PAD_CFG_GPO(GPP_D14, 1, DEEP),					/* Enable */
-	PAD_CFG_NF(GPP_H19, NONE, DEEP, NF1),				/* Clock Request 4 */
+	PAD_CFG_GPO(GPP_D14, 1, PLTRST),					/* Enable */
+	PAD_CFG_NF(GPP_H19, NONE, PLTRST, NF1),				/* Clock Request 4 */
 	PAD_CFG_GPO(GPP_F20, 0, PLTRST),				/* Reset asserted */
 
-	PAD_CFG_GPO(GPP_E3, 1, DEEP),					/* WiFi RF Kill */
-	PAD_CFG_NF(GPP_D7, NONE, DEEP, NF1),				/* Clock Request 2 */
+	PAD_CFG_GPO(GPP_E3, 1, PLTRST),					/* WiFi RF Kill */
+	PAD_CFG_NF(GPP_D7, NONE, PLTRST, NF1),				/* Clock Request 2 */
 	PAD_CFG_GPO(GPP_H2, 0, PLTRST),					/* Reset asserted */
 };
 
@@ -47,9 +47,9 @@ const struct pad_config early_gpio_table[] = {
 #endif
 
 	/* SSD */
-	PAD_CFG_GPI(GPP_H19, NONE, DEEP),					/* Clock Request 4 */
+	PAD_CFG_GPI(GPP_H19, NONE, PLTRST),					/* Clock Request 4 */
 	PAD_CFG_GPO(GPP_F20, 0, PLTRST),				/* Reset asserted */
-	PAD_CFG_GPO(GPP_D14, 0, DEEP),					/* Enable (PWREN off) */
+	PAD_CFG_GPO(GPP_D14, 0, PLTRST),					/* Enable (PWREN off) */
 
 	/* CPU PCIe VGPIO for PEG60 */
 	PAD_CFG_NF_VWEN(GPP_vGPIO_PCIE_48, NONE, PLTRST, NF1),
@@ -74,9 +74,9 @@ const struct pad_config early_gpio_table[] = {
 	PAD_CFG_NF_VWEN(GPP_vGPIO_PCIE_79, NONE, PLTRST, NF1),
 
 	/* Wireless */
-	PAD_CFG_GPI(GPP_D7, NONE, DEEP),					/* Clock Request 2 */
+	PAD_CFG_GPI(GPP_D7, NONE, PLTRST),					/* Clock Request 2 */
 	PAD_CFG_GPO(GPP_H2, 0, PLTRST),					/* Reset asserted */
-	PAD_CFG_GPO(GPP_E3, 0, DEEP),					/* WiFi disabled */
+	PAD_CFG_GPO(GPP_E3, 0, PLTRST),					/* WiFi disabled */
 };
 /* clang-format on */
 
@@ -114,13 +114,13 @@ const struct pad_config gpio_table[] = {
 	/* SSD */
 	PAD_NC(GPP_H19, NONE),						/* Clock Request 4 */
 	PAD_CFG_GPO(GPP_F20, 0, PLTRST),				/* Reset asserted */
-	PAD_CFG_GPO(GPP_D14, 0, DEEP),					/* Enable (PWREN off) */
+	PAD_CFG_GPO(GPP_D14, 0, PLTRST),					/* Enable (PWREN off) */
 
 	/* Wireless */
 	PAD_NC(GPP_D7, NONE),						/* Clock Request 2 */
 	PAD_CFG_GPO(GPP_H2, 0, PLTRST),					/* Reset asserted */
-	PAD_CFG_GPO(GPP_E3, 0, DEEP),					/* WiFi disabled */
-	PAD_CFG_GPO(GPP_A13, 1, DEEP),					/* Bluetooth RF Kill */
+	PAD_CFG_GPO(GPP_E3, 0, PLTRST),					/* WiFi disabled */
+	PAD_CFG_GPO(GPP_A13, 1, PLTRST),					/* Bluetooth RF Kill */
 
 	/* Display */
 	PAD_CFG_NF(GPP_E14, NONE, DEEP, NF1),				/* eDP Hot Plug */
