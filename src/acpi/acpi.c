@@ -21,6 +21,7 @@
 #include <acpi/acpi_pcct.h>
 #include <acpi/acpi_vfct.h>
 #include <acpi/acpigen.h>
+#include <bootsplash.h>
 #include <cbfs.h>
 #include <cbmem.h>
 #include <commonlib/helpers.h>
@@ -46,6 +47,38 @@
 static acpi_rsdp_t *valid_rsdp(acpi_rsdp_t *rsdp);
 
 static bool using_fw_cfg_tables;
+
+struct acpi_bgrt {
+	acpi_header_t header;
+	uint16_t version;
+	uint8_t status;
+	uint8_t image_type;
+	uint64_t image_address;
+	uint32_t image_offset_x;
+	uint32_t image_offset_y;
+} __packed;
+
+static void acpi_create_bgrt(acpi_header_t *header, void *unused)
+{
+	struct acpi_bgrt *bgrt = (void *)header;
+	struct lb_boot_splash splash;
+
+	if (!CONFIG(PAYLOAD_CDK2) || !CONFIG(BMP_LOGO) ||
+	    !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
+		return;
+	bootsplash_render_primary();
+	if (!bootsplash_get_handoff(&splash))
+		return;
+	if (acpi_fill_header(header, "BGRT", BGRT, sizeof(*bgrt)) != CB_SUCCESS)
+		return;
+	bgrt->version = 1;
+	/* The payload marks the logo displayed after its final screen update. */
+	bgrt->status = 0;
+	bgrt->image_type = 0;
+	bgrt->image_address = splash.bmp_address;
+	bgrt->image_offset_x = splash.image_offset_x;
+	bgrt->image_offset_y = splash.image_offset_y;
+}
 
 bool acpi_tables_from_fw_cfg(void)
 {
@@ -1593,6 +1626,7 @@ static unsigned long write_acpi_tables(const unsigned long start)
 		{ acpi_create_mcfg, NULL, sizeof(acpi_mcfg_t) },
 		{ acpi_create_tcpa, NULL, sizeof(acpi_tcpa_t) },
 		{ acpi_create_tpm2, NULL, sizeof(acpi_tpm2_t) },
+		{ acpi_create_bgrt, NULL, sizeof(struct acpi_bgrt) },
 		{ acpi_create_lpit, NULL, sizeof(acpi_lpit_t) },
 		{ acpi_create_madt, NULL, sizeof(acpi_header_t) },
 		{ acpi_create_hest, NULL, sizeof(acpi_hest_t) },
@@ -1676,8 +1710,35 @@ static unsigned long write_acpi_tables(const unsigned long start)
 		ssdt->checksum = acpi_checksum((void *)ssdt, ssdt->length);
 
 		acpi_add_table(rsdp, ssdt);
+		current = acpi_align_current((unsigned long)ssdt + ssdt->length);
+		xsdt = (acpi_xsdt_t *)(uintptr_t)rsdp->xsdt_address;
+		bool has_bgrt = false;
 
-		return acpi_align_current((unsigned long)ssdt + ssdt->length);
+		if (xsdt->header.length < sizeof(acpi_header_t) ||
+		    xsdt->header.length > sizeof(*xsdt) ||
+		    (xsdt->header.length - sizeof(acpi_header_t)) % sizeof(xsdt->entry[0]))
+			return current;
+		for (size_t i = 0; i < (xsdt->header.length - sizeof(acpi_header_t)) /
+		     sizeof(xsdt->entry[0]); i++) {
+			const acpi_header_t *header = (void *)(uintptr_t)xsdt->entry[i];
+
+			if (!memcmp(header->signature, "BGRT", 4)) {
+				has_bgrt = true;
+				break;
+			}
+		}
+		if (!has_bgrt) {
+			acpi_header_t *header = (void *)current;
+
+			memset(header, 0, sizeof(struct acpi_bgrt));
+			acpi_create_bgrt(header, NULL);
+			if (header->length == sizeof(struct acpi_bgrt)) {
+				header->checksum = acpi_checksum((void *)header, header->length);
+				acpi_add_table(rsdp, header);
+				current = acpi_align_current(current + header->length);
+			}
+		}
+		return current;
 	}
 
 	dsdt_file = cbfs_map(CONFIG_CBFS_PREFIX "/dsdt.aml", &dsdt_size);
@@ -1996,6 +2057,8 @@ int get_acpi_table_revision(enum acpi_tables table)
 	case NHLT:
 		return 5;
 	case BERT:
+		return 1;
+	case BGRT:
 		return 1;
 	case BDAT:
 		return 1;

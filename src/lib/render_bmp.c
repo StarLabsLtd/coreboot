@@ -654,7 +654,9 @@ static int load_and_render_logo_to_framebuffer(
 
 	retain_pixels = CONFIG(USE_COREBOOT_FOR_BMP_RENDERING) &&
 		logo_type == BOOTSPLASH_CENTER &&
-		(config->panel_orientation != LB_FB_ORIENTATION_NORMAL || scale != 1);
+		(config->panel_orientation != LB_FB_ORIENTATION_NORMAL || scale != 1 ||
+		 (((const struct bmp_image_header *)logo)->BitPerPixel != 24 &&
+		  ((const struct bmp_image_header *)logo)->BitPerPixel != 32));
 	if (retain_pixels) {
 		logo = (uintptr_t)bmp_retain_logo_from_blt((const void *)blt_buffer,
 			logo_width / scale, logo_height / scale, scale, &logo_size);
