@@ -42,9 +42,9 @@ const struct pad_config early_gpio_table[] = {
 #endif
 
 	/* SSD */
-	PAD_CFG_GPI(GPP_D8, NONE, PLTRST),				/* Clock Request 3 */
+	PAD_CFG_NF(GPP_D8, NONE, PLTRST, NF1),				/* Clock Request 3 */
 	PAD_CFG_GPO(GPP_A11, 0, PLTRST),				/* Reset asserted */
-	PAD_CFG_GPO(GPP_D16, 0, PLTRST),				/* Enable (PWREN off) */
+	PAD_CFG_GPO(GPP_D16, 1, PLTRST),				/* Enable (PWREN on) */
 };
 /* clang-format on */
 
@@ -82,7 +82,7 @@ const struct pad_config gpio_table[] = {
 	/* SSD */
 	PAD_NC(GPP_D8, NONE),						/* Clock Request 3 */
 	PAD_CFG_GPO(GPP_A11, 0, PLTRST),				/* Reset asserted */
-	PAD_CFG_GPO(GPP_D16, 0, PLTRST),				/* Enable (PWREN off) */
+	PAD_CFG_GPO(GPP_D16, 1, PLTRST),				/* Enable (PWREN on) */
 
 	/* SATA */
 	PAD_CFG_NF(GPP_A12, UP_20K, DEEP, NF1),				/* PEDET */
