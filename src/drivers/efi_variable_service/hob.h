@@ -10,6 +10,7 @@
 
 #define HOB_RESOURCE_DESCRIPTOR 0x0003
 #define RESOURCE_MEMORY_MAPPED_IO 1
+#define EFI_VARIABLE_SERVICE_INFO_REVISION 2
 
 struct efi_guid {
 	uint32_t data1;

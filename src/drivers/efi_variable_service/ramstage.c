@@ -92,6 +92,7 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 		   state->core_size > core_space ||
 		   !entry_in_core(state, state->core_entry) ||
 		   !entry_in_core(state, state->dispatch_entry) ||
+		   !entry_in_core(state, state->manage_entry) ||
 		   state->hob_base < state->core_base + state->core_size ||
 		   state->hob_base > base + region_size ||
 		   state->hob_size > base + region_size - state->hob_base ||
@@ -109,7 +110,8 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 		goto out;
 	}
 	info = (void *)(uintptr_t)state->service_info;
-	if (info->buffer != (uintptr_t)buffer || info->buffer_size != buffer_size) {
+	if (info->revision != EFI_VARIABLE_SERVICE_INFO_REVISION ||
+	    info->buffer != (uintptr_t)buffer || info->buffer_size != buffer_size) {
 		printk(BIOS_ERR, "EFI variable service communication buffer changed\n");
 		goto out;
 	}

@@ -329,7 +329,8 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 		.status = buffer + sizeof(struct efi_variable_service_buffer),
 	};
 	*service = (struct service_info_hob) {
-		.revision = 1, .size = sizeof(*service), .buffer = buffer,
+		.revision = EFI_VARIABLE_SERVICE_INFO_REVISION, .size = sizeof(*service),
+		.buffer = buffer,
 		.buffer_size = buffer_size,
 	};
 	*store_hob = (struct variable_store_hob) {

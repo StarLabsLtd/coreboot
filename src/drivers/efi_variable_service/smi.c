@@ -33,11 +33,13 @@ static bool entry_in_core(uint32_t entry)
 		entry - service->core_base < service->core_size;
 }
 
-static uint32_t register_mm_entry(uint32_t entry)
+static uint32_t register_mm_entry(uint32_t entry, uint32_t manage)
 {
-	if (!registration_open || service->dispatch_entry || !entry_in_core(entry))
+	if (!registration_open || service->dispatch_entry || service->manage_entry ||
+	    !entry_in_core(entry) || !entry_in_core(manage))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	service->dispatch_entry = entry;
+	service->manage_entry = manage;
 	registration_open = false;
 	return EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
@@ -107,7 +109,8 @@ static int initialize_service(void)
 	    service->hob_size - (service->service_info - service->hob_base) < sizeof(*info))
 		return -1;
 	info = (void *)(uintptr_t)service->service_info;
-	if (info->revision != 1 || info->size != sizeof(*info) || info->register_mm_entry)
+	if (info->revision != EFI_VARIABLE_SERVICE_INFO_REVISION ||
+	    info->size != sizeof(*info) || info->register_mm_entry)
 		return -1;
 
 	registration_open = true;
@@ -116,7 +119,8 @@ static int initialize_service(void)
 	entry((void *)(uintptr_t)service->hob_base);
 	info->register_mm_entry = 0;
 	registration_open = false;
-	return entry_in_core(service->dispatch_entry) ? 0 : -1;
+	return entry_in_core(service->dispatch_entry) && entry_in_core(service->manage_entry) ?
+		0 : -1;
 }
 
 struct mm_communication_header32 {
@@ -224,9 +228,11 @@ static int service_ready(void)
 
 	if (!smm_efi_variable_service_is_s3_resume()) {
 		service->dispatch_entry = 0;
+		service->manage_entry = 0;
 		if (initialize_service())
 			return -1;
-	} else if (!entry_in_core(service->dispatch_entry)) {
+	} else if (!entry_in_core(service->dispatch_entry) ||
+		   !entry_in_core(service->manage_entry)) {
 		return -1;
 	}
 	if (variable_service_probe())
@@ -234,20 +240,6 @@ static int service_ready(void)
 
 	current_state = SERVICE_READY;
 	return 0;
-}
-
-static bool claim_buffer(struct efi_variable_service_buffer *buffer)
-{
-	uint32_t state = EFI_VARIABLE_SERVICE_BUFFER_IDLE;
-
-	return __atomic_compare_exchange_n(&buffer->state, &state,
-		EFI_VARIABLE_SERVICE_BUFFER_CONSTRUCTING, false, __ATOMIC_ACQUIRE,
-		__ATOMIC_RELAXED);
-}
-
-static void release_buffer(struct efi_variable_service_buffer *buffer)
-{
-	__atomic_store_n(&buffer->state, EFI_VARIABLE_SERVICE_BUFFER_IDLE, __ATOMIC_RELEASE);
 }
 
 int efi_variable_service_finalize(void)
@@ -290,53 +282,33 @@ uint32_t efi_variable_service_communicate(void)
 
 enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 {
-	uintptr_t buffer_base;
-	size_t buffer_size;
-	struct efi_variable_service_buffer *buffer;
-	struct mm_communication_header32 *message;
-	struct smm_variable_header32 *variable;
-	struct smm_variable_access32 *access;
-	struct efi_mm_communication_status *status;
-	size_t maximum_name_length;
+	union {
+		uint64_t alignment;
+		uint8_t bytes[256];
+	} request;
+	struct smm_variable_header32 *variable = (void *)request.bytes;
+	struct smm_variable_access32 *access = (void *)variable->data;
+	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+							    void *, size_t *);
+	size_t max_name = (sizeof(request.bytes) - sizeof(*variable) - sizeof(*access) -
+			   sizeof(value)) / sizeof(CHAR16);
 	size_t name_length;
 	size_t name_size;
-	size_t variable_size;
-	size_t message_size;
-	enum cb_err ret = CB_EFI_ACCESS_ERROR;
+	size_t request_size;
+	mm_manage manage;
 
-	if (!name || service_ready() || !service || !entry_in_core(service->dispatch_entry))
+	if (!name || service_ready() || !entry_in_core(service->manage_entry))
 		return CB_EFI_ACCESS_ERROR;
 
-	smm_get_efi_variable_service_buffer(&buffer_base, &buffer_size);
-	if (!buffer_base || buffer_size != EFI_VARIABLE_SERVICE_BUFFER_SIZE)
+	name_length = strnlen(name, max_name);
+	if (name_length == max_name)
 		return CB_ERR_ARG;
-	buffer = (void *)buffer_base;
-	if (buffer->signature != EFI_VARIABLE_SERVICE_BUFFER_SIGNATURE ||
-	    buffer->revision != EFI_VARIABLE_SERVICE_REVISION ||
-	    buffer->header_size != EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE ||
-	    !claim_buffer(buffer))
-		return CB_EFI_ACCESS_ERROR;
+	name_size = (name_length + 1) * sizeof(CHAR16);
+	request_size = sizeof(*variable) + sizeof(*access) + name_size + sizeof(value);
 
-	maximum_name_length = (buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE -
-		sizeof(*message) - sizeof(*variable) - sizeof(*access) - sizeof(value)) /
-		sizeof(CHAR16);
-	name_length = strnlen(name, maximum_name_length);
-	if (name_length == maximum_name_length) {
-		ret = CB_ERR_ARG;
-		goto out;
-	}
-	name_length++;
-	name_size = name_length * sizeof(CHAR16);
-	variable_size = sizeof(*variable) + sizeof(*access) + name_size + sizeof(value);
-	message_size = sizeof(*message) + variable_size;
-
-	message = (void *)(buffer_base + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
-	message->guid = efi_smm_variable_protocol_guid;
-	message->message_length = variable_size;
-	variable = (void *)message->data;
+	memset(&request, 0, sizeof(request));
 	variable->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
-	variable->return_status = 0;
-	access = (void *)variable->data;
+	variable->return_status = UINT32_MAX;
 	access->guid = efi_coreboot_nv_data_guid;
 	access->data_size = sizeof(value);
 	access->name_size = name_size;
@@ -346,13 +318,12 @@ enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 		access->name[i] = (uint8_t)name[i];
 	memcpy((uint8_t *)access->name + name_size, &value, sizeof(value));
 
-	status = (void *)(buffer_base + sizeof(struct efi_variable_service_buffer));
-	if (dispatch_message(buffer_base, buffer_size, message_size) || status->return_status ||
+	/* Dispatch a firmware-owned request through the untrusted variable handler. */
+	manage = (void *)(uintptr_t)service->manage_entry;
+	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &request_size) ||
+	    request_size < sizeof(*variable) || request_size > sizeof(request.bytes) ||
 	    variable->return_status)
-		goto out;
+		return CB_EFI_ACCESS_ERROR;
 
-	ret = CB_SUCCESS;
-out:
-	release_buffer(buffer);
-	return ret;
+	return CB_SUCCESS;
 }

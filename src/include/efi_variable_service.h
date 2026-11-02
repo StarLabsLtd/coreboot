@@ -13,7 +13,7 @@ struct smm_runtime;
 #define EFI_VARIABLE_SERVICE_REVISION	1
 #define EFI_VARIABLE_SERVICE_APM_CMD	0xe7
 #define EFI_VARIABLE_SERVICE_STATE_SIGNATURE	0x53564645
-#define EFI_VARIABLE_SERVICE_STATE_REVISION	3
+#define EFI_VARIABLE_SERVICE_STATE_REVISION	4
 #define EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE	0x1000
 #define EFI_VARIABLE_SERVICE_MESSAGE_CAPACITY	0x20000
 #define EFI_VARIABLE_SERVICE_BUFFER_SIZE	\
@@ -60,13 +60,14 @@ struct efi_variable_service_state {
 	uint32_t core_size;
 	uint32_t core_entry;
 	uint32_t dispatch_entry;
+	uint32_t manage_entry;
 	uint32_t hob_base;
 	uint32_t hob_size;
 	uint32_t service_info;
 	uint32_t spi_mmio_resource;
 };
 
-_Static_assert(sizeof(struct efi_variable_service_state) == 48,
+_Static_assert(sizeof(struct efi_variable_service_state) == 52,
 	       "Unexpected EFI variable service state size");
 
 _Static_assert(sizeof(struct efi_variable_service_buffer) == 32,
