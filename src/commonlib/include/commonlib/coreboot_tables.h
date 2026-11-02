@@ -98,6 +98,7 @@ enum {
 	LB_TAG_CFR_FORM_CATEGORIES	= 0x005e,
 	LB_TAG_CFR_DEFAULT_OPTIONS	= 0x005f,
 	LB_TAG_CFR_FORM_CATEGORIES_EXT	= 0x0060,
+	LB_TAG_ACPI_S5_INFO		= 0x0061,
 	LB_TAG_ROOT_BRIDGE_INFO		= 0x0048,
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
@@ -968,6 +969,20 @@ struct lb_acpi_rsdp {
 	uint32_t tag;
 	uint32_t size;
 	lb_uint64_t rsdp_pointer; /* Address of the ACPI RSDP */
+};
+
+#define LB_ACPI_S5_INFO_REVISION 1
+#define LB_ACPI_S5_PM1 0
+#define LB_ACPI_S5_HARDWARE_REDUCED 1
+
+/* Selectors describe the active ACPI tables' root _S5; reduced mode uses A. */
+struct lb_acpi_s5_info {
+	uint32_t tag;
+	uint32_t size;
+	uint8_t revision;
+	uint8_t kind;
+	uint8_t sleep_type_a;
+	uint8_t sleep_type_b;
 };
 
 /*

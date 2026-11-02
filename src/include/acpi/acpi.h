@@ -7,6 +7,11 @@
 #ifndef __ACPI_ACPI_H__
 #define __ACPI_ACPI_H__
 
+#define ACPI_COMMON_INTEL_S5_A 7
+#define ACPI_COMMON_INTEL_S5_B 0
+#define ACPI_COMMON_AMD_S5_A 5
+#define ACPI_COMMON_AMD_S5_B 5
+
 /*
  * The type and enable fields are common in ACPI, but the
  * values themselves are hardware implementation defined.
@@ -19,7 +24,7 @@
  #define  SLP_TYP_S1	1
  #define  SLP_TYP_S3	5
  #define  SLP_TYP_S4	6
- #define  SLP_TYP_S5	7
+ #define  SLP_TYP_S5	ACPI_COMMON_INTEL_S5_A
 #elif CONFIG(ACPI_AMD_HARDWARE_SLEEP_VALUES)
  #define SLP_EN		(1 << 13)
  #define SLP_TYP_SHIFT	10
@@ -28,7 +33,7 @@
  #define  SLP_TYP_S1	1
  #define  SLP_TYP_S3	3
  #define  SLP_TYP_S4	4
- #define  SLP_TYP_S5	5
+ #define  SLP_TYP_S5	ACPI_COMMON_AMD_S5_A
 #endif
 
 #define ACPI_TABLE_CREATOR	"COREBOOT"  /* Must be exactly 8 bytes long! */
