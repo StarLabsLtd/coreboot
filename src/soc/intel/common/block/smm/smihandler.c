@@ -429,6 +429,7 @@ static int finalize(void)
 {
 	static int finalize_done;
 	static int finalize_result;
+	const int other_error = CONFIG(EFI_VARIABLE_SERVICE) ? APM_FINALIZE_OTHER_ERROR : -1;
 
 	if (finalize_done) {
 		printk(BIOS_DEBUG, "SMM already finalized.\n");
@@ -436,7 +437,7 @@ static int finalize(void)
 	}
 
 	if (CONFIG(EFI_VARIABLE_SERVICE) && efi_variable_service_finalize())
-		finalize_result = -1;
+		finalize_result |= APM_FINALIZE_EFI_ERROR;
 
 	enable_smm_code_access_check();
 
@@ -457,15 +458,15 @@ static int finalize(void)
 	 * therefore, this call must precede smihandler_soc_at_finalize().
 	 */
 	if (mainboard_smi_finalize())
-		finalize_result = -1;
+		finalize_result |= other_error;
 
 	/* Lock down all GPIOs that may have been requested by the SoC and/or the mainboard. */
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) && soc_lock_gpios())
-		finalize_result = -1;
+		finalize_result |= other_error;
 
 	/* Specific SOC SMI handler during ramstage finalize phase */
 	if (smihandler_soc_at_finalize())
-		finalize_result = -1;
+		finalize_result |= other_error;
 	finalize_done = 1;
 
 	return finalize_result;

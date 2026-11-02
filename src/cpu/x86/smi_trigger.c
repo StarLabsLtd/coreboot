@@ -64,7 +64,8 @@ enum cb_err apm_control(u8 cmd)
 	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) || CONFIG(EFI_VARIABLE_SERVICE)) &&
 	    cmd == APM_CNT_FINALIZE && ret) {
 		printk(BIOS_ERR, "APMC command 0x%02x failed.\n", cmd);
-		if (CONFIG(SECURITY_FAIL_CLOSED))
+		if (CONFIG(SECURITY_FAIL_CLOSED) ||
+		    (CONFIG(EFI_VARIABLE_SERVICE) && ret != APM_FINALIZE_OTHER_ERROR))
 			die("SMM finalization failed\n");
 		return CB_ERR;
 	}

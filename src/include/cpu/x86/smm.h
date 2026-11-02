@@ -26,6 +26,9 @@
 #define APM_CNT_ACPI_ENABLE	0xe1
 #define APM_CNT_ROUTE_ALL_XHCI	0xca
 #define APM_CNT_FINALIZE	0xcb
+/* Finalization result bits when the fixed EFI variable service is enabled. */
+#define APM_FINALIZE_OTHER_ERROR	1
+#define APM_FINALIZE_EFI_ERROR		2
 #define APM_CNT_LEGACY		0xcc
 #define APM_CNT_CFR_RUNTIME_APPLY	CFR_RUNTIME_APPLY_APM_CNT_COMMAND
 #define APM_CNT_EFI_VARIABLE_SERVICE	EFI_VARIABLE_SERVICE_APM_CMD
