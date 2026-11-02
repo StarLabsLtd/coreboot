@@ -624,38 +624,42 @@ int mainboard_smi_apmc(u8 data)
 		break;
 	case STARLABS_EFIOPT_CMD_GET: {
 		unsigned int value;
+		enum cb_err ret = get_uint_option_status(opt->name, opt->fallback, &value);
 
-		dnvs->status = get_uint_option_status(opt->name, opt->fallback, &value);
-		if (dnvs->status == CB_EFI_OPTION_NOT_FOUND) {
+		if (ret == CB_EFI_OPTION_NOT_FOUND) {
 			dnvs->value = opt->fallback;
-			dnvs->status = CB_SUCCESS;
-		} else if (dnvs->status == CB_SUCCESS) {
+			ret = CB_SUCCESS;
+		} else if (ret == CB_SUCCESS) {
 			const unsigned int stored = value;
 
-			dnvs->status = normalize_value(id, &value);
+			ret = normalize_value(id, &value);
 			if (value != stored)
-				dnvs->status = CB_ERR_ARG;
-			if (dnvs->status == CB_SUCCESS)
+				ret = CB_ERR_ARG;
+			if (ret == CB_SUCCESS)
 				dnvs->value = value;
 		}
+		dnvs->status = ret;
 		break;
 	}
 	case STARLABS_EFIOPT_CMD_SET: {
 		uint32_t value = dnvs->value;
-		dnvs->status = normalize_value(id, &value);
-		if (dnvs->status != CB_SUCCESS)
+		enum cb_err ret = normalize_value(id, &value);
+		if (ret != CB_SUCCESS) {
+			dnvs->status = ret;
 			break;
+		}
 
 		const bool wp_enabled = chipset_disable_wp();
 #if CONFIG(EFI_VARIABLE_SERVICE)
-		dnvs->status = efi_variable_service_set_uint(opt->name, value);
+		ret = efi_variable_service_set_uint(opt->name, value);
 #else
-		dnvs->status = set_uint_option(opt->name, value);
+		ret = set_uint_option(opt->name, value);
 #endif
 		if (wp_enabled)
 			chipset_enable_wp();
-		if (dnvs->status == CB_SUCCESS)
-			dnvs->status = apply_runtime_efiopt(id, value);
+		if (ret == CB_SUCCESS)
+			ret = apply_runtime_efiopt(id, value);
+		dnvs->status = ret;
 		break;
 	}
 	default:
