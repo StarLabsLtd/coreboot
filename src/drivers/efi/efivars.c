@@ -696,6 +696,48 @@ static enum cb_err efi_fv_init(struct region_device *rdev, bool *auth_format)
 	return ret;
 }
 
+enum cb_err efi_fv_validate_store(const struct region_device *rdev, size_t block_size,
+				 bool *auth_format)
+{
+	EFI_FIRMWARE_VOLUME_HEADER header;
+	EFI_FV_BLOCK_MAP_ENTRY end;
+	VARIABLE_STORE_HEADER store_header;
+	struct region_device variable_region;
+	size_t block_count, variable_size;
+	enum cb_err ret;
+
+	if (!rdev || !auth_format || !block_size || block_size > UINT32_MAX ||
+	    region_device_sz(rdev) % block_size ||
+	    region_device_sz(rdev) / block_size > UINT32_MAX)
+		return CB_ERR_ARG;
+	*auth_format = false;
+	block_count = region_device_sz(rdev) / block_size;
+	if (block_count < 3)
+		return CB_ERR_ARG;
+	variable_size = (block_count - block_count / 2 - 1) * block_size;
+	ret = validate_fv_header(rdev, &header);
+	if (ret != CB_SUCCESS)
+		return ret;
+	if (header.FvLength != region_device_sz(rdev) ||
+	    header.BlockMap[0].Length != block_size ||
+	    header.BlockMap[0].NumBlocks != region_device_sz(rdev) / block_size)
+		return CB_EFI_FVH_INVALID;
+	if (rdev_readat(rdev, &end, offsetof(EFI_FIRMWARE_VOLUME_HEADER, BlockMap) +
+			sizeof(end), sizeof(end)) != sizeof(end))
+		return CB_EFI_ACCESS_ERROR;
+	if (end.NumBlocks || end.Length)
+		return CB_EFI_FVH_INVALID;
+	if (header.HeaderLength >= variable_size)
+		return CB_EFI_VS_CORRUPTED_INVALID;
+	if (rdev_readat(rdev, &store_header, header.HeaderLength, sizeof(store_header)) !=
+	    sizeof(store_header))
+		return CB_EFI_ACCESS_ERROR;
+	if (store_header.Size != variable_size - header.HeaderLength)
+		return CB_EFI_VS_CORRUPTED_INVALID;
+	variable_region = *rdev;
+	return validate_variable_store_header(&header, &variable_region, auth_format);
+}
+
 enum cb_err efi_fv_print_options(const struct region_device *rdev)
 {
 	enum cb_err ret;

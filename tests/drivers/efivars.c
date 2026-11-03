@@ -185,6 +185,31 @@ static void efi_test_header(void **state)
 	}
 }
 
+static void efi_test_validate_existing_store(void **state)
+{
+	struct region_device volume;
+	bool auth_format = false;
+
+	mock_rdev(true);
+	assert_int_equal(rdev_chain(&volume, &flash_rdev_rw, 0, 0x30000), 0);
+	assert_int_equal(efi_fv_validate_store(&volume, 0x10000, &auth_format), CB_SUCCESS);
+	assert_true(auth_format);
+	assert_int_not_equal(efi_fv_validate_store(&volume, 0x8000, &auth_format), CB_SUCCESS);
+	flash_buffer[0x58] ^= 1;
+	assert_int_not_equal(efi_fv_validate_store(&volume, 0x10000, &auth_format), CB_SUCCESS);
+	assert_int_equal(flash_buffer[0x58], FVH[0x58] ^ 1);
+	flash_buffer[0x58] ^= 1;
+	flash_buffer[40] ^= 1;
+	assert_int_not_equal(efi_fv_validate_store(&volume, 0x10000, &auth_format), CB_SUCCESS);
+	assert_int_equal(flash_buffer[40], FVH[40] ^ 1);
+
+	mock_fault_rdev(0x58);
+	assert_int_equal(rdev_chain(&volume, &flash_rdev_rw, 0, 0x30000), 0);
+	assert_int_equal(efi_fv_validate_store(&volume, 0x10000, &auth_format),
+			 CB_EFI_ACCESS_ERROR);
+	assert_false(auth_format);
+}
+
 /* Write with the same key and value should not modify the store */
 static void efi_test_noop_existing_write(void **state)
 {
@@ -790,6 +815,7 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(efi_test_header),
+		cmocka_unit_test(efi_test_validate_existing_store),
 		cmocka_unit_test(efi_test_noop_existing_write),
 		cmocka_unit_test(efi_test_initialize_erased_store),
 		cmocka_unit_test(efi_test_initialize_odd_block_store),
