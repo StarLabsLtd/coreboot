@@ -622,12 +622,11 @@ enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
 	struct starlabs_touchpad_op_ctx ctx;
 
 #if ENV_SMM
-	if (!dw_i2c_smm_bus_is_runtime_suspended(STARLABS_TOUCHPAD_I2C_BUS)) {
-		printk(BIOS_WARNING,
-		       "Touchpad settings: I2C%u active; refusing SMM runtime apply\n",
-		       STARLABS_TOUCHPAD_I2C_BUS);
-		return CB_ERR;
-	}
+	enum cb_err ret = dw_i2c_smm_bus_ready(STARLABS_TOUCHPAD_I2C_BUS);
+
+	/* Retry only when the OS may still be using the controller. */
+	if (ret != CB_SUCCESS)
+		return ret;
 #endif
 
 	ctx = (struct starlabs_touchpad_op_ctx) {
