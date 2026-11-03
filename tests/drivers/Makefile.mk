@@ -12,6 +12,12 @@ efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Pi/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include/
 
+tests-y += efi-private-store-test
+efi-private-store-test-srcs += tests/drivers/efi-private-store.c
+efi-private-store-test-srcs += src/drivers/efi_variable_service/private_store.c
+efi-private-store-test-srcs += src/drivers/efi_variable_service/capsule_store.c
+efi-private-store-test-srcs += src/commonlib/region.c
+
 tests-y += smmstore-srk-test smmstore-srk-customer-test
 $(foreach test,smmstore-srk-test smmstore-srk-customer-test,\
 	$(eval $(test)-srcs += tests/drivers/smmstore-srk.c src/drivers/smmstore/store.c \
