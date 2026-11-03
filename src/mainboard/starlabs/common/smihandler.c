@@ -124,6 +124,7 @@ int mainboard_smi_finalize(void)
 }
 #endif
 
+#if CONFIG(USE_UEFI_VARIABLE_STORE)
 struct starlabs_efiopt_entry {
 	const char *name;
 	enum starlabs_efiopt_id id;
@@ -670,3 +671,4 @@ int mainboard_smi_apmc(u8 data)
 	return 1;
 }
 #endif
+#endif /* USE_UEFI_VARIABLE_STORE */
