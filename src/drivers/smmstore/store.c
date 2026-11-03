@@ -176,14 +176,14 @@ uint32_t smmstore_srk_exec(uint8_t command, void *buffer)
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param)
 {
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
+		if (*cmd == SMMSTORE_CMD_USE_FULL_FLASH && !param) {
+			has_capsules = 0;
+			smmstore_use_full_flash = 0;
+			return 1;
+		}
 		if (has_capsules == -1 && *cmd == SMMSTORE_CMD_USE_FULL_FLASH) {
-			has_capsules = !!(uintptr_t)param;
-			/*
-			 * If we have capsules, return success, otherwise let smmstore_exec()
-			 * fail on !param check, which will be 0 in that case. This informs
-			 * the caller whether capsule handling was enabled or not.
-			 */
-			return has_capsules;
+			has_capsules = 1;
+			return 1;
 		} else if (has_capsules == 1 && *cmd & SMMSTORE_CMD_USE_FULL_FLASH) {
 			smmstore_use_full_flash = 1;
 			*cmd &= ~SMMSTORE_CMD_USE_FULL_FLASH;
