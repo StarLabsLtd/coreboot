@@ -846,8 +846,20 @@ static void enable_capsule_smi(void *unused)
 	ret = call_smm(APM_CNT_SMMSTORE, SMMSTORE_CMD_USE_FULL_FLASH,
 		       (void *)(uintptr_t)supported);
 
-	printk(BIOS_INFO, "%sabled capsule update SMI handler\n",
-	       ret == SMMSTORE_RET_SUCCESS ? "En" : "Dis");
+	if (ret != SMMSTORE_RET_SUCCESS)
+		printk(BIOS_ERR, "Failed to configure capsule update SMI handler\n");
+	else
+		printk(BIOS_INFO, "%sabled capsule update SMI handler\n",
+		       supported ? "En" : "Dis");
 }
 
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, enable_capsule_smi, NULL);
+
+static void disable_capsule_smi_on_resume(void *unused)
+{
+	if (call_smm(APM_CNT_SMMSTORE, SMMSTORE_CMD_USE_FULL_FLASH, NULL) !=
+	    SMMSTORE_RET_SUCCESS)
+		die("Failed to disable capsule update SMI handler on resume\n");
+}
+
+BOOT_STATE_INIT_ENTRY(BS_OS_RESUME, BS_ON_ENTRY, disable_capsule_smi_on_resume, NULL);
