@@ -218,6 +218,11 @@ static void usb4_retimer_cb_standard_query(uint8_t port, void *arg)
 	 * }
 	 * Return (Buffer() {0x01})
 	 */
+	if (!ec_retimer_fw_update_path()) {
+		acpigen_write_return_singleton_buffer(0x1);
+		return;
+	}
+
 	acpigen_write_to_integer(ARG1_OP, LOCAL1_OP);
 
 	/* Revision 1 supports 2 Functions beyond the standard query */
@@ -233,6 +238,11 @@ static void usb4_retimer_cb_get_power_state(uint8_t port, void *arg)
 {
 	const char *PWR;
 	char pwr[DEVICE_PATH_MAX];
+
+	if (!ec_retimer_fw_update_path()) {
+		acpigen_write_return_integer(-1);
+		return;
+	}
 
 	snprintf(pwr, sizeof(pwr), "HR.DFP%1d.PWR", port);
 	PWR = usb4_retimer_path_arg(pwr);
@@ -263,6 +273,11 @@ static void usb4_retimer_cb_set_power_state(uint8_t port, void *arg)
 	struct acpi_gpio *power_gpio = arg;
 	const char *PWR;
 	char pwr[DEVICE_PATH_MAX];
+
+	if (!ec_retimer_fw_update_path()) {
+		acpigen_write_return_integer(-1);
+		return;
+	}
 
 	snprintf(pwr, sizeof(pwr), "HR.DFP%1d.PWR", port);
 	PWR = usb4_retimer_path_arg(pwr);
