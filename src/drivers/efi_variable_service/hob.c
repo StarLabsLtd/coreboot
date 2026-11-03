@@ -4,16 +4,20 @@
 
 #include <commonlib/bsd/helpers.h>
 #include <commonlib/region.h>
+#include <boot/coreboot_tables.h>
 #include <device/pci_def.h>
 #include <device/pci_mmio_cfg.h>
 #include <device/pci_ops.h>
+#include <cpu/x86/smm.h>
 #include <efi_variable_service.h>
 #include <fmap.h>
+#include <cbmem.h>
 #include <smmstore.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
 #include <string.h>
+#include <uuid.h>
 
 #define HOB_HANDOFF			0x0001
 #define HOB_MEMORY_ALLOCATION		0x0002
@@ -165,11 +169,19 @@ static const struct efi_guid spi_flash_info_guid =
 	GUID(0x2d4aac1b, 0x91a5, 0x4cd5, 0x9b, 0x5c, 0xb4, 0x0f, 0x5d, 0x28, 0x51, 0xa1);
 static const struct efi_guid acpi_board_info_guid =
 	GUID(0x0ad3d31b, 0xb3d8, 0x4506, 0xae, 0x71, 0x2e, 0xf1, 0x10, 0x06, 0xd9, 0x0f);
+static const struct efi_guid capsule_ram_guid =
+	GUID(0xaeb3440c, 0xf957, 0x488b, 0x93, 0x50, 0x9a, 0xbc, 0xa6, 0x6a, 0x98, 0x1f);
+static const struct efi_guid capsule_info_guid =
+	GUID(0x787f43b2, 0x9a19, 0x43d1, 0x83, 0x64, 0x10, 0x79, 0xf1, 0xd4, 0x7e, 0x30);
 
 _Static_assert(sizeof(struct hob_handoff) == 56, "Unexpected PHIT size");
 _Static_assert(sizeof(struct hob_module) == 72, "Unexpected module HOB size");
 _Static_assert(sizeof(struct mmram_descriptor) == 32, "Unexpected MMRAM descriptor size");
-_Static_assert(sizeof(struct service_info_hob) == 24, "Unexpected service HOB size");
+_Static_assert(sizeof(struct service_info_hob) == 48, "Unexpected service HOB size");
+_Static_assert(offsetof(struct service_info_hob, store_read) == 24,
+	       "Unexpected private store callback offset");
+_Static_assert(offsetof(struct service_info_hob, store_buffer) == 40,
+	       "Unexpected private store buffer offset");
 _Static_assert(sizeof(struct variable_store_hob) == 24, "Unexpected store HOB size");
 _Static_assert(sizeof(struct variable_flash_hob) == 56, "Unexpected flash HOB size");
 _Static_assert(sizeof(struct spi_flash_info_hob) == 16, "Unexpected SPI HOB size");
@@ -201,6 +213,31 @@ static void *append_guid_hob(struct hob_builder *builder, const struct efi_guid 
 	return hob + 1;
 }
 
+static int append_capsule_ram(struct hob_builder *builder)
+{
+	struct hob_resource *resource;
+	uintptr_t smram_base;
+	size_t smram_size;
+	uintptr_t end = (uintptr_t)cbmem_top();
+
+	/* CPU/SMM setup precedes PCI resource enumeration. Use the already trained
+	 * low-DRAM boundary, not a resource map which is still being populated. */
+	smm_region(&smram_base, &smram_size);
+	if (!smram_size || end > smram_base || end <= 1 * MiB)
+		return -1;
+	resource = append_hob(builder, HOB_RESOURCE_DESCRIPTOR, sizeof(*resource));
+	if (!resource)
+		return -1;
+	*resource = (struct hob_resource) {
+		.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*resource), 0 },
+		.owner = capsule_ram_guid, .type = RESOURCE_SYSTEM_MEMORY,
+		.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED | RESOURCE_TESTED |
+			RESOURCE_WRITE_BACK_CACHEABLE,
+		.base = 1 * MiB, .size = end - 1 * MiB,
+	};
+	return 0;
+}
+
 int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 				    uintptr_t fv_base, size_t fv_size,
 				    const struct efi_variable_service_image *image,
@@ -222,6 +259,7 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	struct variable_flash_hob *flash;
 	struct spi_flash_info_hob *spi;
 	struct acpi_board_info_hob *acpi;
+	struct capsule_info_hob *capsule = NULL;
 	struct smmstore_params_info info;
 	struct region store;
 	struct hob_header *end;
@@ -237,7 +275,7 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	spare_size = (info.num_blocks / 2) * (uint64_t)info.block_size;
 	if (store_size <= spare_size + info.block_size)
 		return -1;
-	if (region_sz(&store) != store_size ||
+	if (region_sz(&store) != store_size || store_size > UINT32_MAX ||
 	    region_offset(&store) > UINT32_MAX ||
 	    !IS_ALIGNED(region_offset(&store), info.block_size))
 		return -1;
@@ -261,6 +299,22 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	flash = append_guid_hob(&builder, &variable_flash_guid, sizeof(*flash));
 	spi = append_guid_hob(&builder, &spi_flash_info_guid, sizeof(*spi));
 	acpi = append_guid_hob(&builder, &acpi_board_info_guid, sizeof(*acpi));
+	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
+		uint32_t version, lowest;
+		capsule = append_guid_hob(&builder, &capsule_info_guid, sizeof(*capsule));
+		if (!capsule)
+			return -1;
+		efi_fw_versions(&version, &lowest);
+		*capsule = (struct capsule_info_hob) {
+			.revision = 1, .size = sizeof(*capsule), .flash_size = CONFIG_ROM_SIZE,
+			.block_size = CONFIG_SMMSTORE_BLOCK_SIZE,
+			.lowest_supported_version = lowest,
+		};
+		if (parse_uuid(capsule->image_guid, CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
+			return -1;
+	}
+	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && append_capsule_ram(&builder))
+		return -1;
 	end = append_hob(&builder, HOB_END, sizeof(*end));
 	if (!handoff || !resource || !spi_config_resource || !spi_mmio_resource ||
 	    !store_resource || !fv || !module || !mmram || !communication || !service ||
@@ -360,5 +414,9 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	state->hob_size = builder.current - (uint8_t *)hob_base;
 	state->service_info = (uintptr_t)service;
 	state->spi_mmio_resource = (uintptr_t)spi_mmio_resource;
+	state->store_offset = region_offset(&store);
+	state->store_size = store_size;
+	state->store_block_size = info.block_size;
+	state->capsule_info = (uintptr_t)capsule;
 	return 0;
 }

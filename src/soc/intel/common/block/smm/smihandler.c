@@ -354,14 +354,17 @@ static void southbridge_smi_efi_variable_service(
 		fast_spi_disable_wp();
 	}
 
-	uint32_t ret = efi_variable_service_communicate();
+	uint32_t ret = fast_spi_wpd_status() ? efi_variable_service_communicate() :
+		EFI_VARIABLE_SERVICE_RET_FAILURE;
 	smmstore_drain_sync_smi();
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 
-	if (wp_enabled) {
+	/* Restore protection we changed; preserve a pre-existing write window. */
+	if (wp_enabled)
 		fast_spi_enable_wp();
-		set_insmm_sts(false);
-	}
+	set_insmm_sts(false);
+	if (wp_enabled && fast_spi_wpd_status())
+		die("EFI variable service: cannot restore SPI write protection.");
 }
 
 __weak int soc_gpio_lock_finalize(void)
@@ -436,13 +439,30 @@ static int finalize(void)
 		return finalize_result;
 	}
 
-	if (CONFIG(EFI_VARIABLE_SERVICE) && efi_variable_service_finalize())
-		finalize_result |= APM_FINALIZE_EFI_ERROR;
+	if (CONFIG(EFI_VARIABLE_SERVICE)) {
+		const bool wp_enabled = !fast_spi_wpd_status();
+
+		/* FTW recovery may need to write while the service is initialized. */
+		if (wp_enabled) {
+			set_insmm_sts(true);
+			smmstore_drain_sync_smi();
+			fast_spi_disable_wp();
+		}
+		if (!fast_spi_wpd_status() || efi_variable_service_finalize())
+			finalize_result |= APM_FINALIZE_EFI_ERROR;
+		if (wp_enabled) {
+			smmstore_drain_sync_smi();
+			fast_spi_enable_wp();
+			set_insmm_sts(false);
+			if (fast_spi_wpd_status())
+				finalize_result |= APM_FINALIZE_EFI_ERROR;
+		}
+	}
 
 	enable_smm_code_access_check();
 
-	if (CONFIG(SPI_FLASH_SMM))
-		/* Re-init SPI driver to handle locked BAR */
+	/* The private service already uses SPI. Do not reopen writes or clear EISS. */
+	if (CONFIG(SPI_FLASH_SMM) && !CONFIG(EFI_VARIABLE_SERVICE))
 		fast_spi_init();
 
 	boot_device_init();
@@ -467,6 +487,14 @@ static int finalize(void)
 	/* Specific SOC SMI handler during ramstage finalize phase */
 	if (smihandler_soc_at_finalize())
 		finalize_result |= other_error;
+	/* Hooks and fast_spi_init() may have opened writes: close last, before RSM. */
+	if (CONFIG(EFI_VARIABLE_SERVICE)) {
+		fast_spi_enable_wp();
+		set_insmm_sts(false);
+		if (fast_spi_wpd_status() ||
+		    (enable_smm_bios_protection() && !fast_spi_eiss_status()))
+			finalize_result |= APM_FINALIZE_EFI_ERROR;
+	}
 	finalize_done = 1;
 
 	return finalize_result;

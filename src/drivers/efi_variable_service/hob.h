@@ -10,7 +10,7 @@
 
 #define HOB_RESOURCE_DESCRIPTOR 0x0003
 #define RESOURCE_MEMORY_MAPPED_IO 1
-#define EFI_VARIABLE_SERVICE_INFO_REVISION 2
+#define EFI_VARIABLE_SERVICE_INFO_REVISION 3
 
 struct efi_guid {
 	uint32_t data1;
@@ -41,7 +41,29 @@ struct service_info_hob {
 	uint64_t buffer;
 	uint32_t buffer_size;
 	uint32_t register_mm_entry;
+	uint32_t store_read;
+	uint32_t store_write;
+	uint32_t store_erase;
+	uint32_t store_validate;
+	uint32_t store_buffer;
+	uint32_t store_buffer_size;
 } __packed;
+
+struct capsule_info_hob {
+	uint32_t revision;
+	uint32_t size;
+	uint32_t flash_size;
+	uint32_t block_size;
+	uint32_t lowest_supported_version;
+	uint32_t read;
+	uint32_t resolve;
+	uint32_t program;
+	uint32_t buffer;
+	uint32_t buffer_size;
+	uint8_t image_guid[16];
+} __packed;
+
+_Static_assert(sizeof(struct capsule_info_hob) == 56, "Capsule HOB must be 8-byte aligned");
 
 struct efi_variable_service_state;
 

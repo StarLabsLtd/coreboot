@@ -20,6 +20,7 @@
 #include <lib.h>
 #include <soc/pci_devs.h>
 #include <spi_flash.h>
+#include <efi_variable_service.h>
 #include <spi-generic.h>
 #include <security/vboot/vbnv.h>
 
@@ -46,6 +47,10 @@ void *fast_spi_get_bar(void)
 		printk(BIOS_EMERG, "FAST_SPI: BAR0 0x%" PRIxPTR " overlaps SMRAM!\n", bar);
 		die("SMM BAR exploitation attempt detected.");
 	}
+
+	if (ENV_SMM && CONFIG(EFI_VARIABLE_SERVICE) &&
+	    !efi_variable_service_spi_bar_valid(bar))
+		die("FAST_SPI: BAR0 changed after trusted finalization.");
 
 	return (void *)bar;
 }

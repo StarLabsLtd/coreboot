@@ -17,4 +17,4 @@ $(obj)/FIXEDMMFV.Fv: $(obj)/UEFIPAYLOAD.fd
 endif
 
 ramstage-$(CONFIG_EFI_VARIABLE_SERVICE) += ramstage.c ipl.c hob.c
-smm-$(CONFIG_EFI_VARIABLE_SERVICE) += smi.c
+smm-$(CONFIG_EFI_VARIABLE_SERVICE) += smi.c private_store.c capsule_store.c

@@ -448,6 +448,10 @@ prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
 
 ifeq ($(CONFIG_EFI_VARIABLE_SERVICE),y)
+ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+FIXED_MM_CAPSULE_ARGS := -D CAPSULE_SUPPORT=TRUE \
+	-D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
+endif
 FixedMmService: prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
@@ -457,6 +461,7 @@ FixedMmService: prep print
 		fi; \
 		build -a IA32 -b $(RELEASE_STR) -t GCC \
 			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
+			$(FIXED_MM_CAPSULE_ARGS) \
 			-y $(WORKSPACE)/Build/CorebootFixedMmService/FIXEDMMFV.txt || exit 1; \
 		cp $(WORKSPACE)/Build/CorebootFixedMmService/$(RELEASE_STR)_GCC/FV/FIXEDMMFV.Fv \
 			$(EDK2_FIXED_MM_OUT) || exit 1
