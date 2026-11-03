@@ -16,6 +16,10 @@
  */
 enum cb_err efi_fv_initialize(const struct region_device *rdev, size_t block_size);
 
+/* Validate an existing store without changing it. */
+enum cb_err efi_fv_validate_store(const struct region_device *rdev, size_t block_size,
+				 bool *auth_format);
+
 /**
  * efi_fv_get_option
  * Use the provided EFI variable store inside the region device as variable store.
