@@ -387,10 +387,14 @@ static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t me
 	entry = (void *)(uintptr_t)service->dispatch_entry;
 	entry(&context);
 
-	if (status->valid ||
+	if (status->valid || status->return_buffer_size < sizeof(struct mm_communication_header32) ||
 	    status->return_buffer_size > buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE)
 		return -1;
 
+	/* MM returns the actual size separately, leaving the legacy header unchanged. */
+	struct mm_communication_header32 *message =
+		(void *)(buffer_base + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
+	message->message_length = status->return_buffer_size - sizeof(*message);
 	return 0;
 }
 
