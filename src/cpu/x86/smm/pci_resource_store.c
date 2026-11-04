@@ -4,6 +4,7 @@
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <security/tcg/opal_s3.h>
 
 void smm_pci_get_stored_resources(const volatile struct smm_pci_resource_info **out_slots,
 				  size_t *out_size)
@@ -68,4 +69,7 @@ void smm_pci_resource_store_init(struct smm_runtime *smm_runtime)
 {
 	smm_mainboard_pci_resource_store_init(&smm_runtime->pci_resources[0],
 					 CONFIG_SMM_PCI_RESOURCE_STORE_NUM_SLOTS);
+	if (CONFIG(TCG_OPAL_S3_UNLOCK))
+		opal_s3_store_pci_resources(smm_runtime->pci_resources,
+					    CONFIG_SMM_PCI_RESOURCE_STORE_NUM_SLOTS);
 }
