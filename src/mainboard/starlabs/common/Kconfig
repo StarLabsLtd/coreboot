@@ -2,6 +2,9 @@
 
 if VENDOR_STARLABS
 
+config SMMSTORE_BLOCK_SIZE
+	default 4096
+
 config EDK2_BOOTSPLASH_FILE
 	string
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
