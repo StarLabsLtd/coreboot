@@ -2,7 +2,7 @@
 
 CPPFLAGS_common-$(CONFIG_TCG_OPAL_S3_UNLOCK) += -I$(src)/vendorcode/intel/tcg_storage_core
 
-ramstage-$(CONFIG_TCG_OPAL_S3_UNLOCK) += opal_s3_resume.c
+ramstage-$(CONFIG_TCG_OPAL_S3_UNLOCK) += opal_s3_resume.c opal_s3_resources.c
 
 smm-$(CONFIG_TCG_OPAL_S3_UNLOCK) += opal_s3_smm.c
 smm-$(CONFIG_TCG_OPAL_S3_UNLOCK) += opal_nvme.c
