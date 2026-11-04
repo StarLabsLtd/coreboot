@@ -27,6 +27,7 @@
 #define HOB_VERSION			0x0009
 
 #define RESOURCE_SYSTEM_MEMORY		0
+#define RESOURCE_MEMORY_RESERVED	5
 #define RESOURCE_PRESENT		BIT(0)
 #define RESOURCE_INITIALIZED		BIT(1)
 #define RESOURCE_TESTED			BIT(2)
@@ -213,7 +214,7 @@ static void *append_guid_hob(struct hob_builder *builder, const struct efi_guid 
 	return hob + 1;
 }
 
-static int append_capsule_ram(struct hob_builder *builder)
+static int append_runtime_ram(struct hob_builder *builder)
 {
 	struct hob_resource *resource;
 	uintptr_t smram_base;
@@ -313,7 +314,7 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 		if (parse_uuid(capsule->image_guid, CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 			return -1;
 	}
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && append_capsule_ram(&builder))
+	if (append_runtime_ram(&builder))
 		return -1;
 	end = append_hob(&builder, HOB_END, sizeof(*end));
 	if (!handoff || !resource || !spi_config_resource || !spi_mmio_resource ||
@@ -332,7 +333,7 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	};
 	*resource = (struct hob_resource) {
 		.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*resource), 0 }, .owner = zero_guid,
-		.type = RESOURCE_SYSTEM_MEMORY,
+		.type = RESOURCE_MEMORY_RESERVED,
 		.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED | RESOURCE_TESTED |
 			RESOURCE_WRITE_BACK_CACHEABLE,
 		.base = buffer, .size = buffer_size,
