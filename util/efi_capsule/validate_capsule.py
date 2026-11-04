@@ -109,7 +109,7 @@ def parse_capsule(data):
             data[image_start : image_start + update_image_size], image_support)
 
 
-def unwrap_update_image(image, support):
+def unwrap_update_image(image, support, expected_guid=None):
     if support & FMP_CAPSULE_SUPPORT_DEPENDENCY:
         raise ValidationError("FMP capsule dependencies are unsupported")
     if support & ~FMP_CAPSULE_SUPPORT_AUTHENTICATION:
@@ -135,6 +135,11 @@ def unwrap_update_image(image, support):
     if (signature != FMP_PAYLOAD_HEADER_SIGNATURE or
             header_size < FMP_PAYLOAD_HEADER_SIZE or header_size > len(image)):
         raise ValidationError("invalid FMP payload header")
+    if expected_guid is not None:
+        if header_size != FMP_PAYLOAD_HEADER_SIZE + 16:
+            raise ValidationError("missing authenticated capsule target GUID")
+        if _guid(image, FMP_PAYLOAD_HEADER_SIZE) != expected_guid:
+            raise ValidationError("authenticated capsule target GUID mismatch")
     return image[header_size:]
 
 
@@ -369,8 +374,9 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
             f"firmware volume has {matching_drivers} resident FMP drivers "
             f"with GUID {expected_guid}, expected {'0 or 1' if embedded else '1'}"
         )
+    firmware = unwrap_update_image(image, image_support, expected_guid)
     if expected_rmap_regions is not None:
-        validate_rmap(unwrap_update_image(image, image_support), expected_rmap_regions,
+        validate_rmap(firmware, expected_rmap_regions,
                       expected_firmware, expected_layout)
 
 

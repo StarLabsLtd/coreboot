@@ -56,6 +56,22 @@ To generate capsules with an embedded `FmpDxe.efi`, enable:
 Note: if Secure Boot is enabled, the embedded driver must be signed by a key trusted by the
 running firmware, otherwise capsule processing may fail when loading the embedded driver.
 
+## Authenticated target identity
+
+The generator includes `CONFIG_DRIVERS_EFI_MAIN_FW_GUID` in the signed MSS1
+payload header. Its existing HeaderSize extends from 16 to 32 bytes to include
+the EFI GUID in little-endian wire form; the image starts after that header.
+The protected MM owner requires this exact target-bound header and compares it
+with the private coreboot HOB identity. A missing, malformed or different target
+is rejected even when its signature is valid or the public outer GUID matches.
+
+Existing MSS1 readers that honor HeaderSize can install the extended-header
+upgrade. After installing the protected owner, legacy unbound capsules are
+rejected; regenerate signed capsules with this generator. The outer FMP GUID
+still routes updates but does not authorize a target. The existing version floor
+is unchanged: the monotonic-count field is not a persistent replay counter, and
+block-wise programming does not promise an atomic update.
+
 ## Capsule signing certificates
 
 `GenerateCapsule` can sign the FMP payload (PKCS#7). Many platforms require signed capsules.
