@@ -13,7 +13,7 @@
 #endif
 #include <ec/acpi/ec.h>
 #include <ec/starlabs/merlin/ec.h>
-#if CONFIG(EFI_VARIABLE_SERVICE)
+#if CONFIG(ASS)
 #include <efi_variable_service.h>
 #endif
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
@@ -627,7 +627,7 @@ int mainboard_smi_apmc(u8 data)
 		}
 
 		const bool wp_enabled = chipset_disable_wp();
-#if CONFIG(EFI_VARIABLE_SERVICE)
+#if CONFIG(ASS)
 		ret = efi_variable_service_set_uint(opt->name, value);
 #else
 		ret = set_uint_option(opt->name, value);

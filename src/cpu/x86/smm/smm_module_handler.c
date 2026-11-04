@@ -93,7 +93,7 @@ void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 	*size = smm_runtime.smmstore_com_buffer_size;
 }
 
-#if CONFIG(EFI_VARIABLE_SERVICE)
+#if CONFIG(ASS)
 void smm_get_efi_variable_service(uintptr_t *base, size_t *size)
 {
 	*base = smm_runtime.efi_variable_service_base;

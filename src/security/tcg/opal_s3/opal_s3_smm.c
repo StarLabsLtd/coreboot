@@ -246,7 +246,7 @@ static u32 opal_s3_set_secret_snapshot(const struct opal_s3_smm_ctx *ctx)
 
 	/* Ineligible devices were classified without modifying retained state or hardware.
 	 * MM retains handoff closure across S3 and CLEAR_SECRET. */
-	if (CONFIG(EFI_VARIABLE_SERVICE) && !efi_variable_service_boot_access_allowed())
+	if (CONFIG(ASS) && !efi_variable_service_boot_access_allowed())
 		return 10;
 
 	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||

@@ -48,7 +48,7 @@ void *fast_spi_get_bar(void)
 		die("SMM BAR exploitation attempt detected.");
 	}
 
-	if (ENV_SMM && CONFIG(EFI_VARIABLE_SERVICE) &&
+	if (ENV_SMM && CONFIG(ASS) &&
 	    !efi_variable_service_spi_bar_valid(bar))
 		die("FAST_SPI: BAR0 changed after trusted finalization.");
 

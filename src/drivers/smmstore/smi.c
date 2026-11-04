@@ -32,7 +32,7 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 #endif
 
 	/* Fixed-MM updates use the signature-enforcing owner, never raw mutations. */
-	if (CONFIG(EFI_VARIABLE_SERVICE)) {
+	if (CONFIG(ASS)) {
 		if (command & SMMSTORE_CMD_USE_FULL_FLASH)
 			/* Existing cold/S3 handoff may revoke a route that is never opened. */
 			return command == SMMSTORE_CMD_USE_FULL_FLASH && !param ?

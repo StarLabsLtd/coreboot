@@ -34,13 +34,13 @@ tests-y += smmstore-fixed-mm-test
 smmstore-fixed-mm-test-srcs += tests/drivers/smmstore-fixed-mm.c src/drivers/smmstore/smi.c \
 	src/commonlib/region.c tests/stubs/console.c
 smmstore-fixed-mm-test-stage := smm
-smmstore-fixed-mm-test-config += CONFIG_EFI_VARIABLE_SERVICE=1 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000
+smmstore-fixed-mm-test-config += CONFIG_ASS=1 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000
 
 tests-y += opal-s3-test
 opal-s3-test-srcs += tests/drivers/opal-s3.c src/commonlib/region.c tests/stubs/console.c
 opal-s3-test-stage := smm
 opal-s3-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_SMM_OPAL_S3_SCRATCH_CBMEM=1 \
-	CONFIG_EFI_VARIABLE_SERVICE=1 CONFIG_SMM_PCI_RESOURCE_STORE=1 \
+	CONFIG_ASS=1 CONFIG_SMM_PCI_RESOURCE_STORE=1 \
 	CONFIG_SMM_OPAL_S3_STATE_SMRAM=1 CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE=0x1000 \
 	CONFIG_ECAM_MMCONF_SUPPORT=1 CONFIG_ECAM_MMCONF_BASE_ADDRESS=0xe0000000 \
 	CONFIG_ECAM_MMCONF_BUS_NUMBER=1 CONFIG_ECAM_MMCONF_LENGTH=0x100000

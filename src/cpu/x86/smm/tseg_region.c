@@ -17,7 +17,7 @@
  *     +-------------------------+
  *     |   OPAL S3 State (opt)   | SMM_OPAL_S3_STATE_SMRAM_SIZE
  *     +-------------------------+
- *     | EFI variable service    | SMM_EFI_VARIABLE_SERVICE_SIZE
+ *     |           ASS           | SMM_ASS_SIZE
  *     +-------------------------+
  *     |      code and data      |
  *     |         (TSEG)          |
@@ -30,7 +30,7 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 	const size_t ied_size = CONFIG_IED_REGION_SIZE;
 	const size_t cache_size = CONFIG_SMM_RESERVED_SIZE;
 	const size_t opal_state_size = CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE;
-	const size_t variable_service_size = CONFIG_SMM_EFI_VARIABLE_SERVICE_SIZE;
+	const size_t variable_service_size = CONFIG_SMM_ASS_SIZE;
 	const uint64_t reserved_size = (uint64_t)ied_size + cache_size + opal_state_size +
 				       variable_service_size;
 

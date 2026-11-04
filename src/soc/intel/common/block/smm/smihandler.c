@@ -432,14 +432,14 @@ static int finalize(void)
 {
 	static int finalize_done;
 	static int finalize_result;
-	const int other_error = CONFIG(EFI_VARIABLE_SERVICE) ? APM_FINALIZE_OTHER_ERROR : -1;
+	const int other_error = CONFIG(ASS) ? APM_FINALIZE_OTHER_ERROR : -1;
 
 	if (finalize_done) {
 		printk(BIOS_DEBUG, "SMM already finalized.\n");
 		return finalize_result;
 	}
 
-	if (CONFIG(EFI_VARIABLE_SERVICE)) {
+	if (CONFIG(ASS)) {
 		const bool wp_enabled = !fast_spi_wpd_status();
 
 		/* FTW recovery may need to write while the service is initialized. */
@@ -462,7 +462,7 @@ static int finalize(void)
 	enable_smm_code_access_check();
 
 	/* The private service already uses SPI. Do not reopen writes or clear EISS. */
-	if (CONFIG(SPI_FLASH_SMM) && !CONFIG(EFI_VARIABLE_SERVICE))
+	if (CONFIG(SPI_FLASH_SMM) && !CONFIG(ASS))
 		fast_spi_init();
 
 	boot_device_init();
@@ -488,7 +488,7 @@ static int finalize(void)
 	if (smihandler_soc_at_finalize())
 		finalize_result |= other_error;
 	/* Hooks and fast_spi_init() may have opened writes: close last, before RSM. */
-	if (CONFIG(EFI_VARIABLE_SERVICE)) {
+	if (CONFIG(ASS)) {
 		fast_spi_enable_wp();
 		set_insmm_sts(false);
 		if (fast_spi_wpd_status() ||
@@ -522,7 +522,7 @@ void smihandler_southbridge_apmc(
 			southbridge_smi_store(save_state_ops);
 		break;
 	case APM_CNT_EFI_VARIABLE_SERVICE:
-		if (CONFIG(EFI_VARIABLE_SERVICE))
+		if (CONFIG(ASS))
 			southbridge_smi_efi_variable_service(save_state_ops);
 		break;
 	case APM_CNT_FINALIZE:

@@ -108,7 +108,7 @@ struct smm_runtime {
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
-#if CONFIG(EFI_VARIABLE_SERVICE)
+#if CONFIG(ASS)
 	uintptr_t efi_variable_service_base;
 	size_t efi_variable_service_size;
 	uintptr_t efi_variable_service_buffer;
@@ -283,7 +283,7 @@ bool smm_acpi_global_lock_release(void);
 bool smm_is_s3_resume(void);
 
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
-#if CONFIG(EFI_VARIABLE_SERVICE)
+#if CONFIG(ASS)
 void smm_get_efi_variable_service(uintptr_t *base, size_t *size);
 void smm_get_efi_variable_service_buffer(uintptr_t *base, size_t *size);
 bool smm_efi_variable_service_is_s3_resume(void);

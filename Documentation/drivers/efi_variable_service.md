@@ -1,4 +1,7 @@
-# Fixed EFI variable service
+# Authorised SMM Service (ASS)
+
+`CONFIG_ASS` enables the Authorised SMM Service. `CONFIG_SMM_ASS_SIZE`
+reserves its SMRAM allocation.
 
 This interface runs an EFI authenticated-variable implementation from a fixed,
 coreboot-owned SMRAM region. The payload can submit requests but cannot register

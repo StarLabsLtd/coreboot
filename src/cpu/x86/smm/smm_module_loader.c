@@ -455,7 +455,7 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		mod_params->smmstore_com_buffer_size = info.block_size;
 	}
 
-	if (CONFIG(EFI_VARIABLE_SERVICE))
+	if (CONFIG(ASS))
 		efi_variable_service_load(mod_params);
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)

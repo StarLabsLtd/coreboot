@@ -1,7 +1,7 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
-config EFI_VARIABLE_SERVICE
-	bool "Fixed EFI authenticated-variable service"
+config ASS
+	bool "Authorised SMM Service (ASS)"
 	depends on HAVE_SMI_HANDLER
 	depends on SMM_TSEG
 	depends on SMMSTORE
@@ -13,8 +13,9 @@ config EFI_VARIABLE_SERVICE
 	depends on !CONSOLE_SPI_FLASH
 	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
 	help
-	  Load a build-selected authenticated-variable service into a fixed
-	  SMRAM region. The payload can submit requests through a bounded shared
-	  buffer, but cannot supply executable code or choose the service address.
-	  The selected EDK2 repository must provide
-	  fixed Standalone MM service description.
+	  ASS stands for Authorised SMM Service. Run the build-selected EFI
+	  variable and capsule service in a fixed SMRAM region. The payload can
+	  submit requests through a bounded shared buffer, but cannot supply
+	  executable code or choose the service address.
+	  The selected EDK2 repository must provide the fixed Standalone MM
+	  service description.
