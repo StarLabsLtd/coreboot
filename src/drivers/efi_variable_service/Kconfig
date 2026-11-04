@@ -9,7 +9,10 @@ config EFI_VARIABLE_SERVICE
 	depends on PAYLOAD_EDK2
 	depends on EDK2_REPO_CUSTOM
 	depends on SOC_INTEL_COMMON_BLOCK_SMM
-	depends on SOC_INTEL_METEORLAKE
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on !DRIVERS_EFI_UPDATE_CAPSULES || SMMSTORE_BLOCK_SIZE = 65536
+	depends on !CONSOLE_SPI_FLASH
+	select BOOTMEDIA_SMM_BWP
 	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
 	help
 	  Load a build-selected authenticated-variable service into a fixed

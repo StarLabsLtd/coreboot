@@ -35,8 +35,18 @@ service. Finalization checks effective EISS, BIOS Lock and interface-lock bits
 and closed writes before returning to the payload. Failure stops boot.
 
 The IA32 service reserves 4 MiB inside TSEG, in addition to the normal handler,
-per-CPU stacks, stage cache, IED and optional OPAL state. The loader validates
-the actual reservation and handler fit before exposing the service.
+per-CPU stacks, stage cache, IED and optional OPAL state. Supported configurable Intel client
+platforms reserve 16 MiB when enabled. GLK/GLKR retain their FSP's 8 MiB TSEG,
+but their capsule configurations are excluded: the native HOB and transfer
+buffers use their 4 KiB SMMSTORE block size, whereas the protected capsule ABI
+requires 64 KiB blocks and buffers. Their absolute stores are 64 KiB aligned;
+alignment is not the blocker. Do not change existing variable-store geometry
+merely to make the service selectable. Variable-only 4 KiB configurations remain
+possible but are not qualified by this enablement.
+
+The loader checks the actual reservation and handler fit. Configuration and
+linked-size checks do not measure peak heap or stack use. AMD and QEMU are not
+supported by the Intel-specific flash and SMM backend.
 
 On S3 resume coreboot validates the retained layout and dispatcher pointer,
 resets the external communication buffer and loads the normal coreboot SMM
