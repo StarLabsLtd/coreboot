@@ -56,3 +56,21 @@ status. The standard page-aligned MM communication message begins at offset
 command and reads the response from the same allocation. coreboot rejects an
 unsupported revision, invalid state or message larger than the fixed capacity.
 
+## OPAL S3 ownership
+
+Only coreboot-enumerated NVMe devices with assigned memory resources are eligible
+for S3 enrollment. The native owner checks that trusted snapshot before accepting
+a secret. With the fixed MM service enabled, enrollment also requires the retained
+trusted-boot window to remain open. The first external image, ReadyToBoot or
+ExitBootServices closes that window; clearing credentials does not reopen it.
+Unlocked builds without the fixed service retain their previous lifecycle policy
+and are not covered by this authorization guarantee.
+
+The payload connects trusted consoles and native NVMe drivers before external
+images. Its coreboot transport forwards only pending credentials; other LockBox
+backends retain full snapshots. Late-discovered devices may boot but are not
+enrolled for S3 unlock. Resume checks the enrolled device identity, restores the
+authorized BAR with decode/DMA disabled, and validates the resulting base after
+D0 before any controller MMIO. VID/DID/class matching is resource ownership
+validation, not unique physical-device authentication. These checks do not
+establish timeout-time DMA isolation or prove enrolled-drive recovery on hardware.
