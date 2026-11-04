@@ -33,38 +33,6 @@ enum cb_err efi_option_get_uint(const char *name, uint32_t *value)
 	return CB_SUCCESS;
 }
 
-enum cb_err efi_option_get_uints(struct efi_uint_option *options, size_t count)
-{
-	struct efi_fv_option fv_options[EFI_UINT_OPTION_BATCH_MAX];
-	struct region_device rdev;
-	enum cb_err ret;
-
-	if (!options || !count || count > EFI_UINT_OPTION_BATCH_MAX)
-		return CB_ERR_ARG;
-
-	if (smmstore_lookup_region(&rdev))
-		return CB_CMOS_OTABLE_DISABLED;
-
-	for (size_t i = 0; i < count; i++) {
-		if (!options[i].name)
-			return CB_ERR_ARG;
-		fv_options[i] = (struct efi_fv_option) {
-			.name = options[i].name,
-			.data = &options[i].value,
-			.size = sizeof(options[i].value),
-		};
-	}
-
-	ret = efi_fv_get_options(&rdev, &EficorebootNvDataGuid, fv_options, count);
-	if (ret != CB_SUCCESS)
-		return ret;
-
-	for (size_t i = 0; i < count; i++)
-		options[i].result = fv_options[i].result;
-
-	return CB_SUCCESS;
-}
-
 enum cb_err efi_option_set_uint(const char *name, uint32_t value)
 {
 	struct region_device rdev;
