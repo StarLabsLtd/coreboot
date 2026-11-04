@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <types.h>
 
+struct smm_pci_resource_info;
+void opal_s3_store_pci_resources(struct smm_pci_resource_info *slots, size_t count);
+
 /*
  * ABI between payload software and the SMM OPAL S3 unlock handler.
  *
