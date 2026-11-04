@@ -8,6 +8,7 @@
 #include <types.h>
 
 u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password,
-			  u8 password_len, void *scratch, size_t scratch_size);
+			  u8 password_len, void *scratch, size_t scratch_size,
+			  u64 mmio_base, size_t mmio_size);
 
 #endif
