@@ -492,7 +492,7 @@ static int finalize(void)
 		fast_spi_enable_wp();
 		set_insmm_sts(false);
 		if (fast_spi_wpd_status() ||
-		    (enable_smm_bios_protection() && !fast_spi_eiss_status()))
+		    (enable_smm_bios_protection() && !fast_spi_bios_protected()))
 			finalize_result |= APM_FINALIZE_EFI_ERROR;
 	}
 	finalize_done = 1;
