@@ -454,6 +454,8 @@ static void efi_test_ignore_uncommitted_variable(void **state)
 
 static void efi_test_validate_tail_after_match(void **state)
 {
+	EFI_FIRMWARE_VOLUME_HEADER *fv_header;
+	VARIABLE_STORE_HEADER *store_header;
 	AUTHENTICATED_VARIABLE_HEADER *header;
 	uint8_t value[16];
 	uint32_t size = sizeof(value);
@@ -466,10 +468,22 @@ static void efi_test_validate_tail_after_match(void **state)
 	header = (AUTHENTICATED_VARIABLE_HEADER *)(flash_buffer + variable_offset);
 	variable_size = ALIGN_UP(sizeof(*header) + header->NameSize + header->DataSize,
 		HEADER_ALIGNMENT);
-	flash_buffer[variable_offset + variable_size] = 0;
+	fv_header = (void *)flash_buffer;
+	store_header = (void *)(flash_buffer + fv_header->HeaderLength);
+	const size_t tail = variable_offset + variable_size;
+	const size_t end = fv_header->HeaderLength + store_header->Size;
+	const size_t corrupt_offsets[] = { tail, tail + 63, tail + 64, tail + 65, end - 1 };
+	assert_true(tail + 65 < end);
 
-	ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid, name, value, &size);
-	assert_int_equal(ret, CB_EFI_VS_CORRUPTED_INVALID);
+	/* Check both sides of a scan chunk boundary and the final store byte. */
+	for (size_t i = 0; i < ARRAY_SIZE(corrupt_offsets); i++) {
+		flash_buffer[corrupt_offsets[i]] = 0;
+		size = sizeof(value);
+		ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+					name, value, &size);
+		assert_int_equal(ret, CB_EFI_VS_CORRUPTED_INVALID);
+		flash_buffer[corrupt_offsets[i]] = 0xff;
+	}
 }
 
 static void efi_test_batch_reads_validate_store_once(void **state)
@@ -709,6 +723,7 @@ static void efi_test_reject_empty_variable_region(void **state)
 
 static void efi_test_accept_short_erased_tail(void **state)
 {
+	const size_t tail_sizes[] = { 1, 63, 64, 65 };
 	EFI_FIRMWARE_VOLUME_HEADER *fv_header;
 	VARIABLE_STORE_HEADER *store_header;
 	AUTHENTICATED_VARIABLE_HEADER *variable_header;
@@ -723,11 +738,17 @@ static void efi_test_accept_short_erased_tail(void **state)
 	variable_header = (AUTHENTICATED_VARIABLE_HEADER *)(store_header + 1);
 	variable_size = ALIGN_UP(sizeof(*variable_header) + variable_header->NameSize +
 		variable_header->DataSize, HEADER_ALIGNMENT);
-	store_header->Size = sizeof(*store_header) + variable_size + 1;
-
-	ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid, name, value, &size);
-	assert_int_equal(ret, CB_SUCCESS);
-	assert_string_equal((const char *)value, "is great");
+	for (size_t i = 0; i < ARRAY_SIZE(tail_sizes); i++) {
+		mock_rdev(true);
+		store_header->Size = sizeof(*store_header) + variable_size + tail_sizes[i];
+		/* Data outside the declared store must not affect its erased tail. */
+		flash_buffer[fv_header->HeaderLength + store_header->Size] = 0;
+		size = sizeof(value);
+		ret = efi_fv_get_option(&flash_rdev_rw, &EficorebootNvDataGuid,
+					name, value, &size);
+		assert_int_equal(ret, CB_SUCCESS);
+		assert_string_equal((const char *)value, "is great");
+	}
 }
 
 static void efi_test_propagate_name_read_error(void **state)
