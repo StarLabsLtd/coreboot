@@ -35,12 +35,13 @@ static bool registration_open;
 static uintptr_t sealed_spi_bar;
 static struct region_device variable_store_device;
 static struct efi_private_store variable_store;
-static uint8_t variable_store_buffer[CONFIG_SMMSTORE_BLOCK_SIZE];
-static uint8_t capsule_readback[CONFIG_SMMSTORE_BLOCK_SIZE];
+static uint8_t variable_store_buffer[MAX_UNSAFE(CONFIG_SMMSTORE_BLOCK_SIZE,
+					      EFI_CAPSULE_BLOCK_SIZE)];
+static uint8_t capsule_readback[EFI_CAPSULE_BLOCK_SIZE];
 
 static uint32_t capsule_read(uint32_t offset, uint32_t size)
 {
-	if (!size || size > sizeof(variable_store_buffer) || offset >= CONFIG_ROM_SIZE ||
+	if (!size || size > EFI_CAPSULE_BLOCK_SIZE || offset >= CONFIG_ROM_SIZE ||
 	    size > CONFIG_ROM_SIZE - offset)
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 #if CONFIG(SMMSTORE_SRK_PIN)
@@ -80,28 +81,28 @@ static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range 
 
 	if (!fast_spi_wpd_status())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
-	_Static_assert(FMAP_SECTION_SMMSTORE_START % CONFIG_SMMSTORE_BLOCK_SIZE == 0 &&
-		       FMAP_SECTION_SMMSTORE_SIZE % CONFIG_SMMSTORE_BLOCK_SIZE == 0,
+	_Static_assert(FMAP_SECTION_SMMSTORE_START % EFI_CAPSULE_BLOCK_SIZE == 0 &&
+		       FMAP_SECTION_SMMSTORE_SIZE % EFI_CAPSULE_BLOCK_SIZE == 0,
 		       "Authenticated variable store must occupy whole capsule erase blocks");
 	/* Neither a signed BIOS fallback nor a public command may replace live keys/FTW. */
 	if (offset >= FMAP_SECTION_SMMSTORE_START &&
 	    offset < FMAP_SECTION_SMMSTORE_START + FMAP_SECTION_SMMSTORE_SIZE)
 		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
 #if CONFIG(SMMSTORE_SRK_PIN)
-	const size_t fmap_start = ALIGN_DOWN(FMAP_SECTION_FMAP_START, CONFIG_SMMSTORE_BLOCK_SIZE);
+	const size_t fmap_start = ALIGN_DOWN(FMAP_SECTION_FMAP_START, EFI_CAPSULE_BLOCK_SIZE);
 	const size_t fmap_end = ALIGN_UP(FMAP_SECTION_FMAP_START + FMAP_SECTION_FMAP_SIZE,
-				       CONFIG_SMMSTORE_BLOCK_SIZE);
+				       EFI_CAPSULE_BLOCK_SIZE);
 	/* The enrolled pin is platform state, never capsule-owned image data. */
 	if (offset < FMAP_SECTION_SRK_PIN_V1_START + FMAP_SECTION_SRK_PIN_V1_SIZE &&
-	    FMAP_SECTION_SRK_PIN_V1_START < (uint64_t)offset + CONFIG_SMMSTORE_BLOCK_SIZE)
+	    FMAP_SECTION_SRK_PIN_V1_START < (uint64_t)offset + EFI_CAPSULE_BLOCK_SIZE)
 		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
-	if (offset < fmap_end && fmap_start < (uint64_t)offset + CONFIG_SMMSTORE_BLOCK_SIZE)
+	if (offset < fmap_end && fmap_start < (uint64_t)offset + EFI_CAPSULE_BLOCK_SIZE)
 		allow_erase = false;
 #endif
 	/* Preflight immutable blocks before the first destructive operation. */
 	if (check_only && allow_erase)
 		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
-	return efi_capsule_program_block(boot_device_rw(), offset, CONFIG_SMMSTORE_BLOCK_SIZE,
+	return efi_capsule_program_block(boot_device_rw(), offset, EFI_CAPSULE_BLOCK_SIZE,
 					ranges, count, image, capsule_readback, allow_erase) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
@@ -118,7 +119,7 @@ static int prepare_capsule_store(void)
 		return -1;
 	info = (void *)(uintptr_t)service->capsule_info;
 	if (info->revision != 1 || info->size != sizeof(*info) ||
-	    info->flash_size != CONFIG_ROM_SIZE || info->block_size != CONFIG_SMMSTORE_BLOCK_SIZE)
+	    info->flash_size != CONFIG_ROM_SIZE || info->block_size != EFI_CAPSULE_BLOCK_SIZE)
 		return -1;
 	/* MM retains copied HOBs: resumed bindings must remain identical. */
 	if (smm_efi_variable_service_is_s3_resume() &&
@@ -126,13 +127,13 @@ static int prepare_capsule_store(void)
 	     info->resolve != (uintptr_t)capsule_resolve ||
 	     info->program != (uintptr_t)capsule_program ||
 	     info->buffer != (uintptr_t)variable_store_buffer ||
-	     info->buffer_size != sizeof(variable_store_buffer)))
+	     info->buffer_size != EFI_CAPSULE_BLOCK_SIZE))
 		return -1;
 	info->read = (uintptr_t)capsule_read;
 	info->resolve = (uintptr_t)capsule_resolve;
 	info->program = (uintptr_t)capsule_program;
 	info->buffer = (uintptr_t)variable_store_buffer;
-	info->buffer_size = sizeof(variable_store_buffer);
+	info->buffer_size = EFI_CAPSULE_BLOCK_SIZE;
 	return 0;
 }
 
@@ -197,7 +198,7 @@ static int prepare_private_store(void)
 
 	if (efi_private_store_init(&variable_store, &variable_store_device,
 				   service->store_block_size, (uintptr_t)variable_store_buffer,
-				   sizeof(variable_store_buffer)))
+				   service->store_block_size))
 		return -1;
 
 	/* MM retains copied HOBs: resumed bindings must remain identical. */
@@ -207,14 +208,14 @@ static int prepare_private_store(void)
 	     info->store_erase != (uintptr_t)private_erase ||
 	     info->store_validate != (uintptr_t)private_validate ||
 	     info->store_buffer != (uintptr_t)variable_store_buffer ||
-	     info->store_buffer_size != sizeof(variable_store_buffer)))
+	     info->store_buffer_size != service->store_block_size))
 		return -1;
 	info->store_read = (uintptr_t)private_read;
 	info->store_write = (uintptr_t)private_write;
 	info->store_erase = (uintptr_t)private_erase;
 	info->store_validate = (uintptr_t)private_validate;
 	info->store_buffer = (uintptr_t)variable_store_buffer;
-	info->store_buffer_size = sizeof(variable_store_buffer);
+	info->store_buffer_size = service->store_block_size;
 	return 0;
 }
 
@@ -442,7 +443,7 @@ static int variable_service_probe(void)
 		    message->message_length != sizeof(*geometry) ||
 		    geometry->revision != 1 || geometry->command != 1 || geometry->transaction ||
 		    geometry->flash_size != CONFIG_ROM_SIZE ||
-		    geometry->block_size != CONFIG_SMMSTORE_BLOCK_SIZE ||
+		    geometry->block_size != EFI_CAPSULE_BLOCK_SIZE ||
 		    geometry->lowest_supported_version < info->lowest_supported_version)
 			return -1;
 	}

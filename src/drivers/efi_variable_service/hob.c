@@ -307,7 +307,7 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 		efi_fw_versions(&version, &lowest);
 		*capsule = (struct capsule_info_hob) {
 			.revision = 1, .size = sizeof(*capsule), .flash_size = CONFIG_ROM_SIZE,
-			.block_size = CONFIG_SMMSTORE_BLOCK_SIZE,
+			.block_size = EFI_CAPSULE_BLOCK_SIZE,
 			.lowest_supported_version = lowest,
 		};
 		if (parse_uuid(capsule->image_guid, CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
