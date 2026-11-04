@@ -162,7 +162,7 @@ static struct opal_s3_secret *opal_s3_alloc_secret(struct opal_s3_state *st)
 	return NULL;
 }
 
-static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
+static u32 opal_s3_set_secret_snapshot(const struct opal_s3_smm_ctx *ctx)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
 	struct opal_s3_secret *s;
@@ -171,12 +171,6 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	uintptr_t aligned_base = 0;
 	size_t aligned_size = 0;
 	pci_devfn_t nvme_dev;
-
-	if (!ctx)
-		return 1;
-
-	if (smm_points_to_smram(ctx, sizeof(*ctx)))
-		return 2;
 
 	if (ctx->signature != OPAL_S3_SMM_CTX_SIGNATURE)
 		return 3;
@@ -232,6 +226,24 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	s->nvme_bar0_high = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4);
 
 	return 0;
+}
+
+static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
+{
+	struct opal_s3_smm_ctx snapshot;
+	u32 ret;
+
+	if (!ctx)
+		return 1;
+
+	if (smm_points_to_smram(ctx, sizeof(*ctx)))
+		return 2;
+
+	/* The caller's buffer can change while SMM is handling the request. */
+	memcpy(&snapshot, ctx, sizeof(snapshot));
+	ret = opal_s3_set_secret_snapshot(&snapshot);
+	opal_explicit_bzero(&snapshot, sizeof(snapshot));
+	return ret;
 }
 
 static void opal_s3_arm_for_s3(void)
