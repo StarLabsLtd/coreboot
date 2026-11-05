@@ -44,3 +44,16 @@ opal-s3-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_SMM_OPAL_S3_SCRATCH_CB
 	CONFIG_SMM_OPAL_S3_STATE_SMRAM=1 CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE=0x1000 \
 	CONFIG_ECAM_MMCONF_SUPPORT=1 CONFIG_ECAM_MMCONF_BASE_ADDRESS=0xe0000000 \
 	CONFIG_ECAM_MMCONF_BUS_NUMBER=1 CONFIG_ECAM_MMCONF_LENGTH=0x100000
+
+tests-y += efi-variable-service-init-test
+efi-variable-service-init-test-srcs += tests/drivers/efi-variable-service-init.c \
+	src/drivers/efi/efivars.c src/drivers/efi_variable_service/private_store.c \
+	src/commonlib/region.c tests/stubs/console.c
+efi-variable-service-init-test-stage := smm
+efi-variable-service-init-test-config += CONFIG_ASS=1 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000 \
+	CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=0 CONFIG_ROM_SIZE=0x80000
+efi-variable-service-init-test-cflags += -I tests/drivers/efi-variable-service-include \
+	-I src/soc/intel/common/block/include -I src/soc/intel/alderlake/include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32 \
+	-I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include

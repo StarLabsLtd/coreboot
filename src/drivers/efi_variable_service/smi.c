@@ -465,6 +465,12 @@ static int service_ready(void)
 		return -1;
 
 	if (!smm_efi_variable_service_is_s3_resume()) {
+		const enum cb_err ret = efi_fv_initialize(&variable_store_device,
+							service->store_block_size);
+
+		/* Ineligible stores must remain available for MM/FTW recovery. */
+		if (ret != CB_SUCCESS && ret != CB_EFI_FVH_INVALID)
+			return -1;
 		service->dispatch_entry = 0;
 		service->manage_entry = 0;
 		if (initialize_service())
