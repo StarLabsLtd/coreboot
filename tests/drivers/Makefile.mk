@@ -57,3 +57,9 @@ efi-variable-service-init-test-cflags += -I tests/drivers/efi-variable-service-i
 	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
 	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32 \
 	-I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include
+
+tests-y += efi-variable-service-resume-test
+efi-variable-service-resume-test-srcs += tests/drivers/efi-variable-service-resume.c \
+	tests/stubs/console.c
+efi-variable-service-resume-test-stage := ramstage
+efi-variable-service-resume-test-config += CONFIG_ASS=1 CONFIG_HAVE_ACPI_RESUME=1
