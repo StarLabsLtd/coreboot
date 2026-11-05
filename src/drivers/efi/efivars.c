@@ -763,7 +763,7 @@ enum cb_err efi_fv_print_options(const struct region_device *rdev)
  * - writes up to *size bytes into a buffer pointed to by *dest
  * - on success, updates *size to the actual number of bytes written
  * - rdev is the spi flash region to operate on
- * - the FVH and variable store header must have been initialized by a third party
+ * - the FVH and variable store header must already be initialized
  */
 enum cb_err efi_fv_get_option(const struct region_device *rdev,
 			      const EFI_GUID *guid,
@@ -935,7 +935,7 @@ static enum cb_err write_hdr(struct region_device *rdev, const EFI_GUID *guid,
  * efi_fv_set_option
  * - writes size bytes read from the buffer pointed to by *data
  * - rdev is the spi flash region to operate on
- * - the FVH and variable store header must have been initialized by a third party
+ * - the FVH and variable store header must already be initialized
  */
 enum cb_err efi_fv_set_option(const struct region_device *rdev,
 			      const EFI_GUID *guid,
