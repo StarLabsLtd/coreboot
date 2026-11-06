@@ -57,9 +57,18 @@ static ssize_t flash_write(const struct region_device *rdev, const void *buf, si
 	return size;
 }
 
+static ssize_t flash_erase(const struct region_device *rdev, size_t offset, size_t size)
+{
+	if (write_error)
+		return -1;
+	memset(flash + offset, 0xff, size);
+	return size;
+}
+
 static const struct region_device_ops flash_ops = {
 	.readat = flash_read,
 	.writeat = flash_write,
+	.eraseat = flash_erase,
 };
 
 int boot_device_rw_subregion(const struct region *region, struct region_device *out)
@@ -241,6 +250,39 @@ static void resume_does_not_initialize(void **unused)
 	assert_int_equal(starts, 0);
 }
 
+#if CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000
+static void legacy_store_migrates(void **unused)
+{
+	bool authenticated;
+
+	assert_int_equal(efi_fv_initialize(&flash_device, 0x10000), CB_SUCCESS);
+	state.store_block_size = 0x10000;
+	assert_int_equal(efi_variable_service_finalize(), EFI_VARIABLE_SERVICE_REBOOT_REQUIRED);
+	assert_int_equal(starts, 1);
+	assert_int_equal(validation_at_start, EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	assert_int_equal(current_state, SERVICE_FAILED);
+	assert_int_equal(efi_fv_validate_store(&flash_device, 0x1000, &authenticated), CB_SUCCESS);
+	assert_true(authenticated);
+	/* A fresh stage uses the new HOB geometry; no second conversion. */
+	current_state = SERVICE_NOT_INITIALIZED;
+	state.store_block_size = 0x1000;
+	state.dispatch_entry = state.manage_entry = 0;
+	assert_int_equal(efi_variable_service_finalize(), 0);
+	assert_int_equal(starts, 2);
+}
+
+static void legacy_geometry_on_s3_is_refused(void **unused)
+{
+	assert_int_equal(efi_fv_initialize(&flash_device, 0x10000), CB_SUCCESS);
+	state.store_block_size = 0x10000;
+	resume = true;
+	writes = 0;
+	assert_int_equal(efi_variable_service_finalize(), -1);
+	assert_int_equal(starts, 0);
+	assert_int_equal(writes, 0);
+}
+#endif
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -251,6 +293,10 @@ int main(void)
 		cmocka_unit_test_setup(invalid_primary_reaches_mm, setup),
 		cmocka_unit_test_setup(initialization_io_failure, setup),
 		cmocka_unit_test_setup(resume_does_not_initialize, setup),
+#if CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000
+		cmocka_unit_test_setup(legacy_store_migrates, setup),
+		cmocka_unit_test_setup(legacy_geometry_on_s3_is_refused, setup),
+#endif
 	};
 	return cb_run_group_tests(tests, NULL, NULL);
 }
