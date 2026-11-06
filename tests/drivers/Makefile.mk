@@ -80,3 +80,11 @@ efi-store-migration-reboot-test-srcs += tests/drivers/efi-store-migration-reboot
 efi-store-migration-reboot-test-stage := ramstage
 efi-store-migration-reboot-test-config += CONFIG_ASS=1 CONFIG_HAVE_SMI_HANDLER=1 \
 	CONFIG_SOC_INTEL_COMMON_BLOCK_SMM=1 CONFIG_SECURITY_FAIL_CLOSED=0
+
+tests-y += fsp-framebuffer-test
+fsp-framebuffer-test-stage := ramstage
+fsp-framebuffer-test-srcs += tests/drivers/fsp-framebuffer-test.c
+fsp-framebuffer-test-srcs += src/drivers/intel/fsp2_0/graphics.c
+fsp-framebuffer-test-srcs += tests/stubs/console.c
+fsp-framebuffer-test-cflags += -I tests/include/tests/drivers/fsp-framebuffer
+fsp-framebuffer-test-cflags += -I src/drivers/intel/fsp2_0/include
