@@ -160,6 +160,8 @@ coreboot_table-test-srcs += src/lib/imd_cbmem.c
 coreboot_table-test-srcs += src/lib/imd.c
 coreboot_table-test-cflags += -I tests/include/tests/lib/fmap
 coreboot_table-test-mocks += cbmem_top_chipset
+coreboot_table-test-config += CONFIG_BMP_LOGO=1 CONFIG_BOOT_SPLASH_HANDOFF=1 \
+	CONFIG_USE_COREBOOT_FOR_BMP_RENDERING=0
 
 rtc-test-srcs += tests/lib/rtc-test.c
 rtc-test-srcs += src/lib/rtc.c
@@ -280,3 +282,14 @@ ux_locales-test-mocks += _cbfs_alloc \
 			vb2api_get_locale_id \
 			vboot_get_context
 ux_locales-test-config += CONFIG_VBOOT=1
+
+# Retained splash owner and physical framebuffer are exercised without firmware.
+tests-y += bootsplash-retained-test
+bootsplash-retained-test-stage := ramstage
+bootsplash-retained-test-srcs += tests/lib/bootsplash-retained-test.c
+bootsplash-retained-test-srcs += src/lib/imd.c
+bootsplash-retained-test-srcs += tests/stubs/console.c
+bootsplash-retained-test-srcs += tests/stubs/die.c
+bootsplash-retained-test-config += CONFIG_BMP_LOGO=1
+bootsplash-retained-test-config += CONFIG_BOOT_SPLASH_HANDOFF=1
+bootsplash-retained-test-config += CONFIG_SPLASH_SCREEN_FOOTER=1

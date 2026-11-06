@@ -122,3 +122,10 @@ ramstage-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += gnvs.c
 ramstage-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
 smm-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
 smm-$(CONFIG_STARLABS_SMM_OPTION_HANDLER) += smihandler.c
+
+ifeq ($(CONFIG_PAYLOAD_EDK2),y)
+$(obj)/starlabs-logo.bmp: $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)) \
+		$(obj)/config.h $(src)/mainboard/starlabs/common/Makefile.mk
+	@printf "    CONVERT    %s\n" "$@"
+	convert -background None "$<" -type TrueColor "BMP3:$@"
+endif
