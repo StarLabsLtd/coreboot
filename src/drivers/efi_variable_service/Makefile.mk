@@ -5,7 +5,7 @@ ifeq ($(CONFIG_ASS),y)
 cbfs-files-y += efi_variable_service_fv
 efi_variable_service_fv-file := $(obj)/FIXEDMMFV.Fv
 efi_variable_service_fv-type := raw
-efi_variable_service_fv-compression := lz4
+efi_variable_service_fv-compression := $(if $(filter y,$(CONFIG_VBOOT)),lzma,lz4)
 
 $(obj)/FIXEDMMFV.Fv: $(obj)/UEFIPAYLOAD.fd
 	@if ! test -f $@; then \
