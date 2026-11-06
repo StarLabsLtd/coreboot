@@ -19,3 +19,7 @@ config ASS
 	  executable code or choose the service address.
 	  The selected EDK2 repository must provide the fixed Standalone MM
 	  service description.
+
+# Keep the decompressed FV out of the S3-cached ramstage image.
+config HEAP_SIZE
+	default SMM_ASS_SIZE if ASS
