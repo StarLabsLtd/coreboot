@@ -43,10 +43,36 @@ platforms reserve 16 MiB when enabled. GLK/GLKR retain their FSP's 8 MiB TSEG
 and remain outside the build-qualified board opt-ins.
 
 Capsule verification and programming retain fixed 64 KiB blocks, independently
-of the configured SMMSTORE logical block size. Existing board defaults remain
-unchanged: Lite GLK/GLKR use 4 KiB; the other Star Labs boards use 64 KiB.
-The service continues to use the configured variable-store geometry; it does
-not detect, migrate or change the layout of an existing store.
+of the SMMSTORE logical block size. ASS defaults to 4 KiB logical blocks;
+non-ASS defaults are unchanged.
+
+### Existing 64 KiB stores
+
+On the first cold boot, coreboot detects the existing primary or FTW spare
+geometry and starts the fixed MM engine with that geometry. Only after the
+engine has recovered FTW and reports ready does native SMM convert the store.
+It preserves the old variable bytes, including authentication metadata, and
+expands the variable area into the former 64 KiB workspace. For a 512 KiB
+store, the resulting layout is 252 KiB variables, 4 KiB FTW workspace and
+256 KiB spare. The spare starts at the same offset in both layouts.
+
+The conversion stages and verifies the new primary image in that spare before
+committing a small CRC-protected migration record in its last 4 KiB block.
+Primary programming begins only after the record is read back. A later cold
+boot resumes a committed conversion before starting a variable engine. The
+spare image and record remain until primary readback and validation succeed;
+cleanup also handles interruption of its final erase. A completed conversion
+requests a reboot after SMM has restored write protection, so an engine never
+continues serving requests under changed geometry. S3 never initiates migration.
+No separate flash region, per-variable migration write or version floor is used.
+
+Downgrading to the tested legacy 64 KiB releases is allowed to reset the store:
+the expanded variable-area size makes their initializer reject and reformat it.
+Settings and enrolled keys are lost on that downgrade. A 4 KiB map with the old
+variable-area size is deliberately not produced: some legacy engines accept
+that combination but translate subsequent writes incorrectly. This does not
+promise downgrade compatibility with experimental 64 KiB ASS builds or arbitrary
+third-party firmware.
 
 The loader checks the actual reservation and handler fit. Configuration and
 linked-size checks do not measure peak heap or stack use. AMD and QEMU are not

@@ -191,7 +191,9 @@ static int prepare_private_store(void)
 	if (info->buffer != buffer_base || info->buffer_size != buffer_size)
 		return -1;
 	if (info->revision != EFI_VARIABLE_SERVICE_INFO_REVISION || info->size != sizeof(*info) ||
-	    service->store_block_size != CONFIG_SMMSTORE_BLOCK_SIZE ||
+	    (service->store_block_size != CONFIG_SMMSTORE_BLOCK_SIZE &&
+	     !(CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000 &&
+	       !smm_efi_variable_service_is_s3_resume() && service->store_block_size == 0x10000)) ||
 	    region_create_untrusted(&region, service->store_offset, service->store_size) ||
 	    boot_device_rw_subregion(&region, &variable_store_device))
 		return -1;
@@ -465,6 +467,16 @@ static int service_ready(void)
 		return -1;
 
 	if (!smm_efi_variable_service_is_s3_resume()) {
+		if (CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000) {
+			int migrated = efi_fv_migration_recover(&variable_store_device,
+					variable_store_buffer, sizeof(variable_store_buffer));
+
+			if (migrated) {
+				if (migrated > 0)
+					printk(BIOS_INFO, "EFI variable store migration recovered\n");
+				return migrated < 0 ? -1 : EFI_VARIABLE_SERVICE_REBOOT_REQUIRED;
+			}
+		}
 		const enum cb_err ret = efi_fv_initialize(&variable_store_device,
 							service->store_block_size);
 
@@ -488,7 +500,17 @@ static int service_ready(void)
 
 int efi_variable_service_finalize(void)
 {
-	return service_ready();
+	int ret = service_ready();
+
+	if (ret || CONFIG_SMMSTORE_BLOCK_SIZE != 0x1000 ||
+	    smm_efi_variable_service_is_s3_resume() || service->store_block_size != 0x10000)
+		return ret;
+	/* FTW and the variable driver have now recovered and validated the old store. */
+	current_state = SERVICE_FAILED;
+	printk(BIOS_INFO, "Converting EFI variable store from 64 KiB to 4 KiB\n");
+	ret = efi_fv_migrate_4k(&variable_store_device, variable_store_buffer,
+			       sizeof(variable_store_buffer));
+	return ret == 1 ? EFI_VARIABLE_SERVICE_REBOOT_REQUIRED : -1;
 }
 
 uint32_t efi_variable_service_communicate(void)
