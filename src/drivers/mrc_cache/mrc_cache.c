@@ -256,8 +256,11 @@ static tpm_result_t mrc_measure_cache(int type, struct region_device *cache_regi
 	snprintf(rname, sizeof(rname), "MRC: %s cache",
 		 (type == MRC_VARIABLE_DATA) ? "variable" : "training");
 	rc = tpm_measure_region(cache_region, CONFIG_PCR_RUNTIME_DATA, rname);
-	if (rc)
+	if (rc) {
 		printk(BIOS_ERR, "MRC: Couldn't measure %s! rc %#x\n", rname, rc);
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Required MRC cache measurement failed\n");
+	}
 
 	return rc;
 }
