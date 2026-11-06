@@ -148,6 +148,16 @@ static void configure_ddi_a_bifurcation(void)
 	graphics_gtt_write(DDI_BUF_CTL_A, ddi_buf_ctl);
 }
 
+void platform_get_logo_config(struct logo_config *logo)
+{
+	const struct soc_intel_common_config *config = chip_get_common_soc_structure();
+
+	if (!config)
+		return;
+	logo->valignment = config->logo_valignment;
+	logo->logo_bottom_margin = config->logo_bottom_margin;
+}
+
 static void gma_init(struct device *const dev)
 {
 	intel_gma_init_igd_opregion();
