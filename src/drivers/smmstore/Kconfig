@@ -40,6 +40,7 @@ config SMMSTORE_SIZE
 
 config SMMSTORE_BLOCK_SIZE
 	int
+	default 4096 if ASS
 	default 65536
 	help
 	  Sets the logical block size used by the SMMSTORE protocol. This is

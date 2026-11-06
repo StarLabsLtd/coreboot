@@ -5,6 +5,7 @@
 #include <cpu/x86/smm.h>
 #include <smm_call.h>
 #include <stdint.h>
+#include <reset.h>
 
 static void apmc_log(const char *fn, u8 cmd)
 {
@@ -61,6 +62,10 @@ enum cb_err apm_control(u8 cmd)
 
 	/* Now raise the SMI. */
 	u32 ret = apm_control_call_smm(cmd);
+	if (CONFIG(ASS) && cmd == APM_CNT_FINALIZE && ret == APM_FINALIZE_REBOOT_REQUIRED) {
+		printk(BIOS_INFO, "Rebooting after EFI variable store migration\n");
+		board_reset();
+	}
 	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) || CONFIG(ASS)) &&
 	    cmd == APM_CNT_FINALIZE && ret) {
 		printk(BIOS_ERR, "APMC command 0x%02x failed.\n", cmd);
