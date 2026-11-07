@@ -343,6 +343,10 @@ void verstage_main(void)
 			if (CONFIG(SECURITY_FAIL_CLOSED) && tpm_rc != TPM_SUCCESS)
 				die("TPM setup failed before measured recovery\n");
 			vboot_save_data(ctx);
+			/* Capsule repair needs flash writes, not an unlocked rollback floor. */
+			if (CONFIG(SECURITY_FAIL_CLOSED) &&
+			    antirollback_lock_space_firmware() != TPM_SUCCESS)
+				die("Unable to lock firmware rollback floor in recovery\n");
 			tpm_rc = extend_pcrs(ctx);
 			if (tpm_rc && CONFIG(SECURITY_FAIL_CLOSED))
 				die("Unable to measure recovery state\n");

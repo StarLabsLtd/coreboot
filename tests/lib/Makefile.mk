@@ -321,3 +321,19 @@ bootsplash-retained-test-srcs += tests/stubs/die.c
 bootsplash-retained-test-config += CONFIG_BMP_LOGO=1
 bootsplash-retained-test-config += CONFIG_BOOT_SPLASH_HANDOFF=1
 bootsplash-retained-test-config += CONFIG_SPLASH_SCREEN_FOOTER=1
+
+# Exercise strict recovery locking without changing permissive recovery policy.
+tests-y += vboot-recovery-lock-test vboot-recovery-permissive-test
+vboot-recovery-lock-test-srcs += tests/lib/vboot-recovery-lock-test.c tests/stubs/console.c
+vboot-recovery-lock-test-stage := romstage
+vboot-recovery-lock-test-cflags += -I tests/include/tests/lib/fmap
+vboot-recovery-lock-test-config += CONFIG_VBOOT=1 CONFIG_TPM=1 CONFIG_TPM1=0 CONFIG_TPM2=1 \
+	CONFIG_SECURITY_FAIL_CLOSED=1 CONFIG_VBOOT_CBFS_INTEGRATION=1 \
+	CONFIG_VBOOT_HASH_BLOCK_SIZE=0x1000 CONFIG_TPM_GOOGLE=0 \
+	CONFIG_BOOTMEDIA_LOCK_IN_VERSTAGE=0 CONFIG_RESUME_PATH_SAME_AS_BOOT=0 \
+	CONFIG_VBOOT_DISABLE_DEV_ON_RECOVERY=0 CONFIG_VBOOT_WIPEOUT_SUPPORTED=0 \
+	CONFIG_VBOOT_LID_SWITCH=0 CONFIG_VBOOT_MUST_REQUEST_DISPLAY=0 \
+	CONFIG_TPM_SETUP_HIBERNATE_ON_ERR=0 CONFIG_EC_GOOGLE_CHROMEEC=0 \
+	CONFIG_VBOOT_HAS_REC_HASH_SPACE=0 CONFIG_VBOOT_SLOTS_RW_AB=1
+$(call copy-test,vboot-recovery-lock-test,vboot-recovery-permissive-test)
+vboot-recovery-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
