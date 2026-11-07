@@ -291,7 +291,8 @@ EDK2_PAYLOAD_ARGS = \
 
 EDK2_PAYLOAD_ARGS += $(EDK2_RELEASE_POLICY_ARGS)
 
-$(obj)/UEFIPAYLOAD.fd: $(DOTCONFIG) $(IPXE_EFI)
+$(obj)/UEFIPAYLOAD.fd: $(DOTCONFIG) $(IPXE_EFI) payloads/external/Makefile.mk \
+	payloads/external/edk2/Makefile
 	$(MAKE) -C payloads/external/edk2 UefiPayloadPkg \
 		EDK2_UEFIPAYLOAD_OUT="$(abspath $@)" \
 		EDK2_FIXED_MM_OUT="$(abspath $(obj)/FIXEDMMFV.Fv)" \
