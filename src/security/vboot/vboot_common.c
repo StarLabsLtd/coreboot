@@ -12,11 +12,18 @@
 
 static void save_secdata(struct vb2_context *ctx)
 {
-	if (ctx->flags & VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED
-	    && (CONFIG(VBOOT_MOCK_SECDATA) || tlcl_lib_init() == TPM_SUCCESS)) {
-		printk(BIOS_INFO, "Saving secdata firmware\n");
-		antirollback_write_space_firmware(ctx);
-		ctx->flags &= ~VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED;
+	if (ctx->flags & VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED) {
+		tpm_result_t rc = CONFIG(VBOOT_MOCK_SECDATA) ? TPM_SUCCESS : tlcl_lib_init();
+
+		if (rc == TPM_SUCCESS) {
+			printk(BIOS_INFO, "Saving secdata firmware\n");
+			rc = antirollback_write_space_firmware(ctx);
+			if (rc != TPM_SUCCESS && CONFIG(SECURITY_FAIL_CLOSED))
+				die("Failed to save firmware rollback floor\n");
+			ctx->flags &= ~VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED;
+		} else if (CONFIG(SECURITY_FAIL_CLOSED)) {
+			die("TPM initialization failed before firmware floor write\n");
+		}
 	}
 
 	if (ctx->flags & VB2_CONTEXT_SECDATA_KERNEL_CHANGED
