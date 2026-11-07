@@ -88,3 +88,11 @@ fsp-framebuffer-test-srcs += src/drivers/intel/fsp2_0/graphics.c
 fsp-framebuffer-test-srcs += tests/stubs/console.c
 fsp-framebuffer-test-cflags += -I tests/include/tests/drivers/fsp-framebuffer
 fsp-framebuffer-test-cflags += -I src/drivers/intel/fsp2_0/include
+
+tests-y += vbnv-flash-redundant-test
+vbnv-flash-redundant-test-srcs += tests/drivers/vbnv-flash.c src/commonlib/region.c \
+	tests/stubs/console.c 3rdparty/vboot/firmware/2lib/2nvstorage.c \
+	3rdparty/vboot/firmware/2lib/2crc8.c
+vbnv-flash-redundant-test-cflags += -I tests/drivers/vbnv-flash-include \
+	-I 3rdparty/vboot/firmware/2lib/include
+vbnv-flash-redundant-test-config += CONFIG_ROM_SIZE=0x2000

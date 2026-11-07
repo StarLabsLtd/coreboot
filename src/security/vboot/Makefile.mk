@@ -85,17 +85,23 @@ romstage-$(CONFIG_VBOOT_VBNV_CMOS) += vbnv_cmos.c
 ramstage-$(CONFIG_VBOOT_VBNV_CMOS) += vbnv_cmos.c
 postcar-$(CONFIG_VBOOT_VBNV_CMOS) += vbnv_cmos.c
 
-bootblock-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += vbnv_flash.c
-verstage-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += vbnv_flash.c
-romstage-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += vbnv_flash.c
-ramstage-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += vbnv_flash.c
-postcar-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += vbnv_flash.c
+vbnv-flash-src := $(if $(filter y,$(CONFIG_VBOOT_VBNV_FLASH_REDUNDANT)),vbnv_flash_redundant.c,vbnv_flash.c)
 
-bootblock-$(CONFIG_VBOOT_VBNV_FLASH) += vbnv_flash.c
-verstage-$(CONFIG_VBOOT_VBNV_FLASH) += vbnv_flash.c
-romstage-$(CONFIG_VBOOT_VBNV_FLASH) += vbnv_flash.c
-ramstage-$(CONFIG_VBOOT_VBNV_FLASH) += vbnv_flash.c
-postcar-$(CONFIG_VBOOT_VBNV_FLASH) += vbnv_flash.c
+ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
+smm-$(CONFIG_ASS) += $(vbnv-flash-src)
+endif
+
+bootblock-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += $(vbnv-flash-src)
+verstage-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += $(vbnv-flash-src)
+romstage-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += $(vbnv-flash-src)
+ramstage-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += $(vbnv-flash-src)
+postcar-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += $(vbnv-flash-src)
+
+bootblock-$(CONFIG_VBOOT_VBNV_FLASH) += $(vbnv-flash-src)
+verstage-$(CONFIG_VBOOT_VBNV_FLASH) += $(vbnv-flash-src)
+romstage-$(CONFIG_VBOOT_VBNV_FLASH) += $(vbnv-flash-src)
+ramstage-$(CONFIG_VBOOT_VBNV_FLASH) += $(vbnv-flash-src)
+postcar-$(CONFIG_VBOOT_VBNV_FLASH) += $(vbnv-flash-src)
 
 bootblock-y += vboot_loader.c
 romstage-y += vboot_loader.c
