@@ -50,6 +50,14 @@ config VBOOT_CBFS_INTEGRATION
 	  It also requires CBFS_VERIFICATION to be enabled, so that CBFS files
 	  contents are correctly verified.
 
+config VBOOT_VBNV_FLASH_REDUNDANT
+	bool "Keep redundant flash VBNV records"
+	depends on VBOOT_VBNV_FLASH && VBOOT_SLOTS_RW_AB
+	help
+	  Keep committed VBNV records in two erase-aligned banks so interrupted
+	  trial updates and journal rollover retain the previous valid state.
+	  RW_NVRAM must contain at least two 4 KiB erase blocks.
+
 config VBOOT_VBNV_CMOS
 	bool
 	default n
