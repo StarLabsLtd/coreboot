@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <bootmode.h>
 #include <console/console.h>
+#include <security/tpm/tspi.h>
+#include <stdio.h>
 #include <cpu/intel/common/common.h>
 #include <cpu/intel/cpu_ids.h>
 #include <cpu/x86/msr.h>
@@ -530,6 +532,16 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	/* TCSS xDCI requires its xHCI parent. */
 	mupd->FspmConfig.TcssXdciEn &= !!mupd->FspmConfig.TcssXhciEn;
 	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+	if (CONFIG(TPM_MEASURED_BOOT) && CONFIG(SECURITY_FAIL_CLOSED) && !acpi_is_wakeup_s3()) {
+		char event[50];
+
+		/* Include board/debug overrides in the policy passed to FSP-M. */
+		snprintf(event, sizeof(event), "TME:v1:req=%u,cap=%u,fsp=%u",
+			 get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL),
+			 is_tme_supported(), m_cfg->TmeEnable);
+		tpm_measure_policy(event);
+	}
+
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)
