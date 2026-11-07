@@ -337,3 +337,11 @@ vboot-recovery-lock-test-config += CONFIG_VBOOT=1 CONFIG_TPM=1 CONFIG_TPM1=0 CON
 	CONFIG_VBOOT_HAS_REC_HASH_SPACE=0 CONFIG_VBOOT_SLOTS_RW_AB=1
 $(call copy-test,vboot-recovery-lock-test,vboot-recovery-permissive-test)
 vboot-recovery-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
+
+tests-y += vboot-floor-write-test vboot-floor-write-permissive-test
+vboot-floor-write-test-srcs += tests/lib/vboot-floor-write-test.c tests/stubs/console.c
+vboot-floor-write-test-stage := romstage
+vboot-floor-write-test-config += CONFIG_VBOOT=1 CONFIG_SECURITY_FAIL_CLOSED=1 \
+	CONFIG_VBOOT_MOCK_SECDATA=0
+$(call copy-test,vboot-floor-write-test,vboot-floor-write-permissive-test)
+vboot-floor-write-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
