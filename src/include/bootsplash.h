@@ -185,7 +185,7 @@ void bootsplash_render_primary(void);
 void platform_get_logo_config(struct logo_config *config);
 bool bootsplash_get_handoff(struct lb_boot_splash *handoff);
 void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
-	size_t *bmp_size);
+	unsigned int scale, size_t *bmp_size);
 void bmp_retain_logo(void);
 
 void bmp_release_logo(void);
