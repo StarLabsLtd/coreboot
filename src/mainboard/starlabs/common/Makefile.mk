@@ -36,6 +36,12 @@ ifneq ($(words $(filter y,$(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN
 	$(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN))),2)
 $(error Star Labs VBOOT requires post-lockdown VBNV updates)
 endif
+ifneq ($(CONFIG_BOOTMEDIA_SMM_BWP),y)
+$(error Star Labs VBOOT requires SMM BIOS write protection)
+endif
+ifeq ($(CONFIG_BOOTMEDIA_SMM_BWP_RUNTIME_OPTION),y)
+$(error Star Labs VBOOT must not expose the BIOS lock runtime option)
+endif
 ifeq ($(CONFIG_VBOOT_MOCK_SECDATA),y)
 $(error Refusing a Star Labs VBOOT image with mocked anti-rollback state)
 endif
