@@ -162,6 +162,8 @@ CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
 COREBOOT_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
 CAPSULE_LOCALVERSION := $(COREBOOT_LOCALVERSION)
 ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdDefaultSecureBootEnable=TRUE
+BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdTpm2MeasurementRequired=TRUE
 ifneq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(FIRMWARE_GUID)' | tr A-F a-f))
 $(error Star Labs VBOOT capsule GUID must match the configured firmware GUID)
 endif
