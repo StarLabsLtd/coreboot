@@ -161,14 +161,33 @@ FIRMWARE_GUID := $(subst ",,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
 COREBOOT_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
 CAPSULE_LOCALVERSION := $(COREBOOT_LOCALVERSION)
+ifeq ($(CAPSULE_LAYOUT_TRANSITION),1)
+ifneq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+$(error Layout-transition capsules require the Star Labs vboot profile)
+endif
+endif
 ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
 BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdDefaultSecureBootEnable=TRUE
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdTpm2MeasurementRequired=TRUE
+ifeq ($(CAPSULE_LAYOUT_TRANSITION),1)
+ifeq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(FIRMWARE_GUID)' | tr A-F a-f))
+$(error A layout-transition capsule must target the installed non-vboot GUID)
+endif
+else
 ifneq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(FIRMWARE_GUID)' | tr A-F a-f))
 $(error Star Labs VBOOT capsule GUID must match the configured firmware GUID)
 endif
+ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
+ifneq ($(CAPSULE_REGIONS),EC)
+ifneq ($(CAPSULE_REGIONS),FW_MAIN_A RW_FWID_A VBLOCK_A FW_MAIN_B RW_FWID_B VBLOCK_B)
+$(error Star Labs A/B VBOOT capsules must contain EC only or both signed RW slot tuples)
+endif
+endif
+else
 ifneq ($(CAPSULE_REGIONS),EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
 $(error Star Labs VBOOT capsules must update EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
+endif
+endif
 endif
 ifneq ($(CAPSULE_LOCALVERSION),$(COREBOOT_LOCALVERSION))
 $(error Star Labs VBOOT capsule version must match CONFIG_LOCALVERSION)
@@ -537,7 +556,9 @@ coreboot_capsule: $(EDK2_PATH)
 	trap cleanup EXIT; \
 	set -e; \
 	cp "$(COREBOOT_ROM)" "$$firmware_rom"; \
-	if [ "$(CONFIG_VBOOT)" = "y" ]; then \
+	if [ "$(CAPSULE_LAYOUT_TRANSITION)" = "1" ]; then \
+		cp "$$firmware_rom" "$$rmap_rom"; \
+	elif [ "$(CONFIG_VBOOT)" = "y" ]; then \
 		test -n "$(EDK2_APPEND_RMAP_MANIFEST)"; \
 		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
 	elif [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
@@ -587,7 +608,7 @@ coreboot_capsule: $(EDK2_PATH)
 		--guid "$(CAPSULE_GUID)" \
 		--embedded-drivers "$$embedded_driver_count" \
 		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)" \
-		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" --layout-fmap "$(COREBOOT_FMAP_LAYOUT)" --payload "$$payload" $(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)")); \
+		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" --layout-fmap "$(COREBOOT_FMAP_LAYOUT)" --payload "$$payload" $(if $(filter 1,$(CAPSULE_LAYOUT_TRANSITION)),--firmware-guid "$(FIRMWARE_GUID)",$(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)"))); \
 	mv -f "$$capsule_tmp" "$(COREBOOT_CAPSULE_OUT)"; \
 	trap - EXIT; \
 	rm -f "$$rmap_rom" "$$firmware_rom" "$$payload"
