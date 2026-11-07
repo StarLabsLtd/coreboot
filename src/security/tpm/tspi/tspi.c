@@ -242,6 +242,11 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 	if (CONFIG(PAYLOAD_CDK2) && tpm_is_expected_absent())
 		return TPM_SUCCESS;
 
+	/* Resume retains the original PCRs and event log; verification still runs. */
+	if (CONFIG(VBOOT) && vboot_logic_executed() &&
+	    (vboot_get_context()->flags & VB2_CONTEXT_S3_RESUME))
+		return TPM_SUCCESS;
+
 	if (CONFIG(TPM_MEASURED_BOOT)) {
 		rc = tspi_ensure_event_log_initialized();
 		if (rc != TPM_SUCCESS)
