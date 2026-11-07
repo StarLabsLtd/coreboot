@@ -345,3 +345,20 @@ vboot-floor-write-test-config += CONFIG_VBOOT=1 CONFIG_SECURITY_FAIL_CLOSED=1 \
 	CONFIG_VBOOT_MOCK_SECDATA=0
 $(call copy-test,vboot-floor-write-test,vboot-floor-write-permissive-test)
 vboot-floor-write-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
+
+tests-y += vboot-fallback-floor-test
+vboot-fallback-floor-test-srcs += tests/lib/vboot-fallback-floor-test.c \
+	3rdparty/vboot/firmware/2lib/2common.c \
+	3rdparty/vboot/firmware/2lib/2secdata_firmware.c \
+	3rdparty/vboot/firmware/2lib/2crc8.c
+vboot-fallback-floor-test-stage := romstage
+vboot-fallback-floor-test-config += CONFIG_VBOOT_SLOTS_RW_AB=1 \
+	CONFIG_VBOOT_CBFS_INTEGRATION=0
+vboot-fallback-floor-test-cflags += -DCHROMEOS_ENVIRONMENT \
+	-I3rdparty/vboot/firmware/2lib/include \
+	-Itests/include/tests/lib/fmap
+tests-y += vboot-fallback-floor-metadata-test vboot-fallback-floor-single-test
+$(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-metadata-test)
+vboot-fallback-floor-metadata-test-config += CONFIG_VBOOT_CBFS_INTEGRATION=1
+$(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-single-test)
+vboot-fallback-floor-single-test-config += CONFIG_VBOOT_SLOTS_RW_AB=0

@@ -65,10 +65,15 @@ vb2_error_t vb2api_fw_phase2(struct vb2_context *ctx)
 	return VB2_ERROR_UNKNOWN;
 }
 
-vb2_error_t vb2api_fw_phase3(struct vb2_context *ctx)
+vb2_error_t vboot_verify_firmware(struct vb2_context *ctx)
 {
 	fail();
 	return VB2_ERROR_UNKNOWN;
+}
+
+void vboot_update_firmware_floor(struct vb2_context *ctx)
+{
+	fail();
 }
 
 vb2_error_t vb2api_get_metadata_hash(struct vb2_context *ctx, struct vb2_hash **hash)
