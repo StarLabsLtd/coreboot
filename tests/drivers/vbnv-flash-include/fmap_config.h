@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+#define FMAP_SECTION_FLASH_START 0
+#define FMAP_SECTION_FLASH_SIZE 0x2000
+#define FMAP_SECTION_RW_NVRAM_SIZE 0x2000
