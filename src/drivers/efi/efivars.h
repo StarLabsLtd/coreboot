@@ -13,8 +13,25 @@
  *
  * The region is left untouched unless it is erased or contains only a partial
  * programming of the expected headers from an interrupted initialization.
+ * CB_EFI_FVH_INVALID means initialization was declined without modification;
+ * the caller may still attempt recovery of the existing store.
  */
 enum cb_err efi_fv_initialize(const struct region_device *rdev, size_t block_size);
+
+/* Validate an existing store without changing it. */
+enum cb_err efi_fv_validate_store(const struct region_device *rdev, size_t block_size,
+				 bool *auth_format);
+
+/* Select primary/FTW snapshot geometry; malformed stores keep the preferred geometry. */
+enum cb_err efi_fv_store_block_size(const struct region_device *rdev, size_t preferred,
+				    size_t *block_size);
+
+/* Return 1 after conversion/recovery, 0 for no pending conversion, or -1 on failure.
+ * The caller must reboot after success before exposing a variable engine.
+ * migrate_4k requires completed 64 KiB FTW recovery and a private 4 KiB scratch buffer.
+ */
+int efi_fv_migrate_4k(const struct region_device *rdev, void *scratch, size_t scratch_size);
+int efi_fv_migration_recover(const struct region_device *rdev, void *scratch, size_t scratch_size);
 
 /**
  * efi_fv_get_option

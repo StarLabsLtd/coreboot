@@ -64,7 +64,7 @@ config CONSOLE_SERIAL_RUNTIME
 	  debug output is needed. If the option cannot be read, the value of
 	  CONSOLE_SERIAL is used as the fallback.
 
-	  Note: with USE_UEFI_VARIABLE_STORE, get_uint_option() is unavailable
+	  Note: with USE_UEFI_VARIABLE_STORE, get_uint_option_checked() is unavailable
 	  in separate verstage and postcar, so those stages always use the
 	  CONSOLE_SERIAL fallback for serial_console.
 

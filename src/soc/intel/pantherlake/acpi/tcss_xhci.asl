@@ -89,10 +89,12 @@ Method (_S4W, 0, NotSerialized)
 /*
  * Power resource for wake
  */
+#if CONFIG(SOC_INTEL_COMMON_ACPI_TCSS_WAKE)
 Method (_PRW, 0)
 {
 	Return (Package() { 0x65, 4 })
 }
+#endif
 
 /*
  * Device sleep wake

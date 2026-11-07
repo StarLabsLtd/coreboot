@@ -156,11 +156,14 @@ void mainboard_azalia_program_runtime_verbs(u8 *base, u32 viddid)
 	};
 
 	if (viddid == 0x10ec0889) {
-		if (get_uint_option("audio_panel_type", AAFP_HDA) == AAFP_AC97) {
+		if (get_uint_option_checked("audio_panel_type", AAFP_HDA,
+					    OPTION_RANGE(AAFP_HDA, AAFP_AC97)) == AAFP_AC97) {
 			azalia_program_verb_table(base, front_aafp_verbs,
 			ARRAY_SIZE(front_aafp_verbs));
 		}
-		if (get_uint_option("spdif_dest", SPDIF2_SPDIF_OUT) == SPDIF2_HDMI) {
+		if (get_uint_option_checked("spdif_dest", SPDIF2_SPDIF_OUT,
+					    OPTION_RANGE(SPDIF2_SPDIF_OUT, SPDIF2_HDMI)) ==
+		    SPDIF2_HDMI) {
 			azalia_program_verb_table(base, spdif_to_hdmi_verbs,
 			ARRAY_SIZE(spdif_to_hdmi_verbs));
 		}

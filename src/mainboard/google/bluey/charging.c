@@ -78,10 +78,10 @@
 
 /*
  * SDAM15_MEM_061 (SPMI address 0x7E7D) - SetMaxPwrReq_BattSts register
- * Bit 6 - DEAD_BATT_STS
+ * Bit 6 - AVOID_PD_RESET
  */
 #define SDAM15_MEM_061_ADDR	0x7E7D
-#define DEAD_BATT_STS	BIT(6)
+#define AVOID_PD_RESET	BIT(6)
 
 #define SDAM15_CHG_LIMIT_ENABLE_ADDR	0x7E73
 #define SDAM15_TARGET_SOC_ADDR		0x7E75
@@ -100,7 +100,6 @@ enum chg_limit_enable {
 
 #define DELAY_CHARGING_APPLET_MS 2000 /* 2sec */
 #define CHARGING_RAIL_STABILIZATION_DELAY_MS 15000 /* 15sec */
-#define LOW_BATTERY_CHARGING_LOOP_EXIT_MS (3 * 60 * 1000) /* 3min */
 #define DELAY_CHARGING_ACTIVE_LB_MS 4000 /* 4sec */
 #define AC_DISCONNECT_DEBOUNCE_MS 2000 /* 2sec */
 #define ICURR_READ_RETRY_COUNT 5
@@ -117,7 +116,7 @@ uint8_t mask;
 uint8_t value;
 } default_sdam_config[] = {
 	{PMIC_PD_NEGOTIATION_FLAG, SKIP_PORT_RESET, 0},
-	{SDAM15_MEM_061_ADDR, DEAD_BATT_STS, 0},
+	{SDAM15_MEM_061_ADDR, AVOID_PD_RESET, 0},
 	{PMIC0_SDAM16_MEM_030, SDAM16_INIT_MASK, (BOOT_REASON_FRESHBOOT << 4) | OS_TYPE_BOOTLOADER},
 #if CONFIG(DAM_SINK_SENSOR_Z1_OPTIMIZATION)
 	{PMIC_SDAM3_PSI_VARIANT_MAJOR, 0xFF, PMIC_PSI_WORKAROUND_ENABLE},
@@ -362,7 +361,6 @@ void launch_charger_applet(enum boot_mode_t boot_mode)
 	static const long charging_enable_timeout_ms = CHARGING_RAIL_STABILIZATION_DELAY_MS;
 	struct stopwatch sw;
 	bool has_crossed_threshold = false;
-	bool has_entered_dead_battery_mode = false;
 	bool skip_heartbeat = false;
 
 	printk(BIOS_INFO, "Inside %s. Initiating charging\n", __func__);
@@ -405,34 +403,9 @@ void launch_charger_applet(enum boot_mode_t boot_mode)
 	}
 	printk(BIOS_INFO, "Charging ready after %lld ms\n", stopwatch_duration_msecs(&sw));
 
-	static const long low_battery_charging_timeout_ms = LOW_BATTERY_CHARGING_LOOP_EXIT_MS;
-	uint32_t capacity;
-	if (google_chromeec_read_batt_remaining_capacity(&capacity) < 0) {
-		printk(BIOS_WARNING, "Failed to get battery capacity\n");
-		return;
-	}
-	/*
-	 * If the remaining battery is less than
-	 * DEAD_BATT_CHG_THRESHOLD_MAH threshold, enter low-battery
-	 * charging mode and start a timeout timer to come out from dead battery charging
-	 * mode.
-	 */
-	if (capacity <= DEAD_BATT_CHG_THRESHOLD_MAH) {
-		has_entered_dead_battery_mode = true;
-		stopwatch_init_msecs_expire(&sw, low_battery_charging_timeout_ms);
-	}
-
 	do {
 		/* Add static delay before reading the charging applet pre-requisites */
 		mdelay(DELAY_CHARGING_APPLET_MS);
-
-		if (has_entered_dead_battery_mode) {
-			if (stopwatch_expired(&sw)) {
-				printk(BIOS_INFO, "Issuing power-off to come out from"
-						" dead battery charging mode.\n");
-				google_chromeec_ap_poweroff();
-			}
-		}
 
 		/*
 		 * Issue a shutdown if not charging.
@@ -610,7 +583,7 @@ bool platform_get_battery_soc_information(uint32_t *batt_pct)
 	return true;
 }
 
-void configure_dead_battery_boot(void)
+void configure_avoid_pd_reset(void)
 {
-	spmi_rmw8(SDAM15_MEM_061_ADDR, DEAD_BATT_STS, DEAD_BATT_STS);
+	spmi_rmw8(SDAM15_MEM_061_ADDR, AVOID_PD_RESET, AVOID_PD_RESET);
 }

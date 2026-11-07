@@ -285,11 +285,6 @@ bool cse_is_hfs1_com_secover_mei_msg(void)
 	return cse_check_hfs1_com(ME_HFS1_COM_SECOVER_MEI_MSG);
 }
 
-bool cse_is_hfs1_com_soft_temp_disable(void)
-{
-	return cse_check_hfs1_com(ME_HFS1_COM_SOFT_TEMP_DISABLE);
-}
-
 bool cse_is_hfs1_cos_default(void)
 {
 	union me_hfsts1 hfs1;
@@ -302,15 +297,16 @@ bool cse_is_me_operational(void)
 	return cse_is_hfs1_cws_normal() && cse_is_hfs1_com_normal();
 }
 
-#if ENV_RAMSTAGE
 bool cse_is_me_state_requested_enabled(void)
 {
 	const unsigned int me_state_default = CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED);
-	const unsigned int me_state = get_uint_option("me_state", me_state_default);
+	const unsigned int me_state =
+		get_uint_option_checked("me_state", me_state_default, OPTION_BOOL);
 
 	return me_state == 0;
 }
 
+#if ENV_RAMSTAGE
 bool cse_is_me_enabled(void)
 {
 	return cse_is_me_state_requested_enabled() && cse_is_me_operational();
@@ -318,10 +314,19 @@ bool cse_is_me_enabled(void)
 
 bool cse_get_s0ix_enable_state(bool fallback)
 {
-	const bool enable = get_uint_option("s0ix_enable", fallback);
+	if (!CONFIG(SOC_INTEL_COMMON_CSE_S0IX))
+		return false;
+
+	const bool enable = get_uint_option_checked("s0ix_enable", fallback, OPTION_BOOL);
 
 	if (!enable)
 		return false;
+
+	if (get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER))) {
+		printk(BIOS_WARNING, "S0ix disabled: the enabled legacy 8254 timer "
+		       "disables clock gating necessary for S0ix.\n");
+		return false;
+	}
 
 	if (cse_is_me_enabled())
 		return true;
@@ -726,11 +731,6 @@ bool is_cse_devfn_visible(unsigned int devfn)
 bool is_cse_enabled(void)
 {
 	return is_cse_devfn_visible(PCH_DEVFN_CSE);
-}
-
-uint32_t me_read_config32(int offset)
-{
-	return pci_read_config32(PCH_DEV_CSE, offset);
 }
 
 static bool cse_is_global_reset_allowed(void)
@@ -1324,7 +1324,8 @@ void cse_enable_ptt(bool state)
 
 static void me_reset_with_count(void)
 {
-	unsigned int cmos_me_state_counter = get_uint_option("me_state_counter", UINT_MAX);
+	unsigned int cmos_me_state_counter =
+		get_uint_option_checked("me_state_counter", UINT_MAX, OPTION_RANGE(0, UINT_MAX));
 
 	if (cmos_me_state_counter != UINT_MAX) {
 		printk(BIOS_DEBUG, "CMOS: me_state_counter = %u\n", cmos_me_state_counter);
@@ -1351,7 +1352,7 @@ static void me_reset_with_count(void)
 
 static void cse_set_state(struct device *dev)
 {
-	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD))
+	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD) || CONFIG(OPTION_BACKEND_NONE))
 		return;
 
 	/* (CS)ME Disable Command */
@@ -1375,9 +1376,9 @@ static void cse_set_state(struct device *dev)
 		uint32_t rule_id;
 	} __packed;
 
-	struct me_disable_reply disable_reply;
+	struct me_disable_reply disable_reply = { 0 };
 
-	size_t disable_reply_size;
+	size_t disable_reply_size = sizeof(disable_reply);
 
 	/* (CS)ME Enable Command */
 	struct me_enable_command {
@@ -1393,9 +1394,9 @@ static void cse_set_state(struct device *dev)
 		struct mkhi_hdr hdr;
 	} __packed;
 
-	struct me_enable_reply enable_reply;
+	struct me_enable_reply enable_reply = { 0 };
 
-	size_t enable_reply_size;
+	size_t enable_reply_size = sizeof(enable_reply);
 
 	/* Function Start */
 
@@ -1412,7 +1413,8 @@ static void cse_set_state(struct device *dev)
 	 * Check if the CMOS value "me_state" exists, if it doesn't, then
 	 * don't do anything.
 	 */
-	const unsigned int cmos_me_state = get_uint_option("me_state", UINT_MAX);
+	const unsigned int cmos_me_state =
+		get_uint_option_checked("me_state", UINT_MAX, OPTION_BOOL);
 
 	if (cmos_me_state == UINT_MAX)
 		return;
@@ -1430,17 +1432,31 @@ static void cse_set_state(struct device *dev)
 		printk(BIOS_DEBUG, "ME needs to be disabled.\n");
 		send = heci_send_receive(&me_disable, sizeof(me_disable),
 			&disable_reply, &disable_reply_size, HECI_MKHI_ADDR);
-		result = disable_reply.hdr.result;
+		if (!send && (disable_reply_size != sizeof(disable_reply) ||
+		    disable_reply.hdr.group_id != MKHI_GROUP_ID_FWCAPS ||
+		    disable_reply.hdr.command != MKHI_SET_ME_DISABLE ||
+		    !disable_reply.hdr.is_resp || disable_reply.rule_id != ME_DISABLE_RULE_ID)) {
+			printk(BIOS_ERR, "HECI: Invalid ME disable reply\n");
+			send = CSE_RX_ERR_INPUT;
+		}
+		result = send ? -1 : disable_reply.hdr.result;
 	} else if (!cmos_me_state && soft_temp_disable) {
 		/* me_state should be enabled, but it's disabled */
 		printk(BIOS_DEBUG, "ME needs to be enabled.\n");
 		send = heci_send_receive(&me_enable, sizeof(me_enable),
 			&enable_reply, &enable_reply_size, HECI_MKHI_ADDR);
-		result = enable_reply.hdr.result;
+		if (!send && (enable_reply_size != sizeof(enable_reply) ||
+		    enable_reply.hdr.group_id != MKHI_GROUP_ID_BUP_COMMON ||
+		    enable_reply.hdr.command != MKHI_SET_ME_ENABLE ||
+		    !enable_reply.hdr.is_resp)) {
+			printk(BIOS_ERR, "HECI: Invalid ME enable reply\n");
+			send = CSE_RX_ERR_INPUT;
+		}
+		result = send ? -1 : enable_reply.hdr.result;
 	} else {
 		printk(BIOS_DEBUG, "ME is %s.\n", cmos_me_state ? "disabled" : "enabled");
-		unsigned int cmos_me_state_counter = get_uint_option("me_state_counter",
-								 UINT_MAX);
+		unsigned int cmos_me_state_counter = get_uint_option_checked(
+			"me_state_counter", UINT_MAX, OPTION_RANGE(0, UINT_MAX));
 		/* set me_state_counter to 0 */
 		if ((cmos_me_state_counter != UINT_MAX && cmos_me_state_counter != 0))
 			set_uint_option("me_state_counter", 0);
@@ -1449,7 +1465,8 @@ static void cse_set_state(struct device *dev)
 
 	printk(BIOS_DEBUG, "HECI: ME state change send %s!\n",
 							!send ? "success" : "failure");
-	printk(BIOS_DEBUG, "HECI: ME state change result %s!\n",
+	if (!send)
+		printk(BIOS_DEBUG, "HECI: ME state change result %s!\n",
 							!result ? "success" : "failure");
 
 	/*
@@ -1512,7 +1529,7 @@ void cse_late_finalize(void)
 
 static void intel_cse_get_rw_version(void)
 {
-	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD))
+	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD) || CONFIG(OPTION_BACKEND_NONE))
 		return;
 
 	struct cse_specific_info *info = cbmem_find(CBMEM_ID_CSE_INFO);

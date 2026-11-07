@@ -3,6 +3,8 @@
 #ifndef __RENDER_BMP_H__
 #define __RENDER_BMP_H__
 
+#define BMP_LOGO_MAX_SIZE (1 * MiB)
+
 #ifndef OFFSET_OF
 #if (defined (__GNUC__) && __GNUC__ >= 4) || defined (__clang__)
 #define OFFSET_OF(TYPE, Field)  ((size_t) __builtin_offsetof(TYPE, Field))

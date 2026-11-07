@@ -3,6 +3,7 @@
 #ifndef COMMONLIB_COREBOOT_TABLES_H
 #define COMMONLIB_COREBOOT_TABLES_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /* The coreboot table information is for conveying information
@@ -51,6 +52,7 @@ enum {
 	LB_TAG_SERIAL			= 0x000f,
 	LB_TAG_CONSOLE			= 0x0010,
 	LB_TAG_FORWARD			= 0x0011,
+	LB_TAG_BOOT_SPLASH		= 0x0051,
 	LB_TAG_FRAMEBUFFER		= 0x0012,
 	LB_TAG_GPIO			= 0x0013,
 	LB_TAG_TIMESTAMPS		= 0x0016,
@@ -94,6 +96,7 @@ enum {
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_BOOT_REASON		= 0x004b,
+	LB_TAG_EFI_VARIABLE_SERVICE	= 0x004c,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -324,6 +327,32 @@ struct lb_framebuffer {
 	struct lb_framebuffer_flags flags;
 	uint8_t pad;
 };
+
+#define LB_BOOT_SPLASH_REVISION		2
+#define LB_BOOT_SPLASH_FLAG_DISPLAYED	(1U << 0)
+#define LB_BOOT_SPLASH_FLAG_BMP		(1U << 1)
+
+struct lb_boot_splash {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t flags;
+	lb_uint64_t framebuffer_address;
+	uint32_t image_offset_x;
+	uint32_t image_offset_y;
+	uint32_t image_width;
+	uint32_t image_height;
+	lb_uint64_t bmp_address;
+	uint32_t bmp_size;
+};
+
+_Static_assert(sizeof(struct lb_boot_splash) == 48, "boot splash record ABI changed");
+_Static_assert(offsetof(struct lb_boot_splash, framebuffer_address) == 12,
+	"boot splash framebuffer address offset changed");
+_Static_assert(offsetof(struct lb_boot_splash, image_offset_x) == 20,
+	"boot splash image offset changed");
+_Static_assert(offsetof(struct lb_boot_splash, bmp_address) == 36,
+	"boot splash BMP address offset changed");
 
 struct lb_gpio {
 	uint32_t port;
@@ -580,6 +609,24 @@ struct lb_smmstorev2 {
 					   this table must check the 'size' field to detect if its
 					   written out by coreboot. */
 };
+
+/* Fixed authenticated-variable service provided by coreboot SMM. */
+struct lb_efi_variable_service {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint8_t apm_cmd;
+	uint8_t flags;
+	uint64_t communication_buffer;
+	uint32_t communication_buffer_size;
+} __packed;
+
+_Static_assert(sizeof(struct lb_efi_variable_service) == 24,
+	       "Unexpected EFI variable service record size");
+_Static_assert(offsetof(struct lb_efi_variable_service, apm_cmd) == 10,
+	       "Unexpected EFI variable service APMC offset");
+_Static_assert(offsetof(struct lb_efi_variable_service, communication_buffer) == 12,
+	       "Unexpected EFI variable service buffer offset");
 
 enum lb_tpm_ppi_tpm_version {
 	LB_TPM_VERSION_UNSPEC = 0,

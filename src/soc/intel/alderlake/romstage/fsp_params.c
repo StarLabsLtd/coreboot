@@ -62,9 +62,8 @@ static void configure_cpu_rp_speed(FSP_M_CONFIG *m_cfg,
 {
 	static const char *const speeds[] = {"AUTO", "GEN1", "GEN2", "GEN3", "GEN4"};
 
-	m_cfg->CpuPcieRpPcieSpeed[index] =
-		pcie_speed_control_to_upd(get_uint_option("pciexp_speed",
-			cfg->pcie_rp_pcie_speed));
+	m_cfg->CpuPcieRpPcieSpeed[index] = pcie_speed_control_to_upd(get_uint_option_checked(
+		"pciexp_speed", cfg->pcie_rp_pcie_speed, OPTION_RANGE(SPEED_AUTO, SPEED_GEN4)));
 	printk(BIOS_DEBUG, "CPU PCIe RP%zu: speed set to %s\n",
 		index + 1, speeds[m_cfg->CpuPcieRpPcieSpeed[index]]);
 }
@@ -154,8 +153,10 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 		[DDI_PORT_4] = {&m_cfg->DdiPort4Ddc, &m_cfg->DdiPort4Hpd},
 	};
 
-	bool igd_enabled = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD))
-					   && is_devfn_enabled(SA_DEVFN_IGD);
+	bool igd_enabled = get_uint_option_checked("igd_enabled",
+						   !CONFIG(SOC_INTEL_DISABLE_IGD),
+						   OPTION_BOOL) &&
+			   is_devfn_enabled(SA_DEVFN_IGD);
 
 	/* Probe for no IGD and disable InternalGfx to prevent a crash in FSP-M. */
 	if (igd_enabled && pci_read_config16(SA_DEV_IGD, PCI_VENDOR_ID) == 0xffff) {
@@ -166,8 +167,17 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 	if (igd_enabled) {
 		/* IGD is enabled, set IGD stolen size to 60MB. */
 		m_cfg->InternalGfx = 1;
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc", IGD_SM_60MB);
-		m_cfg->ApertureSize = get_uint_option("igd_aperture_size", IGD_AP_SZ_256MB);
+		m_cfg->IgdDvmt50PreAlloc = get_uint_option_checked(
+			"igd_dvmt_prealloc", IGD_SM_60MB,
+			OPTION_ENUM(IGD_SM_32MB, IGD_SM_60MB, IGD_SM_64MB, IGD_SM_96MB,
+				    IGD_SM_128MB, IGD_SM_160MB));
+		m_cfg->ApertureSize = get_uint_option_checked(
+			"igd_aperture_size", IGD_AP_SZ_256MB,
+			CONFIG(ALWAYS_ALLOW_ABOVE_4G_ALLOCATION) ?
+				OPTION_ENUM(IGD_AP_SZ_128MB, IGD_AP_SZ_256MB,
+					    IGD_AP_SZ_4G_512MB, IGD_AP_SZ_4G_1024MB,
+					    IGD_AP_SZ_4G_2048MB) :
+				OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));
 		/* DP port config */
 		m_cfg->DdiPortAConfig = config->ddi_portA_config;
 		m_cfg->DdiPortBConfig = config->ddi_portB_config;
@@ -189,15 +199,25 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 			*ddi_port_upds[i].hpd = 0;
 		}
 	}
+#if CONFIG(FSP_TYPE_IOT)
+	if (CONFIG(SOC_INTEL_ALDERLAKE_REALTIME_TUNING_ENABLE))
+		m_cfg->GtClosEnable = 1;
+#endif
 }
 static void fill_fspm_mrc_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
-	m_cfg->SaGv = config->sagv;
+	m_cfg->SaGv = CONFIG(SOC_INTEL_ALDERLAKE_REALTIME_TUNING_ENABLE) ? 0 : config->sagv;
 	m_cfg->RMT = config->RMT;
 	if (config->max_dram_speed_mts) {
 		m_cfg->DdrFreqLimit = config->max_dram_speed_mts;
 		m_cfg->DdrSpeedControl = 1;
+	}
+	if (CONFIG(SOC_INTEL_ALDERLAKE_REALTIME_TUNING_ENABLE)) {
+		m_cfg->DisPgCloseIdleTimeout = 1;
+		m_cfg->PowerDownMode = 0;
+		m_cfg->EnablePwrDn = 0;
+		m_cfg->EnablePwrDnLpddr = 0;
 	}
 #if CONFIG(SOC_INTEL_RAPTORLAKE) && !CONFIG(FSP_USE_REPO)
 	m_cfg->LowerBasicMemTestSize = config->lower_basic_mem_test_size;
@@ -218,7 +238,11 @@ static void fill_fspm_cpu_params(FSP_M_CONFIG *m_cfg,
 
 	m_cfg->PrmrrSize = get_valid_prmrr_size();
 	m_cfg->EnableC6Dram = config->enable_c6dram;
-	m_cfg->HyperThreading = get_uint_option("hyper_threading", CONFIG(FSP_HYPERTHREADING));
+	if (CONFIG(SOC_INTEL_ALDERLAKE_REALTIME_TUNING_ENABLE))
+		m_cfg->HyperThreading = 0;
+	else
+		m_cfg->HyperThreading = get_uint_option_checked(
+			"hyper_threading", CONFIG(FSP_HYPERTHREADING), OPTION_BOOL);
 }
 
 static void fill_fspm_security_params(FSP_M_CONFIG *m_cfg,
@@ -226,7 +250,9 @@ static void fill_fspm_security_params(FSP_M_CONFIG *m_cfg,
 {
 	/* Disable BIOS Guard */
 	m_cfg->BiosGuard = 0;
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	m_cfg->TmeEnable =
+		get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL) &&
+		is_tme_supported();
 }
 
 static void fill_fspm_uart_params(FSP_M_CONFIG *m_cfg,
@@ -349,7 +375,7 @@ static void fill_fspm_vtd_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->VtdBaseAddress[VTD_IPU] = IPUVT_BASE_ADDRESS;
 	m_cfg->VtdBaseAddress[VTD_VTVCO] = VTVC0_BASE_ADDRESS;
 
-	m_cfg->VtdDisable = !get_uint_option("vtd", 1);
+	m_cfg->VtdDisable = !get_uint_option_checked("vtd", 1, OPTION_BOOL);
 	m_cfg->VtdIopEnable = !m_cfg->VtdDisable;
 	m_cfg->VtdIgdEnable = m_cfg->InternalGfx;
 	m_cfg->VtdIpuEnable = m_cfg->SaIpuEnable;
@@ -405,7 +431,7 @@ static void fill_fspm_ibecc_params(FSP_M_CONFIG *m_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
 	/* In-Band ECC configuration */
-	if (get_uint_option("ibecc_enable", config->ibecc.enable)) {
+	if (get_uint_option_checked("ibecc_enable", config->ibecc.enable, OPTION_BOOL)) {
 		m_cfg->Ibecc = true;
 		m_cfg->IbeccOperationMode = config->ibecc.mode;
 		if (m_cfg->IbeccOperationMode == IBECC_MODE_PER_REGION) {
@@ -530,12 +556,24 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	soc_memory_init_params(m_cfg, config);
 	mainboard_memory_init_params(mupd);
 
+	/* DSP firmware authentication requires ME, even after board overrides. */
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
+
 	/* Override the memory init params through runtime debug capability */
 	if (CONFIG(SOC_INTEL_COMMON_BASECODE_DEBUG_FEATURE))
 		debug_override_memory_init_params(m_cfg);
 
 	if (CONFIG(HWBASE_STATIC_MMIO))
 		m_cfg->GttMmAdr = CONFIG_GFX_GMA_DEFAULT_MMIO;
+	/* TCSS xDCI requires its xHCI parent. */
+	m_cfg->TcssXdciEn &= !!m_cfg->TcssXhciEn;
+
+	/* Early silicon hangs with VT-d; board/debug overrides must not enable it. */
+	const uint32_t cpuid = cpu_get_cpuid();
+	if (cpuid == CPUID_ALDERLAKE_J0 || cpuid == CPUID_ALDERLAKE_Q0)
+		m_cfg->VtdDisable = 1;
+
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)

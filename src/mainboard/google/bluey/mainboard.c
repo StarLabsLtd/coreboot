@@ -150,25 +150,6 @@ static void trigger_critical_battery_shutdown(void)
 	google_chromeec_ap_poweroff();
 }
 
-static bool board_support_dead_battery_charging(void)
-{
-	uint32_t capacity;
-
-	if (!CONFIG(EC_GOOGLE_CHROMEEC))
-		return false;
-
-	if (google_chromeec_read_batt_remaining_capacity(&capacity) < 0) {
-		printk(BIOS_WARNING, "Failed to get battery capacity; defaulting to slow charging\n");
-		return true;
-	}
-
-	/*
-	 * If the remaining battery capacity is less than or equal to the
-	 * threshold, set dead battery charging mode.
-	 */
-	return capacity <= DEAD_BATT_CHG_THRESHOLD_MAH;
-}
-
 /*
  * Handle charging and UI states for low-power or off-mode boot scenarios.
  * This function handles the transitions needed when the device is powered
@@ -179,8 +160,7 @@ static void handle_low_power_charging_boot(enum boot_mode_t boot_mode)
 	if (!pll_init_and_set(apss_ncc0, L_VAL_710P4MHz))
 		printk(BIOS_DEBUG, "CPU Frequency set to 710MHz\n");
 
-	if (board_support_dead_battery_charging())
-		configure_dead_battery_boot();
+	configure_avoid_pd_reset();
 
 	display_stop();
 
@@ -268,6 +248,9 @@ static void load_qc_se_firmware_late(void)
 	qupv3_se_fw_load_and_init(QUPV3_1_SE0, SE_PROTOCOL_I2C, MIXED); /* Touch I2C */
 	qupv3_se_fw_load_and_init(QUPV3_1_SE6, SE_PROTOCOL_UART, FIFO); /* BT UART */
 	qupv3_se_fw_load_and_init(QUPV3_0_SE0, SE_PROTOCOL_I2C, MIXED); /* Trackpad I2C */
+
+	if (CONFIG(MAINBOARD_HAS_LCD_VOLTAGE_VIA_I2C))
+		qupv3_se_fw_load_and_init(QUPV3_1_SE1, SE_PROTOCOL_I2C, MIXED); /* Panel voltage chip I2C */
 
 	if (CONFIG(MAINBOARD_HAS_PS8820_RETIMER)) {
 		i2c_init(QUPV3_0_SE3, I2C_SPEED_FAST); /* USB-C0 Re-Timer I2C */

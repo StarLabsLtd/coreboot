@@ -124,10 +124,12 @@ Device (PXSX)
 		Return (Buffer() { 0x0 })
 	}
 
+#if CONFIG(SOC_INTEL_COMMON_ACPI_TCSS_WAKE)
 	Method (_PRW, 0)
 	{
 		Return (Package() { 0x76, 4 })
 	}
+#endif
 }
 
 Method (_DSW, 3)
@@ -137,10 +139,12 @@ Method (_DSW, 3)
 	C2PM (Arg0, Arg1, Arg2, DCPM)
 }
 
+#if CONFIG(SOC_INTEL_COMMON_ACPI_TCSS_WAKE)
 Method (_PRW, 0)
 {
 	Return (Package() { 0x76, 4 })
 }
+#endif
 
 /*
  * Sub-Method of _L61 Hot-Plug event

@@ -348,11 +348,16 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	printk(BIOS_INFO, "IRQ: Using dynamically assigned PCI IO-APIC IRQs\n");
 
 	/*
-	 * Set FSPS UPD ITbtConnectTopologyTimeoutInMs with value 0. FSP will
-	 * evaluate this UPD value and skip sending command. There will be no
-	 * delay for command completion.
+	 * With Software Connection Manager set timeout to 0. FSP will evaluate
+	 * this UPD value and skip sending the Connect Topology command. There
+	 * will be no delay for command completion.
+	 *
+	 * For Firmware Connection Manager (ICM) Thunderbolt firmware keep the
+	 * FSP default delay so that the controller is up before the OS probes
+	 * it.
 	 */
-	params->ITbtConnectTopologyTimeoutInMs = 0;
+	if (CONFIG(SOFTWARE_CONNECTION_MANAGER))
+		params->ITbtConnectTopologyTimeoutInMs = 0;
 
 	/* Disable TcColdOnUsbConnect */
 	params->DisableTccoldOnUsbConnected = 1;
@@ -362,7 +367,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->PchLockDownGlobalSmi = lockdown_by_fsp;
 	params->PchLockDownBiosInterface = lockdown_by_fsp;
 	params->PchUnlockGpioPads = !lockdown_by_fsp;
-	params->RtcMemoryLock = lockdown_by_fsp;
+	params->RtcMemoryLock = lockdown_by_fsp ||
+		CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY);
 	params->SkipPamLock = !lockdown_by_fsp;
 
 	/* coreboot will send EOP before loading payload */
@@ -467,6 +473,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	 *  The default values can be changed from devicetree.
 	 */
 	for (i = 0; i < ARRAY_SIZE(config->SataPortsEnableDitoConfig); i++) {
+		params->SataPortsEnableDitoConfig[i] = config->SataPortsEnableDitoConfig[i];
 		if (config->SataPortsEnableDitoConfig[i]) {
 			if (config->SataPortsDmVal[i])
 				params->SataPortsDmVal[i] = config->SataPortsDmVal[i];
@@ -541,7 +548,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->ThcPort1Assignment = is_devfn_enabled(PCH_DEVFN_THC1) ? THC_1 : THC_NONE;
 
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	params->Enable8254ClockGating = !use_8254;
 	params->Enable8254ClockGatingOnS3 = !use_8254;
 

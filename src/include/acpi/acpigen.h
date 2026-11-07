@@ -266,14 +266,16 @@ enum acpi_resource_subtype {
 /* macro for ACPI Table 6.51 Bus Number Range Resource Flag (Resource Type = 2) */
 #define BUS_NUM_RANGE_RESOURCE_FLAG		0x0 // reserved
 
-/* General Flags for WORD Address Space Descriptor Definition  (ACPI Table 6.47, byte 4)*/
+/* General Flags for Extended Address Space Descriptor (ACPI 6.5 Table 6.48, byte 4).
+ * Bit 0 is ignored in the Word, DWord and QWord Address Space Descriptors.
+ */
 #define ADDR_SPACE_GENERAL_FLAG_MAX_FIXED	(0x1 << 3)
 #define ADDR_SPACE_GENERAL_FLAG_MAX_NOT_FIXED	0x0
 #define ADDR_SPACE_GENERAL_FLAG_MIN_FIXED	(0x1 << 2)
 #define ADDR_SPACE_GENERAL_FLAG_MIN_NOT_FIXED	0x0
 #define ADDR_SPACE_GENERAL_FLAG_DEC_SUB		(0x1 << 1)
 #define ADDR_SPACE_GENERAL_FLAG_DEC_POS		0x0
-#define ADDR_SPACE_GENERAL_FLAG_CONSUMER	0x10
+#define ADDR_SPACE_GENERAL_FLAG_CONSUMER	0x1
 #define ADDR_SPACE_GENERAL_FLAG_PRODUCER	0x0
 
 struct opregion {
@@ -622,7 +624,10 @@ int get_cst_entries(const acpi_cstate_t **);
  */
 void acpigen_get_package_op_element(uint8_t package_op, unsigned int element, uint8_t dest_op);
 
-/* Set element of package op to specified op:  DeRefOf (<package>[<element>]) = <src> */
+/*
+ * Set element of package op to specified op:
+ *   Store (<src>, Index (<package>, <element>))
+ */
 void acpigen_set_package_op_element_int(uint8_t package_op, unsigned int element, uint64_t src);
 
 /* Get element from package to specified op:  <dest_op> = <package>[<element>] */

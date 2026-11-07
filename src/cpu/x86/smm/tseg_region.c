@@ -17,6 +17,8 @@
  *     +-------------------------+
  *     |   OPAL S3 State (opt)   | SMM_OPAL_S3_STATE_SMRAM_SIZE
  *     +-------------------------+
+ *     |           ASS           | SMM_ASS_SIZE
+ *     +-------------------------+
  *     |      code and data      |
  *     |         (TSEG)          |
  *     +-------------------------+ TSEG
@@ -28,6 +30,9 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 	const size_t ied_size = CONFIG_IED_REGION_SIZE;
 	const size_t cache_size = CONFIG_SMM_RESERVED_SIZE;
 	const size_t opal_state_size = CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE;
+	const size_t variable_service_size = CONFIG_SMM_ASS_SIZE;
+	const uint64_t reserved_size = (uint64_t)ied_size + cache_size + opal_state_size +
+				       variable_service_size;
 
 	if (CONFIG(SMM_TSEG))
 		smm_region(&sub_base, &sub_size);
@@ -36,8 +41,9 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 	else
 		return -1;
 
-	ASSERT(IS_ALIGNED(sub_base, sub_size));
-	ASSERT(sub_size > (cache_size + ied_size + opal_state_size));
+	/* Never calculate subregions from an invalid hardware reservation. */
+	if (!sub_size || !IS_ALIGNED(sub_base, sub_size) || sub_size <= reserved_size)
+		die("Invalid SMM subregion layout");
 
 	switch (sub) {
 	case SMM_SUBREGION_HANDLER:
@@ -45,6 +51,14 @@ int smm_subregion(int sub, uintptr_t *start, size_t *size)
 		sub_size -= ied_size;
 		sub_size -= cache_size;
 		sub_size -= opal_state_size;
+		sub_size -= variable_service_size;
+		break;
+	case SMM_SUBREGION_EFI_VARIABLE_SERVICE:
+		if (!variable_service_size)
+			return -1;
+		sub_base += sub_size -
+			(ied_size + cache_size + opal_state_size + variable_service_size);
+		sub_size = variable_service_size;
 		break;
 	case SMM_SUBREGION_OPAL_S3_STATE:
 		if (!opal_state_size)

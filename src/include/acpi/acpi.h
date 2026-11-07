@@ -1098,6 +1098,8 @@ typedef struct acpi_facs {
 	u8 resv2[24];				/* This value is 0 */
 } __packed acpi_facs_t;
 
+acpi_facs_t *acpi_get_facs(void);
+
 /* FACS flags */
 #define ACPI_FACS_S4BIOS_F	(1 << 0)
 #define ACPI_FACS_64BIT_WAKE_F	(1 << 1)

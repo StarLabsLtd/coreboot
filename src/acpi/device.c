@@ -686,7 +686,7 @@ static void acpigen_write_power_res_STA(const struct acpi_power_res_params *para
 void acpi_device_add_power_res(const struct acpi_power_res_params *params)
 {
 	static uint8_t id;
-	static const char * const power_res_dev_states[] = { "_PR0", "_PR3" };
+	static const char * const power_res_dev_states[] = { "_PR0", "_PR2", "_PR3" };
 	unsigned int reset_gpio = params->reset_gpio ? params->reset_gpio->pins[0] : 0;
 	unsigned int enable_gpio = params->enable_gpio ? params->enable_gpio->pins[0] : 0;
 	unsigned int stop_gpio = params->stop_gpio ? params->stop_gpio->pins[0] : 0;

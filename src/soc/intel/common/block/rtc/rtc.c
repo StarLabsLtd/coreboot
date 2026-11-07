@@ -43,6 +43,11 @@ void rtc_conf_set_bios_interface_lockdown(void)
 					PCR_RTC_CONF_BILD);
 }
 
+void rtc_conf_lock_cmos_memory(void)
+{
+	pcr_or32(PID_RTC, PCR_RTC_CONF, PCR_RTC_CONF_LCMOS_LOCK | PCR_RTC_CONF_UCMOS_LOCK);
+}
+
 #if CONFIG(INTEL_HAS_TOP_SWAP)
 void configure_rtc_buc_top_swap(enum ts_config ts_state)
 {
@@ -60,7 +65,8 @@ enum ts_config get_rtc_buc_top_swap_status(void)
 void sync_rtc_buc_top_swap(void)
 {
 	uint8_t cmos_slotb_option, topswap_control_bit;
-	cmos_slotb_option = get_uint_option(TOP_SWAP_ENABLE_CMOS_OPTION, 0);
+	cmos_slotb_option =
+		get_uint_option_checked(TOP_SWAP_ENABLE_CMOS_OPTION, 0, OPTION_BOOL);
 	topswap_control_bit = get_rtc_buc_top_swap_status();
 	printk(BIOS_INFO, "Top Swap: CMOS option state: %d\n", cmos_slotb_option);
 	printk(BIOS_INFO, "Top Swap: RTC BUC control bit: %d\n", topswap_control_bit);

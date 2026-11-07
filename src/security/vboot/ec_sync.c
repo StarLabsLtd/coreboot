@@ -274,17 +274,16 @@ static vb2_error_t ec_flash_write(void *image, uint32_t region_offset,
 	pdata_max_size = MIN(1024, resp_proto.max_request_packet_size -
 				   sizeof(struct ec_host_request));
 
-	/* Round burst to a multiple of the flash write block size */
 	burst = pdata_max_size - sizeof(*params);
-	burst = (burst / resp_flash.write_block_size) *
-		resp_flash.write_block_size;
-
-	/* Buffer too small */
 	if (burst <= 0) {
 		printk(BIOS_ERR, "Flash write buffer too small!  skipping "
 		       "flash write\n");
 		return VB2_ERROR_UNKNOWN;
 	}
+
+	/* Round burst to a multiple of the flash write block size */
+	burst = (burst / resp_flash.write_block_size) *
+		resp_flash.write_block_size;
 
 	/* Allocate buffer on the stack */
 	params = alloca(burst + sizeof(*params));
@@ -398,8 +397,7 @@ static vb2_error_t ec_get_expected_hash(enum vb2_firmware_selection select,
  */
 vb2_error_t vb2ex_commit_data(struct vb2_context *ctx)
 {
-	save_vbnv(ctx->nvdata);
-	return VB2_SUCCESS;
+	return save_vbnv(ctx->nvdata) ? VB2_ERROR_NV_WRITE : VB2_SUCCESS;
 }
 
 /*

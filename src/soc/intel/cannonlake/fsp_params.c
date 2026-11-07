@@ -444,7 +444,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	memset(s_cfg->PcieRpPmSci, 0, sizeof(s_cfg->PcieRpPmSci));
 
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	s_cfg->Enable8254ClockGating = !use_8254;
 	s_cfg->Enable8254ClockGatingOnS3 = !use_8254;
 
@@ -710,7 +711,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	tconfig->PchLockDownGlobalSmi = lockdown_by_fsp;
 	tconfig->PchLockDownBiosInterface = lockdown_by_fsp;
 	s_cfg->PchLockDownBiosLock = lockdown_by_fsp;
-	s_cfg->PchLockDownRtcMemoryLock = lockdown_by_fsp;
+	s_cfg->PchLockDownRtcMemoryLock = lockdown_by_fsp ||
+		CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY);
 	tconfig->SkipPamLock = !lockdown_by_fsp;
 #if CONFIG(SOC_INTEL_COMETLAKE)
 	/*
@@ -795,6 +797,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	s_cfg->DevIntConfigPtr = (UINT32)((uintptr_t)upd_irqs);
 	s_cfg->NumOfDevIntConfig = pch_count;
 	printk(BIOS_INFO, "IRQ: Using dynamically assigned PCI IO-APIC IRQs\n");
+
+	s_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 /* Mainboard GPIO Configuration */

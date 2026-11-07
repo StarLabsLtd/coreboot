@@ -101,6 +101,7 @@ config BOARD_GOOGLE_MODEL_MERU
 	select MAINBOARD_HAS_CHROME_EC
 	select MAINBOARD_HAS_FINGERPRINT_VIA_USB
 	select MAINBOARD_HAS_GOOGLE_TPM
+	select MAINBOARD_HAS_LCD_VOLTAGE_VIA_I2C
 	select MAINBOARD_HAS_UFS
 	select MAINBOARD_RAMDUMP_LED_NOTIFICATION
 	select SPI_FREQ_75MHZ
@@ -115,8 +116,10 @@ config BOARD_GOOGLE_MODEL_PIC
 	select MAINBOARD_HAS_CHROME_EC
 	select MAINBOARD_HAS_FINGERPRINT_VIA_USB
 	select MAINBOARD_HAS_GOOGLE_TPM
+	select MAINBOARD_HAS_MIPI_DSI
 	select MAINBOARD_RAMDUMP_LED_NOTIFICATION
 	select MAINBOARD_SUPPORTS_PARALLEL_CHARGING
+	select MIPI_PANEL_BOE_NS130070_M00
 	select SPI_FREQ_75MHZ
 
 config BOARD_GOOGLE_MODEL_ANNITE
@@ -139,13 +142,13 @@ config BOARD_GOOGLE_MODEL_ANETO
 	select BOARD_ROMSIZE_KB_32768
 	select EC_GOOGLE_CHROMEEC_LED_CONTROL
 	select EC_GOOGLE_CHROMEEC_BATTERY_SOC_DYNAMIC
+	select MAINBOARD_HAS_BACKLIGHT_PWM
 	select MAINBOARD_HAS_CAMERA_VIA_USB
 	select MAINBOARD_HAS_CHROME_EC
 	select MAINBOARD_HAS_FINGERPRINT_VIA_USB
 	select MAINBOARD_HAS_GOOGLE_TPM
-	select MAINBOARD_HAS_UFS
 	select MAINBOARD_RAMDUMP_LED_NOTIFICATION
-	select SPI_FREQ_100MHZ
+	select SPI_FREQ_75MHZ
 
 config BOARD_GOOGLE_MICA
 	select BOARD_GOOGLE_MODEL_MICA
@@ -211,6 +214,12 @@ config MAINBOARD_HAS_FINGERPRINT
 	help
 	  Enable this option if your mainboard is equipped with an onboard
 	  fingerprint reader. This could be connected via SPI or USB.
+
+config MAINBOARD_HAS_LCD_VOLTAGE_VIA_I2C
+	bool
+	default n
+	help
+	  Enable this option if your mainboard has LCD voltage controller over I2C Bus.
 
 config MAINBOARD_HAS_SD_CONTROLLER
 	bool
@@ -320,6 +329,13 @@ config MAINBOARD_HAS_BACKLIGHT_PWM
 	help
 	  Enable this option if your mainboard has PWM control for display
 	  backlight.
+
+config MAINBOARD_HAS_MIPI_DSI
+	bool
+	default n
+	help
+	  Enable this option if your mainboard display is connected via
+	  the MIPI DSI interface.
 
 config MAINBOARD_HAS_CAMERA_VIA_USB
 	bool
@@ -431,6 +447,14 @@ config MAINBOARD_GPIO_PIN_FOR_TOUCHSCREEN_POWER
 	  The GPIO pin number used to enable/disable power to the
 	  touchscreen controller. This varies by board revision.
 	  Set to 0x0 if power is hardwired.
+
+config MAINBOARD_GPIO_PIN_FOR_PANEL_RESET
+	int
+	default 26 if BOARD_GOOGLE_MODEL_PIC
+	default 114
+	help
+	  This option specifies the GPIO pin number on the mainboard that is
+	  used for the MIPI DSI panel reset pin.
 
 config MAINBOARD_RAMDUMP_LED_NOTIFICATION
 	bool

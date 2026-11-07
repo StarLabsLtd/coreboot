@@ -11,7 +11,9 @@ static struct sm_obj_form audio_video_group = {
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]) {
 		&microphone,
+	#if !CONFIG(BOARD_STARLABS_LITE_ADL)
 		&hda_subsystem_id,
+	#endif
 		&webcam,
 		NULL
 	},
@@ -83,14 +85,6 @@ static struct sm_obj_form suspend_lid_group = {
 	},
 };
 
-static struct sm_obj_form virtualization_group = {
-	.ui_name = "Virtualization",
-	.obj_list = (const struct sm_object *[]) {
-		&vtd,
-		NULL
-	},
-};
-
 static struct sm_obj_form wireless_group = {
 	.ui_name = "Wireless",
 	.obj_list = (const struct sm_object *[]) {
@@ -109,7 +103,6 @@ static struct sm_obj_form *sm_root[] = {
 	&performance_group,
 	&security_group,
 	&suspend_lid_group,
-	&virtualization_group,
 	&wireless_group,
 	NULL
 };

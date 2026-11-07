@@ -17,6 +17,7 @@ static amd_fw_entry default_amd_psp_fw_table[] = {
 	{ .type = AMD_FW_PSP_SMU_FIRMWARE, .subprog = 0, .level = PSP_BOTH | PSP_LVL2_AB,
 		.generate_manifest = true },
 	{ .type = AMD_FW_PSP_SMU_FIRMWARE, .subprog = 1, .level = PSP_BOTH | PSP_LVL2_AB },
+	{ .type = AMD_FW_PSP_SMU_FIRMWARE, .subprog = 1, .inst = 1, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_SMU_FIRMWARE, .subprog = 2, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_SECURED_DEBUG, .level = PSP_LVL2 | PSP_LVL2_AB,
 	  .skip_hashing = true },
@@ -28,6 +29,7 @@ static amd_fw_entry default_amd_psp_fw_table[] = {
 	{ .type = AMD_FW_PSP_TRUSTLETKEY, .level = PSP_LVL2 | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_SMU_FIRMWARE2, .subprog = 0, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_SMU_FIRMWARE2, .subprog = 1, .level = PSP_BOTH | PSP_LVL2_AB },
+	{ .type = AMD_FW_PSP_SMU_FIRMWARE2, .subprog = 1, .inst = 1, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_SMU_FIRMWARE2, .subprog = 2, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_SEV_DRIVER, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_BOOT_DRIVER, .level = PSP_BOTH | PSP_LVL2_AB },
@@ -226,8 +228,11 @@ static amd_fw_entry server_psp_fw_table[] = {
 	{ .type = AMD_FW_PSP_DPE_DRIVER, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_AB_NVRAM, .level = PSP_LVL1_AB },
 	{ .type = AMD_FW_PSP_DMCUB, .level = PSP_LVL2 | PSP_LVL2_AB },
-	{ .type = AMD_FW_PSP_BOOTLOADER_AB, .level = PSP_BOTH | PSP_LVL2_AB,
+	{ .type = AMD_FW_PSP_BOOTLOADER_AB, .subprog = 0,
+		.level = PSP_BOTH | PSP_LVL2_AB,
 		.generate_manifest = true },
+	{ .type = AMD_FW_PSP_BOOTLOADER_AB, .subprog = 1,
+		.level = PSP_BOTH | PSP_LVL2_AB, .generate_manifest = true },
 	{ .type = AMD_FW_PSP_RIB, .subprog = 0, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_RIB, .subprog = 1, .level = PSP_BOTH | PSP_LVL2_AB },
 	{ .type = AMD_FW_PSP_RIB, .subprog = 2, .level = PSP_BOTH | PSP_LVL2_AB },
@@ -281,6 +286,7 @@ static amd_fw_entry server_psp_fw_table[] = {
 struct platform_info {
 	const char *name;
 	bool needs_ish;
+	bool auth_files_without_unlock;
 	bool is_multi_level;
 	bool has_apob_nv_quirk;
 	bool is_initial_alignment_required;
@@ -464,6 +470,7 @@ static const struct platform_info platform_table[] = {
 	},
 	[PLATFORM_TURIN] = {
 		.name = "Turin",
+		.auth_files_without_unlock = true,
 		.needs_ish = false,
 		.is_multi_level = true,
 		.has_apob_nv_quirk = false,
@@ -516,6 +523,12 @@ enum platform platform_identify(char *soc_name)
 bool platform_needs_ish(enum platform platform_type)
 {
 	return platform_table[platform_type].needs_ish;
+}
+
+/* Authentication firmware required even when secure debug stays locked. */
+bool platform_needs_auth_files(enum platform platform_type)
+{
+	return platform_table[platform_type].auth_files_without_unlock;
 }
 
 /**

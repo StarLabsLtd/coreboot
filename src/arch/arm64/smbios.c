@@ -51,6 +51,11 @@ __weak int smbios_processor_part_number(u8 *start)
 	return 0;
 }
 
+__weak unsigned int smbios_cache_instances(u8 level)
+{
+	return 1;
+}
+
 #define MAX_CPUS_ENABLED(cpus) (cpus > 0xff ? 0xff : cpus)
 
 /* NOTE: Not handling big.LITTLE clusters. Consider using MP services (not yet) or the DSU. */
@@ -84,7 +89,10 @@ int smbios_write_type4(unsigned long *current, int handle)
 	t->serial_number = smbios_add_string(t->eos, smbios_processor_serial_number());
 	t->part_number = smbios_processor_part_number(t->eos);
 	t->status = SMBIOS_PROCESSOR_STATUS_CPU_ENABLED | SMBIOS_PROCESSOR_STATUS_POPULATED;
-	t->processor_upgrade = PROCESSOR_UPGRADE_UNKNOWN;
+	if (CONFIG(SMBIOS_TYPE4_SOCKETED_CPU))
+		t->processor_upgrade = PROCESSOR_UPGRADE_OTHER;
+	else
+		t->processor_upgrade = PROCESSOR_UPGRADE_UNKNOWN;
 
 	t->external_clock = smbios_processor_external_clock();
 	if (t->external_clock == 0)
@@ -101,7 +109,7 @@ int smbios_write_type4(unsigned long *current, int handle)
 
 	if (t->core_count > 1)
 		characteristics |= PROCESSOR_MULTI_CORE;
-	if (t->thread_count > 1)
+	if (t->thread_count2 > t->core_count2)
 		characteristics |= BIT(4); /* BIT4: Hardware Thread */
 	if (smccc_supports_arch_soc_id())
 		characteristics |= BIT(9); /* Arm64 SoC ID */
@@ -129,6 +137,7 @@ int smbios_write_type7_cache_parameters(unsigned long *current,
 	while (1) {
 		enum smbios_cache_type type;
 		struct cache_info info;
+		size_t size;
 
 		const u8 cache_type = cpu_get_cache_type(level);
 		/* No more caches in the system */
@@ -147,10 +156,11 @@ int smbios_write_type7_cache_parameters(unsigned long *current,
 		case CACHE_SEPARATE:
 			type = SMBIOS_CACHE_TYPE_DATA;
 			cpu_get_cache_info(level, CACHE_DATA, &info);
+			size = info.size * smbios_cache_instances(level);
 			h = (*handle)++;
 			update_max(len, *max_struct_size, smbios_write_type7(current, h,
 				   level, smbios_cache_sram_type(), smbios_cache_associativity(info.associativity),
-				   type, info.size, info.size));
+				   type, size, size));
 
 			type = SMBIOS_CACHE_TYPE_INSTRUCTION;
 			cpu_get_cache_info(level, CACHE_INSTRUCTION, &info);
@@ -165,10 +175,11 @@ int smbios_write_type7_cache_parameters(unsigned long *current,
 			break;
 		}
 
+		size = info.size * smbios_cache_instances(level);
 		h = (*handle)++;
 		update_max(len, *max_struct_size, smbios_write_type7(current, h,
 			   level, smbios_cache_sram_type(), smbios_cache_associativity(info.associativity),
-			   type, info.size, info.size));
+			   type, size, size));
 
 		if (type4) {
 			switch (level) {

@@ -94,11 +94,25 @@ void mec5035_control_radio(enum ec_radio_dev dev, enum ec_radio_state state)
 	ec_command(CMD_RADIO_CTRL);
 }
 
+void mec5035_acpi_enable(void)
+{
+	u8 buf[1] = {1};
+	write_mailbox_regs(buf, 2, sizeof(buf));
+	ec_command(CMD_ACPI);
+}
+
 static void mec5035_power_button_route(enum ec_power_button_route target)
 {
 	u8 buf = (u8)target;
 	write_mailbox_regs(&buf, 2, 1);
 	ec_command(CMD_POWER_BUTTON_TO_HOST);
+}
+
+static void mec5035_mute_ctrl(enum ec_mute mute)
+{
+	u8 buf[MUTE_CTRL_NUM_ARGS] = {(u8)mute};
+	write_mailbox_regs(buf, 2, MUTE_CTRL_NUM_ARGS);
+	ec_command(CMD_MUTE_CTRL);
 }
 
 void mec5035_allow_cpu_thermal_throttle(u8 i)
@@ -134,12 +148,16 @@ static void mec5035_init(struct device *dev)
 	   is probably the most sensible default out of the 3 choices. */
 	mec5035_mouse_touchpad(TP_PS2_MOUSE);
 	mec5035_power_button_route(HOST);
+	mec5035_mute_ctrl(UNMUTE);
 
 	pc_keyboard_init(NO_AUX_DEVICE);
 
-	mec5035_control_radio(RADIO_WLAN, get_uint_option("wlan", RADIO_ON));
-	mec5035_control_radio(RADIO_WWAN, get_uint_option("wwan", RADIO_ON));
-	mec5035_control_radio(RADIO_BT, get_uint_option("bluetooth", RADIO_ON));
+	mec5035_control_radio(RADIO_WLAN,
+			      get_uint_option_checked("wlan", RADIO_ON, OPTION_BOOL));
+	mec5035_control_radio(RADIO_WWAN,
+			      get_uint_option_checked("wwan", RADIO_ON, OPTION_BOOL));
+	mec5035_control_radio(RADIO_BT,
+			      get_uint_option_checked("bluetooth", RADIO_ON, OPTION_BOOL));
 }
 
 static struct device_operations ops = {

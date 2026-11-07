@@ -152,8 +152,9 @@ static void pch_power_options(struct device *dev)
 	 *
 	 * If the option is not existent (Laptops), use Kconfig setting.
 	 */
-	const unsigned int pwr_on = get_uint_option("power_on_after_fail",
-					  CONFIG_MAINBOARD_POWER_FAILURE_STATE);
+	const unsigned int pwr_on = get_uint_option_checked(
+		"power_on_after_fail", CONFIG_MAINBOARD_POWER_FAILURE_STATE,
+		OPTION_RANGE(0, 2));
 
 	reg16 = pci_read_config16(dev, GEN_PMCON_3);
 	reg16 &= 0xfffe;
@@ -194,7 +195,7 @@ static void pch_power_options(struct device *dev)
 	outb(reg8, 0x61);
 
 	reg8 = inb(0x70);
-	const unsigned int nmi_option = get_uint_option("nmi", NMI_OFF);
+	const unsigned int nmi_option = get_uint_option_checked("nmi", NMI_OFF, OPTION_BOOL);
 	if (nmi_option) {
 		printk(BIOS_INFO, "NMI sources enabled.\n");
 		reg8 &= ~(1 << 7);	/* Set NMI. */

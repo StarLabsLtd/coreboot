@@ -2,6 +2,15 @@
 
 if VENDOR_STARLABS
 
+config BMP_LOGO
+	default y if PAYLOAD_EDK2 && EDK2_BOOTSPLASH_FILE != ""
+
+config BMP_LOGO_FILE_NAME
+	default "\$(obj)/starlabs-logo.bmp" if PAYLOAD_EDK2
+
+config BOOT_SPLASH_HANDOFF
+	default y if PAYLOAD_EDK2
+
 config EDK2_BOOTSPLASH_FILE
 	string
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
@@ -20,9 +29,6 @@ config EC_STARLABS_ITE_BIN_PATH
 
 if BOARD_STARLABS_ADL_SERIES || BOARD_STARLABS_STARBOOK_SERIES || \
 	BOARD_STARLABS_STARFIGHTER_SERIES
-
-config D3COLD_SUPPORT
-	default n
 
 config DIMM_SPD_SIZE
 	default 1024 if BOARD_STARLABS_STARBOOK_MTL
@@ -58,13 +64,28 @@ config STARLABS_MEMORY_SETTINGS_VERSION
 
 menu "Star Labs Settings"
 
+config DAVE_MODE
+	bool "Enable DAVE mode"
+	depends on !BOARD_STARLABS_STARFIGHTER_MTL || VBOOT || \
+		(SMMSTORE && BOOTMEDIA_SMM_BWP && SOC_INTEL_COMMON_BLOCK_SMM)
+	depends on PAYLOAD_EDK2
+	depends on TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
+	select EDK2_DISABLE_BOOT_MANAGER_WAIT if PAYLOAD_EDK2
+	select SECURITY_FAIL_CLOSED
+	select TPM_PREBOOT_AUTH_PHASE
+	select SMMSTORE_SRK_PIN if BOARD_STARLABS_STARFIGHTER_MTL && !VBOOT
+	help
+	  DAVE mode is the secure, locked-down variant.
+
 config BOOTMEDIA_SMM_BWP
 	bool
 	default y if SOC_INTEL_COMMON_BLOCK_SMM
 
 config BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
 	bool
-	default y if SOC_INTEL_COMMON_BLOCK_SMM
+	depends on !SMMSTORE_SRK_PIN
+	default n if DAVE_MODE
+	default y if SOC_INTEL_COMMON_BLOCK_SMM || BOARD_STARLABS_LITE_SERIES
 
 config USE_LEGACY_8254_TIMER
 	default n if VENDOR_STARLABS
@@ -73,10 +94,79 @@ config STARLABS_HAS_I8042_INPUT
 	bool
 	default y if SYSTEM_TYPE_LAPTOP || SYSTEM_TYPE_DETACHABLE
 
+config STARLABS_VBOOT_RELEASE_POLICY
+	def_bool BOARD_STARLABS_ADL_HORIZON || \
+		 BOARD_STARLABS_STARBOOK_RPL_U || \
+		 BOARD_STARLABS_STARFIGHTER_MTL
+
+if STARLABS_VBOOT_RELEASE_POLICY
+
+config VBOOT
+	select BOOTMEDIA_LOCK_FAILURE_FATAL
+	select BOOTMEDIA_LOCK_FORCE_CONTROLLER
+	select TPM_MEASURED_BOOT if TPM
+	select VBOOT_ENABLE_CBFS_FALLBACK
+	select VBOOT_SLOTS_RW_A
+	select VBOOT_VBNV_FLASH
+	select VBOOT_VBNV_FLASH_PRIMARY
+
+config VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN
+	default y if VBOOT
+
+config VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN
+	default y if VBOOT
+
+config RO_REGION_ONLY
+	default "cpu_microcode_blob.bin" if VBOOT
+
+config GBB_HWID
+	default "STARLABS_\$(CONFIG_MAINBOARD_FAMILY)" if VBOOT
+
+config GBB_FLAG_FORCE_DEV_BOOT_USB
+	default n if VBOOT
+
+config GBB_FLAG_DISABLE_FW_ROLLBACK_CHECK
+	default n if VBOOT
+
+config VBOOT_ROOT_KEY
+	default "\$(STARLABS_VBOOT_KEY_DIR)/root_key.vbpubk" if VBOOT
+
+config VBOOT_RECOVERY_KEY
+	default "\$(STARLABS_VBOOT_KEY_DIR)/recovery_key.vbpubk" if VBOOT
+
+config VBOOT_FIRMWARE_PRIVKEY
+	default "\$(STARLABS_VBOOT_KEY_DIR)/firmware_data_key.vbprivk" if VBOOT
+
+config VBOOT_KERNEL_KEY
+	default "\$(STARLABS_VBOOT_KEY_DIR)/kernel_subkey.vbpubk" if VBOOT
+
+config VBOOT_KEYBLOCK
+	default "\$(STARLABS_VBOOT_KEY_DIR)/firmware.keyblock" if VBOOT
+
+config VBOOT_KEYBLOCK_VERSION
+	# release_26.09 baseline; the release build rejects later LOCALVERSIONs
+	# until this signing input is advanced to the matching major.minor value.
+	default 6665 if VBOOT && STARLABS_VBOOT_RELEASE_POLICY
+
+endif # STARLABS_VBOOT_RELEASE_POLICY
+
+config DRIVERS_EFI_CAPSULE_REGIONS
+	default "EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A" if VBOOT && STARLABS_VBOOT_RELEASE_POLICY
+	default "COREBOOT EC" if BOARD_STARLABS_ADL_HORIZON || \
+		BOARD_STARLABS_STARBOOK_RPL_U || BOARD_STARLABS_STARFIGHTER_MTL
+
 config STARLABS_NO_PCAT_8259
 	bool
 	default y if BOARD_STARLABS_BYTE_ADL || BOARD_STARLABS_BYTE_TWL
 	select NO_PCAT_8259
+
+config ACPI_TPM_TABLES_REQUIRE_PROBE
+	bool
+	default y if VENDOR_STARLABS
+
+config TPM_TREAT_ME_DISABLED_AS_ABSENT
+	default y if TPM2 && HAVE_INTEL_PTT && CRB_TPM && !MEMORY_MAPPED_TPM && \
+		SOC_INTEL_COMMON_BLOCK_CSE && !TPM_MEASURED_BOOT_INIT_BOOTBLOCK
 
 config DRIVERS_EFI_FW_INFO
 	def_bool y
@@ -90,10 +180,33 @@ config STARLABS_COMMON_CFR
 	default y if CPU_INTEL_COMMON
 
 config SOC_INTEL_COMMON_ACPI_TIME_ALARM
+	default n if DAVE_MODE
 	default y if SOC_INTEL_COMMON_BLOCK_SMM_HAS_WADT
 
 config SOC_INTEL_COMMON_ACPI_TIME_ALARM_S5
+	default n if DAVE_MODE
 	default y if SOC_INTEL_COMMON_ACPI_TIME_ALARM
+
+config STARLABS_AUTOMATIC_START
+	def_bool y
+	depends on DRIVERS_OPTION_CFR
+	depends on SOC_INTEL_COMMON_BLOCK_PMC
+	depends on EC_STARLABS_ADAPTER_AUTO_POWER_ON
+
+config DRIVERS_OPTION_CFR_RUNTIME_APPLY
+	default y if DRIVERS_OPTION_CFR && USE_UEFI_VARIABLE_STORE
+
+config STARLABS_SMM_OPTION_HANDLER
+	select ACPI_SMM_GLOBAL_LOCK
+	def_bool y if STARLABS_ACPI_EFI_OPTION_SMI
+	default y if DRIVERS_OPTION_CFR_RUNTIME_APPLY
+	default y if SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS && !EDK2_DEBUG
+
+config SOC_INTEL_COMMON_ACPI_RTC_WAKE
+	default n if DAVE_MODE
+
+config SOC_INTEL_COMMON_CSE_S0IX
+	default n if DAVE_MODE
 
 config STARLABS_LEGACY_PL4
 	bool
@@ -101,6 +214,10 @@ config STARLABS_LEGACY_PL4
 config STARLABS_TOUCHPAD
 	bool
 	depends on DRIVERS_I2C_HID
+
+config STARLABS_TOUCHPAD_RUNTIME
+	def_bool STARLABS_TOUCHPAD && STARLABS_SMM_OPTION_HANDLER && \
+		SOC_INTEL_COMMON_BLOCK_I2C_SMM && USE_UEFI_VARIABLE_STORE
 
 config STARLABS_TOUCHPAD_CONTROLLER
 	string
@@ -112,27 +229,6 @@ config STARLABS_TOUCHPAD_PIXART
 config STARLABS_TOUCHPAD_CST
 	def_bool STARLABS_TOUCHPAD_CONTROLLER = "cst"
 	select STARLABS_TOUCHPAD
-
-config STARLABS_NVME_POWER_SEQUENCE
-	bool "Enable NVMe/M.2 slot power sequence"
-	depends on SOC_INTEL_COMMON_BLOCK_GPIO
-	default n
-	help
-	  Enable Fatcat-style 3-stage NVMe/M.2 slot sequencing using PWREN, PERST#
-	  and CLKREQ# pads.
-
-	  The sequencing is:
-	    1) pre-mem: PERST# asserted; PWREN=0; CLKREQ# disabled
-	    2) BS_PRE_DEVICE exit: PERST# still asserted; PWREN=1; CLKREQ# native
-	    3) BS_DEV_INIT_CHIPS entry: PERST# deasserted
-
-	  Boards selecting this option must provide their own pad configs and
-	  implement stage 1 (pre-mem) in their early pad configuration.
-
-	  For stage 2 and stage 3, boards must either implement the
-	  `variant_nvme_power_sequence_*()` helpers or provide pad tables via
-	  `variant_nvme_power_sequence_pads()` and
-	  `variant_nvme_power_sequence_post_pads()`.
 
 config TCG_OPAL_S3_UNLOCK
 	default y

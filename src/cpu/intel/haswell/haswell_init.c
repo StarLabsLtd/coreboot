@@ -133,51 +133,36 @@ static void initialize_vr_config(void)
 
 	printk(BIOS_DEBUG, "Initializing VR config.\n");
 
-	/*  Configure VR_CURRENT_CONFIG. */
-	msr = rdmsr(MSR_VR_CURRENT_CONFIG);
-	/* Preserve bits 63 and 62. Bit 62 is PSI4 enable, but it is only valid
-	 * on ULT systems. */
-	msr.hi &= 0xc0000000;
-	msr.hi |= (0x01 << (52 - 32)); /* PSI3 threshold -  1A. */
-	msr.hi |= (0x05 << (42 - 32)); /* PSI2 threshold -  5A. */
-	msr.hi |= (0x14 << (32 - 32)); /* PSI1 threshold - 20A. */
-
+	union msr_vr_current_config vr_current_config = {
+		.msr = rdmsr(MSR_VR_CURRENT_CONFIG),
+	};
+	/* PSIx thresholds in amps */
+	vr_current_config.psi3_threshold = 1;
+	vr_current_config.psi2_threshold = 5;
+	vr_current_config.psi1_threshold = 20;
 	if (haswell_is_ult())
-		msr.hi |= (1 <<  (62 - 32)); /* Enable PSI4 */
-	/* Leave the max instantaneous current limit (12:0) to default. */
-	wrmsr(MSR_VR_CURRENT_CONFIG, msr);
+		vr_current_config.psi4_enable = 1;
 
-	/*  Configure VR_MISC_CONFIG MSR. */
-	msr = rdmsr(MSR_VR_MISC_CONFIG);
-	/* Set the IOUT_SLOPE scalar applied to dIout in U10.1.9 format. */
-	msr.hi &= ~(0x3ff << (40 - 32));
-	msr.hi |= (0x200 << (40 - 32)); /* 1.0 */
-	/* Set IOUT_OFFSET to 0. */
-	msr.hi &= ~0xff;
-	/* Set exit ramp rate to fast. */
-	msr.hi |= (1 << (50 - 32));
-	/* Set entry ramp rate to slow. */
-	msr.hi &= ~(1 << (51 - 32));
-	/* Enable decay mode on C-state entry. */
-	msr.hi |= (1 << (52 - 32));
-	/* Set the slow ramp rate */
+	wrmsr(MSR_VR_CURRENT_CONFIG, vr_current_config.msr);
+
+	union msr_vr_misc_config vr_misc_config = {
+		.msr = rdmsr(MSR_VR_MISC_CONFIG),
+	};
+	vr_misc_config.iout_slope = 1 << 9; /* 1.0 in U10.1.9 format */
+	vr_misc_config.iout_offset = 0;
+	vr_misc_config.fast_idle_exit_ramp = 1;
+	vr_misc_config.fast_idle_entry_ramp = 0;
+	vr_misc_config.idle_entry_decay_en = 1;
 	if (haswell_is_ult()) {
-		msr.hi &= ~(0x3 << (53 - 32));
-		/* Configure the C-state exit ramp rate. */
 		if (vr_config.slow_ramp_rate_enable) {
-			/* Configured slow ramp rate. */
-			msr.hi |= ((vr_config.slow_ramp_rate_set & 0x3) << (53 - 32));
-			/* Set exit ramp rate to slow. */
-			msr.hi &= ~(1 << (50 - 32));
+			vr_misc_config.prog_slow_ramp_rate = vr_config.slow_ramp_rate_set;
+			vr_misc_config.fast_idle_exit_ramp = 0;
 		} else {
-			/* Fast ramp rate / 4. */
-			msr.hi |= (1 << (53 - 32));
+			vr_misc_config.prog_slow_ramp_rate = FAST_RATE_DIV_4;
 		}
 	}
-	/* Set MIN_VID (31:24) to allow CPU to have full control. */
-	msr.lo &= ~0xff000000;
-	msr.lo |= (vr_config.cpu_min_vid & 0xff) << 24;
-	wrmsr(MSR_VR_MISC_CONFIG, msr);
+	vr_misc_config.min_vid = vr_config.cpu_min_vid;
+	wrmsr(MSR_VR_MISC_CONFIG, vr_misc_config.msr);
 
 	/*  Configure VR_MISC_CONFIG2 MSR. */
 	if (!haswell_is_ult())
@@ -245,11 +230,7 @@ static void configure_pch_power_sharing(void)
 
 int cpu_config_tdp_levels(void)
 {
-	msr_t platform_info;
-
-	/* Bits 34:33 indicate how many levels supported */
-	platform_info = rdmsr(MSR_PLATFORM_INFO);
-	return (platform_info.hi >> 1) & 3;
+	return rdmsr_platform_info().configurable_tdp_levels;
 }
 
 /*
@@ -258,8 +239,7 @@ int cpu_config_tdp_levels(void)
  */
 void set_power_limits(u8 power_limit_1_time)
 {
-	msr_t msr = rdmsr(MSR_PLATFORM_INFO);
-	msr_t limit;
+	msr_t msr, limit;
 	unsigned int power_unit;
 	unsigned int tdp, min_power, max_power, max_time;
 	unsigned int pl1, pl2;
@@ -268,7 +248,7 @@ void set_power_limits(u8 power_limit_1_time)
 	if (power_limit_1_time >= ARRAY_SIZE(power_limit_time_sec_to_msr))
 		power_limit_1_time = ARRAY_SIZE(power_limit_time_sec_to_msr) - 1;
 
-	if (!(msr.lo & PLATFORM_INFO_SET_TDP))
+	if (!rdmsr_platform_info().prog_tdp_for_turbo)
 		return;
 
 	/* Get units */
@@ -295,8 +275,10 @@ void set_power_limits(u8 power_limit_1_time)
 
 	power_limit_1_val = power_limit_time_sec_to_msr[power_limit_1_time];
 
-	const unsigned int pl1_override_w = get_uint_option("tdp_pl1_override", 0);
-	const unsigned int pl2_override_w = get_uint_option("tdp_pl2_override", 0);
+	const unsigned int pl1_override_w =
+		get_uint_option_checked("tdp_pl1_override", 0, OPTION_RANGE(15, 25));
+	const unsigned int pl2_override_w =
+		get_uint_option_checked("tdp_pl2_override", 0, OPTION_RANGE(15, 30));
 
 	/* Set long term power limit to TDP if not overridden */
 	limit.lo = 0;
@@ -315,7 +297,7 @@ void set_power_limits(u8 power_limit_1_time)
 	printk(BIOS_DEBUG, "CPU PL2 = %u Watts\n", pl2 / power_unit);
 	limit.hi |= pl2 & PKG_POWER_LIMIT_MASK;
 	limit.hi |= PKG_POWER_LIMIT_EN;
-	if (get_uint_option("cpu_power_limit_lock", 0)) {
+	if (get_uint_option_checked("cpu_power_limit_lock", 0, OPTION_BOOL)) {
 		limit.hi |= PKG_POWER_LIMIT_LOCK;
 		printk(BIOS_DEBUG, "Locking package power limits\n");
 	}
@@ -343,11 +325,7 @@ void set_power_limits(u8 power_limit_1_time)
 
 static void configure_c_states(void)
 {
-	msr_t msr = rdmsr(MSR_PLATFORM_INFO);
-
-	const bool timed_mwait_capable = !!(msr.hi & TIMED_MWAIT_SUPPORTED);
-
-	msr = rdmsr(MSR_PKG_CST_CONFIG_CONTROL);
+	msr_t msr = rdmsr(MSR_PKG_CST_CONFIG_CONTROL);
 	msr.lo |= (1 << 30);	// Package c-state Undemotion Enable
 	msr.lo |= (1 << 29);	// Package c-state Demotion Enable
 	msr.lo |= (1 << 28);	// C1 Auto Undemotion Enable
@@ -357,7 +335,7 @@ static void configure_c_states(void)
 	msr.lo |= (1 << 15);	// Lock bits 15:0
 	msr.lo &= ~(1 << 10);	// Disable IO MWAIT redirection
 
-	if (timed_mwait_capable)
+	if (rdmsr_platform_info().timed_mwait_supported)
 		msr.lo |= (1 << 31);	// Timed MWAIT Enable
 
 	/* The deepest package c-state defaults to factory-configured value. */
@@ -412,12 +390,10 @@ static void configure_thermal_target(struct device *dev)
 {
 	/* Make sure your devicetree has the cpu_cluster below chip cpu/intel/haswell! */
 	struct cpu_intel_haswell_config *conf = dev->upstream->dev->chip_info;
-	msr_t msr;
 
 	/* Set TCC activation offset if supported */
-	msr = rdmsr(MSR_PLATFORM_INFO);
-	if ((msr.lo & (1 << 30)) && conf->tcc_offset) {
-		msr = rdmsr(MSR_TEMPERATURE_TARGET);
+	if (rdmsr_platform_info().prog_tcc_activation_offset && conf->tcc_offset) {
+		msr_t msr = rdmsr(MSR_TEMPERATURE_TARGET);
 		msr.lo &= ~(0xf << 24); /* Bits 27:24 */
 		msr.lo |= (conf->tcc_offset & 0xf) << 24;
 		wrmsr(MSR_TEMPERATURE_TARGET, msr);
@@ -460,9 +436,7 @@ static void set_max_ratio(void)
 		msr = rdmsr(MSR_CONFIG_TDP_NOMINAL);
 		perf_ctl.lo = (msr.lo & 0xff) << 8;
 	} else {
-		/* Platform Info bits 15:8 give max ratio */
-		msr = rdmsr(MSR_PLATFORM_INFO);
-		perf_ctl.lo = msr.lo & 0xff00;
+		perf_ctl.lo = rdmsr_platform_info().max_non_turbo_ratio << 8;
 	}
 	wrmsr(IA32_PERF_CTL, perf_ctl);
 

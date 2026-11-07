@@ -41,7 +41,7 @@ void fast_spi_lock_bar(void);
  * Set FAST_SPIBAR + DLOCK (0x0C) register bits to discrete lock the
  * FAST_SPI Protected Range (PR) registers.
  */
-void fast_spi_pr_dlock(void);
+int fast_spi_pr_dlock(void);
 /*
  * Set FAST_SPIBAR + VSCC0 (0xC4) register VCL (bit 30).
  */
@@ -80,6 +80,9 @@ bool fast_spi_clear_sync_smi_status(void);
  * Read SPI Write protect disable bit.
  */
 bool fast_spi_wpd_status(void);
+bool fast_spi_eiss_status(void);
+/* Effective protected-owner policy, including immutable BIOS control bits. */
+bool fast_spi_bios_protected(void);
 /*
  * Enable SPI Write protect.
  */

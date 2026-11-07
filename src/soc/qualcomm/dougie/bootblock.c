@@ -1,0 +1,20 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <bootblock_common.h>
+#include <soc/clock.h>
+#include <soc/mmu.h>
+#include <soc/qspi_common.h>
+#include <soc/qupv3_config_common.h>
+
+void bootblock_soc_early_init(void)
+{
+	if (!CONFIG(COMPRESS_BOOTBLOCK))
+		soc_mmu_init();
+}
+
+void bootblock_soc_init(void)
+{
+	clock_init();
+	quadspi_init(50000 * KHz);
+	qupv3_fw_init();
+}

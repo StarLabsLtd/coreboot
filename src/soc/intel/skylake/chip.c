@@ -162,7 +162,9 @@ void soc_init_pre_device(void *chip_info)
 	 * visible in coreboot for driver support and PCI resource allocation.
 	 * There is no UPD setting for this.
 	 */
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	/* Restore GPIO IRQ polarities back to previous settings. */
 	itss_restore_irq_polarities(GPIO_IRQ_START, GPIO_IRQ_END);
@@ -324,7 +326,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	memset(params->PcieRpPmSci, 0, sizeof(params->PcieRpPmSci));
 
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	params->Early8254ClockGatingEnable = !use_8254;
 
 	/*
@@ -516,6 +519,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->PavpEnable = CONFIG(PAVP);
 
 	soc_irq_settings(params);
+
+	params->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 /* Mainboard FSP Configuration */

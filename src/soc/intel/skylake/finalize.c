@@ -31,20 +31,24 @@
 #define PCR_PSFX_T0_SHDW_PCIEN	0x1C
 #define PCR_PSFX_T0_SHDW_PCIEN_FUNDIS	(1 << 8)
 
-void soc_disable_heci1_using_pcr(void)
+int soc_disable_heci1_using_pcr(void)
 {
 	/* unhide p2sb device */
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	/* disable heci */
 	pcr_or32(PID_PSF1, PSF_BASE_ADDRESS + PCR_PSFX_T0_SHDW_PCIEN,
 		PCR_PSFX_T0_SHDW_PCIEN_FUNDIS);
 
-	p2sb_disable_sideband_access();
+	return p2sb_disable_sideband_access();
 }
 
-static void pch_finalize_script(struct device *dev)
+static int pch_finalize_script(struct device *dev)
 {
+	int ret = 0;
+
 	tco_lockdown();
 
 	/* Display me status before we hide it */
@@ -60,12 +64,16 @@ static void pch_finalize_script(struct device *dev)
 	pch_thermal_configuration();
 
 	if (soc_disable_heci1_at_pre_boot())
-		heci1_disable();
+		ret = heci1_disable();
 
 	/* Hide p2sb device as the OS must not change BAR0. */
-	p2sb_hide();
+	if (!p2sb_hide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	pmc_clear_pmcon_sts();
+
+	return ret;
 }
 
 static void soc_lockdown(struct device *dev)
@@ -93,6 +101,7 @@ static void soc_lockdown(struct device *dev)
 static void soc_finalize(void *unused)
 {
 	struct device *dev;
+	int ret;
 
 	dev = PCH_DEV_PMC;
 
@@ -102,14 +111,29 @@ static void soc_finalize(void *unused)
 
 	printk(BIOS_DEBUG, "Finalizing chipset.\n");
 
-	pch_finalize_script(dev);
+	ret = pch_finalize_script(dev);
 
 	soc_lockdown(dev);
-	apm_control(APM_CNT_FINALIZE);
+	if (apm_control(APM_CNT_FINALIZE) != CB_SUCCESS)
+		ret = -1;
+
+	if (ret) {
+		printk(BIOS_ERR, "Chipset finalization failed.\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Chipset finalization failed\n");
+		printk(BIOS_ERR, "Continuing because fail-closed policy is disabled.\n");
+	}
 
 	/* Indicate finalize step with post code */
 	post_code(POSTCODE_OS_BOOT);
 }
+
+#if defined(__TEST__)
+void skylake_soc_finalize_for_test(void)
+{
+	soc_finalize(NULL);
+}
+#endif
 
 BOOT_STATE_INIT_ENTRY(BS_OS_RESUME, BS_ON_ENTRY, soc_finalize, NULL);
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_LOAD, BS_ON_EXIT, soc_finalize, NULL);

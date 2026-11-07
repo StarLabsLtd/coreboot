@@ -63,7 +63,6 @@ static struct sm_obj_form audio_video_group = {
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]){
 		&microphone,
-		&hda_subsystem_id,
 		&webcam,
 		NULL,
 	},
@@ -77,12 +76,22 @@ static struct sm_obj_form battery_group = {
 #if CONFIG(EC_STARLABS_CHARGING_SPEED)
 					     &charging_speed,
 #endif
+#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+					     &charging_policy,
+#endif
 #if CONFIG(SYSTEM_TYPE_LAPTOP) || CONFIG(SYSTEM_TYPE_DETACHABLE)
 					     &max_charge,
 #endif
+#if CONFIG(EC_STARLABS_POWER_REPORTING)
+					     &power_reporting,
+#endif
+#if CONFIG(STARLABS_AUTOMATIC_START)
+					     &automatic_start,
+#else
 					     &power_on_after_fail_bool,
 #if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 					     &power_on_ac,
+#endif
 #endif
 					     NULL},
 };
@@ -191,11 +200,6 @@ static struct sm_obj_form suspend_lid_group = {
 					     &s0ix_enable, NULL},
 };
 
-static struct sm_obj_form virtualization_group = {
-	.ui_name = "Virtualization",
-	.obj_list = (const struct sm_object *[]){&vtd, NULL},
-};
-
 static struct sm_obj_form wireless_group = {
 	.ui_name = "Wireless",
 	.obj_list = (const struct sm_object *[]){&bluetooth, &wifi, NULL},
@@ -220,7 +224,6 @@ static struct sm_obj_form *sm_root[] = {
 	&performance_group,
 	&security_group,
 	&suspend_lid_group,
-	&virtualization_group,
 	&wireless_group,
 	NULL};
 

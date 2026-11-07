@@ -4,7 +4,9 @@
 #define CPU_X86_SMM_H
 
 #include <arch/cpu.h>
+#include <commonlib/cfr.h>
 #include <commonlib/region.h>
+#include <efi_variable_service.h>
 #include <device/pci_type.h>
 #include <device/resource.h>
 #include <types.h>
@@ -24,7 +26,13 @@
 #define APM_CNT_ACPI_ENABLE	0xe1
 #define APM_CNT_ROUTE_ALL_XHCI	0xca
 #define APM_CNT_FINALIZE	0xcb
+/* Finalization result bits when the fixed EFI variable service is enabled. */
+#define APM_FINALIZE_OTHER_ERROR	1
+#define APM_FINALIZE_EFI_ERROR		2
+#define APM_FINALIZE_REBOOT_REQUIRED	4
 #define APM_CNT_LEGACY		0xcc
+#define APM_CNT_CFR_RUNTIME_APPLY	CFR_RUNTIME_APPLY_APM_CNT_COMMAND
+#define APM_CNT_EFI_VARIABLE_SERVICE	EFI_VARIABLE_SERVICE_APM_CMD
 #define APM_CNT_ROM_ARMOR	0xea
 #define APM_CNT_MBI_UPDATE	0xeb
 #define APM_CNT_SMMINFO		0xec
@@ -65,7 +73,7 @@ void mainboard_smi_gpi(u32 gpi_sts);
 int  mainboard_smi_apmc(u8 data);
 void mainboard_smi_sleep(u8 slp_typ);
 void mainboard_smi_sleep_finalize(u8 slp_typ);
-void mainboard_smi_finalize(void);
+int mainboard_smi_finalize(void);
 int mainboard_set_smm_log_level(void);
 
 void smm_soc_early_init(void);
@@ -90,6 +98,8 @@ struct smm_runtime {
 	u32 save_state_size;
 	u32 num_cpus;
 	u32 gnvs_ptr;
+	bool s3_resume;
+	uint32_t *acpi_global_lock;
 	u32 cbmemc_size;
 	void *cbmemc;
 #if CONFIG(SMM_PCI_RESOURCE_STORE)
@@ -99,6 +109,13 @@ struct smm_runtime {
 	int smm_log_level;
 	uintptr_t smmstore_com_buffer_base;
 	size_t smmstore_com_buffer_size;
+#if CONFIG(ASS)
+	uintptr_t efi_variable_service_base;
+	size_t efi_variable_service_size;
+	uintptr_t efi_variable_service_buffer;
+	size_t efi_variable_service_buffer_size;
+	bool efi_variable_service_s3_resume;
+#endif
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	uintptr_t opal_s3_scratch_base;
 	size_t opal_s3_scratch_size;
@@ -124,6 +141,8 @@ struct smm_stub_params {
 	u32 stack_top;
 	u32 c_handler;
 	u32 cr3;
+	u16 gdt_limit;
+	u32 gdt_base;
 	/* The apic_id_to_cpu provides a mapping from APIC id to CPU number.
 	 * The CPU number is indicated by the index into the array by matching
 	 * the default APIC id and value at the index. The stub loader
@@ -147,6 +166,9 @@ asmlinkage void smm_handler_start(void *params);
 /* Retrieve SMM save state for a given CPU. WARNING: This does not take into
  * account CPUs which are configured to not save their state to RAM. */
 void *smm_get_save_state(int cpu);
+
+/* With the handler lock held, return NULL until this CPU has entered this SMI. */
+void *smm_get_current_save_state(unsigned int cpu);
 
 /* Returns true if the region overlaps with the SMM */
 bool smm_region_overlaps_handler(const struct region *r);
@@ -184,6 +206,8 @@ struct smm_loader_params {
 
 	smm_handler_t handler;
 	uint32_t cr3;
+	uint16_t gdt_limit;
+	uint32_t gdt_base;
 };
 
 /* All of these return 0 on success, < 0 on failure. */
@@ -215,6 +239,8 @@ enum {
 	SMM_SUBREGION_HANDLER,
 	/* Persistent OPAL S3 state area. */
 	SMM_SUBREGION_OPAL_S3_STATE,
+	/* Fixed EFI authenticated-variable service. */
+	SMM_SUBREGION_EFI_VARIABLE_SERVICE,
 	/* SMM cache region. */
 	SMM_SUBREGION_CACHE,
 	/* Chipset specific area. */
@@ -250,7 +276,19 @@ bool smm_pci_resource_store_fill_resources(struct smm_pci_resource_info *slots, 
 
 void smm_pci_resource_store_init(struct smm_runtime *smm_runtime);
 
+/* Try without waiting for an OS transaction interrupted by SMI. */
+bool smm_acpi_global_lock_acquire(void);
+/* True means the caller must signal BIOS_RLS to wake an OS waiter. */
+bool smm_acpi_global_lock_release(void);
+
+bool smm_is_s3_resume(void);
+
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size);
+#if CONFIG(ASS)
+void smm_get_efi_variable_service(uintptr_t *base, size_t *size);
+void smm_get_efi_variable_service_buffer(uintptr_t *base, size_t *size);
+bool smm_efi_variable_service_is_s3_resume(void);
+#endif
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size);
 #endif

@@ -4,6 +4,7 @@
 #include <device/mmio.h>
 #include <device/pci_ops.h>
 #include <security/intel/txt/txt_register.h>
+#include <security/tpm/tss.h>
 #include <soc/pci_devs.h>
 #include <stdint.h>
 
@@ -31,6 +32,10 @@ static uint32_t read_register(int reg_addr)
 bool ptt_active(void)
 {
 	uint32_t sts_ftif;
+
+	if (tpm_is_expected_absent())
+		return false;
+
 	uint32_t fwsts4 = read_register(PCI_ME_HFSTS4);
 
 	if (fwsts4 == 0xFFFFFFFF)

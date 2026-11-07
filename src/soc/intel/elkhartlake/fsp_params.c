@@ -305,11 +305,15 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 		params->SkipPamLock = 0;
 	}
 
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY))
+		params->RtcMemoryLock = 1;
+
 	/* Disable PAVP */
 	params->PavpEnable = 0;
 
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	params->Enable8254ClockGating = !use_8254;
 	params->Enable8254ClockGatingOnS3 = !use_8254;
 
@@ -429,6 +433,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 			params->SataPortsEnable[i] = config->SataPortsEnable[i];
 			params->SataPortsDevSlp[i] = config->SataPortsDevSlp[i];
 			params->SataPortsSolidStateDrive[i] = config->SataPortsSSD[i];
+			params->SataPortsEnableDitoConfig[i] = config->SataPortsEnableDitoConfig[i];
 			if (config->SataPortsEnableDitoConfig[i]) {
 				params->SataPortsDmVal[i] =
 					config->SataPortsDmVal[i] ? : DEF_DMVAL;

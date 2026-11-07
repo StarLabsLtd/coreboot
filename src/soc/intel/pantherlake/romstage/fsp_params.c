@@ -8,6 +8,7 @@
 #include <fsp/debug.h>
 #include <fsp/fsp_debug_event.h>
 #include <fsp/util.h>
+#include <intelblocks/cse.h>
 #include <intelbasecode/ramtop.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/tcss.h>
@@ -124,7 +125,9 @@ static void fill_fspm_cpu_params(FSP_M_CONFIG *m_cfg,
 
 static void fill_tme_params(FSP_M_CONFIG *m_cfg)
 {
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	m_cfg->TmeEnable =
+		get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL) &&
+		is_tme_supported();
 	if (!m_cfg->TmeEnable || acpi_is_wakeup_s3())
 		return;
 	m_cfg->GenerateNewTmeKey = CONFIG(TME_KEY_REGENERATION_ON_WARM_BOOT);
@@ -534,6 +537,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 		fill_fspm_sign_of_life(mupd);
 
 	mainboard_memory_init_params(mupd);
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *memupd)

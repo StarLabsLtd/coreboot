@@ -76,14 +76,16 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->PchLockDownGlobalSmi = lockdown_by_fsp;
 	params->PchLockDownBiosInterface = lockdown_by_fsp;
 	params->PchUnlockGpioPads = !lockdown_by_fsp;
-	params->RtcMemoryLock = lockdown_by_fsp;
+	params->RtcMemoryLock = lockdown_by_fsp ||
+		CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY);
 	params->SkipPamLock = !lockdown_by_fsp;
 
 	/* coreboot will send EOP before loading payload */
 	params->EndOfPostMessage = EOP_DISABLE;
 
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	params->Enable8254ClockGating = !use_8254;
 	params->Enable8254ClockGatingOnS3 = !use_8254;
 

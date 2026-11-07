@@ -13,9 +13,14 @@ const struct soc_amd_gpio early_gpio_table[] = {
 	/* EGPIO114:	SMB SDA 0			*/
 	PAD_NF(GPIO_114, I2C2_SDA, PULL_NONE),
 	/* EGPIO141:	UART0 RXD			*/
+#if CONFIG(EDK2_DEBUG)
 	PAD_NF(GPIO_141, UART0_RXD, PULL_NONE),
 	/* EGPIO143:	UART0 TXD			*/
 	PAD_NF(GPIO_143, UART0_TXD, PULL_NONE),
+#else
+	PAD_NC(GPIO_141),
+	PAD_NC(GPIO_143),
+#endif
 };
 
 const struct soc_amd_gpio *variant_early_gpio_table(size_t *num)
@@ -151,11 +156,16 @@ const struct soc_amd_gpio gpio_table[] = {
 	/* EGPIO140:	Not Connected			*/
 	PAD_NC(GPIO_140),
 	/* EGPIO141:	UART0 RXD			*/
+#if CONFIG(EDK2_DEBUG)
 	PAD_NF(GPIO_141, UART0_RXD, PULL_NONE),
-	/* EGPIO142:	Test Point 96			*/
-	PAD_NC(GPIO_142),
 	/* EGPIO143:	UART0 TXD			*/
 	PAD_NF(GPIO_143, UART0_TXD, PULL_NONE),
+#else
+	PAD_NC(GPIO_141),
+	PAD_NC(GPIO_143),
+#endif
+	/* EGPIO142:	Test Point 96			*/
+	PAD_NC(GPIO_142),
 	/* EGPIO144:	Not Connected			*/
 	PAD_NC(GPIO_144),
 	/* EGPIO145:	I2C 0 SCL (Not Used)		*/
