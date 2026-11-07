@@ -23,3 +23,11 @@ $(foreach test,smmstore-srk-test smmstore-srk-customer-test,\
 		-I src/soc/intel/common/block/include))
 smmstore-srk-test-config += CONFIG_SMMSTORE_SRK_PROVISION=1
 smmstore-srk-customer-test-config += CONFIG_SMMSTORE_SRK_PROVISION=0
+
+tests-y += vbnv-flash-redundant-test
+vbnv-flash-redundant-test-srcs += tests/drivers/vbnv-flash.c src/commonlib/region.c \
+	tests/stubs/console.c 3rdparty/vboot/firmware/2lib/2nvstorage.c \
+	3rdparty/vboot/firmware/2lib/2crc8.c
+vbnv-flash-redundant-test-cflags += -I tests/drivers/vbnv-flash-include \
+	-I 3rdparty/vboot/firmware/2lib/include
+vbnv-flash-redundant-test-config += CONFIG_ROM_SIZE=0x2000
