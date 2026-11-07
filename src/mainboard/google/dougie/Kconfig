@@ -1,0 +1,77 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config BOARD_GOOGLE_DOUGIE_COMMON
+	def_bool n
+	select BOARD_ROMSIZE_KB_32768
+	select COMMON_CBFS_SPI_WRAPPER
+	select EC_GOOGLE_CHROMEEC
+	select EC_GOOGLE_CHROMEEC_RTC
+	select EC_GOOGLE_CHROMEEC_SPI
+	select I2C_TPM
+	select MAINBOARD_HAS_CHROMEOS
+	select MAINBOARD_HAS_TPM2
+	select RTC
+	select SOC_QUALCOMM_DOUGIE
+	select SPI_FLASH
+	select SPI_FLASH_FORCE_4_BYTE_ADDR_MODE
+	select SPI_FLASH_INCLUDE_ALL_DRIVERS
+	select TPM_GOOGLE_TI50
+
+config BOARD_GOOGLE_BANDIT
+	select BOARD_GOOGLE_DOUGIE_COMMON
+
+if BOARD_GOOGLE_DOUGIE_COMMON
+
+config VBOOT
+	select EC_GOOGLE_CHROMEEC_SWITCHES
+	select VBOOT_LID_SWITCH
+	select VBOOT_VBNV_FLASH
+
+config MAINBOARD_DIR
+	default "google/dougie"
+
+##########################################################
+#### Update below when adding a new derivative board. ####
+##########################################################
+
+config MAINBOARD_PART_NUMBER
+	default "Bandit" if BOARD_GOOGLE_BANDIT
+
+config DRIVER_TPM_I2C_BUS
+	depends on I2C_TPM
+	hex
+	default 0xE
+
+config DRIVER_TPM_I2C_ADDR
+	depends on I2C_TPM
+	hex
+	default 0x50
+
+config EC_GOOGLE_CHROMEEC_SPI_BUS
+	hex
+	default 0xA
+
+config MAINBOARD_HAS_UFS
+	bool "Enable UFS storage"
+	default y
+	help
+	  Enable this option if your mainboard is equipped with UFS
+	  storage.
+
+config MAINBOARD_HAS_EMMC
+	bool "Enable eMMC (SDC1) storage"
+	default n
+	help
+	  Enable this option if your mainboard is equipped with eMMC
+	  storage on SDC1 and you want coreboot to initialize SDCC1
+	  clocks, TLMM pads, and early CMD1 during ramstage.
+
+config MAINBOARD_HAS_NVME
+	bool "Enable NVMe (PCIe1) storage"
+	default n
+	help
+	  Enable this option if your mainboard is equipped with NVMe
+	  storage on PCIe1 and you want coreboot to initialize the PCIe
+	  root complex during ramstage.
+
+endif # BOARD_GOOGLE_DOUGIE_COMMON

@@ -4,9 +4,11 @@
 #include <bootmode.h>
 #include <bootstate.h>
 #include <vb2_api.h>
+#include <2nvstorage.h>
 #include <security/vboot/misc.h>
 #include <security/vboot/vbnv.h>
 #include <security/vboot/vboot_common.h>
+#include <security/lockdown/lockdown.h>
 
 /*
  * Functions which check vboot information should only be called after verstage
@@ -59,12 +61,49 @@ static void vboot_clear_recovery_request(void *unused)
 
 	ctx = vboot_get_context();
 	vb2api_clear_recovery(ctx);
-	save_vbnv(ctx->nvdata);
+	if (save_vbnv(ctx->nvdata))
+		die("VBNV recovery update failed\n");
 }
 
 /* This has to be called before back_up_vbnv_cmos, so BS_ON_ENTRY is used here. */
 BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_ENTRY,
 		      vboot_clear_recovery_request, NULL);
+#endif
+
+#if ENV_RAMSTAGE && (CONFIG(VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN) || \
+	CONFIG(VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN))
+int __weak vboot_prepare_vbnv_write(void)
+{
+	return 0;
+}
+
+int __weak vboot_finish_vbnv_write(void)
+{
+	return 0;
+}
+
+void boot_device_wp_status_locked(void)
+{
+	struct vb2_context *ctx = vboot_get_context();
+	int ret;
+
+	if (vboot_prepare_vbnv_write())
+		die("VBNV flash write is disabled\n");
+
+	if (CONFIG(VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN))
+		vb2api_clear_recovery(ctx);
+
+	if (CONFIG(VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN) &&
+	    !(ctx->flags & VB2_CONTEXT_RECOVERY_MODE))
+		vb2_nv_set(ctx, VB2_NV_FW_RESULT, VB2_FW_RESULT_SUCCESS);
+
+	ret = save_vbnv(ctx->nvdata);
+	if (vboot_finish_vbnv_write())
+		die("Failed to restore VBNV flash write protection\n");
+	if (ret)
+		die("Required VBNV update failed\n");
+	ctx->flags &= ~VB2_CONTEXT_NVDATA_CHANGED;
+}
 #endif
 
 int __weak get_recovery_mode_retrain_switch(void)

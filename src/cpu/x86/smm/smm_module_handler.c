@@ -18,40 +18,32 @@
 
 static int do_driver_init = 1;
 
-typedef enum { SMI_LOCKED, SMI_UNLOCKED } smi_semaphore;
-
-/* SMI multiprocessing semaphore */
-static volatile
-__attribute__((aligned(4))) smi_semaphore smi_handler_status = SMI_UNLOCKED;
+/* Odd values identify an active SMI; even values mean the handler is unlocked. */
+static unsigned int smi_handler_status;
+static unsigned int cpu_smi_generation[CONFIG_MAX_CPUS];
 
 static const volatile
 __attribute((aligned(4), __section__(".module_parameters"))) struct smm_runtime smm_runtime;
 
-static int smi_obtain_lock(void)
+static bool smi_obtain_lock(unsigned int *generation)
 {
-	u8 ret = SMI_LOCKED;
+	unsigned int state = __atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE);
 
-	asm volatile (
-		"movb %2, %%al\n"
-		"xchgb %%al, %1\n"
-		"movb %%al, %0\n"
-		: "=g" (ret), "=m" (smi_handler_status)
-		: "g" (SMI_LOCKED)
-		: "eax"
-	);
+	while (!(state & 1)) {
+		if (__atomic_compare_exchange_n(&smi_handler_status, &state, state + 1,
+				false, __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE)) {
+			*generation = state + 1;
+			return true;
+		}
+	}
 
-	return (ret == SMI_UNLOCKED);
+	*generation = state;
+	return false;
 }
 
 static void smi_release_lock(void)
 {
-	asm volatile (
-		"movb %1, %%al\n"
-		"xchgb %%al, %0\n"
-		: "=m" (smi_handler_status)
-		: "g" (SMI_UNLOCKED)
-		: "eax"
-	);
+	__atomic_fetch_add(&smi_handler_status, 1, __ATOMIC_RELEASE);
 }
 
 #if CONFIG(RUNTIME_CONFIGURABLE_SMM_LOGLEVEL)
@@ -61,11 +53,64 @@ int get_console_loglevel(void)
 }
 #endif
 
+#define ACPI_GLOBAL_LOCK_PENDING (1U << 0)
+#define ACPI_GLOBAL_LOCK_OWNED (1U << 1)
+
+bool smm_acpi_global_lock_acquire(void)
+{
+	uint32_t *lock = smm_runtime.acpi_global_lock;
+
+	if (!lock)
+		return false;
+
+	uint32_t value = __atomic_load_n(lock, __ATOMIC_RELAXED);
+
+	if (value & ACPI_GLOBAL_LOCK_OWNED)
+		return false;
+
+	/* Do not set Pending: SMM must not wait for the interrupted OS. */
+	return __atomic_compare_exchange_n(lock, &value,
+		value | ACPI_GLOBAL_LOCK_OWNED, false, __ATOMIC_ACQUIRE,
+		__ATOMIC_RELAXED);
+}
+
+bool smm_acpi_global_lock_release(void)
+{
+	uint32_t value = __atomic_fetch_and(smm_runtime.acpi_global_lock,
+		~(ACPI_GLOBAL_LOCK_PENDING | ACPI_GLOBAL_LOCK_OWNED), __ATOMIC_RELEASE);
+
+	return value & ACPI_GLOBAL_LOCK_PENDING;
+}
+
+bool smm_is_s3_resume(void)
+{
+	return smm_runtime.s3_resume;
+}
+
 void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 {
 	*base = smm_runtime.smmstore_com_buffer_base;
 	*size = smm_runtime.smmstore_com_buffer_size;
 }
+
+#if CONFIG(ASS)
+void smm_get_efi_variable_service(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.efi_variable_service_base;
+	*size = smm_runtime.efi_variable_service_size;
+}
+
+void smm_get_efi_variable_service_buffer(uintptr_t *base, size_t *size)
+{
+	*base = smm_runtime.efi_variable_service_buffer;
+	*size = smm_runtime.efi_variable_service_buffer_size;
+}
+
+bool smm_efi_variable_service_is_s3_resume(void)
+{
+	return smm_runtime.efi_variable_service_s3_resume;
+}
+#endif
 
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size)
@@ -137,6 +182,17 @@ void *smm_get_save_state(int cpu)
 			(smm_runtime.save_state_size - STM_PSD_SIZE));
 }
 
+void *smm_get_current_save_state(unsigned int cpu)
+{
+	unsigned int generation = __atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE);
+
+	if (cpu >= CONFIG_MAX_CPUS ||
+	    __atomic_load_n(&cpu_smi_generation[cpu], __ATOMIC_ACQUIRE) != generation)
+		return NULL;
+
+	return smm_get_save_state(cpu);
+}
+
 uint32_t smm_revision(void)
 {
 	const uintptr_t save_state = (uintptr_t)(smm_get_save_state(0));
@@ -157,6 +213,7 @@ asmlinkage void smm_handler_start(void *arg)
 {
 	const struct smm_module_params *p;
 	int cpu;
+	unsigned int generation;
 	uintptr_t actual_canary;
 	uintptr_t expected_canary;
 
@@ -168,20 +225,24 @@ asmlinkage void smm_handler_start(void *arg)
 	 * will be the same across CPUs as well as multiple SMIs. */
 	gnvs = (void *)(uintptr_t)smm_runtime.gnvs_ptr;
 
-	if (cpu >= CONFIG_MAX_CPUS) {
+	if (cpu < 0 || cpu >= CONFIG_MAX_CPUS) {
 		/* Do not log messages to console here, it is not thread safe */
 		return;
 	}
 
-	/* Are we ok to execute the handler? */
-	if (!smi_obtain_lock()) {
+	/* Publish entry only after hardware has written this CPU's save state. */
+	bool handler = smi_obtain_lock(&generation);
+	__atomic_store_n(&cpu_smi_generation[cpu], generation, __ATOMIC_RELEASE);
+
+	if (!handler) {
 		/* For security reasons we don't release the other CPUs
 		 * until the CPU with the lock is actually done */
-		while (smi_handler_status == SMI_LOCKED) {
+		while (__atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE) & 1) {
 			asm volatile (
 				".byte 0xf3, 0x90\n" /* PAUSE */
 			);
 		}
+		__atomic_store_n(&cpu_smi_generation[cpu], 0, __ATOMIC_RELEASE);
 		return;
 	}
 
@@ -223,6 +284,7 @@ asmlinkage void smm_handler_start(void *arg)
 
 	smm_soc_exit();
 
+	__atomic_store_n(&cpu_smi_generation[cpu], 0, __ATOMIC_RELEASE);
 	smi_release_lock();
 
 	/* De-assert SMI# signal to allow another SMI */
@@ -250,7 +312,7 @@ void __weak mainboard_smi_gpi(u32 gpi_sts) {}
 int __weak mainboard_smi_apmc(u8 data) { return 0; }
 void __weak mainboard_smi_sleep(u8 slp_typ) {}
 void __weak mainboard_smi_sleep_finalize(u8 slp_typ) {}
-void __weak mainboard_smi_finalize(void) {}
+int __weak mainboard_smi_finalize(void) { return 0; }
 
 void __weak smm_soc_early_init(void) {}
 void __weak smm_soc_exit(void) {}

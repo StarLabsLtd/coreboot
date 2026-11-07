@@ -98,6 +98,8 @@ static void do_silicon_init(struct fsp_header *hdr)
 	struct fsp_multi_phase_params multi_phase_params;
 	struct fsp_multi_phase_get_number_of_phases_params multi_phase_get_number;
 	int temp_mtrr_index = -1;
+	const bool early_logo = CONFIG(BMP_LOGO) &&
+		(!CONFIG(BOOT_SPLASH_HANDOFF) || platform_is_low_battery_shutdown_needed());
 
 	supd = (FSPS_UPD *)(uintptr_t)(hdr->cfg_region_offset + hdr->image_base);
 
@@ -125,14 +127,14 @@ static void do_silicon_init(struct fsp_header *hdr)
 	/* Give SoC/mainboard a chance to populate entries */
 	platform_fsp_silicon_init_params_cb(upd);
 
-	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
+	if (early_logo && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
 		temp_mtrr_index = soc_mark_gfx_memory();
 
 	/*
 	 * Populate UPD entries for the logo if the platform utilizes
 	 * the FSP's capability for rendering bitmap (BMP) images.
 	 */
-	if (CONFIG(BMP_LOGO) && !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
+	if (early_logo && !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
 		soc_load_logo_by_fsp(upd);
 
 	/* Call SiliconInit */
@@ -162,7 +164,7 @@ static void do_silicon_init(struct fsp_header *hdr)
 	fsps_return_value_handler(FSP_SILICON_INIT_API, status);
 
 	/* Only applies for SoC platforms prior to FSP 2.2 specification. */
-	if (!CONFIG(PLATFORM_USES_FSP2_2) && CONFIG(BMP_LOGO)) {
+	if (!CONFIG(PLATFORM_USES_FSP2_2) && early_logo) {
 		if (CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
 			soc_load_logo_by_coreboot();
 		/*
@@ -220,7 +222,7 @@ static void do_silicon_init(struct fsp_header *hdr)
 	timestamp_add_now(TS_FSP_MULTI_PHASE_SI_INIT_END);
 	post_code(POSTCODE_FSP_MULTI_PHASE_SI_INIT_EXIT);
 
-	if (CONFIG(BMP_LOGO)) {
+	if (early_logo) {
 		/*
 		 * If a BMP logo is enabled (`BMP_LOGO`) and the platform is
 		 * configured to skip the FSP for rendering logo bitmap

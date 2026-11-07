@@ -8,6 +8,8 @@
 #define CMD_W25_WRSR		0x01 /* Write Status Register */
 #define CMD_W25_RDSR2		0x35 /* Read Status2 Register */
 #define CMD_W25_WRSR2		0x31 /* Write Status2 Register */
+#define CMD_W25_RDSR3		0x15 /* Read Status3 Register */
+#define CMD_W25_WRSR3		0x11 /* Write Status3 Register */
 #define CMD_W25_READ		0x03 /* Read Data Bytes */
 #define CMD_W25_FAST_READ	0x0b /* Read Data Bytes at Higher Speed */
 #define CMD_W25_PP		0x02 /* Page Program */

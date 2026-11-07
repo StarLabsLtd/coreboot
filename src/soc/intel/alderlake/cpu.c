@@ -67,7 +67,7 @@ static void configure_misc(void)
 	wrmsr(IA32_MISC_ENABLE, msr);
 
 	/* Set EIST status */
-	cpu_set_eist(conf->eist_enable);
+	cpu_set_eist(!CONFIG(SOC_INTEL_ALDERLAKE_REALTIME_TUNING_ENABLE) && conf->eist_enable);
 
 	/* Disable Thermal interrupts */
 	msr.lo = 0;
@@ -141,7 +141,8 @@ void soc_core_init(struct device *cpu)
 	/* Enable Turbo */
 	enable_turbo();
 
-	if (get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported())
+	if (get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL) &&
+	    is_tme_supported())
 		set_tme_core_activate();
 }
 

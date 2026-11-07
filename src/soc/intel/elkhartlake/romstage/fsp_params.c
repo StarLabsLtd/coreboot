@@ -4,6 +4,7 @@
 #include <console/console.h>
 #include <device/device.h>
 #include <fsp/util.h>
+#include <intelblocks/cse.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/pcie_rp.h>
 #include <option.h>
@@ -137,7 +138,7 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 	m_cfg->FClkFrequency = 0x1;
 
 	/* Ib-Band ECC configuration */
-	if (get_uint_option("ibecc_enable", config->ibecc.enable)) {
+	if (get_uint_option_checked("ibecc_enable", config->ibecc.enable, OPTION_BOOL)) {
 		m_cfg->Ibecc = true;
 		m_cfg->IbeccParity = !!config->ibecc.parity_en;
 		m_cfg->IbeccOperationMode = config->ibecc.mode;
@@ -213,6 +214,7 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	fill_fsp_debug_params(m_cfg, config);
 
 	mainboard_memory_init_params(mupd);
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)

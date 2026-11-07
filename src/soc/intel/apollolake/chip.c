@@ -327,7 +327,9 @@ static void soc_init(void *data)
 	 * There is a UPD setting for this, but it's more consistent to use
 	 * hide and unhide symmetrically.
 	 */
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	config = config_of_soc();
 	/* Set RAPL MSR for Package power limits */
@@ -493,13 +495,15 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 #if !CONFIG(SOC_INTEL_GEMINILAKE) /* GLK FSP does not have these fields in FspsUpd.h yet */
 	uint8_t port;
 
+	if (cfg->usb_config_override)
+		silconfig->UsbPerPortCtl = 1;
+
 	for (port = 0; port < APOLLOLAKE_USB2_PORT_MAX; port++) {
 		if (cfg->usb_config_override) {
-			if (!cfg->usb2_port[port].enable)
-				continue;
-
-			silconfig->PortUsb20Enable[port] = 1;
-			silconfig->PortUs20bOverCurrentPin[port] = cfg->usb2_port[port].oc_pin;
+			silconfig->PortUsb20Enable[port] = cfg->usb2_port[port].enable;
+			if (cfg->usb2_port[port].enable)
+				silconfig->PortUs20bOverCurrentPin[port] =
+					cfg->usb2_port[port].oc_pin;
 		}
 
 		if (cfg->usb2eye[port].Usb20PerPortTxPeHalf != 0)
@@ -533,10 +537,10 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 
 	if (cfg->usb_config_override) {
 		for (port = 0; port < APOLLOLAKE_USB3_PORT_MAX; port++) {
+			silconfig->PortUsb30Enable[port] = cfg->usb3_port[port].enable;
 			if (!cfg->usb3_port[port].enable)
 				continue;
 
-			silconfig->PortUsb30Enable[port] = 1;
 			silconfig->PortUs30bOverCurrentPin[port] = cfg->usb3_port[port].oc_pin;
 		}
 	}
@@ -695,7 +699,6 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	memcpy(silconfig->SataPortsHotPlug, cfg->sata_ports_hot_plug,
 		sizeof(silconfig->SataPortsHotPlug));
 
-	cfg->lpss_s0ix_enable = cse_get_s0ix_enable_state(cfg->lpss_s0ix_enable);
 	silconfig->LPSS_S0ixEnable = cfg->lpss_s0ix_enable;
 
 	/* Disable monitor mwait since it is broken due to a hardware bug
@@ -706,15 +709,20 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 
 	silconfig->SkipMpInit = !CONFIG(USE_INTEL_FSP_MP_INIT);
 
-	/* coreboot handles lockdown unless the board delegates it to FSP */
+	/* coreboot handles lockdown unless the board delegates it to FSP. */
 	const bool lockdown_by_fsp = get_lockdown_config() == CHIPSET_LOCKDOWN_FSP;
 
 	silconfig->LockDownGlobalSmi		= lockdown_by_fsp;
-	silconfig->BiosLock			= lockdown_by_fsp;
 	silconfig->BiosInterface		= lockdown_by_fsp;
-	silconfig->WriteProtectionEnable[0]	= lockdown_by_fsp;
-	silconfig->SpiEiss			= lockdown_by_fsp;
 	silconfig->RtcLock			= lockdown_by_fsp;
+
+	/*
+	 * When delegated to FSP, leave protected ranges, EISS and LE clear.
+	 * coreboot uses SMM_BWP and sets EISS before LE after SMM setup.
+	 */
+	silconfig->WriteProtectionEnable[0]	= false;
+	silconfig->SpiEiss			= false;
+	silconfig->BiosLock			= false;
 
 	/* Enable Audio clk gate and power gate */
 	silconfig->HDAudioClkGate = cfg->hdaudio_clk_gate_enable;
@@ -734,7 +742,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	silconfig->C1e = cfg->enhanced_cstates;
 
 	/* Set VTD feature according to devicetree */
-	silconfig->VtdEnable = get_uint_option("vtd", cfg->enable_vtd);
+	silconfig->VtdEnable = get_uint_option_checked("vtd", cfg->enable_vtd, OPTION_BOOL);
 
 	silconfig->PeiGraphicsPeimInit = CONFIG(RUN_FSP_GOP) && is_devfn_enabled(SA_DEVFN_IGD);
 
@@ -754,7 +762,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	silconfig->SataPwrOptEnable = !(cfg->sata_pwr_optimize_disable);
 
 	/* 8254 Timer */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	silconfig->Timer8254ClkSetting = !use_8254;
 
 	/* FSP should let coreboot set subsystem IDs, which are read/write-once */
@@ -762,6 +771,12 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	silconfig->SubSystemId = 0;
 
 	mainboard_silicon_init_params(silconfig);
+
+	/* Resolve board defaults and runtime policy before FSP and ACPI consume it. */
+	cfg->lpss_s0ix_enable = cse_get_s0ix_enable_state(silconfig->LPSS_S0ixEnable);
+	silconfig->LPSS_S0ixEnable = cfg->lpss_s0ix_enable;
+
+	silconfig->DspEnable &= cse_is_me_state_requested_enabled();
 }
 
 struct chip_operations soc_intel_apollolake_ops = {
@@ -859,7 +874,9 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase)
 		heci_cse_lockdown();
 
 		/* Hide the P2SB device to align with previous behavior. */
-		p2sb_hide();
+		if (!p2sb_hide())
+			die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 		/*
 		 * As per guidelines BIOS is recommended to drop CPU privilege

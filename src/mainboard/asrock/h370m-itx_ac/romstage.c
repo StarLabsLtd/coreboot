@@ -23,7 +23,8 @@ void mainboard_memory_init_params(FSPM_UPD *memupd)
 {
 	memupd->FspmConfig.UserBd = BOARD_TYPE_DESKTOP;
 
-	memupd->FspmConfig.MrcFastBoot = get_uint_option("fast_boot", true);
+	memupd->FspmConfig.MrcFastBoot =
+		get_uint_option_checked("fast_boot", true, OPTION_BOOL);
 
 	cannonlake_memcfg_init(&memupd->FspmConfig, &baseboard_mem_cfg);
 }

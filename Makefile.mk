@@ -90,6 +90,8 @@ $(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) | files_added
 	$(MAKE) -C payloads/external/edk2 coreboot_capsule \
 		COREBOOT_ROM="$(abspath $<)" \
 		COREBOOT_CAPSULE_OUT="$(abspath $@)" \
+		COREBOOT_FMAP_LAYOUT="$(abspath $(obj)/fmap.fmap)" \
+		CBFSTOOL="$(abspath $(CBFSTOOL))" \
 		$(EDK2_CAPSULE_ARGS)
 endif
 

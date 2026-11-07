@@ -92,6 +92,9 @@ static tpm_result_t tpm_setup_epilogue(tpm_result_t rc)
 static int tpm_is_setup;
 static inline int tspi_tpm_is_setup(void)
 {
+	if (tpm_is_expected_absent())
+		return 0;
+
 	/*
 	 * vboot_logic_executed() only starts returning true at the end of
 	 * verstage, but the vboot logic itself already wants to extend PCRs
@@ -140,6 +143,10 @@ tpm_result_t tpm_setup(int s3flag)
 
 	rc = tlcl_lib_init();
 	if (rc != TPM_SUCCESS) {
+		if (rc == TPM_CB_NO_DEVICE && tpm_is_expected_absent()) {
+			printk(BIOS_DEBUG, "TPM: setup skipped because TPM is absent by platform policy\n");
+			return rc;
+		}
 		printk(BIOS_ERR, "TPM Error (%#x): Can't initialize.\n", rc);
 		return tpm_setup_epilogue(rc);
 	}
@@ -227,6 +234,12 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 	if (!digest)
 		return TPM_IOERROR;
 
+	if (CONFIG(TPM_MEASURED_BOOT)) {
+		rc = tspi_ensure_event_log_initialized();
+		if (rc != TPM_SUCCESS)
+			return rc;
+	}
+
 	if (tspi_tpm_is_setup()) {
 		rc = tlcl_lib_init();
 		if (rc != TPM_SUCCESS) {
@@ -252,6 +265,31 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 	return TPM_SUCCESS;
 }
 
+#if CONFIG(TPM_PREBOOT_AUTH_PHASE) && ENV_RAMSTAGE
+tpm_result_t tpm_extend_pcr_compact_hash(int pcr, enum vb2_hash_algorithm digest_algo,
+				      const uint8_t *digest, size_t digest_len, const char *name)
+{
+	tpm_result_t rc;
+
+	/* Unlike ordinary measured-boot events, logging alone cannot open a phase. */
+	if (!digest || !name || digest_len != vb2_digest_size(digest_algo) ||
+	    !tspi_tpm_is_setup() || !tpm_log_init())
+		return TPM_IOERROR;
+
+	rc = tlcl_lib_init();
+	if (rc != TPM_SUCCESS)
+		return rc;
+	rc = tlcl_extend(pcr, digest, digest_algo);
+	if (rc != TPM_SUCCESS)
+		return rc;
+
+	if (!tpm2_log_add_compact_hash(name, pcr, digest_algo, digest, digest_len))
+		return TPM_IOERROR;
+
+	return TPM_SUCCESS;
+}
+#endif
+
 #if CONFIG(VBOOT_LIB)
 tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 			    const char *rname)
@@ -264,7 +302,6 @@ tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 
 	if (!rdev || !rname)
 		return TPM_CB_INVALID_ARG;
-
 	digest_len = vb2_digest_size(TPM_MEASURE_ALGO);
 	assert(digest_len <= sizeof(digest));
 	if (vb2_digest_init(&ctx, vboot_hwcrypto_allowed(), TPM_MEASURE_ALGO,

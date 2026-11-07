@@ -85,7 +85,9 @@ static struct sm_obj_form audio_video_group = {
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]) {
 		&microphone,
-		#if !CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
+		#if !CONFIG(BOARD_STARLABS_STARBOOK_RPL_U) && \
+		    !CONFIG(BOARD_STARLABS_STARBOOK_ADL_N) && \
+		    !CONFIG(BOARD_STARLABS_STARBOOK_MTL)
 		&hda_subsystem_id,
 		#endif
 		&webcam,
@@ -99,27 +101,34 @@ static struct sm_obj_form battery_group = {
 		#if CONFIG(EC_STARLABS_CHARGING_SPEED)
 		&charging_speed,
 		#endif
+		#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+		&charging_policy,
+		#endif
 		&max_charge,
+		#if CONFIG(EC_STARLABS_POWER_REPORTING)
+		&power_reporting,
+		#endif
+		#if CONFIG(STARLABS_AUTOMATIC_START)
+		&automatic_start,
+		#else
 		&power_on_after_fail_bool,
 		#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 		&power_on_ac,
+		#endif
 		#endif
 		NULL
 	},
 };
 
+#if !CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
 static struct sm_obj_form io_expansion_group = {
 	.ui_name = "I/O / Expansion",
 	.obj_list = (const struct sm_object *[]) {
-#if !CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
 		&card_reader,
-#endif
-		#if CONFIG(DRIVERS_INTEL_USB4_RETIMER)
-		&thunderbolt,
-		#endif
 		NULL
 	},
 };
+#endif
 
 static struct sm_obj_form keyboard_group = {
 	.ui_name = "Keyboard",
@@ -236,14 +245,6 @@ static struct sm_obj_form suspend_lid_group = {
 	},
 };
 
-static struct sm_obj_form virtualization_group = {
-	.ui_name = "Virtualization",
-	.obj_list = (const struct sm_object *[]) {
-		&vtd,
-		NULL
-	},
-};
-
 static struct sm_obj_form wireless_group = {
 	.ui_name = "Wireless",
 	.obj_list = (const struct sm_object *[]) {
@@ -256,7 +257,9 @@ static struct sm_obj_form wireless_group = {
 static struct sm_obj_form *sm_root[] = {
 	&audio_video_group,
 	&battery_group,
+#if !CONFIG(BOARD_STARLABS_STARBOOK_RPL_U)
 	&io_expansion_group,
+#endif
 	&keyboard_group,
 #if CONFIG(STARLABS_TOUCHPAD)
 	&trackpad_group,
@@ -266,7 +269,6 @@ static struct sm_obj_form *sm_root[] = {
 	&performance_group,
 	&security_group,
 	&suspend_lid_group,
-	&virtualization_group,
 	&wireless_group,
 	NULL
 };

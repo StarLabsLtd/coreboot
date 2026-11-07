@@ -27,7 +27,7 @@ static int framework_ec_send(uint16_t cmd_code, const void *data, size_t size)
 
 static void framework_set_ps2_emulation(void)
 {
-	const bool enable = get_uint_option(PS2_EMULATION_OPTION_NAME, 1);
+	const bool enable = get_uint_option_checked(PS2_EMULATION_OPTION_NAME, 1, OPTION_BOOL);
 	const struct ec_params_ps2_emulation_control params = {
 		.disable = !enable,
 	};
@@ -45,7 +45,8 @@ static void framework_set_ps2_emulation(void)
 
 static void framework_set_standalone_mode(void)
 {
-	const bool enable = get_uint_option(STANDALONE_MODE_OPTION_NAME, 0);
+	const bool enable =
+		get_uint_option_checked(STANDALONE_MODE_OPTION_NAME, 0, OPTION_BOOL);
 	const struct ec_params_standalone_mode params = {
 		.enable = enable,
 	};
@@ -57,8 +58,19 @@ static void framework_set_standalone_mode(void)
 
 static void framework_set_fp_led_level(void)
 {
-	const unsigned int level = get_uint_option(FP_LED_LEVEL_OPTION_NAME,
-						   FP_LED_LEVEL_EC_DEFAULT);
+#if CONFIG(BOARD_FRAMEWORK_SUNFLOWER)
+	const unsigned int level = get_uint_option_checked(
+		FP_LED_LEVEL_OPTION_NAME, FP_LED_LEVEL_EC_DEFAULT,
+		OPTION_ENUM(FP_LED_LEVEL_EC_DEFAULT, FP_LED_BRIGHTNESS_HIGH,
+			    FP_LED_BRIGHTNESS_MEDIUM, FP_LED_BRIGHTNESS_LOW,
+			    FP_LED_BRIGHTNESS_ULTRA_LOW));
+#else
+	const unsigned int level = get_uint_option_checked(
+		FP_LED_LEVEL_OPTION_NAME, FP_LED_LEVEL_EC_DEFAULT,
+		OPTION_ENUM(FP_LED_LEVEL_EC_DEFAULT, FP_LED_BRIGHTNESS_AUTO,
+			    FP_LED_BRIGHTNESS_HIGH, FP_LED_BRIGHTNESS_MEDIUM,
+			    FP_LED_BRIGHTNESS_LOW, FP_LED_BRIGHTNESS_ULTRA_LOW));
+#endif
 
 	/* Leave the EC at whatever it has stored. */
 	if (level == FP_LED_LEVEL_EC_DEFAULT)
@@ -76,7 +88,10 @@ static void framework_set_fp_led_level(void)
 static void framework_set_input_deck_mode(void)
 {
 	const struct ec_params_deck_state params = {
-		.mode = get_uint_option(INPUT_DECK_MODE_OPTION_NAME, INPUT_DECK_MODE_AUTO),
+		.mode = get_uint_option_checked(
+			INPUT_DECK_MODE_OPTION_NAME, INPUT_DECK_MODE_AUTO,
+			OPTION_ENUM(INPUT_DECK_MODE_AUTO, INPUT_DECK_MODE_FORCE_OFF,
+				    INPUT_DECK_MODE_FORCE_ON)),
 	};
 	struct ec_response_deck_state resp;
 	struct chromeec_command cmd = {
@@ -95,8 +110,9 @@ static void framework_set_input_deck_mode(void)
 
 static void framework_set_stylus_protocol(void)
 {
-	const unsigned int proto = get_uint_option(STYLUS_PROTOCOL_OPTION_NAME,
-						   STYLUS_PROTOCOL_MPP);
+	const unsigned int proto =
+		get_uint_option_checked(STYLUS_PROTOCOL_OPTION_NAME, STYLUS_PROTOCOL_MPP,
+					OPTION_RANGE(STYLUS_PROTOCOL_USI, STYLUS_PROTOCOL_MPP));
 	struct ec_params_gpio_set params = {
 		.val = (proto == STYLUS_PROTOCOL_USI) ? 0 : 1,
 	};
@@ -109,8 +125,9 @@ static void framework_set_stylus_protocol(void)
 
 static void framework_set_battery_charge_limit(void)
 {
-	const unsigned int limit = get_uint_option(BATTERY_CHARGE_LIMIT_OPTION_NAME,
-						   BATTERY_CHARGE_LIMIT_EC_DEFAULT);
+	const unsigned int limit = get_uint_option_checked(BATTERY_CHARGE_LIMIT_OPTION_NAME,
+							   BATTERY_CHARGE_LIMIT_EC_DEFAULT,
+							   OPTION_RANGE_STEP(0, 100, 5));
 	struct ec_params_ec_chg_limit_control params;
 
 	/* Leave the EC at whatever it has stored, e.g. a limit set at runtime via the OS. */
@@ -135,6 +152,36 @@ static void framework_set_battery_charge_limit(void)
 		printk(BIOS_ERR, "Failed to set battery charge limit to %u%%\n", limit);
 }
 
+static void framework_log_chassis_intrusion(void)
+{
+	/* Query only: a zero magic leaves the EC's latched status untouched. */
+	const struct ec_params_chassis_intrusion_control params = {
+		.clear_magic		= 0,
+		.clear_chassis_status	= 0,
+	};
+	struct ec_response_chassis_intrusion_control resp = {0};
+	struct chromeec_command cmd = {
+		.cmd_code	= EC_CMD_CHASSIS_INTRUSION,
+		.cmd_version	= 0,
+		.cmd_data_in	= &params,
+		.cmd_size_in	= sizeof(params),
+		.cmd_data_out	= &resp,
+		.cmd_size_out	= sizeof(resp),
+		.cmd_dev_index	= 0,
+	};
+
+	if (google_chromeec_command(&cmd)) {
+		printk(BIOS_ERR, "Failed to read chassis intrusion status\n");
+		return;
+	}
+
+	if (resp.chassis_ever_opened)
+		printk(BIOS_WARNING, "Chassis has been opened (%u time(s))\n",
+		       resp.total_open_count);
+	else
+		printk(BIOS_DEBUG, "Chassis intact\n");
+}
+
 void mainboard_ec_init(void)
 {
 	static const struct google_chromeec_event_info info = {
@@ -146,6 +193,8 @@ void mainboard_ec_init(void)
 	};
 
 	printk(BIOS_DEBUG, "mainboard: EC init\n");
+
+	framework_log_chassis_intrusion();
 
 	google_chromeec_events_init(&info, acpi_is_wakeup_s3());
 

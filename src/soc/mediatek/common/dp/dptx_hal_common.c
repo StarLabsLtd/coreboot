@@ -8,6 +8,7 @@
 #include <soc/dptx.h>
 #include <soc/dptx_hal.h>
 #include <soc/dptx_reg.h>
+#include <timer.h>
 #include <types.h>
 
 #define REG_OFFSET_LIMIT 0x8000
@@ -298,12 +299,12 @@ bool dptx_hal_auxread_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr, 
 			    u8 *rx_buf)
 {
 	bool valid_cmd = false;
-	u8 reply_cmd, aux_irq_status;
+	bool timeout = true;
+	u8 reply_cmd, aux_irq_status = 0;
 	int rd_count;
-	u32 wait_reply_count = AUX_WAITREPLY_LPNUM;
+	struct stopwatch sw;
 
 	DP_WRITE1BYTE(mtk_dp, REG_3640_AUX_TX_P0, 0x7f);
-	mdelay(1);
 
 	if (length > 16 || (cmd == AUX_CMD_NATIVE_R && length == 0x0))
 		return false;
@@ -330,36 +331,30 @@ bool dptx_hal_auxread_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr, 
 		    0x1 << AUX_TX_REQUEST_READY_AUX_TX_P0_FLDMASK_POS,
 		    AUX_TX_REQUEST_READY_AUX_TX_P0_FLDMASK);
 
-	while (--wait_reply_count) {
-		if (mtk_dp_read(mtk_dp, REG_3618_AUX_TX_P0) &
-		    AUX_RX_FIFO_WRITE_POINTER_AUX_TX_P0_FLDMASK) {
-			valid_cmd = true;
-			break;
-		}
-
-		if (mtk_dp_read(mtk_dp, REG_3618_AUX_TX_P0) &
-		    AUX_RX_FIFO_FULL_AUX_TX_P0_FLDMASK) {
-			valid_cmd = true;
-			break;
-		}
-
+	/*
+	 * Wait until the whole reply has been received. Stopping at the first
+	 * byte in the RX FIFO would require a delay before each FIFO read for
+	 * the remaining bytes to arrive.
+	 */
+	stopwatch_init_usecs_expire(&sw, AUX_REPLY_TIMEOUT_US);
+	do {
 		aux_irq_status = mtk_dp_read(mtk_dp, REG_3640_AUX_TX_P0) & 0xff;
-
-		if (aux_irq_status & AUX_RX_RECV_COMPLETE_IRQ_TX_P0_FLDMASK) {
-			valid_cmd = true;
+		if (aux_irq_status & (AUX_RX_RECV_COMPLETE_IRQ_TX_P0_FLDMASK |
+				      AUX_400US_TIMEOUT_IRQ_AUX_TX_P0_FLDMASK)) {
+			timeout = false;
 			break;
 		}
+	} while (!stopwatch_expired(&sw));
 
-		if (aux_irq_status & AUX_400US_TIMEOUT_IRQ_AUX_TX_P0_FLDMASK) {
-			printk(BIOS_ERR, "(AUX Read)HW Timeout 400us irq\n");
-			break;
-		}
-	}
+	if (aux_irq_status & AUX_RX_RECV_COMPLETE_IRQ_TX_P0_FLDMASK)
+		valid_cmd = true;
+	else if (aux_irq_status & AUX_400US_TIMEOUT_IRQ_AUX_TX_P0_FLDMASK)
+		printk(BIOS_ERR, "(AUX Read)HW Timeout 400us irq\n");
 
 	reply_cmd = mtk_dp_read(mtk_dp, REG_3624_AUX_TX_P0) & 0xf;
 
-	if (wait_reply_count == 0x0 || reply_cmd != DP_AUX_NATIVE_REPLY_ACK) {
-		if (wait_reply_count == 0)
+	if (timeout || reply_cmd != DP_AUX_NATIVE_REPLY_ACK) {
+		if (timeout)
 			printk(BIOS_ERR, "AUX Read timeout\n");
 		else if (reply_cmd == DP_AUX_NATIVE_REPLY_DEFER ||
 			 reply_cmd == DP_AUX_I2C_REPLY_DEFER)
@@ -376,7 +371,6 @@ bool dptx_hal_auxread_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr, 
 			    MCU_ACK_TRANSACTION_COMPLETE_AUX_TX_P0_FLDMASK);
 		DP_WRITE1BYTE(mtk_dp, REG_3640_AUX_TX_P0, 0x7f);
 
-		mdelay(1);
 		return false;
 	}
 
@@ -388,11 +382,11 @@ bool dptx_hal_auxread_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr, 
 				    0x0 << AUX_RD_MODE_AUX_TX_P0_FLDMASK_POS,
 				    AUX_RD_MODE_AUX_TX_P0_FLDMASK);
 
+			/* The complete reply is in the RX FIFO, so read it without delays. */
 			for (rd_count = 0; rd_count < length; rd_count++) {
 				mtk_dp_mask(mtk_dp, REG_3620_AUX_TX_P0,
 					    0x1 << AUX_RX_FIFO_R_PULSE_TX_P0_FLDMASK_POS,
 					    AUX_RX_FIFO_READ_PULSE_TX_P0_FLDMASK);
-				mdelay(1);
 				*(rx_buf + rd_count) = mtk_dp_read(mtk_dp, REG_3620_AUX_TX_P0);
 			}
 		} else {
@@ -405,7 +399,6 @@ bool dptx_hal_auxread_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr, 
 		    MCU_ACK_TRANSACTION_COMPLETE_AUX_TX_P0_FLDMASK);
 	DP_WRITE1BYTE(mtk_dp, REG_3640_AUX_TX_P0, 0x7f);
 
-	mdelay(1);
 	return valid_cmd;
 }
 
@@ -423,7 +416,6 @@ bool dptx_hal_auxwrite_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr,
 			  AUX_TX_FIFO_NEW_MODE_EN_AUX_TX_P0_FLDMASK);
 	DP_WRITE1BYTE(mtk_dp, REG_3650_AUX_TX_P0 + 1, 0x1);
 	DP_WRITE1BYTE(mtk_dp, REG_3640_AUX_TX_P0, 0x7f);
-	mdelay(1);
 
 	DP_WRITE1BYTE(mtk_dp, REG_3650_AUX_TX_P0 + 1, 0x1);
 	DP_WRITE1BYTE(mtk_dp, REG_3644_AUX_TX_P0, cmd);
@@ -453,7 +445,6 @@ bool dptx_hal_auxwrite_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr,
 		u8 aux_irq_status;
 
 		aux_irq_status = mtk_dp_read(mtk_dp, REG_3640_AUX_TX_P0) & 0xff;
-		mdelay(1);
 		if (aux_irq_status & AUX_RX_RECV_COMPLETE_IRQ_TX_P0_FLDMASK) {
 			valid_cmd = true;
 			break;
@@ -461,6 +452,9 @@ bool dptx_hal_auxwrite_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr,
 
 		if (aux_irq_status & AUX_400US_TIMEOUT_IRQ_AUX_TX_P0_FLDMASK)
 			break;
+
+		/* Give the hardware a chance to complete before polling again. */
+		udelay(100);
 	}
 
 	reply_cmd = mtk_dp_read(mtk_dp, REG_3624_AUX_TX_P0) & 0xf;
@@ -481,7 +475,6 @@ bool dptx_hal_auxwrite_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr,
 		DP_WRITE1BYTE(mtk_dp, REG_3650_AUX_TX_P0 + 1, 0x1);
 		DP_WRITE1BYTE(mtk_dp, REG_3640_AUX_TX_P0, 0x7f);
 
-		mdelay(1);
 		return false;
 	}
 
@@ -491,8 +484,6 @@ bool dptx_hal_auxwrite_bytes(const struct mtk_dp *mtk_dp, u8 cmd, u32 dpcd_addr,
 		DP_WRITE1BYTE(mtk_dp, REG_362C_AUX_TX_P0, 0x0);
 
 	DP_WRITE1BYTE(mtk_dp, REG_3640_AUX_TX_P0, 0x7f);
-
-	mdelay(1);
 
 	return valid_cmd;
 }

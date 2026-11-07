@@ -2,6 +2,7 @@
 
 #include <arch/hlt.h>
 #include <arch/io.h>
+#include <boot_device.h>
 #include <console/console.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/msr.h>
@@ -14,7 +15,9 @@
 #include <device/mmio.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <drivers/option/cfr_runtime.h>
 #include <elog.h>
+#include <efi_variable_service.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/oc_wdt.h>
@@ -40,15 +43,18 @@
 
 /* SoC overrides. */
 
+/* A broadcast SMI may reach another CPU before the APMC issuer enters SMM. */
+#define APMC_NODE_TIMEOUT_US 1000
+
 __weak const struct smm_save_state_ops *get_smm_save_state_ops(void)
 {
 	return &em64t101_smm_ops;
 }
 
 /* Specific SOC SMI handler during ramstage finalize phase */
-__weak void smihandler_soc_at_finalize(void)
+__weak int smihandler_soc_at_finalize(void)
 {
-	/* no-op */
+	return 0;
 }
 
 __weak int smihandler_soc_disable_busmaster(pci_devfn_t dev)
@@ -334,23 +340,58 @@ static void southbridge_smi_store(
 	}
 }
 
-__weak const struct gpio_lock_config *soc_gpio_lock_config(size_t *num)
+static void southbridge_smi_efi_variable_service(
+	const struct smm_save_state_ops *save_state_ops)
 {
-	*num = 0;
-	return NULL;
+	int node = save_state_ops->apmc_node(APM_CNT_EFI_VARIABLE_SERVICE);
+	if (node < 0)
+		return;
+
+	const bool wp_enabled = !fast_spi_wpd_status();
+	if (wp_enabled) {
+		set_insmm_sts(true);
+		smmstore_drain_sync_smi();
+		fast_spi_disable_wp();
+	}
+
+	uint32_t ret = fast_spi_wpd_status() ? efi_variable_service_communicate() :
+		EFI_VARIABLE_SERVICE_RET_FAILURE;
+	smmstore_drain_sync_smi();
+	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
+
+	/* Restore protection we changed; preserve a pre-existing write window. */
+	if (wp_enabled)
+		fast_spi_enable_wp();
+	set_insmm_sts(false);
+	if (wp_enabled && fast_spi_wpd_status())
+		die("EFI variable service: cannot restore SPI write protection.");
 }
 
-static void soc_lock_gpios(void)
+__weak int soc_gpio_lock_finalize(void)
+{
+	return 0;
+}
+
+static int soc_lock_gpios(void)
 {
 	const struct gpio_lock_config *soc_gpios;
 	size_t soc_gpio_num;
+	int ret = 0;
 
 	/* get list of gpios from SoC */
 	soc_gpios = soc_gpio_lock_config(&soc_gpio_num);
 
 	/* Lock any soc requested gpios */
-	if (soc_gpio_num)
-		gpio_lock_pads(soc_gpios, soc_gpio_num);
+	if (soc_gpio_num && gpio_lock_pads(soc_gpios, soc_gpio_num)) {
+		printk(BIOS_ERR, "%s: Failed to lock SoC GPIO pads\n", __func__);
+		ret = -1;
+	}
+
+	/* Complete independent restrictions even if a pad lock failed. */
+	if (soc_gpio_lock_finalize())
+		ret = -1;
+
+	return ret;
 }
 
 static void enable_smm_code_access_check(void)
@@ -387,21 +428,48 @@ static void enable_smm_code_access_check(void)
 	printk(BIOS_DEBUG, "Enabled SMM code access check\n");
 }
 
-static void finalize(void)
+static int finalize(void)
 {
 	static int finalize_done;
+	static int finalize_result;
+	const int other_error = CONFIG(ASS) ? APM_FINALIZE_OTHER_ERROR : -1;
 
 	if (finalize_done) {
 		printk(BIOS_DEBUG, "SMM already finalized.\n");
-		return;
+		return finalize_result;
 	}
-	finalize_done = 1;
+
+	if (CONFIG(ASS)) {
+		const bool wp_enabled = !fast_spi_wpd_status();
+
+		/* FTW recovery may need to write while the service is initialized. */
+		if (wp_enabled) {
+			set_insmm_sts(true);
+			smmstore_drain_sync_smi();
+			fast_spi_disable_wp();
+		}
+		int ret = fast_spi_wpd_status() ? efi_variable_service_finalize() : -1;
+
+		if (ret == EFI_VARIABLE_SERVICE_REBOOT_REQUIRED)
+			finalize_result |= APM_FINALIZE_REBOOT_REQUIRED;
+		else if (ret)
+			finalize_result |= APM_FINALIZE_EFI_ERROR;
+		if (wp_enabled) {
+			smmstore_drain_sync_smi();
+			fast_spi_enable_wp();
+			set_insmm_sts(false);
+			if (fast_spi_wpd_status())
+				finalize_result |= APM_FINALIZE_EFI_ERROR;
+		}
+	}
 
 	enable_smm_code_access_check();
 
-	if (CONFIG(SPI_FLASH_SMM))
-		/* Re-init SPI driver to handle locked BAR */
+	/* The private service already uses SPI. Do not reopen writes or clear EISS. */
+	if (CONFIG(SPI_FLASH_SMM) && !CONFIG(ASS))
 		fast_spi_init();
+
+	boot_device_init();
 
 	if (enable_smm_bios_protection()) {
 		fast_spi_enable_wp();
@@ -413,14 +481,27 @@ static void finalize(void)
 	 * interface.  Some boards may require this interface in mainboard_smi_finalize(),
 	 * therefore, this call must precede smihandler_soc_at_finalize().
 	 */
-	mainboard_smi_finalize();
+	if (mainboard_smi_finalize())
+		finalize_result |= other_error;
 
 	/* Lock down all GPIOs that may have been requested by the SoC and/or the mainboard. */
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS))
-		soc_lock_gpios();
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) && soc_lock_gpios())
+		finalize_result |= other_error;
 
 	/* Specific SOC SMI handler during ramstage finalize phase */
-	smihandler_soc_at_finalize();
+	if (smihandler_soc_at_finalize())
+		finalize_result |= other_error;
+	/* Hooks and fast_spi_init() may have opened writes: close last, before RSM. */
+	if (CONFIG(ASS)) {
+		fast_spi_enable_wp();
+		set_insmm_sts(false);
+		if (fast_spi_wpd_status() ||
+		    (enable_smm_bios_protection() && !fast_spi_bios_protected()))
+			finalize_result |= APM_FINALIZE_EFI_ERROR;
+	}
+	finalize_done = 1;
+
+	return finalize_result;
 }
 
 void smihandler_southbridge_apmc(
@@ -444,8 +525,22 @@ void smihandler_southbridge_apmc(
 		if (CONFIG(SMMSTORE))
 			southbridge_smi_store(save_state_ops);
 		break;
+	case APM_CNT_EFI_VARIABLE_SERVICE:
+		if (CONFIG(ASS))
+			southbridge_smi_efi_variable_service(save_state_ops);
+		break;
 	case APM_CNT_FINALIZE:
-		finalize();
+		{
+			int node = save_state_ops->apmc_node(APM_CNT_FINALIZE);
+			uint32_t ret = finalize();
+
+			if (node >= 0)
+				save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
+		}
+		break;
+	case APM_CNT_CFR_RUNTIME_APPLY:
+		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
+			cfr_runtime_apply_smi();
 		break;
 	}
 
@@ -497,7 +592,7 @@ void smihandler_southbridge_tco(
 	fast_spi_clear_sync_smi_status();
 
 	/* If enabled, enforce SMM BIOS write protection */
-	if (enable_smm_bios_protection() && fast_spi_wpd_status()) {
+	if (fast_spi_wpd_status() && enable_smm_bios_protection()) {
 		/*
 		 * BWE is RW, so the SMI was caused by a
 		 * write to BWE, not by a write to the BIOS
@@ -677,36 +772,37 @@ static int em64t100_set_reg(const enum cpu_reg reg, const int node, void *in, co
 
 static int em64t100_apmc_node(u8 cmd)
 {
-	int node;
+	for (int elapsed = 0; elapsed < APMC_NODE_TIMEOUT_US; elapsed++) {
+		for (int node = 0; node < CONFIG_MAX_CPUS; node++) {
+			em64t100_smm_state_save_area_t *state;
+			u32 io_misc_info;
+			u8 reg_al;
 
-	for (node = 0; node < CONFIG_MAX_CPUS; node++) {
-		em64t100_smm_state_save_area_t *state;
-		u32 io_misc_info;
-		u8 reg_al;
+			state = smm_get_current_save_state(node);
+			if (!state)
+				continue;
 
-		state = smm_get_save_state(node);
-		if (!state)
-			continue;
+			io_misc_info = state->io_misc_info;
 
-		io_misc_info = state->io_misc_info;
+			/* Synchronous I/O (bit0 == 1). */
+			if (!(io_misc_info & (1 << 0)))
+				continue;
 
-		/* Synchronous I/O (bit0 == 1). */
-		if (!(io_misc_info & (1 << 0)))
-			continue;
+			/* Write (bit4 == 0). */
+			if (io_misc_info & (1 << 4))
+				continue;
 
-		/* Write (bit4 == 0). */
-		if (io_misc_info & (1 << 4))
-			continue;
+			/* APMC port. */
+			if (((io_misc_info >> 16) & 0xff) != APM_CNT)
+				continue;
 
-		/* APMC port. */
-		if (((io_misc_info >> 16) & 0xff) != APM_CNT)
-			continue;
+			reg_al = (u8)state->rax;
+			if (reg_al != cmd)
+				continue;
 
-		reg_al = (u8)state->rax;
-		if (reg_al != cmd)
-			continue;
-
-		return node;
+			return node;
+		}
+		udelay(1);
 	}
 
 	return -1;
@@ -782,36 +878,37 @@ static int em64t101_set_reg(const enum cpu_reg reg, const int node, void *in, co
 
 static int em64t101_apmc_node(u8 cmd)
 {
-	int node;
+	for (int elapsed = 0; elapsed < APMC_NODE_TIMEOUT_US; elapsed++) {
+		for (int node = 0; node < CONFIG_MAX_CPUS; node++) {
+			em64t101_smm_state_save_area_t *state;
+			u32 io_misc_info;
+			u8 reg_al;
 
-	for (node = 0; node < CONFIG_MAX_CPUS; node++) {
-		em64t101_smm_state_save_area_t *state;
-		u32 io_misc_info;
-		u8 reg_al;
+			state = smm_get_current_save_state(node);
+			if (!state)
+				continue;
 
-		state = smm_get_save_state(node);
-		if (!state)
-			continue;
+			io_misc_info = state->io_misc_info;
 
-		io_misc_info = state->io_misc_info;
+			/* Synchronous I/O (bit0 == 1). */
+			if (!(io_misc_info & (1 << 0)))
+				continue;
 
-		/* Synchronous I/O (bit0 == 1). */
-		if (!(io_misc_info & (1 << 0)))
-			continue;
+			/* Write (bit4 == 0). */
+			if (io_misc_info & (1 << 4))
+				continue;
 
-		/* Write (bit4 == 0). */
-		if (io_misc_info & (1 << 4))
-			continue;
+			/* APMC port. */
+			if (((io_misc_info >> 16) & 0xff) != APM_CNT)
+				continue;
 
-		/* APMC port. */
-		if (((io_misc_info >> 16) & 0xff) != APM_CNT)
-			continue;
+			reg_al = (u8)state->rax;
+			if (reg_al != cmd)
+				continue;
 
-		reg_al = (u8)state->rax;
-		if (reg_al != cmd)
-			continue;
-
-		return node;
+			return node;
+		}
+		udelay(1);
 	}
 
 	return -1;

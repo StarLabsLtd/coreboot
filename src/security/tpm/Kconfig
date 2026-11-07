@@ -32,6 +32,16 @@ config TPM
 	default y
 	depends on TPM1 || TPM2
 
+config TPM_TREAT_ME_DISABLED_AS_ABSENT
+	bool
+	default y
+	depends on TPM2
+	depends on !TPM_MEASURED_BOOT_INIT_BOOTBLOCK
+	depends on SOC_INTEL_COMMON_BLOCK_CSE
+	depends on CRB_TPM
+	depends on HAVE_INTEL_PTT
+	depends on !MEMORY_MAPPED_TPM
+
 config MAINBOARD_HAS_TPM1
 	bool
 	help
@@ -146,6 +156,14 @@ config TPM_MEASURED_BOOT_RUNTIME_DATA
 	help
 	  Runtime data whitelist of cbfs filenames. Needs to be a
 	  space delimited list
+
+config TPM_PREBOOT_AUTH_PHASE
+	bool
+	depends on PAYLOAD_EDK2
+	depends on TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
+	help
+	  Open PCR 6 immediately before the payload. The payload must
+	  close this dedicated pre-OS authentication PCR before OS hand-off.
 
 config PCR_BOOT_MODE
 	int

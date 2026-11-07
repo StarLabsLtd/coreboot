@@ -220,8 +220,23 @@ static void *get_tcpa_log(u32 *size)
 	return lasa;
 }
 
+static bool acpi_should_create_tpm_tables(void)
+{
+	if (!CONFIG(ACPI_TPM_TABLES_REQUIRE_PROBE))
+		return true;
+
+#if CONFIG(TPM)
+	return tlcl_lib_init() == TPM_SUCCESS;
+#else
+	return false;
+#endif
+}
+
 static void acpi_create_tcpa(acpi_header_t *header, void *unused)
 {
+	if (!acpi_should_create_tpm_tables())
+		return;
+
 	if (tlcl_get_family() != TPM_1)
 		return;
 
@@ -272,6 +287,9 @@ static void acpi_create_tpm2(acpi_header_t *header, void *unused)
 	u64 control_area;
 	u32 start_method;
 	uint8_t method_params[sizeof(tpm2->msp)] = { 0 };
+
+	if (!acpi_should_create_tpm_tables())
+		return;
 
 	if (tlcl_get_family() != TPM_2)
 		return;
@@ -974,6 +992,14 @@ unsigned long acpi_16550_mmio32_write_dbg2_uart(acpi_rsdp_t *rsdp, unsigned long
 				    name);
 }
 
+acpi_facs_t *acpi_get_facs(void)
+{
+	/* Small CBMEM allocations are only 32-byte aligned; FACS needs 64. */
+	void *buffer = cbmem_add(CBMEM_ID_ACPI_FACS, sizeof(acpi_facs_t) + 63);
+
+	return buffer ? (void *)ALIGN_UP((uintptr_t)buffer, 64) : NULL;
+}
+
 static void acpi_create_facs(void *header)
 {
 	acpi_facs_t *facs = header;
@@ -994,6 +1020,10 @@ static void acpi_write_rsdt(acpi_rsdt_t *rsdt, char *oem_id, char *oem_table_id)
 	if (acpi_fill_header(header, "RSDT", RSDT, sizeof(acpi_rsdt_t)) != CB_SUCCESS)
 		return;
 
+	/* OEM IDs of RSDT and XSDT must match the ones of the SLIC/MSDM table. */
+	memcpy(header->oem_id, oem_id, 6);
+	memcpy(header->oem_table_id, oem_table_id, 8);
+
 	/* Fix checksum. */
 	header->checksum = acpi_checksum((void *)rsdt, sizeof(acpi_rsdt_t));
 }
@@ -1007,6 +1037,10 @@ static void acpi_write_xsdt(acpi_xsdt_t *xsdt, char *oem_id, char *oem_table_id)
 
 	if (acpi_fill_header(header, "XSDT", XSDT, sizeof(acpi_xsdt_t)) != CB_SUCCESS)
 		return;
+
+	/* OEM IDs of RSDT and XSDT must match the ones of the SLIC/MSDM table. */
+	memcpy(header->oem_id, oem_id, 6);
+	memcpy(header->oem_table_id, oem_table_id, 8);
 
 	/* Fix checksum. */
 	header->checksum = acpi_checksum((void *)xsdt, sizeof(acpi_xsdt_t));
@@ -1568,6 +1602,9 @@ static unsigned long write_acpi_tables(const unsigned long start)
 
 	current = start;
 
+	memcpy(oem_id, OEM_ID, 6);
+	memcpy(oem_table_id, ACPI_TABLE_CREATOR, 8);
+
 	/* Align ACPI tables to 16byte */
 	current = acpi_align_current(current);
 
@@ -1676,9 +1713,6 @@ static unsigned long write_acpi_tables(const unsigned long start)
 	if (slic_file) {
 		memcpy(oem_id, slic_file->oem_id, 6);
 		memcpy(oem_table_id, slic_file->oem_table_id, 8);
-	} else {
-		memcpy(oem_id, OEM_ID, 6);
-		memcpy(oem_table_id, ACPI_TABLE_CREATOR, 8);
 	}
 
 	printk(BIOS_INFO, "ACPI: Writing ACPI tables at %lx.\n", start);
@@ -1709,10 +1743,16 @@ static unsigned long write_acpi_tables(const unsigned long start)
 
 	if (ENV_X86) {
 		printk(BIOS_DEBUG, "ACPI:    * FACS\n");
-		current = ALIGN_UP(current, 64);
-		facs = (acpi_facs_t *)current;
-		current += sizeof(acpi_facs_t);
-		current = acpi_align_current(current);
+		if (CONFIG(ACPI_SMM_GLOBAL_LOCK)) {
+			facs = acpi_get_facs();
+			if (!facs)
+				die("Could not allocate FACS");
+		} else {
+			current = ALIGN_UP(current, 64);
+			facs = (acpi_facs_t *)current;
+			current += sizeof(acpi_facs_t);
+			current = acpi_align_current(current);
+		}
 		acpi_create_facs(facs);
 	}
 

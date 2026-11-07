@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <symbols.h>
+#include <timestamp.h>
 
 #include "render_bmp.h"
 
@@ -141,6 +142,43 @@ static int get_color_map_num(struct bmp_image_header *header)
 		return -1;
 
 	return col_map_number;
+}
+
+static struct lb_boot_splash boot_splash_handoff;
+static bool boot_splash_handoff_valid;
+
+static bool bootsplash_publish_handoff(uintptr_t framebuffer_address,
+	uint32_t framebuffer_width, uint32_t framebuffer_height,
+	uint32_t image_offset_x, uint32_t image_offset_y,
+	uint32_t image_width, uint32_t image_height, const void *bmp, size_t bmp_size)
+{
+	if (boot_splash_handoff_valid || !framebuffer_address ||
+	    !framebuffer_width || !framebuffer_height || !image_width || !image_height ||
+	    !bmp || bmp_size < sizeof(struct bmp_image_header) || bmp_size > UINT32_MAX ||
+	    bmp_size - 1U > UINTPTR_MAX - (uintptr_t)bmp ||
+	    image_offset_x > framebuffer_width || image_offset_y > framebuffer_height ||
+	    image_width > framebuffer_width - image_offset_x ||
+	    image_height > framebuffer_height - image_offset_y)
+		return false;
+	boot_splash_handoff = (struct lb_boot_splash) {
+		.tag = LB_TAG_BOOT_SPLASH, .size = sizeof(boot_splash_handoff),
+		.revision = LB_BOOT_SPLASH_REVISION,
+		.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED | LB_BOOT_SPLASH_FLAG_BMP,
+		.framebuffer_address = framebuffer_address,
+		.image_offset_x = image_offset_x, .image_offset_y = image_offset_y,
+		.image_width = image_width, .image_height = image_height,
+		.bmp_address = (uintptr_t)bmp, .bmp_size = bmp_size,
+	};
+	boot_splash_handoff_valid = true;
+	return true;
+}
+
+bool bootsplash_get_handoff(struct lb_boot_splash *handoff)
+{
+	if (!handoff || !boot_splash_handoff_valid)
+		return false;
+	*handoff = boot_splash_handoff;
+	return true;
 }
 
 /*
@@ -324,10 +362,12 @@ static void *fill_blt_buffer(struct bmp_image_header *header,
 	struct bmp_color_map *color_map;
 	size_t image_index;
 
-	gop_blt_ptr = malloc(blt_buffer_size);
-	if (!gop_blt_ptr)
-		die("%s: out of memory. Consider increasing the `CONFIG_HEAP_SIZE`\n",
-			 __func__);
+	gop_blt_ptr = calloc(1, blt_buffer_size);
+	if (!gop_blt_ptr) {
+		printk(BIOS_ERR, "%s: out of memory. Consider increasing `CONFIG_HEAP_SIZE`\n",
+		       __func__);
+		return NULL;
+	}
 
 	bmp_image = ((uint8_t *)logo) + header->ImageOffset;
 	bmp_header = bmp_image;
@@ -433,6 +473,13 @@ static bool convert_bmp_to_gop_blt_common(uintptr_t logo, size_t logo_size,
 	size_t blt_buffer_size;
 	struct bmp_image_header *bmp_header;
 
+	*blt = 0;
+	*blt_size = 0;
+	*pixel_height = 0;
+	*pixel_width = 0;
+	if (!logo || logo_size < sizeof(*bmp_header))
+		return false;
+
 	bmp_header = (struct bmp_image_header *)logo;
 
 	/* Authenticate BMP header and validate size against provided logo_size */
@@ -454,11 +501,14 @@ static bool convert_bmp_to_gop_blt_common(uintptr_t logo, size_t logo_size,
 	bool is_standard_orientation = (orientation == LB_FB_ORIENTATION_NORMAL ||
 					orientation == LB_FB_ORIENTATION_BOTTOM_UP);
 
+	uintptr_t buffer = (uintptr_t)fill_blt_buffer(bmp_header, logo, blt_buffer_size,
+						  orientation);
+	if (!buffer)
+		return false;
+	*blt = buffer;
 	*blt_size = blt_buffer_size;
 	*pixel_height = is_standard_orientation ? bmp_header->PixelHeight : bmp_header->PixelWidth;
 	*pixel_width = is_standard_orientation ? bmp_header->PixelWidth : bmp_header->PixelHeight;
-	*blt = (uintptr_t)fill_blt_buffer(bmp_header, logo, blt_buffer_size, orientation);
-
 	return true;
 }
 
@@ -473,16 +523,17 @@ void load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
 	if (!logo || !logo_size || !blt || !blt_size || !pixel_height || !pixel_width)
 		return;
 
+	*logo = 0;
+	*logo_size = 0;
+	bmp_size = 0;
 	bmp = (uintptr_t)bmp_load_logo(&bmp_size);
-
-	if (!bmp || bmp_size < sizeof(struct bmp_image_header))
+	if (!convert_bmp_to_gop_blt_common(bmp, bmp_size, blt, blt_size,
+					   pixel_height, pixel_width, orientation)) {
+		bmp_release_logo();
 		return;
-
+	}
 	*logo = bmp;
 	*logo_size = bmp_size;
-
-	convert_bmp_to_gop_blt_common(*logo, *logo_size, blt, blt_size,
-				      pixel_height, pixel_width, orientation);
 }
 
 /* Convert a *.BMP graphics image (as per input `logo`) to a GOP blt buffer */
@@ -491,9 +542,6 @@ void convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	enum lb_fb_orientation orientation)
 {
 	if (!blt || !blt_size || !pixel_height || !pixel_width)
-		return;
-
-	if (!logo || logo_size < sizeof(struct bmp_image_header))
 		return;
 
 	convert_bmp_to_gop_blt_common(logo, logo_size, blt, blt_size,
@@ -530,10 +578,12 @@ struct logo_coordinates calculate_logo_coordinates(
 		coords.x = 0;
 		break;
 	case FW_SPLASH_HALIGNMENT_RIGHT:
-		coords.x = horizontal_resolution - logo_width;
+		coords.x = (horizontal_resolution > logo_width) ?
+			   (horizontal_resolution - logo_width) : 0;
 		break;
 	default: /* FW_SPLASH_HALIGNMENT_CENTER (default) */
-		coords.x = (horizontal_resolution - logo_width) / 2;
+		coords.x = (horizontal_resolution > logo_width) ?
+			   (horizontal_resolution - logo_width) / 2 : 0;
 		break;
 	}
 
@@ -546,10 +596,12 @@ struct logo_coordinates calculate_logo_coordinates(
 		coords.y = 0;
 		break;
 	case FW_SPLASH_VALIGNMENT_BOTTOM:
-		coords.y = vertical_resolution - logo_height;
+		coords.y = (vertical_resolution > logo_height) ?
+			   (vertical_resolution - logo_height) : 0;
 		break;
 	default: /* FW_SPLASH_VALIGNMENT_CENTER (default) */
-		coords.y = (vertical_resolution - logo_height) / 2;
+		coords.y = (vertical_resolution > logo_height) ?
+			   (vertical_resolution - logo_height) / 2 : 0;
 		break;
 	}
 
@@ -564,24 +616,31 @@ struct logo_coordinates calculate_logo_coordinates(
  * logo_buffer: The address of the logo data in BLT format.
  * logo_width: The width of the logo bitmap.
  * logo_height: The height of the logo bitmap.
+ * scale: Integer pixel replication factor.
  * dest_x: The destination x-coordinate in the framebuffer for rendering the logo.
  * dest_y: The destination y-coordinate in the framebuffer for rendering the logo.
  */
 static void copy_logo_to_framebuffer(
 	uintptr_t framebuffer_base, uint32_t bytes_per_scanline,
 	uintptr_t logo_buffer, uint32_t logo_width, uint32_t logo_height,
-	uint32_t dest_x, uint32_t dest_y)
+	unsigned int scale, uint32_t dest_x, uint32_t dest_y)
 {
 	size_t pixel_size = sizeof(struct blt_pixel);
 	size_t bytes_per_logo_line = logo_width * pixel_size;
 	uint8_t *framebuffer_offset = (uint8_t *)framebuffer_base + dest_y * bytes_per_scanline
 					 + dest_x * pixel_size;
 	uint8_t *dst_row_address = framebuffer_offset;
-	uint8_t *src_row_address = (uint8_t *)logo_buffer;
 	for (uint32_t i = 0; i < logo_height; i++) {
-		memcpy(dst_row_address, src_row_address, bytes_per_logo_line);
+		const struct blt_pixel *src = (const struct blt_pixel *)logo_buffer +
+			(i / scale) * (logo_width / scale);
+		struct blt_pixel *dst = (void *)dst_row_address;
+
+		if (scale == 1)
+			memcpy(dst, src, bytes_per_logo_line);
+		else
+			for (uint32_t x = 0; x < logo_width; x++)
+				dst[x] = src[x / scale];
 		dst_row_address += bytes_per_scanline;
-		src_row_address += bytes_per_logo_line;
 	}
 }
 
@@ -638,6 +697,27 @@ static void get_logo_layout(
 	}
 }
 
+/* Reduce a double-density BLT in place, averaging each 2x2 pixel block. */
+static void halve_logo_blt(struct blt_pixel *pixels, uint32_t width, uint32_t height)
+{
+	for (uint32_t y = 0; y < height / 2; y++) {
+		for (uint32_t x = 0; x < width / 2; x++) {
+			const struct blt_pixel *top = pixels + y * 2 * width + x * 2;
+			const struct blt_pixel *bottom = top + width;
+			struct blt_pixel pixel = {
+				.Blue = (top[0].Blue + top[1].Blue + bottom[0].Blue +
+					bottom[1].Blue) / 4,
+				.Green = (top[0].Green + top[1].Green + bottom[0].Green +
+					bottom[1].Green) / 4,
+				.Red = (top[0].Red + top[1].Red + bottom[0].Red +
+					bottom[1].Red) / 4,
+			};
+
+			pixels[y * (width / 2) + x] = pixel;
+		}
+	}
+}
+
 /*
  * Loads, converts, and renders a BMP logo to the framebuffer.
  *
@@ -651,6 +731,7 @@ static int load_and_render_logo_to_framebuffer(
 	struct logo_config *config
 )
 {
+	int result = -1;
 	uintptr_t logo;
 	size_t logo_size;
 	size_t blt_size;
@@ -660,6 +741,8 @@ static int load_and_render_logo_to_framebuffer(
 	enum fw_splash_horizontal_alignment halignment;
 	enum fw_splash_vertical_alignment valignment;
 	uint8_t logo_bottom_margin;
+	unsigned int scale = 1;
+	bool resized = false;
 
 	if (!config)
 		return -1;
@@ -669,16 +752,77 @@ static int load_and_render_logo_to_framebuffer(
 	if (!logo || logo_size < sizeof(struct bmp_image_header)) {
 		printk(BIOS_ERR, "%s: BMP image (%zu) is less than expected minimum size (%zu).\n",
 				 __func__, logo_size, sizeof(struct bmp_image_header));
+		bmp_release_logo();
 		return -1;
 	}
 
 	convert_bmp_to_blt(logo, logo_size, &blt_buffer, &blt_size,
 				   &logo_height, &logo_width, config->panel_orientation);
+	if (!blt_buffer) {
+		bmp_release_logo();
+		return -1;
+	}
+
+	bool hidpi = config->horizontal_resolution > 1920 && config->vertical_resolution > 1080 &&
+		!(config->horizontal_resolution % 2) && !(config->vertical_resolution % 2);
+
+	if (CONFIG_BMP_LOGO_SOURCE_SCALE == 2 && logo_type == BOOTSPLASH_CENTER) {
+		if (logo_width % 2 || logo_height % 2)
+			goto out;
+		if (!hidpi) {
+			halve_logo_blt((void *)blt_buffer, logo_width, logo_height);
+			logo_width /= 2;
+			logo_height /= 2;
+			blt_size /= 4;
+			resized = true;
+		}
+	}
+
+	if (logo_width > config->horizontal_resolution ||
+	    logo_height > config->vertical_resolution) {
+		printk(BIOS_ERR, "%s: Logo (%ux%u) exceeds display resolution (%ux%u).\n",
+		       __func__, logo_width, logo_height,
+		       config->horizontal_resolution, config->vertical_resolution);
+		free((void *)blt_buffer);
+		bmp_release_logo();
+		return -1;
+	}
 
 	get_logo_layout(logo_type, config, &halignment, &valignment, &logo_bottom_margin);
-
 	logo_coords = calculate_logo_coordinates(config->horizontal_resolution,
-		 config->vertical_resolution, logo_width, logo_height, halignment, valignment);
+		config->vertical_resolution, logo_width, logo_height, halignment, valignment);
+
+	/* Match the payload's HiDPI logo size before publishing the displayed pixels. */
+	if (CONFIG(BOOT_SPLASH_HANDOFF) && logo_type == BOOTSPLASH_CENTER &&
+	    CONFIG_BMP_LOGO_SOURCE_SCALE == 1 && hidpi &&
+	    logo_width <= config->horizontal_resolution / 2 &&
+	    logo_height <= config->vertical_resolution / 2 &&
+	    blt_size <= (BMP_LOGO_MAX_SIZE - sizeof(struct bmp_image_header)) / 4) {
+		struct logo_coordinates scaled_coords = calculate_logo_coordinates(
+			config->horizontal_resolution, config->vertical_resolution,
+			logo_width * 2, logo_height * 2, halignment, valignment);
+
+		if (scaled_coords.x <= config->horizontal_resolution &&
+		    scaled_coords.y <= config->vertical_resolution &&
+		    logo_width * 2 <= config->horizontal_resolution - scaled_coords.x &&
+		    logo_height * 2 <= config->vertical_resolution - scaled_coords.y) {
+			scale = 2;
+			logo_coords = scaled_coords;
+		}
+	}
+
+	const struct bmp_image_header *source_header = (const void *)logo;
+	if (CONFIG(BOOT_SPLASH_HANDOFF) && logo_type == BOOTSPLASH_CENTER &&
+	    (resized || scale == 2 || config->panel_orientation != LB_FB_ORIENTATION_NORMAL ||
+	     source_header->BitPerPixel != 24)) {
+		logo = (uintptr_t)bmp_retain_logo_from_blt((const void *)blt_buffer,
+			logo_width, logo_height, scale, &logo_size);
+		if (!logo)
+			goto out;
+	}
+	logo_width *= scale;
+	logo_height *= scale;
+
 
 	if (logo_bottom_margin) {
 		switch (config->panel_orientation) {
@@ -686,23 +830,56 @@ static int load_and_render_logo_to_framebuffer(
 			logo_coords.x = logo_bottom_margin;
 			break;
 		case LB_FB_ORIENTATION_LEFT_UP:
-			logo_coords.x -= logo_bottom_margin;
+			logo_coords.x = (logo_coords.x > logo_bottom_margin) ?
+					(logo_coords.x - logo_bottom_margin) : 0;
 			break;
 		case LB_FB_ORIENTATION_BOTTOM_UP:
 			logo_coords.y = logo_bottom_margin;
 			break;
 		default: /* LB_FB_ORIENTATION_NORMAL (default) */
-			logo_coords.y -= logo_bottom_margin;
+			logo_coords.y = (logo_coords.y > logo_bottom_margin) ?
+					(logo_coords.y - logo_bottom_margin) : 0;
 			break;
 		}
 	}
 
-	copy_logo_to_framebuffer(config->framebuffer_base, config->bytes_per_scanline, blt_buffer,
-				 logo_width, logo_height, logo_coords.x, logo_coords.y);
+	if (logo_coords.x > config->horizontal_resolution ||
+	    logo_width > config->horizontal_resolution - logo_coords.x ||
+	    logo_coords.y > config->vertical_resolution ||
+	    logo_height > config->vertical_resolution - logo_coords.y) {
+		free((void *)blt_buffer);
+		bmp_release_logo();
+		return -1;
+	}
 
+	if (CONFIG(BOOT_SPLASH_HANDOFF) && logo_type == BOOTSPLASH_CENTER)
+		memset((void *)config->framebuffer_base, 0,
+			(size_t)config->bytes_per_scanline * config->vertical_resolution);
+	/* A later image must not leave an overwritten primary advertised as displayed. */
+	if (CONFIG(BOOT_SPLASH_HANDOFF) && logo_type != BOOTSPLASH_CENTER &&
+	    boot_splash_handoff_valid &&
+	    boot_splash_handoff.framebuffer_address == config->framebuffer_base &&
+	    logo_coords.x < boot_splash_handoff.image_offset_x + boot_splash_handoff.image_width &&
+	    logo_coords.x + logo_width > boot_splash_handoff.image_offset_x &&
+	    logo_coords.y < boot_splash_handoff.image_offset_y + boot_splash_handoff.image_height &&
+	    logo_coords.y + logo_height > boot_splash_handoff.image_offset_y)
+		boot_splash_handoff_valid = false;
+	copy_logo_to_framebuffer(config->framebuffer_base, config->bytes_per_scanline,
+		blt_buffer, logo_width, logo_height, scale, logo_coords.x, logo_coords.y);
+	if (CONFIG(BOOT_SPLASH_HANDOFF) && logo_type == BOOTSPLASH_CENTER) {
+		if (!bootsplash_publish_handoff(config->framebuffer_base,
+			config->horizontal_resolution, config->vertical_resolution,
+			logo_coords.x, logo_coords.y, logo_width, logo_height,
+			(const void *)logo, logo_size))
+			goto out;
+		bmp_retain_logo();
+	}
+
+	result = 0;
+out:
 	bmp_release_logo();
-
-	return 0;
+	free((void *)blt_buffer);
+	return result;
 }
 
 /*
@@ -727,11 +904,24 @@ void render_logo_to_framebuffer(struct logo_config *config)
 			printk(BIOS_WARNING, "Framebuffer above 4GiB, skipping logo\n");
 			return;
 		}
+		if (fb->bits_per_pixel != 32 || fb->red_mask_pos != 16 ||
+		    fb->red_mask_size != 8 || fb->green_mask_pos != 8 ||
+		    fb->green_mask_size != 8 || fb->blue_mask_pos != 0 ||
+		    fb->blue_mask_size != 8 || (fb->reserved_mask_size &&
+		    (fb->reserved_mask_size != 8 || fb->reserved_mask_pos != 24)))
+			return;
 		config->framebuffer_base = fb->physical_address;
 		config->horizontal_resolution = fb->x_resolution;
 		config->vertical_resolution = fb->y_resolution;
 		config->bytes_per_scanline = fb->bytes_per_line;
+		config->panel_orientation = fb->orientation;
 	}
+
+	if (!config->horizontal_resolution || !config->vertical_resolution ||
+	    !config->bytes_per_scanline ||
+	    config->vertical_resolution >
+		(UINTPTR_MAX - config->framebuffer_base) / config->bytes_per_scanline)
+		return;
 
 	/* Ensure bytes_per_scanline is sufficient for the horizontal resolution */
 	const uint64_t min_scanline_bytes = (uint64_t)config->horizontal_resolution *
@@ -746,9 +936,8 @@ void render_logo_to_framebuffer(struct logo_config *config)
 	}
 
 	/*
-	 * Note: Intel SoC platforms validate their framebuffer geometry earlier
-	 * in cb_logo.c. For non-Intel architectures (e.g., ARM/ARM64) using
-	 * memlayout, we validate the footprint against the linker region size.
+	 * Architectures with a linker-defined framebuffer additionally bound its
+	 * footprint to that region.
 	 */
 #if CONFIG(ARCH_ARM) || CONFIG(ARCH_ARM64)
 	const uint64_t required_fb_size = (uint64_t)config->vertical_resolution *
@@ -807,9 +996,32 @@ void render_logo_to_framebuffer(struct logo_config *config)
 	}
 }
 
+__weak void platform_get_logo_config(struct logo_config *config) { }
+
+void bootsplash_render_primary(void)
+{
+	struct lb_boot_splash splash;
+	struct logo_config logo = { 0 };
+
+	if (!CONFIG(BMP_LOGO) || !CONFIG(BOOT_SPLASH_HANDOFF) ||
+	    bootsplash_get_handoff(&splash))
+		return;
+	platform_get_logo_config(&logo);
+	render_logo_to_framebuffer(&logo);
+	if (bootsplash_get_handoff(&splash))
+		timestamp_add_now(TS_FIRMWARE_SPLASH_RENDERED);
+}
+
+static void render_primary_logo(void *argument)
+{
+	bootsplash_render_primary();
+}
+
 static void release_logo(void *arg_unused)
 {
 	bmp_release_logo();
 }
 
 BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_LOAD, BS_ON_EXIT, release_logo, NULL);
+
+BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_ENTRY, render_primary_logo, NULL);

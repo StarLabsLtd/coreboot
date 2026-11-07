@@ -367,8 +367,8 @@ enum cse_tx_rx_status heci_send_receive(const void *snd_msg, size_t snd_sz, void
  * Returns 0 on failure and 1 on success.
  */
 int heci_reset(void);
-/* Disable HECI1 using Sideband interface communication */
-void heci1_disable(void);
+/* Disable HECI1 using the configured interface. Returns 0 on success. */
+int heci1_disable(void);
 
 /* Reads config value from a specified offset in the CSE PCI Config space. */
 uint32_t me_read_config32(int offset);
@@ -506,7 +506,6 @@ bool cse_is_hfs1_cos_default(void);
  */
 bool cse_is_me_operational(void);
 
-#if ENV_RAMSTAGE
 /*
  * Check whether ME/CSME is requested enabled via the `me_state` option.
  * Returns true when `me_state` is 0 ("Enabled") and false when it is 1
@@ -514,6 +513,7 @@ bool cse_is_me_operational(void);
  */
 bool cse_is_me_state_requested_enabled(void);
 
+#if ENV_RAMSTAGE
 /*
  * Check whether ME/CSME is both requested enabled and operational.
  */
@@ -526,7 +526,6 @@ bool cse_is_me_enabled(void);
  */
 bool cse_get_s0ix_enable_state(bool fallback);
 #else
-static inline bool cse_is_me_state_requested_enabled(void) { return true; }
 static inline bool cse_is_me_enabled(void) { return true; }
 static inline bool cse_get_s0ix_enable_state(bool fallback) { return fallback; }
 #endif
@@ -619,7 +618,7 @@ void cse_late_finalize(void);
  * Allow SoC to implement heci1 disable override due to PSF registers being
  * different across SoC generation.
  */
-void soc_disable_heci1_using_pcr(void);
+int soc_disable_heci1_using_pcr(void);
 
 /*
  * SoC override API to identify if ISH Firmware existed inside CSE FPT.
@@ -697,8 +696,8 @@ bool cse_check_host_cold_reset(void);
  */
 static inline bool soc_disable_heci1_at_pre_boot(void)
 {
-	return get_uint_option("disable_heci1_at_pre_boot",
-			       CONFIG(DISABLE_HECI1_AT_PRE_BOOT)) != 0;
+	return get_uint_option_checked("disable_heci1_at_pre_boot",
+				       CONFIG(DISABLE_HECI1_AT_PRE_BOOT), OPTION_BOOL) != 0;
 }
 
 #endif // SOC_INTEL_COMMON_CSE_H

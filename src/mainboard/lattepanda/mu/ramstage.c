@@ -87,7 +87,7 @@ void variant_devtree_update(void)
 	struct device *dev = DEV_PTR(touchscreen);
 	struct device *sata_dev = DEV_PTR(sata);
 
-	if (get_uint_option("touchscreen", 1) == 0 && dev)
+	if (get_uint_option_checked("touchscreen", 1, OPTION_BOOL) == 0 && dev)
 		dev->enabled = 0;
 
 	if (CONFIG(DFR1141_HSIO_PCIE_X4) && sata_dev)

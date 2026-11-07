@@ -38,6 +38,8 @@
 
 /* Display specific GPIOs */
 #define GPIO_PANEL_POWER_ON	GPIO(70)
+#define PANEL_RESET_GPIO(x)	GPIO(x)
+#define GPIO_PANEL_RESET	PANEL_RESET_GPIO(CONFIG_MAINBOARD_GPIO_PIN_FOR_PANEL_RESET)
 #define GPIO_PANEL_HPD		GPIO(119)
 
 /* Touchscreen specific GPIOs */
@@ -76,8 +78,6 @@
 #define BACKLIGHT_PWM_PMIC_GPIO 5
 #define BACKLIGHT_PWM_PMIC_ID PMIC_A_SLAVE_ID
 
-#define DEAD_BATT_CHG_THRESHOLD_MAH 100
-
 void setup_chromeos_gpios(void);
 bool is_off_mode(void);
 void configure_parallel_charging(void);
@@ -89,7 +89,7 @@ void launch_charger_applet(enum boot_mode_t boot_mode);
 bool platform_get_battery_soc_information(uint32_t *batt_pct);
 void enable_fast_battery_charging(void);
 void init_sdam_config(void);
-void configure_dead_battery_boot(void);
+void configure_avoid_pd_reset(void);
 void clear_pending_ec_events(void);
 bool is_fast_charge_ready(void);
 /* Detect an AC unplug event with optional software debouncing */

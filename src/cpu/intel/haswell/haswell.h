@@ -4,6 +4,7 @@
 #define _CPU_INTEL_HASWELL_H
 
 #include <cpu/cpu.h>
+#include <cpu/x86/msr.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -38,8 +39,6 @@
 
 #define MSR_CORE_THREAD_COUNT		0x35
 #define MSR_PLATFORM_INFO		0xce
-#define  PLATFORM_INFO_SET_TDP		(1 << 29)
-#define  TIMED_MWAIT_SUPPORTED		(1 << (37 - 32))
 #define MSR_PKG_CST_CONFIG_CONTROL	0xe2
 #define MSR_PMG_IO_CAPTURE_BASE		0xe4
 #define MSR_FEATURE_CONFIG		0x13c
@@ -164,6 +163,64 @@ enum {
 	NUM_C_STATES,
 };
 
+union msr_platform_info {
+	struct __packed {
+		uint32_t                            : 8; /* Bits  7:0  */
+		uint32_t max_non_turbo_ratio        : 8; /* Bits 15:8  */
+		uint32_t smm_save_control           : 1; /* Bits 16:16 */
+		uint32_t                            : 7; /* Bits 23:17 */
+		uint32_t oc_voltage_ovrd_avail      : 1; /* Bits 24:24 */
+		uint32_t fivr_rfi_tuning_avail      : 1; /* Bits 25:25 */
+		uint32_t dcu_mode_select_support    : 1; /* Bits 26:26 */
+		uint32_t cpu_is_preprod_sample      : 1; /* Bits 27:27 */
+		uint32_t prog_ratio_for_turbo       : 1; /* Bits 28:28 */
+		uint32_t prog_tdp_for_turbo         : 1; /* Bits 29:29 */
+		uint32_t prog_tcc_activation_offset : 1; /* Bits 30:30 */
+		uint32_t cpuid_faulting_capability  : 1; /* Bits 31:31 */
+		uint32_t low_power_mode_support     : 1; /* Bits 32:32 */
+		uint32_t configurable_tdp_levels    : 2; /* Bits 34:33 */
+		uint32_t bios_guard_supported       : 1; /* Bits 35:35 */
+		uint32_t                            : 1; /* Bits 36:36 */
+		uint32_t timed_mwait_supported      : 1; /* Bits 37:37 */
+		uint32_t                            : 2; /* Bits 39:38 */
+		uint32_t max_efficiency_ratio       : 8; /* Bits 47:40 */
+		uint32_t minimum_ratio              : 8; /* Bits 55:48 */
+		uint32_t                            : 8; /* Bits 63:56 */
+	};
+	msr_t msr;
+};
+
+union msr_vr_current_config {
+	struct __packed {
+		uint32_t current_limit      : 13; /* Bits 12:0  */
+		uint32_t                    : 18; /* Bits 30:13 */
+		uint32_t current_limit_lock :  1; /* Bits 31:31 */
+		uint32_t psi1_threshold     : 10; /* Bits 41:32 */
+		uint32_t psi2_threshold     : 10; /* Bits 51:42 */
+		uint32_t psi3_threshold     : 10; /* Bits 61:52 */
+		uint32_t psi4_enable        :  1; /* Bits 62:62 */
+		uint32_t                    :  1; /* Bits 63:63 */
+	};
+	msr_t msr;
+};
+
+union msr_vr_misc_config {
+	struct __packed {
+		uint32_t dynamic_load_line_r  :  8; /* Bits  7:0  */
+		uint32_t idle_load_line_r     :  8; /* Bits 15:8  */
+		uint32_t leakage_load_line_r  :  8; /* Bits 23:16 */
+		uint32_t min_vid              :  8; /* Bits 31:24 */
+		int32_t  iout_offset          :  8; /* Bits 39:32 */
+		uint32_t iout_slope           : 10; /* Bits 49:40 */
+		uint32_t fast_idle_exit_ramp  :  1; /* Bits 50:50 */
+		uint32_t fast_idle_entry_ramp :  1; /* Bits 51:51 */
+		uint32_t idle_entry_decay_en  :  1; /* Bits 52:52 */
+		uint32_t prog_slow_ramp_rate  :  2; /* Bits 54:53 */
+		uint32_t                      :  9; /* Bits 63:55 */
+	};
+	msr_t msr;
+};
+
 /* Configure power limits for turbo mode */
 void set_power_limits(u8 power_limit_1_time);
 int cpu_config_tdp_levels(void);
@@ -180,6 +237,13 @@ void report_cpu_info(void);
 
 /* smm_finalize.c */
 void enable_smm_code_access_check(void);
+
+static inline union msr_platform_info rdmsr_platform_info(void)
+{
+	return (union msr_platform_info) {
+		.msr = rdmsr(MSR_PLATFORM_INFO),
+	};
+}
 
 /* CPU identification */
 static inline u32 cpu_family_model(void)

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <console/console.h>
+#include <crc_byte.h>
 
 #include <Uefi/UefiBaseType.h>
 #include <Uefi/UefiMultiPhase.h>
@@ -113,11 +114,18 @@ static enum cb_err region_is_erased(const struct region_device *rdev, bool *eras
 	*erased = false;
 	mapping = rdev_mmap_full(rdev);
 	if (mapping) {
-		for (size_t i = 0; i < region_device_sz(rdev); i++) {
-			if (mapping[i] != UINT8_MAX) {
-				rdev_munmap(rdev, (void *)mapping);
-				return CB_SUCCESS;
+		/* Avoid a separate mapped-flash access for every byte. */
+		while (offset < region_device_sz(rdev)) {
+			const size_t size = MIN(sizeof(buf), region_device_sz(rdev) - offset);
+
+			memcpy(buf, mapping + offset, size);
+			for (size_t i = 0; i < size; i++) {
+				if (buf[i] != UINT8_MAX) {
+					rdev_munmap(rdev, (void *)mapping);
+					return CB_SUCCESS;
+				}
 			}
+			offset += size;
 		}
 		rdev_munmap(rdev, (void *)mapping);
 		*erased = true;
@@ -283,8 +291,9 @@ static int rdev_memcmp(struct region_device *rdev, size_t offset, uint8_t *data,
 }
 
 
-static enum cb_err validate_fv_header(const struct region_device *rdev,
-				      EFI_FIRMWARE_VOLUME_HEADER *fw_vol_hdr)
+static enum cb_err validate_fv_header_size(const struct region_device *rdev,
+					   EFI_FIRMWARE_VOLUME_HEADER *fw_vol_hdr,
+					   size_t volume_size)
 {
 	const size_t minimum_header_size = sizeof(*fw_vol_hdr) +
 		sizeof(EFI_FV_BLOCK_MAP_ENTRY);
@@ -305,7 +314,8 @@ static enum cb_err validate_fv_header(const struct region_device *rdev,
 	 */
 	if ((fw_vol_hdr->Revision != EFI_FVH_REVISION)
 	    || (fw_vol_hdr->Signature != EFI_FVH_SIGNATURE)
-	    || (fw_vol_hdr->FvLength > region_device_sz(rdev))
+	    || (fw_vol_hdr->FvLength > volume_size)
+	    || (fw_vol_hdr->HeaderLength > region_device_sz(rdev))
 	    || (fw_vol_hdr->HeaderLength < minimum_header_size)
 	    || (fw_vol_hdr->HeaderLength > fw_vol_hdr->FvLength)
 	    || (fw_vol_hdr->FvLength - fw_vol_hdr->HeaderLength <
@@ -357,6 +367,12 @@ static enum cb_err validate_fv_header(const struct region_device *rdev,
 	printk(BIOS_SPEW, PREFIX "UEFI FV with size %lld found\n", fw_vol_hdr->FvLength);
 
 	return CB_SUCCESS;
+}
+
+static enum cb_err validate_fv_header(const struct region_device *rdev,
+				      EFI_FIRMWARE_VOLUME_HEADER *header)
+{
+	return validate_fv_header_size(rdev, header, region_device_sz(rdev));
 }
 
 static enum cb_err
@@ -473,6 +489,7 @@ struct efi_find_compare_args {
 	const char *name;
 	uint32_t size;
 	void *data;
+	uint32_t attributes;
 	bool match;
 };
 
@@ -490,6 +507,14 @@ enum cb_err find_and_compare(struct region_device *rdev, VARIABLE_HEADER *hdr, s
 		return ret;
 
 	*stop = true;
+	/* This writer cannot update authenticated or other special variables. */
+	if (hdr->Attributes & ~VARIABLE_ATTRIBUTE_NV_BS_RT)
+		return CB_ERR_NOT_IMPLEMENTED;
+
+	fa->attributes = hdr->Attributes;
+	if (!(fa->attributes & EFI_VARIABLE_NON_VOLATILE) ||
+	    !(fa->attributes & EFI_VARIABLE_BOOTSERVICE_ACCESS))
+		fa->attributes = VARIABLE_ATTRIBUTE_NV_BS_RT;
 	if (fa->size != hdr->DataSize) {
 		fa->match = false;
 		return CB_SUCCESS;
@@ -498,7 +523,7 @@ enum cb_err find_and_compare(struct region_device *rdev, VARIABLE_HEADER *hdr, s
 	compare = rdev_memcmp(rdev, hdr_size + hdr->NameSize, fa->data, hdr->DataSize);
 	if (compare == CB_EFI_ACCESS_ERROR)
 		return CB_EFI_ACCESS_ERROR;
-	fa->match = compare == 0;
+	fa->match = fa->attributes == hdr->Attributes && compare == 0;
 
 	return CB_SUCCESS;
 }
@@ -687,6 +712,331 @@ static enum cb_err efi_fv_init(struct region_device *rdev, bool *auth_format)
 	return ret;
 }
 
+static enum cb_err validate_store_size(const struct region_device *rdev, size_t volume_size,
+				       size_t block_size, bool *auth_format)
+{
+	EFI_FIRMWARE_VOLUME_HEADER header;
+	EFI_FV_BLOCK_MAP_ENTRY end;
+	VARIABLE_STORE_HEADER store_header;
+	struct region_device variable_region;
+	size_t block_count, variable_size;
+	enum cb_err ret;
+
+	if (!rdev || !auth_format || !block_size || block_size > UINT32_MAX ||
+	    volume_size % block_size ||
+	    volume_size / block_size > UINT32_MAX)
+		return CB_ERR_ARG;
+	*auth_format = false;
+	block_count = volume_size / block_size;
+	if (block_count < 3)
+		return CB_ERR_ARG;
+	variable_size = (block_count - block_count / 2 - 1) * block_size;
+	ret = validate_fv_header_size(rdev, &header, volume_size);
+	if (ret != CB_SUCCESS)
+		return ret;
+	if (header.FvLength != volume_size ||
+	    header.BlockMap[0].Length != block_size ||
+	    header.BlockMap[0].NumBlocks != volume_size / block_size)
+		return CB_EFI_FVH_INVALID;
+	if (rdev_readat(rdev, &end, offsetof(EFI_FIRMWARE_VOLUME_HEADER, BlockMap) +
+			sizeof(end), sizeof(end)) != sizeof(end))
+		return CB_EFI_ACCESS_ERROR;
+	if (end.NumBlocks || end.Length)
+		return CB_EFI_FVH_INVALID;
+	if (header.HeaderLength >= variable_size)
+		return CB_EFI_VS_CORRUPTED_INVALID;
+	if (rdev_readat(rdev, &store_header, header.HeaderLength, sizeof(store_header)) !=
+	    sizeof(store_header))
+		return CB_EFI_ACCESS_ERROR;
+	if (store_header.Size != variable_size - header.HeaderLength)
+		return CB_EFI_VS_CORRUPTED_INVALID;
+	if (rdev_chain(&variable_region, rdev, 0, region_device_sz(rdev)))
+		return CB_EFI_ACCESS_ERROR;
+	return validate_variable_store_header(&header, &variable_region, auth_format);
+}
+
+enum cb_err efi_fv_validate_store(const struct region_device *rdev, size_t block_size,
+				 bool *auth_format)
+{
+	if (!rdev)
+		return CB_ERR_ARG;
+	return validate_store_size(rdev, region_device_sz(rdev), block_size, auth_format);
+}
+
+/* The old and new layouts share the same half-store FTW spare. */
+#define EFI_STORE_OLD_BLOCK 0x10000
+#define EFI_STORE_NEW_BLOCK 0x1000
+#define EFI_MIGRATION_COMMITTED 0xfe
+#define EFI_MIGRATION_COMPLETE 0xfc
+
+struct efi_store_migration {
+	uint8_t magic[8];
+	uint32_t store_size;
+	uint32_t data_crc;
+	uint32_t header_crc;
+	uint8_t state;
+	uint8_t reserved[3];
+};
+
+_Static_assert(sizeof(struct efi_store_migration) == 24, "Migration record layout changed");
+
+static const uint8_t migration_magic[8] = { 'E', 'F', 'I', 'M', 'I', 'G', '4', 'K' };
+
+static uint32_t migration_crc(const void *data, size_t size)
+{
+	const uint8_t *bytes = data;
+	uint32_t crc = 0;
+
+	for (size_t i = 0; i < size; i++)
+		crc = crc32_byte(crc, bytes[i]);
+	return crc;
+}
+
+static bool migration_geometry(const struct region_device *rdev, size_t buffer_size)
+{
+	size_t size = region_device_sz(rdev);
+
+	return size <= UINT32_MAX && size >= 4 * EFI_STORE_OLD_BLOCK &&
+		!(size % (2 * EFI_STORE_OLD_BLOCK)) && buffer_size >= EFI_STORE_NEW_BLOCK;
+}
+
+static int migration_data_crc(const struct region_device *rdev, size_t offset,
+			      size_t size, uint8_t *buffer, uint32_t *crc)
+{
+	*crc = 0;
+	while (size) {
+		const size_t chunk = MIN(size, EFI_STORE_NEW_BLOCK);
+
+		if (rdev_readat(rdev, buffer, offset, chunk) != chunk)
+			return -1;
+		for (size_t i = 0; i < chunk; i++)
+			*crc = crc32_byte(*crc, buffer[i]);
+		offset += chunk;
+		size -= chunk;
+	}
+	return 0;
+}
+
+static int migration_erase(const struct region_device *rdev, size_t offset, size_t size)
+{
+	while (size) {
+		struct region_device block;
+		bool erased;
+
+		if (rdev_eraseat(rdev, offset, EFI_STORE_NEW_BLOCK) != EFI_STORE_NEW_BLOCK ||
+		    rdev_chain(&block, rdev, offset, EFI_STORE_NEW_BLOCK) ||
+		    region_is_erased(&block, &erased) != CB_SUCCESS || !erased)
+			return -1;
+		offset += EFI_STORE_NEW_BLOCK;
+		size -= EFI_STORE_NEW_BLOCK;
+	}
+	return 0;
+}
+
+static int migration_set_state(const struct region_device *rdev, uint8_t state)
+{
+	const size_t offset = region_device_sz(rdev) - EFI_STORE_NEW_BLOCK +
+		offsetof(struct efi_store_migration, state);
+	uint8_t readback;
+
+	if (rdev_writeat(rdev, &state, offset, sizeof(state)) != sizeof(state) ||
+	    rdev_readat(rdev, &readback, offset, sizeof(readback)) != sizeof(readback) ||
+	    readback != state)
+		return -1;
+	return 0;
+}
+
+/* A final scratch-block erase may itself have been interrupted. */
+static int migration_finish_erase(const struct region_device *rdev,
+				 const struct efi_store_migration *record, uint8_t *buffer)
+{
+	struct efi_store_migration expected;
+	struct region_device part;
+	const size_t size = region_device_sz(rdev);
+	const size_t half = size / 2;
+	const size_t image_size = half - EFI_STORE_NEW_BLOCK;
+	bool authenticated, erased;
+	uint32_t crc;
+
+	if (efi_fv_validate_store(rdev, EFI_STORE_NEW_BLOCK, &authenticated) != CB_SUCCESS ||
+	    !authenticated || rdev_chain(&part, rdev, image_size, half) ||
+	    region_is_erased(&part, &erased) != CB_SUCCESS || !erased ||
+	    migration_data_crc(rdev, 0, image_size, buffer, &crc))
+		return 0;
+	memset(&expected, 0xff, sizeof(expected));
+	memcpy(expected.magic, migration_magic, sizeof(expected.magic));
+	expected.store_size = size;
+	expected.data_crc = crc;
+	expected.header_crc = migration_crc(&expected, offsetof(typeof(expected), header_crc));
+	expected.state = EFI_MIGRATION_COMPLETE;
+	for (size_t i = 0; i < sizeof(expected); i++) {
+		const uint8_t actual = ((const uint8_t *)record)[i];
+
+		if ((actual | ((const uint8_t *)&expected)[i]) != actual)
+			return 0;
+	}
+	/* Erase can only set bits. Bytes outside the record must still be erased. */
+	if (rdev_chain(&part, rdev, size - EFI_STORE_NEW_BLOCK + sizeof(expected),
+		       EFI_STORE_NEW_BLOCK - sizeof(expected)) ||
+	    region_is_erased(&part, &erased) != CB_SUCCESS || !erased)
+		return 0;
+	return migration_erase(rdev, size - EFI_STORE_NEW_BLOCK, EFI_STORE_NEW_BLOCK) ? -1 : 1;
+}
+
+int efi_fv_migration_recover(const struct region_device *rdev, void *scratch, size_t scratch_size)
+{
+	struct efi_store_migration record;
+	struct region_device block;
+	uint8_t *buffer = scratch;
+	const size_t size = region_device_sz(rdev);
+	const size_t half = size / 2;
+	const size_t image_size = half - EFI_STORE_NEW_BLOCK;
+	uint32_t crc;
+	bool authenticated, erased;
+	int ret;
+
+	if (!scratch || scratch_size < EFI_STORE_NEW_BLOCK)
+		return -1;
+	/* Small native 4 KiB stores never had the supported legacy layout. */
+	if (!migration_geometry(rdev, scratch_size))
+		return 0;
+	if (rdev_readat(rdev, &record, size - EFI_STORE_NEW_BLOCK, sizeof(record)) !=
+	    sizeof(record))
+		return -1;
+	bool record_erased = true;
+	for (size_t i = 0; i < sizeof(record); i++)
+		record_erased &= ((const uint8_t *)&record)[i] == UINT8_MAX;
+	if (record_erased)
+		return 0;
+	/* This also completes cleanup after a torn final marker erase. */
+	ret = migration_finish_erase(rdev, &record, buffer);
+	if (ret)
+		return ret;
+	if (memcmp(record.magic, migration_magic, sizeof(record.magic)) ||
+	    record.state == UINT8_MAX)
+		return 0;
+	if (record.store_size != size ||
+	    record.header_crc != migration_crc(&record, offsetof(typeof(record), header_crc)) ||
+	    (record.state != EFI_MIGRATION_COMMITTED && record.state != EFI_MIGRATION_COMPLETE))
+		return -1;
+
+	if (record.state == EFI_MIGRATION_COMMITTED) {
+		if (migration_data_crc(rdev, half, image_size, buffer, &crc) ||
+		    crc != record.data_crc)
+			return -1;
+		for (size_t offset = 0; offset < image_size; offset += EFI_STORE_NEW_BLOCK) {
+			if (rdev_readat(rdev, buffer, half + offset, EFI_STORE_NEW_BLOCK) !=
+			    EFI_STORE_NEW_BLOCK ||
+			    migration_erase(rdev, offset, EFI_STORE_NEW_BLOCK) ||
+			    rdev_writeat(rdev, buffer, offset, EFI_STORE_NEW_BLOCK) !=
+			    EFI_STORE_NEW_BLOCK ||
+			    rdev_chain(&block, rdev, offset, EFI_STORE_NEW_BLOCK) ||
+			    !region_starts_with(&block, buffer, EFI_STORE_NEW_BLOCK))
+				return -1;
+		}
+		if (migration_erase(rdev, image_size, EFI_STORE_NEW_BLOCK))
+			return -1;
+	}
+	if (migration_data_crc(rdev, 0, image_size, buffer, &crc) || crc != record.data_crc ||
+	    efi_fv_validate_store(rdev, EFI_STORE_NEW_BLOCK, &authenticated) != CB_SUCCESS ||
+	    !authenticated || rdev_chain(&block, rdev, image_size, EFI_STORE_NEW_BLOCK) ||
+	    region_is_erased(&block, &erased) != CB_SUCCESS || !erased ||
+	    migration_set_state(rdev, EFI_MIGRATION_COMPLETE))
+		return -1;
+	/* Keep the committed record until all other spare blocks are erased. */
+	if (migration_erase(rdev, half, half - EFI_STORE_NEW_BLOCK) ||
+	    migration_erase(rdev, size - EFI_STORE_NEW_BLOCK, EFI_STORE_NEW_BLOCK))
+		return -1;
+	return 1;
+}
+
+int efi_fv_migrate_4k(const struct region_device *rdev, void *scratch, size_t scratch_size)
+{
+	struct efi_store_migration record, readback;
+	struct efi_fv_initial_image header;
+	struct region_device block;
+	uint8_t *buffer = scratch;
+	const size_t size = region_device_sz(rdev);
+	const size_t half = size / 2;
+	const size_t old_variable_size = half - EFI_STORE_OLD_BLOCK;
+	const size_t image_size = half - EFI_STORE_NEW_BLOCK;
+	uint16_t checksum = 0;
+	bool authenticated;
+	uint32_t crc;
+
+	if (!scratch || !migration_geometry(rdev, scratch_size) ||
+	    efi_fv_validate_store(rdev, EFI_STORE_OLD_BLOCK, &authenticated) != CB_SUCCESS ||
+	    !authenticated || rdev_readat(rdev, &header, 0, sizeof(header)) != sizeof(header) ||
+	    header.volume.fv.HeaderLength != sizeof(header.volume))
+		return -1;
+	/* The caller has already recovered old FTW using the old geometry. */
+	header.volume.fv.BlockMap[0].Length = EFI_STORE_NEW_BLOCK;
+	header.volume.fv.BlockMap[0].NumBlocks = size / EFI_STORE_NEW_BLOCK;
+	header.volume.fv.Checksum = 0;
+	for (size_t i = 0; i < sizeof(header.volume) / sizeof(uint16_t); i++)
+		checksum += ((const uint16_t *)&header.volume)[i];
+	header.volume.fv.Checksum = -checksum;
+	header.store.Size = image_size - sizeof(header.volume);
+
+	if (migration_erase(rdev, half, half))
+		return -1;
+	for (size_t offset = 0; offset < image_size; offset += EFI_STORE_NEW_BLOCK) {
+		memset(buffer, 0xff, EFI_STORE_NEW_BLOCK);
+		if (offset < old_variable_size &&
+		    rdev_readat(rdev, buffer, offset, EFI_STORE_NEW_BLOCK) != EFI_STORE_NEW_BLOCK)
+			return -1;
+		if (!offset)
+			memcpy(buffer, &header, sizeof(header));
+		if (rdev_writeat(rdev, buffer, half + offset, EFI_STORE_NEW_BLOCK) !=
+		    EFI_STORE_NEW_BLOCK ||
+		    rdev_chain(&block, rdev, half + offset, EFI_STORE_NEW_BLOCK) ||
+		    !region_starts_with(&block, buffer, EFI_STORE_NEW_BLOCK))
+			return -1;
+	}
+	if (migration_data_crc(rdev, half, image_size, buffer, &crc))
+		return -1;
+	memset(&record, 0xff, sizeof(record));
+	memcpy(record.magic, migration_magic, sizeof(record.magic));
+	record.store_size = size;
+	record.data_crc = crc;
+	record.header_crc = migration_crc(&record, offsetof(typeof(record), header_crc));
+	if (rdev_writeat(rdev, &record, size - EFI_STORE_NEW_BLOCK, sizeof(record)) !=
+	    sizeof(record) ||
+	    rdev_readat(rdev, &readback, size - EFI_STORE_NEW_BLOCK, sizeof(readback)) !=
+	    sizeof(readback) || memcmp(&record, &readback, sizeof(record)) ||
+	    migration_set_state(rdev, EFI_MIGRATION_COMMITTED))
+		return -1;
+	return efi_fv_migration_recover(rdev, scratch, scratch_size);
+}
+
+/* Recovery must use the geometry of the primary or its FTW spare snapshot. */
+enum cb_err efi_fv_store_block_size(const struct region_device *rdev, size_t preferred,
+				    size_t *block_size)
+{
+	struct region_device spare;
+	const size_t size = region_device_sz(rdev);
+	const size_t candidates[] = { preferred, EFI_STORE_OLD_BLOCK };
+	bool authenticated;
+
+	if (!block_size || !preferred || size % 2 ||
+	    rdev_chain(&spare, rdev, size / 2, size / 2))
+		return CB_ERR_ARG;
+	for (size_t copy = 0; copy < 2; copy++) {
+		for (size_t i = 0; i < ARRAY_SIZE(candidates); i++) {
+			enum cb_err ret = validate_store_size(copy ? &spare : rdev, size,
+							    candidates[i], &authenticated);
+			if (ret == CB_SUCCESS && authenticated) {
+				*block_size = candidates[i];
+				return CB_SUCCESS;
+			}
+			if (ret == CB_EFI_ACCESS_ERROR)
+				return ret;
+		}
+	}
+	*block_size = preferred;
+	return CB_SUCCESS;
+}
+
 enum cb_err efi_fv_print_options(const struct region_device *rdev)
 {
 	enum cb_err ret;
@@ -705,7 +1055,7 @@ enum cb_err efi_fv_print_options(const struct region_device *rdev)
  * - writes up to *size bytes into a buffer pointed to by *dest
  * - on success, updates *size to the actual number of bytes written
  * - rdev is the spi flash region to operate on
- * - the FVH and variable store header must have been initialized by a third party
+ * - the FVH and variable store header must already be initialized
  */
 enum cb_err efi_fv_get_option(const struct region_device *rdev,
 			      const EFI_GUID *guid,
@@ -752,7 +1102,8 @@ static enum cb_err variable_write_sizes(const struct region_device *rdev, const 
 }
 
 static enum cb_err write_auth_hdr(struct region_device *rdev, const EFI_GUID *guid,
-				  const char *name, void *data, size_t size)
+				  const char *name, void *data, size_t size,
+				  uint32_t attributes)
 {
 	AUTHENTICATED_VARIABLE_HEADER auth_hdr;
 	size_t name_size;
@@ -777,9 +1128,7 @@ static enum cb_err write_auth_hdr(struct region_device *rdev, const EFI_GUID *gu
 	memset(&auth_hdr, 0xff, sizeof(auth_hdr));
 
 	auth_hdr.StartId = VARIABLE_DATA;
-	auth_hdr.Attributes = EFI_VARIABLE_NON_VOLATILE|
-			      EFI_VARIABLE_BOOTSERVICE_ACCESS|
-			      EFI_VARIABLE_RUNTIME_ACCESS;
+	auth_hdr.Attributes = attributes;
 	auth_hdr.NameSize = name_size;
 	auth_hdr.DataSize = size;
 	memcpy(&auth_hdr.VendorGuid, guid, sizeof(EFI_GUID));
@@ -815,7 +1164,8 @@ static enum cb_err write_auth_hdr(struct region_device *rdev, const EFI_GUID *gu
 static enum cb_err write_hdr(struct region_device *rdev, const EFI_GUID *guid,
 			     const char *name,
 			     void *data,
-			     size_t size)
+			     size_t size,
+			     uint32_t attributes)
 {
 	VARIABLE_HEADER hdr;
 	size_t name_size;
@@ -840,9 +1190,7 @@ static enum cb_err write_hdr(struct region_device *rdev, const EFI_GUID *guid,
 	memset(&hdr, 0xff, sizeof(hdr));
 
 	hdr.StartId = VARIABLE_DATA;
-	hdr.Attributes = EFI_VARIABLE_NON_VOLATILE|
-			 EFI_VARIABLE_BOOTSERVICE_ACCESS|
-			 EFI_VARIABLE_RUNTIME_ACCESS;
+	hdr.Attributes = attributes;
 	hdr.NameSize = name_size;
 	hdr.DataSize = size;
 	memcpy(&hdr.VendorGuid, guid, sizeof(EFI_GUID));
@@ -879,7 +1227,7 @@ static enum cb_err write_hdr(struct region_device *rdev, const EFI_GUID *guid,
  * efi_fv_set_option
  * - writes size bytes read from the buffer pointed to by *data
  * - rdev is the spi flash region to operate on
- * - the FVH and variable store header must have been initialized by a third party
+ * - the FVH and variable store header must already be initialized
  */
 enum cb_err efi_fv_set_option(const struct region_device *rdev,
 			      const EFI_GUID *guid,
@@ -906,6 +1254,7 @@ enum cb_err efi_fv_set_option(const struct region_device *rdev,
 	args.size = size;
 	args.match = false;
 	args.data = data;
+	args.attributes = VARIABLE_ATTRIBUTE_NV_BS_RT;
 
 	ret = walk_variables(&store_rdev, auth_format, find_and_compare, &args, NULL);
 	if (ret != CB_SUCCESS && ret != CB_EFI_OPTION_NOT_FOUND)
@@ -942,9 +1291,9 @@ enum cb_err efi_fv_set_option(const struct region_device *rdev,
 	 */
 
 	if (auth_format)
-		ret = write_auth_hdr(&store_rdev, guid, name, data, size);
+		ret = write_auth_hdr(&store_rdev, guid, name, data, size, args.attributes);
 	else
-		ret = write_hdr(&store_rdev, guid, name, data, size);
+		ret = write_hdr(&store_rdev, guid, name, data, size, args.attributes);
 	if (ret != CB_SUCCESS)
 		return ret;
 

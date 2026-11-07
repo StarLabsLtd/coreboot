@@ -21,7 +21,7 @@ void mainboard_config_rcba(void)
 
 void mb_late_romstage_setup(void)
 {
-	u8 enable_peg = get_uint_option("enable_dual_graphics", 0);
+	u8 enable_peg = get_uint_option_checked("enable_dual_graphics", 0, OPTION_BOOL);
 
 	bool power_en = pmh7_dgpu_power_state();
 

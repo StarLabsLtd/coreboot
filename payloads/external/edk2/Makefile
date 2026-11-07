@@ -35,18 +35,14 @@ export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
-EDK2_UNIVERSAL_PAYLOAD_OUT ?= ../../../build/UniversalPayload.fit
+EDK2_FIXED_MM_OUT ?= $(abspath ../../../build/FIXEDMMFV.Fv)
 
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
-endif
 BUILD_STR += -t GCC
 BUILD_STR += -D BOOTLOADER=COREBOOT
 ifneq ($(V),1)
 BUILD_STR += -q
-ifeq ($(CONFIG_EDK2_UEFIPAYLOAD),y)
 BUILD_STR += -s
-endif
 endif
 
 #
@@ -59,6 +55,14 @@ endif
 ifneq ($(CONFIG_EDK2_BOOTSPLASH_FILE),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
 endif
+CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE ?= 1
+ifneq ($(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE),1)
+ifneq ($(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE),2)
+$(error Boot logo source scale must be 1 or 2)
+endif
+endif
+BUILD_STR += -D BOOT_LOGO_SOURCE_SCALE=$(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE)
+
 # BOOT_MANAGER_ESCAPE		= FALSE
 ifeq ($(CONFIG_EDK2_BOOT_MANAGER_ESCAPE),y)
 BUILD_STR += -D BOOT_MANAGER_ESCAPE=TRUE
@@ -82,7 +86,10 @@ BUILD_STR += -D DISABLE_SERIAL_TERMINAL=TRUE
 endif
 # VARIABLE_SUPPORT		= EMU
 # MAX_VARIABLE_SIZE		= 0x10000
-ifeq ($(CONFIG_SMMSTORE),y)
+ifeq ($(CONFIG_ASS),y)
+BUILD_STR += -D VARIABLE_SUPPORT=SPI
+BUILD_STR += -D ASS=TRUE
+else ifeq ($(CONFIG_SMMSTORE),y)
 BUILD_STR += -D VARIABLE_SUPPORT=SMMSTORE
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize=0x8000
 endif
@@ -98,6 +105,10 @@ endif
 ifeq ($(CONFIG_EDK2_PS2_SUPPORT),y)
 BUILD_STR += -D PS2_KEYBOARD_ENABLE=TRUE
 endif
+ifeq ($(CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT),y)
+BUILD_STR += -D DISABLE_BOOT_MANAGER_WAIT=TRUE
+endif
+
 # PLATFORM_BOOT_TIMEOUT		= 3
 ifneq ($(CONFIG_EDK2_BOOT_TIMEOUT),)
 BUILD_STR += -D PLATFORM_BOOT_TIMEOUT=$(CONFIG_EDK2_BOOT_TIMEOUT)
@@ -154,8 +165,21 @@ BUILD_STR += -D CAPSULE_EMBED_FMP_DXE=TRUE
 endif
 
 CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
+FIRMWARE_GUID := $(subst ",,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
-CAPSULE_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
+COREBOOT_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
+CAPSULE_LOCALVERSION := $(COREBOOT_LOCALVERSION)
+ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+ifneq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(FIRMWARE_GUID)' | tr A-F a-f))
+$(error Star Labs VBOOT capsule GUID must match the configured firmware GUID)
+endif
+ifneq ($(CAPSULE_REGIONS),EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
+$(error Star Labs VBOOT capsules must update EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
+endif
+ifneq ($(CAPSULE_LOCALVERSION),$(COREBOOT_LOCALVERSION))
+$(error Star Labs VBOOT capsule version must match CONFIG_LOCALVERSION)
+endif
+endif
 CAPSULE_SIGNER_PRIVATE_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))
 CAPSULE_OTHER_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))
 CAPSULE_TRUSTED_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
@@ -182,8 +206,15 @@ EDK2_APPEND_RMAP_MANIFEST = $(firstword $(wildcard \
 	$(EDK2_PATH)/BaseTools/Scripts/AppendRmapManifest.py \
 ))
 
-# If FmpDxe is built, edk2 also places it in the top-level X64 output dir.
-EDK2_FMP_DXE = $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/X64/FmpDxe.efi
+EDK2_BUILD_ARCH := X64
+EDK2_BUILD_DIR = $(WORKSPACE)/Build/UefiPayloadPkg$(EDK2_BUILD_ARCH)/$(RELEASE_STR)_GCC
+EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
+EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
+EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
+CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
+EDK2_PIN_CHECK = $(abspath check-pinned-source.sh)
+CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
+CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -260,43 +291,90 @@ all: UefiPayloadPkg
 $(WORKSPACE):
 	mkdir $(WORKSPACE)
 
+# Read each parent's new .gitmodules before updating its children.
+define update_submodules
+git submodule sync && \
+git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout && \
+git submodule foreach --recursive \
+	'git submodule sync && git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout'
+endef
+
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
 		git clone --recurse-submodules $(CONFIG_EDK2_PLATFORMS_REPOSITORY) $(EDK2_PLATFORMS_PATH) -j5; \
 	fi
 	cd $(EDK2_PLATFORMS_PATH); \
+		origin_url=$$(git config --get remote.origin.url); \
+		if [ "$$origin_url" != "$(EDK2_PLATFORMS_REPOSITORY)" ]; then \
+			if [ -n "$$origin_url" ]; then \
+				git remote set-url origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
+			else \
+				git remote add origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
+			fi; \
+			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
+				if [ -n "$$origin_url" ]; then \
+					git remote set-url origin "$$origin_url"; \
+				else \
+					git remote remove origin; \
+				fi; \
+				exit 1; \
+			fi; \
+		else \
+			git fetch --no-recurse-submodules origin || exit 1; \
+		fi; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=dirty | grep -q "nothing to commit, working tree clean"; then \
+		if git status --ignore-submodules=all | grep -q "nothing to commit, working tree clean"; then \
 			echo "    Checking out edk2-platforms revision $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f; \
+			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f || exit 1; \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout
+		$(update_submodules)
 
 $(EDK2_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PATH)" ]; then \
 		git clone --recurse-submodules $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
 	fi
-	cd $(EDK2_PATH); \
-		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
+	cd "$(EDK2_PATH)"; \
 		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
-		git fetch origin 2>/dev/null; \
+		origin_url=$$(git config --get remote.origin.url); \
+		if [ "$$origin_url" != "$(EDK2_REPOSITORY)" ]; then \
+			if [ -n "$$origin_url" ]; then \
+				git remote set-url origin "$(EDK2_REPOSITORY)" || exit 1; \
+			else \
+				git remote add origin "$(EDK2_REPOSITORY)" || exit 1; \
+			fi; \
+			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
+				if [ -n "$$origin_url" ]; then \
+					git remote set-url origin "$$origin_url"; \
+				else \
+					git remote remove origin; \
+				fi; \
+				exit 1; \
+			fi; \
+		else \
+			git fetch --no-recurse-submodules origin || exit 1; \
+		fi; \
+		if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
+			$(EDK2_PIN_CHECK) "$(EDK2_PATH)" "$(CONFIG_EDK2_TAG_OR_REV)" \
+				"$(if $(CONFIG_EDK2_BOOTSPLASH_FILE),MdeModulePkg/Logo/Logo.bmp)"; \
+		else \
+		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
 			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=dirty | grep -q -e clean -e "nothing added"; then \
+		if git status --ignore-submodules=all | grep -q -e clean -e "nothing added"; then \
 			echo "    Checking out $(project_name) revision $(CONFIG_EDK2_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f; \
-			git submodule update --checkout --recursive; \
+			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f || exit 1; \
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		git submodule update --init --checkout --recursive
+		$(update_submodules); \
+		fi
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
@@ -377,8 +455,30 @@ prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
 
+ifeq ($(CONFIG_ASS),y)
+ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+FIXED_MM_CAPSULE_ARGS := -D CAPSULE_SUPPORT=TRUE \
+	-D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
+endif
+FixedMmService: prep print
+	cd $(WORKSPACE); \
+		source $(EDK2_PATH)/edksetup.sh; \
+		if [ ! -f $(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.dsc ]; then \
+			echo "EDK2: The selected repository does not support the fixed MM service"; \
+			exit 1; \
+		fi; \
+		build -a IA32 -b $(RELEASE_STR) -t GCC \
+			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
+			$(FIXED_MM_CAPSULE_ARGS) \
+			$(CONFIG_EDK2_CUSTOM_BUILD_PARAMS) \
+			-y $(WORKSPACE)/Build/CorebootFixedMmService/FIXEDMMFV.txt || exit 1; \
+		cp $(WORKSPACE)/Build/CorebootFixedMmService/$(RELEASE_STR)_GCC/FV/FIXEDMMFV.Fv \
+			$(EDK2_FIXED_MM_OUT) || exit 1
+fixed_mm_service := FixedMmService
+endif
+
 $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
-	prep print
+	prep print $(fixed_mm_service)
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		echo -n "EDK2: Building... "; \
@@ -390,37 +490,31 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 		fi
 		echo "Success!"; \
 
-$(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit: \
-	prep print
-	cd $(WORKSPACE); \
-		source $(EDK2_PATH)/edksetup.sh; \
-		echo -n "EDK2: Building... "; \
-		bash $(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR) \
-			-D BUILD_ARCH=IA32 --Fit \
-			--pcd gUefiPayloadPkgTokenSpaceGuid.PcdHandOffFdtEnable=TRUE
-		if [ ! -f $@ ]; then \
-			echo "Failed!"; \
-			exit 1; \
-		fi
-		echo "Success!"; \
-
 UefiPayloadPkg: $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd
 	mkdir -p $(dir $(EDK2_UEFIPAYLOAD_OUT))
 	mv $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd \
 		$(EDK2_UEFIPAYLOAD_OUT)
 
-UniversalPayload: $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit
-	mkdir -p $(dir $(EDK2_UNIVERSAL_PAYLOAD_OUT))
-	mv $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit \
-		$(EDK2_UNIVERSAL_PAYLOAD_OUT)
-
 clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
 distclean:
-	rm -rf $(WORKSPACE)
+	if [ -L "$(WORKSPACE)" ]; then rm -f "$(WORKSPACE)"; exit; fi; \
+	if [ ! -d "$(WORKSPACE)" ]; then exit 0; fi; \
+	shopt -s dotglob nullglob; \
+	for path in "$(WORKSPACE)"/*; do \
+		if [ -L "$$path" ] || [ -L "$$path/.git" ] || [ ! -d "$$path/.git" ]; then \
+			rm -rf "$$path" || exit 1; \
+			continue; \
+		fi; \
+		git -C "$$path" -c submodule.recurse=false reset --hard && \
+		git -C "$$path" submodule foreach --recursive \
+			'git -c submodule.recurse=false reset --hard && git clean -xffd' && \
+		git -C "$$path" clean -xffd || exit 1; \
+	done
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo FixedMmService \
+	UefiPayloadPkg clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
@@ -428,16 +522,33 @@ coreboot_capsule: $(EDK2_PATH)
 	test -n "$(COREBOOT_ROM)"
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
+	set -e; \
+	if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
+		test -n "$(COREBOOT_FMAP_LAYOUT)"; \
+		test -n "$(CBFSTOOL)"; \
+		test "$(CBFS_ARCH)" = "x86"; \
+		test -f "$(COREBOOT_FMAP_LAYOUT)"; \
+		test -x "$(CBFSTOOL)"; \
+	fi
 	test -x "$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule"
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
-	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
+	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom.$$$$"; \
+	capsule_tmp="$(COREBOOT_CAPSULE_OUT).$$$$"; \
+	firmware_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rom.$$$$"; \
+	payload="$${COREBOOT_CAPSULE_OUT%.cap}.payload.$$$$"; \
+	cleanup() { rm -f "$$rmap_rom" "$$capsule_tmp" "$$firmware_rom" "$$payload"; }; \
+	trap cleanup EXIT; \
 	set -e; \
-	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
-		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
+	cp "$(COREBOOT_ROM)" "$$firmware_rom"; \
+	if [ "$(CONFIG_VBOOT)" = "y" ]; then \
+		test -n "$(EDK2_APPEND_RMAP_MANIFEST)"; \
+		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
+	elif [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
+		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
 	else \
-		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
+		cp "$$firmware_rom" "$$rmap_rom"; \
 	fi; \
 	embedded_driver_args=(); \
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
@@ -458,7 +569,7 @@ coreboot_capsule: $(EDK2_PATH)
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)" = "y" ]; then \
 		capflags+=( --capflag InitiateReset ); \
 	fi; \
-	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$(COREBOOT_CAPSULE_OUT)" \
+	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$$capsule_tmp" \
 		--guid "$(CAPSULE_GUID)" \
 		"$${capflags[@]}" \
 		--fw-version $$fw_version --lsv $$lsv \
@@ -466,4 +577,22 @@ coreboot_capsule: $(EDK2_PATH)
 		--other-public-cert "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)" \
 		--trusted-public-cert "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" \
 		"$${embedded_driver_args[@]}" \
-		"$$rmap_rom"
+		"$$rmap_rom"; \
+	if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
+		"$(CBFSTOOL)" "$$firmware_rom" extract -r FW_MAIN_A \
+			-m "$(CBFS_ARCH)" -n "$(CBFS_PAYLOAD_NAME)" -f "$$payload"; \
+	fi; \
+	embedded_driver_count=0; \
+	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
+		embedded_driver_count=1; \
+	fi; \
+	python3 "$(CAPSULE_VALIDATOR)" \
+		--capsule "$$capsule_tmp" \
+		--firmware-volume "$(EDK2_DXE_FV)" \
+		--guid "$(CAPSULE_GUID)" \
+		--embedded-drivers "$$embedded_driver_count" \
+		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)" \
+		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" --layout-fmap "$(COREBOOT_FMAP_LAYOUT)" --payload "$$payload" $(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)")); \
+	mv -f "$$capsule_tmp" "$(COREBOOT_CAPSULE_OUT)"; \
+	trap - EXIT; \
+	rm -f "$$rmap_rom" "$$firmware_rom" "$$payload"

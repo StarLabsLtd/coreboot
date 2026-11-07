@@ -344,7 +344,8 @@ static void fill_fsps_chipset_lockdown_params(FSP_S_CONFIG *s_cfg,
 	s_cfg->PchLockDownGlobalSmi = lockdown_by_fsp;
 	s_cfg->PchLockDownBiosInterface = lockdown_by_fsp;
 	s_cfg->PchUnlockGpioPads = !lockdown_by_fsp;
-	s_cfg->RtcMemoryLock = lockdown_by_fsp;
+	s_cfg->RtcMemoryLock = lockdown_by_fsp ||
+		CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY);
 	s_cfg->SkipPamLock = !lockdown_by_fsp;
 
 	/* coreboot will send EOP before loading payload */
@@ -590,7 +591,8 @@ static void fill_fsps_thc_params(FSP_S_CONFIG *s_cfg,
 static void fill_fsps_8254_params(FSP_S_CONFIG *s_cfg,
 				  const struct soc_intel_pantherlake_config *config)
 {
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	s_cfg->Enable8254ClockGating = !use_8254;
 	s_cfg->Enable8254ClockGatingOnS3 = !use_8254;
 }
@@ -805,6 +807,12 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	arch_silicon_init_params(s_arch_cfg);
 	/* Override settings per board if required. */
 	mainboard_update_soc_chip_config(config);
+	if (config->s0ix_enable &&
+	    get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER))) {
+		printk(BIOS_WARNING, "S0ix disabled: the enabled legacy 8254 timer "
+		       "disables clock gating necessary for S0ix.\n");
+		config->s0ix_enable = false;
+	}
 	soc_silicon_init_params(s_cfg, config);
 	mainboard_silicon_init_params(s_cfg);
 }

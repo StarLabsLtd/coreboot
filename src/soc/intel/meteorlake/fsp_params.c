@@ -426,7 +426,8 @@ static void fill_fsps_chipset_lockdown_params(FSP_S_CONFIG *s_cfg,
 	s_cfg->PchLockDownGlobalSmi = lockdown_by_fsp;
 	s_cfg->PchLockDownBiosInterface = lockdown_by_fsp;
 	s_cfg->PchUnlockGpioPads = !lockdown_by_fsp;
-	s_cfg->RtcMemoryLock = lockdown_by_fsp;
+	s_cfg->RtcMemoryLock = lockdown_by_fsp ||
+		CONFIG(SOC_INTEL_COMMON_BLOCK_RTC_LOCK_PROTECTED_MEMORY);
 	s_cfg->SkipPamLock = !lockdown_by_fsp;
 
 	/* coreboot will send EOP before loading payload */
@@ -521,6 +522,7 @@ static void fill_fsps_sata_params(FSP_S_CONFIG *s_cfg,
 	 *  The default values can be changed from devicetree.
 	 */
 	for (size_t i = 0; i < ARRAY_SIZE(config->sata_ports_enable_dito_config); i++) {
+		s_cfg->SataPortsEnableDitoConfig[i] = config->sata_ports_enable_dito_config[i];
 		if (config->sata_ports_enable_dito_config[i]) {
 			s_cfg->SataPortsDmVal[i] = config->sata_ports_dm_val[i];
 			s_cfg->SataPortsDitoVal[i] = config->sata_ports_dito_val[i];
@@ -610,7 +612,8 @@ static void fill_fsps_8254_params(FSP_S_CONFIG *s_cfg,
 		const struct soc_intel_meteorlake_config *config)
 {
 	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER));
+	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
+						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
 	s_cfg->Enable8254ClockGating = !use_8254;
 	s_cfg->Enable8254ClockGatingOnS3 = !use_8254;
 }

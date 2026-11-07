@@ -2,6 +2,9 @@
 
 uroot_package = github.com/u-root/u-root
 uroot_build = build/go/src/$(uroot_package)
+ifneq ($(CONFIG_LINUXBOOT_UROOT_REPOSITORY),https://github.com/u-root/u-root)
+uroot_build = build/u-root-$(subst /,_,$(CONFIG_LINUXBOOT_UROOT_VERSION))
+endif
 
 UROOT_ARCH-$(CONFIG_LINUXBOOT_X86_64)      = amd64
 UROOT_ARCH-$(CONFIG_LINUXBOOT_X86)         = 386
@@ -36,16 +39,16 @@ endif
 endif
 
 $(uroot_build): | build/
-	git clone https://$(uroot_package) $(uroot_build)
+	git clone $(CONFIG_LINUXBOOT_UROOT_REPOSITORY) $(uroot_build)
 	git -C $(uroot_build) checkout --quiet $(CONFIG_LINUXBOOT_UROOT_VERSION)
 
 $(uroot_build)/u-root: | $(uroot_build)
 	cd $(uroot_build); \
 	go build -o u-root .
 
-build/initramfs_u-root.cpio: $(uroot_build)/u-root
+build/initramfs_u-root.cpio: $(uroot_build)/u-root $(DOTCONFIG)
 	cd $(uroot_build); \
 	echo "GOARCH=$(UROOT_ARCH-y) ./u-root $(uroot_args) -o initramfs_u-root.cpio $(uroot_cmds)"
 	cd $(uroot_build); \
-	GOARCH=$(UROOT_ARCH-y) ./u-root $(uroot_args) -o initramfs_u-root.cpio $(uroot_cmds)
+	GOOS=linux GOARCH=$(UROOT_ARCH-y) CGO_ENABLED=0 ./u-root $(uroot_args) -o initramfs_u-root.cpio $(uroot_cmds)
 	cp $(uroot_build)/initramfs_u-root.cpio $@

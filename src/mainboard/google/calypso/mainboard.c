@@ -58,7 +58,7 @@ static void handle_low_power_charging_boot(enum boot_mode_t boot_mode)
 	if (!pll_init_and_set(apss_ncc0, L_VAL_710P4MHz))
 		printk(BIOS_DEBUG, "CPU Frequency set to 710MHz\n");
 
-	/* Placeholder for display stop before launching charging applet */
+	display_stop();
 
 	if (CONFIG(EC_GOOGLE_CHROMEEC) && detect_ac_unplug_event())
 		chromeec_finalize_and_poweroff(false);
@@ -165,7 +165,7 @@ static void load_qc_se_firmware_late(void)
 	qupv3_se_fw_load_and_init(QUPV3_1_SE6, SE_PROTOCOL_UART, FIFO); /* BT UART */
 	qupv3_se_fw_load_and_init(QUPV3_0_SE0, SE_PROTOCOL_I2C, MIXED); /* Trackpad I2C */
 
-	qupv3_se_fw_load_and_init(QUPV3_0_SE5, SE_PROTOCOL_I2C, MIXED); /* eUSB repeater */
+	qupv3_se_fw_load_and_init(QUPV3_0_SE5, SE_PROTOCOL_I2C, GSI); /* eUSB repeater */
 }
 
 static void mainboard_late_init(struct device *dev)

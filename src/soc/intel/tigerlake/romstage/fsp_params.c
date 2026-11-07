@@ -8,6 +8,7 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <fsp/util.h>
+#include <intelblocks/cse.h>
 #include <gpio.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/pcie_rp.h>
@@ -26,10 +27,13 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 	unsigned int i;
 	uint32_t cpu_id;
 
-	m_cfg->HyperThreading = get_uint_option("hyper_threading", CONFIG(FSP_HYPERTHREADING));
+	m_cfg->HyperThreading = get_uint_option_checked(
+		"hyper_threading", CONFIG(FSP_HYPERTHREADING), OPTION_BOOL);
 
-	bool igd_enabled = get_uint_option("igd_enabled", !CONFIG(SOC_INTEL_DISABLE_IGD))
-			&& is_devfn_enabled(SA_DEVFN_IGD);
+	bool igd_enabled = get_uint_option_checked("igd_enabled",
+						   !CONFIG(SOC_INTEL_DISABLE_IGD),
+						   OPTION_BOOL) &&
+			   is_devfn_enabled(SA_DEVFN_IGD);
 
 	/* Probe for no IGD and disable InternalGfx to prevent a crash in FSP-M. */
 	if (igd_enabled && pci_read_config16(SA_DEV_IGD, PCI_VENDOR_ID) == 0xffff) {
@@ -40,8 +44,17 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 	if (igd_enabled) {
 		/* IGD is enabled, set IGD stolen size to 60MB. */
 		m_cfg->InternalGfx = 1;
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc", IGD_SM_60MB);
-		m_cfg->ApertureSize = get_uint_option("igd_aperture_size", IGD_AP_SZ_256MB);
+		m_cfg->IgdDvmt50PreAlloc = get_uint_option_checked(
+			"igd_dvmt_prealloc", IGD_SM_60MB,
+			OPTION_ENUM(IGD_SM_32MB, IGD_SM_60MB, IGD_SM_64MB, IGD_SM_96MB,
+				    IGD_SM_128MB, IGD_SM_160MB));
+		m_cfg->ApertureSize = get_uint_option_checked(
+			"igd_aperture_size", IGD_AP_SZ_256MB,
+			CONFIG(ALWAYS_ALLOW_ABOVE_4G_ALLOCATION) ?
+				OPTION_ENUM(IGD_AP_SZ_128MB, IGD_AP_SZ_256MB,
+					    IGD_AP_SZ_4G_512MB, IGD_AP_SZ_4G_1024MB,
+					    IGD_AP_SZ_4G_2048MB) :
+				OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));
 	} else {
 		/* IGD is disabled, skip IGD init in FSP. */
 		m_cfg->InternalGfx = 0;
@@ -174,7 +187,7 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 		m_cfg->VtdDisable = 1;
 	} else {
 		/* Enable VT-d support for QS platform */
-		m_cfg->VtdDisable = !get_uint_option("vtd", 1);
+		m_cfg->VtdDisable = !get_uint_option_checked("vtd", 1, OPTION_BOOL);
 		m_cfg->VtdIopEnable = 0x1;
 
 		if (m_cfg->InternalGfx) {
@@ -220,14 +233,16 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 			m_cfg->CpuPcieRpEnableMask |= 1 << i;
 	}
 
-	m_cfg->TmeEnable = get_uint_option("intel_tme", CONFIG(INTEL_TME)) && is_tme_supported();
+	m_cfg->TmeEnable =
+		get_uint_option_checked("intel_tme", CONFIG(INTEL_TME), OPTION_BOOL) &&
+		is_tme_supported();
 
 	/* crashLog config */
 	m_cfg->CpuCrashLogDevice = CONFIG(SOC_INTEL_CRASHLOG) && is_devfn_enabled(SA_DEVFN_TMT);
 	m_cfg->CpuCrashLogEnable = m_cfg->CpuCrashLogDevice;
 
 	/* In-Band ECC configuration */
-	if (get_uint_option("ibecc_enable", config->ibecc.enable)) {
+	if (get_uint_option_checked("ibecc_enable", config->ibecc.enable, OPTION_BOOL)) {
 		m_cfg->Ibecc = true;
 		m_cfg->IbeccParity = !!config->ibecc.parity_en;
 		m_cfg->IbeccOperationMode = config->ibecc.mode;
@@ -251,6 +266,13 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 
 	soc_memory_init_params(m_cfg, config);
 	mainboard_memory_init_params(mupd);
+	/* TCSS xDCI requires its xHCI parent. */
+	m_cfg->TcssXdciEn &= !!m_cfg->TcssXhciEn;
+
+	/* Board overrides must not enable VT-d on pre-QS silicon. */
+	if (cpu_get_cpuid() == CPUID_TIGERLAKE_A0)
+		m_cfg->VtdDisable = 1;
+	m_cfg->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)

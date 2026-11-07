@@ -40,6 +40,7 @@ config SOC_INTEL_ALDERLAKE
 	select PARALLEL_MP_AP_WORK
 	select PLATFORM_USES_FSP2_2
 	select PMC_GLOBAL_RESET_ENABLE_LOCK
+	select USE_FSP_NOTIFY_PHASE_POST_PCI_ENUM
 	select SOC_INTEL_COMMON
 	select CPU_INTEL_COMMON_VOLTAGE
 	select SOC_INTEL_COMMON_ACPI_WAKE_SOURCE
@@ -63,6 +64,8 @@ config SOC_INTEL_ALDERLAKE
 	select SOC_INTEL_COMMON_BLOCK_CPU_SMMRELOCATE
 	select SOC_INTEL_COMMON_BLOCK_DTT
 	select SOC_INTEL_COMMON_BLOCK_GPIO_DUAL_ROUTE_SUPPORT
+	select SOC_INTEL_COMMON_BLOCK_GPIO_HAS_PLTRST_PAD
+	select SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_PLTRST_PAD
 	select SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI
 	select SOC_INTEL_COMMON_BLOCK_GPIO_IOSTANDBY
 	select SOC_INTEL_COMMON_BLOCK_GSPI_VERSION_2
@@ -307,6 +310,7 @@ config MAX_PCIE_CLOCK_REQ
 
 config SMM_TSEG_SIZE
 	hex
+	default 0x1000000 if ASS
 	default 0x800000
 
 config SMM_RESERVED_SIZE
@@ -387,8 +391,8 @@ config SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL
 config VBOOT
 	select VBOOT_MUST_REQUEST_DISPLAY
 	select VBOOT_STARTS_IN_BOOTBLOCK
-	select VBOOT_VBNV_CMOS
-	select VBOOT_VBNV_CMOS_BACKUP_TO_FLASH
+	select VBOOT_VBNV_CMOS if !VBOOT_VBNV_FLASH_PRIMARY
+	select VBOOT_VBNV_CMOS_BACKUP_TO_FLASH if !VBOOT_VBNV_FLASH_PRIMARY
 	select VBOOT_X86_SHA256_ACCELERATION
 
 # Default hash block size is 1KiB. Increasing it to 4KiB to improve
@@ -593,5 +597,21 @@ config SOC_INTEL_SPI_DEV_MAX
 config SOC_INTEL_SPI_PSF_DESTINATION_ID
 	hex
 	default 0x23a8
+
+config SOC_INTEL_ALDERLAKE_REALTIME_TUNING_ENABLE
+	bool "Enable realtime/low-latency tuning"
+	default n
+	help
+	  Tune SoC power management, ACPI tables, and FSP settings for
+	  deterministic low-latency workloads (e.g. Linux PREEMPT_RT).
+	  Disables power-saving states that cause latency spikes:
+	  CPU C-states, dynamic P-states/HWP, S0ix, PCIe ASPM, DMI ASPM,
+	  SAGV, and Hyper-Threading.
+	  When built with an IoT FSP (CONFIG_FSP_TYPE_IOT), this also
+	  enables Intel Time Coordinated Computing (TCC) hardware
+	  features such as PSF QoS arbitration and GT CLOS.
+
+config D3COLD_SUPPORT
+	default n if SOC_INTEL_ALDERLAKE_REALTIME_TUNING_ENABLE
 
 endif

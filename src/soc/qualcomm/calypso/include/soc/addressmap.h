@@ -21,10 +21,36 @@
 
 #define TCSR_GCC_EDP_CLKREF_EN_ADDR      ((void *)0x1FD5060)
 
+/* MDSS, MDP & DSI register bases (floorplan unchanged from x1p42100/Hamoa,
+ * confirmed against mahua-sde-common.dtsi: reg = <0 0x0ae00000 0 0x93000>) */
+enum {
+	MDSS_BASE = 0xAE00000,
+};
+
+enum {
+	MDP_0_CTL_BASE			= MDSS_BASE + 0x16000,
+	MDP_VP_0_SSPP_BASE		= MDSS_BASE + 0x5000,
+	MDP_VP_0_LAYER_MIXER_BASE	= MDSS_BASE + 0x45000,
+	MDP_5_INTF_BASE			= MDSS_BASE + 0x3A000,
+	MDP_VBIF_RT_BASE		= MDSS_BASE + 0xB0000,
+	VBIF_NRT_BASE			= MDSS_BASE + 0xB8000,
+	DSI0_CTL_BASE			= MDSS_BASE + 0x94000,
+	DSI0_PHY_BASE			= MDSS_BASE + 0x94400,
+	DSI0_PHY_PLL_QLINK_COM		= MDSS_BASE + 0x94a00,
+	MDP_PERIPH_TOP1			= MDSS_BASE + 0x00013F0,
+};
+
+/* eDP controller AHB base (dp_ahb), from mahua-sde.dtsi reg[0]: 0x0af6c000.
+ * Unlike x1p42100, calypso's eDP sub-blocks are not MDSS_BASE-relative. */
+enum {
+	EDP_CTRL_BASE = 0xAF6C000,
+};
+
 /* LPASS BASE ADDRESSES */
 #define LPASS_BASE			0x06000000
 #define LPASS_AUDIO_CC_PLL_BASE		(LPASS_BASE + 0x00BC0000)
 #define LPASS_AON_CC_BASE		(LPASS_BASE + 0x00E08000)
+#define LPASS_AON_MX_CC_BASE		(LPASS_BASE + 0x01700000)
 #define LPASS_CORE_GDSC_REG_BASE	(LPASS_BASE + 0x01E00000)
 #define GCC_QUPV3_OOB_BASE              0x1E7014
 
@@ -121,6 +147,7 @@
 #define SPMI_PPID_FROM_ADDR(a) (((a) >> 8) & 0x1fffU)
 /* REG.PPID is 13 bits: SID (12:8) + Periph (7:0) */
 #define SPMI_PPID_FROM_REG(r)  ((r) & 0x1fffU)
+#define SPMI_APID_CACHE_SHIFT		0
 
 /* HS USB MP PHY base addresses */
 #define HS_USB_SS0_PHY_BASE		0x00FD3000

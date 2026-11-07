@@ -118,10 +118,12 @@ void soc_memory_init_params(struct romstage_params *params, MEMORY_INIT_UPD *upd
 	upd->PcdMrcInitMmioSize   = 0x800;
 	upd->PcdMrcInitSpdAddr1   = config->PcdMrcInitSpdAddr1;
 	upd->PcdMrcInitSpdAddr2   = config->PcdMrcInitSpdAddr2;
-	upd->PcdIgdDvmt50PreAlloc = get_uint_option("igd_dvmt_prealloc",
-						    config->PcdIgdDvmt50PreAlloc);
-	upd->PcdApertureSize      = get_uint_option("igd_aperture_size",
-						    IGD_AP_SZ_256MB);
+	upd->PcdIgdDvmt50PreAlloc =
+		get_uint_option_checked("igd_dvmt_prealloc", config->PcdIgdDvmt50PreAlloc,
+					OPTION_RANGE(IGD_MEMSIZE_32MB, IGD_MEMSIZE_512MB));
+	upd->PcdApertureSize =
+		get_uint_option_checked("igd_aperture_size", IGD_AP_SZ_256MB,
+					OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));
 	upd->PcdGttSize           = 1;
 	upd->PcdLegacySegDecode   = 0;
 	upd->PcdDvfsEnable        = config->PcdDvfsEnable;

@@ -217,7 +217,8 @@ struct exdma {
 	u32 reserved_0x20c[57];
 	u32 pitch_msb;
 	u32 pitch;
-	u32 reserved_0x2f8[2];
+	u32 reserved_0x2f8;
+	u32 l_guser_ext;
 	u32 ovl_con;
 	u32 reserved_0x304[783];
 	u32 ovl_addr;
@@ -237,6 +238,7 @@ check_member(exdma, dummy, 0x200);
 check_member(exdma, gdrdy_period, 0x208);
 check_member(exdma, pitch_msb, 0x2F0);
 check_member(exdma, pitch, 0x2F4);
+check_member(exdma, l_guser_ext, 0x2FC);
 check_member(exdma, ovl_addr, 0xF40);
 check_member(exdma, ovl_mout, 0xFF0);
 
@@ -470,6 +472,10 @@ struct disp_tdshp_regs {
 	u32 output_size;
 };
 
+check_member(disp_tdshp_regs, ctrl, 0x100);
+check_member(disp_tdshp_regs, cfg, 0x110);
+check_member(disp_tdshp_regs, input_size, 0x120);
+check_member(disp_tdshp_regs, output_offset, 0x124);
 check_member(disp_tdshp_regs, output_size, 0x128);
 
 struct disp_ccorr_regs {
@@ -486,6 +492,8 @@ struct disp_ccorr_regs {
 	u32 shadow;
 };
 
+check_member(disp_ccorr_regs, cfg, 0x20);
+check_member(disp_ccorr_regs, size, 0x30);
 check_member(disp_ccorr_regs, shadow, 0xA0);
 
 struct disp_gamma_regs {
@@ -498,9 +506,13 @@ struct disp_gamma_regs {
 	u32 cfg;
 	u32 reserved1[3];
 	u32 size;
+	u32 reserved2;
+	u32 relay_lsb;
 };
 
+check_member(disp_gamma_regs, cfg, 0x20);
 check_member(disp_gamma_regs, size, 0x30);
+check_member(disp_gamma_regs, relay_lsb, 0x38);
 
 struct disp_dither_regs {
 	u32 en;
@@ -516,6 +528,8 @@ struct disp_dither_regs {
 	u32 shadow;
 };
 
+check_member(disp_dither_regs, cfg, 0x20);
+check_member(disp_dither_regs, size, 0x30);
 check_member(disp_dither_regs, shadow, 0x100);
 
 struct disp_mdp_rsz_regs {
@@ -525,6 +539,7 @@ struct disp_mdp_rsz_regs {
 	u32 output_size;
 };
 
+check_member(disp_mdp_rsz_regs, input_size, 0x10);
 check_member(disp_mdp_rsz_regs, output_size, 0x14);
 
 struct disp_postmask_regs {
@@ -535,6 +550,7 @@ struct disp_postmask_regs {
 	u32 size;
 };
 
+check_member(disp_postmask_regs, cfg, 0x20);
 check_member(disp_postmask_regs, size, 0x30);
 
 struct disp_dsc_regs {

@@ -224,6 +224,8 @@ void *gpio_dwx_address(const gpio_t pad);
 struct gpio_lock_config {
 	gpio_t			pad;
 	enum gpio_lock_action	lock_action;
+	/* PAD_CFG0_MODE_* to verify, or 0 when no native-mode check is required. */
+	uint32_t		expected_mode;
 };
 
 /*
@@ -239,16 +241,13 @@ struct gpio_lock_config {
  *	GPI_SMI_EN,
  *	GPI_GPE_EN
  *
- * Note that this is only effective if the pad is owned by the host and this
- * function may only be called in SMM.
+ * This is only effective if the pad is owned by the host. It may be called
+ * from ramstage before IA untrusted mode, or from SMM when pad locking is
+ * enabled there. Early stages and recovery mode are rejected.
  *
  * @param pad: GPIO pad number
  * @param lock_action: Which register to lock.
- * @return 0 if successful,
- * 1 - unsuccessful
- * 2 - powered down
- * 3 - multi-cast mixed
- * -1 - sideband message failed or other error
+ * @return 0 on success, -1 on failure.
  */
 int gpio_lock_pad(const gpio_t pad, enum gpio_lock_action lock_action);
 
@@ -257,13 +256,13 @@ int gpio_lock_pad(const gpio_t pad, enum gpio_lock_action lock_action);
  * the p2sb_unhide() and p2sb_hide() calls between each gpio lock that would
  * occur if gpio_lock_pad() were used to lock each pad in the list.
  *
+ * This batch interface is restricted to SMM and requires
+ * SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS.
+ *
  * @param pad_list: array of gpio_lock_config structures, one for each gpio to lock
  * @param count: number of gpio_lock_config structs in the pad_list array
- * @return 0 if successful,
- * 1 - unsuccessful
- * 2 - powered down
- * 3 - multi-cast mixed
- * -1 - sideband message failed or other error
+ * @return 0 on success, -1 on failure. All SBI response errors are normalised
+ * to -1.
  */
 int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count);
 
@@ -272,6 +271,9 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count);
  * deems security risks that should be locked down.
  */
 const struct gpio_lock_config *soc_gpio_lock_config(size_t *num);
+
+/* Finish SoC-specific lockdown after attempting the pad locks. */
+int soc_gpio_lock_finalize(void);
 
 /*
  * Returns the pmc_gpe to gpio_gpe mapping table
