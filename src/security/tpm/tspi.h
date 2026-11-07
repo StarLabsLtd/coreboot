@@ -168,4 +168,7 @@ tpm_result_t tpm_setup(int s3flag);
 tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 				const char *rname);
 
+/* Hash/log bounded policy text in PCR_RUNTIME_DATA; callers must exclude S3. */
+void tpm_measure_policy(const char *event);
+
 #endif /* TSPI_H_ */
