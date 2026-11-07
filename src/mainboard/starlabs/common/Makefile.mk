@@ -124,8 +124,19 @@ smm-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
 smm-$(CONFIG_STARLABS_SMM_OPTION_HANDLER) += smihandler.c
 
 ifeq ($(CONFIG_PAYLOAD_EDK2),y)
+# FSP's native splash renderer has no display-density selection.
+ifeq ($(CONFIG_BOOT_SPLASH_HANDOFF)$(CONFIG_USE_COREBOOT_FOR_BMP_RENDERING),)
+ifeq ($(CONFIG_BMP_LOGO_SOURCE_SCALE),2)
+starlabs-logo-resize := -filter box -resize 50%
+endif
+endif
 $(obj)/starlabs-logo.bmp: $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)) \
 		$(obj)/config.h $(src)/mainboard/starlabs/common/Makefile.mk
 	@printf "    CONVERT    %s\n" "$@"
-	convert -background None "$<" -type TrueColor "BMP3:$@"
+	@if test -n "$(starlabs-logo-resize)"; then \
+		parity=$$(convert -ping "$<" -format '%[fx:w%2+h%2]' info:) || exit 1; \
+		test "$$parity" = 0 || \
+		{ printf '%s\n' 'Double-density boot logo requires even dimensions' >&2; exit 1; }; \
+	fi
+	convert -background None "$<" $(starlabs-logo-resize) -type TrueColor "BMP3:$@"
 endif
