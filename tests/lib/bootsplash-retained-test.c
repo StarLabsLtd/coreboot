@@ -10,10 +10,12 @@
 
 static bool fail_blt_allocation;
 static size_t last_blt_allocation;
+static unsigned int blt_allocations;
 
 static void *test_blt_calloc(size_t count, size_t size)
 {
 	last_blt_allocation = count * size;
+	blt_allocations++;
 	if (fail_blt_allocation)
 		return NULL;
 	return calloc(count, size);
@@ -33,7 +35,7 @@ TEST_REGION_UNALLOCATED(stack, 0x110000, 0x10000);
 
 static uint8_t cbmem_storage[4 * MiB] __aligned(4096);
 static uint8_t source_bitmap[1 * MiB];
-static uint32_t pixels[640 * 512];
+static uint32_t pixels[2161 * 1440];
 static uint8_t footer_bitmap[1 * MiB];
 static size_t footer_size;
 static size_t source_size;
@@ -128,6 +130,7 @@ static int setup(void **state)
 	media_loads = 0;
 	fail_blt_allocation = false;
 	last_blt_allocation = 0;
+	blt_allocations = 0;
 	footer_size = 0;
 	inject_remove_failure = false;
 	inject_allocation_failure = false;
@@ -380,9 +383,106 @@ static void test_scratch_allocation_failure_is_nonfatal(void **state)
 	assert_true(bootsplash_get_handoff(&splash));
 }
 
+static void test_hidpi_primary_matches_retained_bitmap(void **state)
+{
+	static const struct {
+		uint32_t width, height, logo_width, logo_height, scale;
+	} cases[] = {
+		{ 2160, 1440, 234, 234, 2 },
+		{ 1920, 1080, 3, 2, 1 },
+		{ 1922, 1082, 3, 2, 2 },
+		{ 2161, 1440, 3, 2, 1 },
+		{ 1920, 1440, 3, 2, 1 },
+		{ 2160, 1080, 3, 2, 1 },
+		{ 2160, 1440, 300, 300, 1 }, /* Scaled BMP would exceed retention. */
+		{ 2160, 1440, 1100, 1, 1 }, /* Scaled image would not fit. */
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(cases); i++) {
+		struct lb_boot_splash splash;
+		const struct bmp_image_header *bitmap;
+
+		setup(state);
+		framebuffer.x_resolution = cases[i].width;
+		framebuffer.y_resolution = cases[i].height;
+		framebuffer.bytes_per_line = cases[i].width * sizeof(pixels[0]);
+		make_source(cases[i].logo_width, cases[i].logo_height);
+		bootsplash_render_primary();
+		assert_true(bootsplash_get_handoff(&splash));
+		assert_int_equal(blt_allocations, 1);
+		assert_int_equal(last_blt_allocation,
+			cases[i].logo_width * cases[i].logo_height * sizeof(pixels[0]));
+		assert_int_equal(splash.image_width, cases[i].logo_width * cases[i].scale);
+		assert_int_equal(splash.image_height, cases[i].logo_height * cases[i].scale);
+		assert_int_equal(splash.image_offset_x,
+			(cases[i].width - splash.image_width) / 2);
+		assert_int_equal(splash.image_offset_y,
+			(cases[i].height - splash.image_height) / 2);
+		bitmap = (const void *)(uintptr_t)splash.bmp_address;
+		assert_int_equal(bitmap->PixelWidth, splash.image_width);
+		assert_int_equal(bitmap->PixelHeight, splash.image_height);
+		size_t row_size = ALIGN_UP(bitmap->PixelWidth * (bitmap->BitPerPixel / 8), 4);
+		for (size_t y = 0; y < splash.image_height; y++) {
+			for (size_t x = 0; x < splash.image_width; x++) {
+				uint8_t expected = (cases[i].logo_height - y / cases[i].scale - 1) *
+					cases[i].logo_width + x / cases[i].scale + 1;
+				const uint8_t *data = (const uint8_t *)bitmap + bitmap->ImageOffset;
+
+				assert_int_equal(pixels[(splash.image_offset_y + y) *
+					cases[i].width + splash.image_offset_x + x], expected);
+				assert_int_equal(data[(splash.image_height - y - 1) * row_size +
+					x * (bitmap->BitPerPixel / 8)], expected);
+			}
+		}
+		check_retained_owner(&splash);
+	}
+}
+
+static void test_hidpi_retention_failure_leaves_framebuffer_untouched(void **state)
+{
+	struct lb_boot_splash splash;
+
+	framebuffer.x_resolution = 2160;
+	framebuffer.y_resolution = 1440;
+	framebuffer.bytes_per_line = 2160 * sizeof(pixels[0]);
+	make_source(234, 234);
+	inject_allocation_failure = true;
+	bootsplash_render_primary();
+	assert_false(bootsplash_get_handoff(&splash));
+	assert_int_equal(blt_allocations, 1);
+	assert_int_equal(last_blt_allocation, 234 * 234 * sizeof(pixels[0]));
+	for (size_t i = 0; i < ARRAY_SIZE(pixels); i++)
+		assert_int_equal(pixels[i], 0xa5a5a5a5);
+}
+
+static void test_hidpi_placement_falls_back_to_original(void **state)
+{
+	struct lb_boot_splash splash;
+	struct logo_config config = {
+		.framebuffer_base = (uintptr_t)pixels,
+		.horizontal_resolution = 2160, .vertical_resolution = 1440,
+		.bytes_per_scanline = 2160 * sizeof(pixels[0]),
+		.halignment = FW_SPLASH_HALIGNMENT_CENTER,
+		.valignment = FW_SPLASH_VALIGNMENT_MIDDLE,
+	};
+
+	make_source(100, 500);
+	render_logo_to_framebuffer(&config);
+	assert_true(bootsplash_get_handoff(&splash));
+	assert_int_equal(splash.image_width, 100);
+	assert_int_equal(splash.image_height, 500);
+	assert_int_equal(splash.image_offset_x, 1030);
+	assert_int_equal(splash.image_offset_y, 720);
+	assert_memory_equal((const void *)(uintptr_t)splash.bmp_address,
+		source_bitmap, source_size);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
+		cmocka_unit_test_setup(test_hidpi_placement_falls_back_to_original, setup),
+		cmocka_unit_test_setup(test_hidpi_retention_failure_leaves_framebuffer_untouched, setup),
+		cmocka_unit_test_setup(test_hidpi_primary_matches_retained_bitmap, setup),
 		cmocka_unit_test_setup(test_scratch_allocation_failure_is_nonfatal, setup),
 		cmocka_unit_test_setup(test_overlapping_footer_suppresses_handoff, setup),
 		cmocka_unit_test_setup(test_separate_footer_preserves_handoff, setup),
