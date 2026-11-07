@@ -173,6 +173,17 @@ config BMP_LOGO
 	  BMP file only. The uncompressed size can be up to 1 MB. The logo can
 	  be compressed based on either `BMP_LOGO_COMPRESS_*` configs (default LZMA).
 
+config BMP_LOGO_SOURCE_SCALE
+	int "Pixel density of the source boot logo"
+	depends on BMP_LOGO || PAYLOAD_EDK2
+	range 1 2
+	default 1
+	help
+	  Use 2 for artwork rendered at twice its normal display size. Such
+	  images must have even dimensions. Display them at native size on
+	  HiDPI displays, and halve them on normal displays. This describes
+	  the image only; it does not change the payload's UI scaling.
+
 config BOOT_SPLASH_HANDOFF
 	bool "Retain the displayed BMP for the payload"
 	depends on BMP_LOGO && LINEAR_FRAMEBUFFER

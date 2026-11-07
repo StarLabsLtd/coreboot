@@ -103,6 +103,16 @@ config EDK2_RELEASE
 
 endchoice
 
+config EDK2_BOOTSPLASH_SOURCE_SCALE
+	int "Pixel density of the edk2 boot logo source"
+	range 1 2
+	default 1
+	help
+	  Use 2 for even-sized artwork rendered at twice its normal display
+	  size. Only the fallback logo renderer uses this setting; retained
+	  logos already describe displayed pixels. Text and UI scaling are
+	  unaffected.
+
 config EDK2_BOOTSPLASH_FILE
 	string "edk2 Bootsplash path and filename"
 	default "Documentation/coreboot_logo.bmp"

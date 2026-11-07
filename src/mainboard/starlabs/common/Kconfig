@@ -11,9 +11,16 @@ config BMP_LOGO_FILE_NAME
 config BOOT_SPLASH_HANDOFF
 	default y if PAYLOAD_EDK2
 
+config BMP_LOGO_SOURCE_SCALE
+	default EDK2_BOOTSPLASH_SOURCE_SCALE if PAYLOAD_EDK2 && !HAVE_CUSTOM_BMP_LOGO && \
+		BMP_LOGO_FILE_NAME = "\$(obj)/starlabs-logo.bmp"
+
+config EDK2_BOOTSPLASH_SOURCE_SCALE
+	default 2 if EDK2_BOOTSPLASH_FILE = "3rdparty/blobs/mainboard/starlabs/Logo-HiDPI.bmp"
+
 config EDK2_BOOTSPLASH_FILE
 	string
-	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
+	default "3rdparty/blobs/mainboard/starlabs/Logo-HiDPI.bmp"
 
 config CONSOLE_SERIAL
 	default n if !EDK2_DEBUG
