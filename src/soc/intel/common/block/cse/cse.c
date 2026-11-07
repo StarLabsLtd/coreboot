@@ -2,6 +2,7 @@
 
 #define __SIMPLE_DEVICE__
 
+#include <acpi/acpi.h>
 #include <assert.h>
 #include <commonlib/helpers.h>
 #include <console/console.h>
@@ -17,6 +18,8 @@
 #include <intelblocks/post_codes.h>
 #include <option.h>
 #include <security/vboot/misc.h>
+#include <security/tpm/tspi.h>
+#include <stdio.h>
 #include <security/vboot/vboot_common.h>
 #include <soc/intel/common/reset.h>
 #include <soc/iomap.h>
@@ -1578,13 +1581,32 @@ static void cse_final(struct device *dev)
 		cse_final_end_of_firmware();
 }
 
+static void cse_enable(struct device *dev)
+{
+	cse_set_state(dev);
+	if (CONFIG(TPM_MEASURED_BOOT) && CONFIG(SECURITY_FAIL_CLOSED) && !acpi_is_wakeup_s3()) {
+		union me_hfsts1 hfs1 = { .data = me_read_config32(PCI_ME_HFSTS1) };
+		char event[50];
+
+		/* Keep requested policy separate from the independently observed state. */
+		if (hfs1.data == UINT32_MAX)
+			snprintf(event, sizeof(event), "CSE:v1:req=%u,unavailable",
+				 cse_is_me_state_requested_enabled());
+		else
+			snprintf(event, sizeof(event), "CSE:v1:req=%u,cws=%u,com=%u",
+				 cse_is_me_state_requested_enabled(), hfs1.fields.working_state,
+				 hfs1.fields.operation_mode);
+		tpm_measure_policy(event);
+	}
+}
+
 struct device_operations cse_ops = {
 	.set_resources		= pci_dev_set_resources,
 	.read_resources		= pci_dev_read_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= pci_dev_init,
 	.ops_pci		= &pci_dev_ops_pci,
-	.enable			= cse_set_state,
+	.enable			= cse_enable,
 	.final			= cse_final,
 };
 

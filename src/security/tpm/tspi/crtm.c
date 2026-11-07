@@ -116,6 +116,30 @@ static tpm_result_t tspi_init_crtm(void)
 		}
 	}
 
+	if (CONFIG(CPU_INTEL_FIRMWARE_INTERFACE_TABLE) && CONFIG(SECURITY_FAIL_CLOSED)) {
+		/* The bootblock contains only a pointer to this separately generated table. */
+		void *fit;
+
+		if (CONFIG(INTEL_TOP_SWAP_SEPARATE_REGIONS)) {
+			fit = cbfs_unverified_area_map("BOOTBLOCK", "intel_fit", NULL);
+			if (!fit)
+				fit = cbfs_unverified_area_map("BOOTBLOCK", "intel_fit_ts", NULL);
+		} else {
+			fit = cbfs_ro_map("intel_fit", NULL);
+		}
+		if (!fit)
+			return TPM_CB_FAIL;
+		cbfs_unmap(fit);
+		/* FIT microcode can execute before software first maps its RO blob. */
+		if (!CONFIG(CPU_MICROCODE_CBFS_NONE) &&
+		    !CONFIG(CPU_INTEL_MICROCODE_CBFS_SPLIT_BINS)) {
+			void *microcode = cbfs_ro_map("cpu_microcode_blob.bin", NULL);
+
+			if (!microcode)
+				return TPM_CB_FAIL;
+			cbfs_unmap(microcode);
+		}
+	}
 	return TPM_SUCCESS;
 }
 
