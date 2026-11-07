@@ -19,6 +19,11 @@
 #include <soc/pm.h>
 #include <string.h>
 #include <uuid.h>
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+#include <bootmode.h>
+#include <security/vboot/misc.h>
+#include <vb2_api.h>
+#endif
 
 #define HOB_HANDOFF			0x0001
 #define HOB_MEMORY_ALLOCATION		0x0002
@@ -315,15 +320,26 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	acpi = append_guid_hob(&builder, &acpi_board_info_guid, sizeof(*acpi));
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
 		uint32_t version, lowest;
-		capsule = append_guid_hob(&builder, &capsule_info_guid, sizeof(*capsule));
+		const size_t capsule_size = CONFIG(VBOOT_SLOTS_RW_AB) ?
+			sizeof(struct capsule_vboot_hob) : sizeof(*capsule);
+
+		capsule = append_guid_hob(&builder, &capsule_info_guid, capsule_size);
 		if (!capsule)
 			return -1;
 		efi_fw_versions(&version, &lowest);
 		*capsule = (struct capsule_info_hob) {
-			.revision = 1, .size = sizeof(*capsule), .flash_size = CONFIG_ROM_SIZE,
+			.revision = CONFIG(VBOOT_SLOTS_RW_AB) ? 2 : 1,
+			.size = capsule_size, .flash_size = CONFIG_ROM_SIZE,
 			.block_size = EFI_CAPSULE_BLOCK_SIZE,
 			.lowest_supported_version = lowest,
 		};
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+		struct capsule_vboot_hob *vboot = (void *)capsule;
+
+		/* Recovery runs from RO; otherwise keep the executing RW slot intact. */
+		vboot->boot_slot = vboot_recovery_mode_enabled() ? 0 :
+			(vboot_get_context()->flags & VB2_CONTEXT_FW_SLOT_B) ? 2 : 1;
+#endif
 		if (parse_uuid(capsule->image_guid, CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 			return -1;
 	}

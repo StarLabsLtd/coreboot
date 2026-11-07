@@ -3,6 +3,9 @@
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <tests/test.h>
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+#include <2nvstorage_fields.h>
+#endif
 
 static uint32_t read_spi_bar(pci_devfn_t dev, uint16_t reg)
 {
@@ -26,6 +29,9 @@ static struct efi_variable_service_state state;
 static struct {
 	struct service_info_hob info;
 	struct hob_resource spi;
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	struct capsule_vboot_hob capsule;
+#endif
 } hobs;
 static bool resume;
 static bool read_error, write_error, readback_error;
@@ -76,6 +82,22 @@ int boot_device_rw_subregion(const struct region *region, struct region_device *
 	return rdev_chain(out, &flash_device, region_offset(region), region_sz(region));
 }
 
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+const struct region_device *boot_device_ro(void) { return &flash_device; }
+const struct region_device *boot_device_rw(void) { return &flash_device; }
+size_t fast_spi_get_bios_region(size_t *size) { *size = sizeof(flash); return 0; }
+static uint8_t nvdata[VB2_NVDATA_SIZE];
+static unsigned int nv_writes;
+void read_vbnv_flash(uint8_t *data) { memcpy(data, nvdata, sizeof(nvdata)); }
+int save_vbnv_flash(const uint8_t *data)
+{
+	memcpy(nvdata, data, sizeof(nvdata));
+	nv_writes++;
+	return 0;
+}
+void vb2ex_printf(const char *function, const char *format, ...) { }
+#endif
+
 bool fast_spi_wpd_status(void)
 {
 	return true;
@@ -110,6 +132,17 @@ static void mm_dispatch(const struct mm_entry_context *context)
 	struct efi_mm_communication_status *status =
 		(void *)(transport + sizeof(struct efi_variable_service_buffer));
 
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	struct mm_communication_header32 *message =
+		(void *)(transport + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
+
+	if (message->message_length == 24) {
+		uint32_t *geometry = (void *)message->data;
+
+		geometry[3] = CONFIG_ROM_SIZE;
+		geometry[4] = EFI_CAPSULE_BLOCK_SIZE;
+	}
+#endif
 	status->valid = 0;
 }
 
@@ -146,6 +179,15 @@ static int setup(void **unused)
 	state.hob_base = (uintptr_t)&hobs;
 	state.hob_size = sizeof(hobs);
 	state.service_info = (uintptr_t)&hobs.info;
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	state.capsule_info = (uintptr_t)&hobs.capsule;
+	hobs.capsule.base = (struct capsule_info_hob) {
+		.revision = 2, .size = sizeof(hobs.capsule), .flash_size = CONFIG_ROM_SIZE,
+		.block_size = EFI_CAPSULE_BLOCK_SIZE,
+	};
+	hobs.capsule.boot_slot = 2;
+	capsule_boot_slot = 0;
+#endif
 	state.spi_mmio_resource = (uintptr_t)&hobs.spi;
 	state.store_size = sizeof(flash);
 	state.store_block_size = CONFIG_SMMSTORE_BLOCK_SIZE;
@@ -241,6 +283,10 @@ static void resume_does_not_initialize(void **unused)
 {
 	assert_int_equal(efi_variable_service_finalize(), 0);
 	current_state = SERVICE_NOT_INITIALIZED;
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	/* Native SMM BSS is reset while the private MM HOB remains in SMRAM. */
+	capsule_boot_slot = 0;
+#endif
 	resume = true;
 	memset(flash, 0xff, sizeof(flash));
 	writes = starts = 0;
@@ -283,9 +329,50 @@ static void legacy_geometry_on_s3_is_refused(void **unused)
 }
 #endif
 
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+static void acknowledge_boot(void **unused)
+{
+	struct vb2_context ctx = { 0 };
+
+	ctx.nvdata[0] = VB2_NV_HEADER_SIGNATURE_V1;
+	vb2_nv_set(&ctx, VB2_NV_FIRMWARE_SETTINGS_RESET, 1);
+	vb2_nv_set(&ctx, VB2_NV_FW_TRIED, 0);
+	vb2_nv_set(&ctx, VB2_NV_FW_RESULT, VB2_FW_RESULT_TRYING);
+	vb2_nv_set(&ctx, VB2_NV_TRY_COUNT, 2);
+	memcpy(nvdata, ctx.nvdata, sizeof(nvdata));
+	capsule_boot_slot = 1;
+	nv_writes = 0;
+	assert_int_equal(capsule_commit(0), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	memcpy(ctx.nvdata, nvdata, sizeof(nvdata));
+	assert_int_equal(vb2_nv_get(&ctx, VB2_NV_FW_RESULT), VB2_FW_RESULT_SUCCESS);
+	assert_int_equal(vb2_nv_get(&ctx, VB2_NV_TRY_COUNT), 0);
+	assert_int_equal(nv_writes, 1);
+
+	/* A later handoff must not cancel an update to the other slot. */
+	assert_int_equal(capsule_commit(2), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	assert_int_equal(capsule_commit(0), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	memcpy(ctx.nvdata, nvdata, sizeof(nvdata));
+	assert_int_equal(vb2_nv_get(&ctx, VB2_NV_TRY_NEXT), 1);
+	assert_int_equal(vb2_nv_get(&ctx, VB2_NV_TRY_COUNT), 3);
+	assert_int_equal(capsule_commit(1), EFI_VARIABLE_SERVICE_RET_FAILURE);
+
+	/* A handoff cannot acknowledge a different slot or malformed state. */
+	capsule_boot_slot = 2;
+	assert_int_equal(capsule_commit(0), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	capsule_boot_slot = 0;
+	assert_int_equal(capsule_commit(0), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	capsule_boot_slot = 1;
+	nvdata[0] ^= 1;
+	assert_int_equal(capsule_commit(0), EFI_VARIABLE_SERVICE_RET_FAILURE);
+}
+#endif
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+		cmocka_unit_test_setup(acknowledge_boot, setup),
+#endif
 		cmocka_unit_test_setup(erased_first_boot, setup),
 		cmocka_unit_test_setup(existing_store, setup),
 		cmocka_unit_test_setup(interrupted_header, setup),

@@ -32,9 +32,21 @@ ifneq ($(words $(filter y,$(CONFIG_BOOTMEDIA_LOCK_CONTROLLER) \
 	$(CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI))),4)
 $(error Star Labs VBOOT requires fail-closed Intel controller WP_RO locking)
 endif
-ifneq ($(words $(filter y,$(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN) \
-	$(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN))),2)
-$(error Star Labs VBOOT requires post-lockdown VBNV updates)
+ifneq ($(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN),y)
+$(error Star Labs VBOOT requires post-lockdown recovery clearing)
+endif
+ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
+ifneq ($(words $(filter y,$(CONFIG_ASS) $(CONFIG_PAYLOAD_EDK2) \
+	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES))),3)
+$(error Star Labs VBOOT A/B requires the EDK2 ASS capsule owner for boot acknowledgement)
+endif
+ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
+$(error Star Labs VBOOT A/B acknowledges boot success at the payload handoff)
+endif
+else
+ifneq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
+$(error Star Labs VBOOT requires post-lockdown boot acknowledgement)
+endif
 endif
 ifneq ($(CONFIG_BOOTMEDIA_SMM_BWP),y)
 $(error Star Labs VBOOT requires SMM BIOS write protection)

@@ -96,3 +96,11 @@ vbnv-flash-redundant-test-srcs += tests/drivers/vbnv-flash.c src/commonlib/regio
 vbnv-flash-redundant-test-cflags += -I tests/drivers/vbnv-flash-include \
 	-I 3rdparty/vboot/firmware/2lib/include
 vbnv-flash-redundant-test-config += CONFIG_ROM_SIZE=0x2000
+
+$(call copy-test,efi-variable-service-init-test,efi-variable-service-vboot-test)
+tests-y += efi-variable-service-vboot-test
+efi-variable-service-vboot-test-config += CONFIG_VBOOT_SLOTS_RW_AB=1 \
+	CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1
+efi-variable-service-vboot-test-srcs += src/drivers/efi_variable_service/capsule_store.c \
+	3rdparty/vboot/firmware/2lib/2nvstorage.c 3rdparty/vboot/firmware/2lib/2crc8.c
+efi-variable-service-vboot-test-cflags += -I 3rdparty/vboot/firmware/2lib/include
