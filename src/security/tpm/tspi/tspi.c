@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <commonlib/tpm_log_serialized.h>
 #include <console/console.h>
+#include <string.h>
 #include <security/tpm/tspi/crtm.h>
 #include <security/tpm/tspi/logs.h>
 #include <security/tpm/tspi.h>
@@ -342,5 +344,18 @@ tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 		return TPM_CB_HASH_ERROR;
 	}
 	return tpm_extend_pcr(pcr, TPM_MEASURE_ALGO, digest, digest_len, rname);
+}
+
+void tpm_measure_policy(const char *event)
+{
+	struct region_device memory;
+	size_t size = strlen(event);
+
+	/* Keep the complete event in the pre-RAM log's name field. */
+	if (size >= TPM_CB_LOG_PCR_HASH_NAME)
+		die("TPM policy event is too long\n");
+	if (rdev_chain_mem(&memory, event, size) ||
+	    tpm_measure_region(&memory, CONFIG_PCR_RUNTIME_DATA, event))
+		die("TPM policy measurement failed\n");
 }
 #endif /* VBOOT_LIB */
