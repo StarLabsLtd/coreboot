@@ -84,6 +84,8 @@ _Static_assert(EFI_VARIABLE_SERVICE_BUFFER_SIZE % 0x1000 == 0,
 void efi_variable_service_load(struct smm_runtime *runtime);
 uint32_t efi_variable_service_communicate(void);
 enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value);
+/* CB_ERR_NOT_IMPLEMENTED means the boot-time MM owner cannot serve this read. */
+enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value);
 /* Finalization may request a cold reboot after a completed store conversion. */
 #define EFI_VARIABLE_SERVICE_REBOOT_REQUIRED 1
 int efi_variable_service_finalize(void);

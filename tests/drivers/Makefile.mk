@@ -48,11 +48,13 @@ opal-s3-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_SMM_OPAL_S3_SCRATCH_CB
 tests-y += efi-variable-service-init-test efi-variable-service-4k-test
 $(foreach test,efi-variable-service-init-test efi-variable-service-4k-test,\
 	$(eval $(test)-srcs += tests/drivers/efi-variable-service-init.c \
-		src/drivers/efi/efivars.c src/drivers/efi_variable_service/private_store.c \
+		src/drivers/efi/efivars.c src/drivers/efi/option.c \
+		src/drivers/efi_variable_service/private_store.c \
 		src/lib/crc_byte.c src/commonlib/region.c tests/stubs/console.c)\
 	$(eval $(test)-stage := smm)\
 	$(eval $(test)-config += CONFIG_ASS=1 CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=0 \
-		CONFIG_ROM_SIZE=0x80000)\
+		CONFIG_ROM_SIZE=0x80000 CONFIG_USE_UEFI_VARIABLE_STORE=1 \
+		CONFIG_OPTION_BACKEND_NONE=0)\
 	$(eval $(test)-cflags += -I tests/drivers/efi-variable-service-include \
 		-I src/soc/intel/common/block/include -I src/soc/intel/alderlake/include \
 		-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
