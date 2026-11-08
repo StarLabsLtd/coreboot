@@ -3,6 +3,7 @@
 
 """Structural conversion checks; signature authorization is tested by the MM owner."""
 
+import os
 import struct
 import subprocess
 import tempfile
@@ -127,6 +128,56 @@ class BuildPolicyTest(unittest.TestCase):
                                         capture_output=True, text=True)
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn('Star Labs VBOOT', result.stderr)
+
+    def test_repository_preparation_cannot_modify_its_parent_repository(self):
+        environment = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull,
+                           GIT_CONFIG_NOSYSTEM='1', GIT_ALLOW_PROTOCOL='file', LC_ALL='C')
+        with tempfile.TemporaryDirectory(prefix='edk-source-', dir='/tmp') as source_name:
+            source = Path(source_name)
+
+            def git(directory, *arguments):
+                result = subprocess.run([
+                    'git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@invalid',
+                    '-C', str(directory), *arguments,
+                ], env=environment, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                return result.stdout.strip()
+
+            git(source, 'init', '-q')
+            (source / 'source').write_text('payload source')
+            git(source, 'add', 'source')
+            git(source, 'commit', '-qm', 'source')
+            revision = git(source, 'rev-parse', 'HEAD')
+            for mode in ['short-path', 'not-a-repository', 'file-url']:
+                with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                    parent = Path(directory)
+                    git(parent, 'init', '-q')
+                    (parent / '.gitignore').write_text('caller/\n')
+                    git(parent, 'add', '.gitignore')
+                    git(parent, 'commit', '-qm', 'parent')
+                    git(parent, 'remote', 'add', 'origin', parent.as_uri())
+                    head = git(parent, 'rev-parse', 'HEAD')
+                    caller = parent / 'caller'
+                    workspace = caller / 'workspace'
+                    workspace.mkdir(parents=True)
+                    repository = str(source) if mode == 'short-path' else source.as_uri()
+                    target = workspace if mode == 'short-path' else workspace / source.name
+                    if mode == 'not-a-repository':
+                        target.mkdir()
+                    result = subprocess.run([
+                        'make', '--no-print-directory', '-f',
+                        str(ROOT / 'payloads/external/edk2/Makefile'),
+                        str(target) + ('/' if mode == 'short-path' else ''),
+                        'CONFIG_EDK2_REPOSITORY=' + repository,
+                        'CONFIG_EDK2_TAG_OR_REV=' + revision,
+                    ], cwd=caller, env=environment, capture_output=True, text=True)
+                    if mode == 'file-url':
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                        self.assertEqual(git(target, 'rev-parse', 'HEAD'), revision)
+                    else:
+                        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(git(parent, 'rev-parse', 'HEAD'), head)
+                    self.assertEqual(git(parent, 'remote', 'get-url', 'origin'), parent.as_uri())
 
     def test_capsule_request_changes_cannot_reuse_an_old_capsule(self):
         with tempfile.TemporaryDirectory() as directory:
