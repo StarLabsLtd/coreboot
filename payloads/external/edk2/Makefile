@@ -359,9 +359,10 @@ endef
 
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
-		git clone --recurse-submodules $(CONFIG_EDK2_PLATFORMS_REPOSITORY) $(EDK2_PLATFORMS_PATH) -j5; \
+		git clone --recurse-submodules "$(EDK2_PLATFORMS_REPOSITORY)" "$(EDK2_PLATFORMS_PATH)" -j5 || exit 1; \
 	fi
-	cd $(EDK2_PLATFORMS_PATH); \
+	cd "$(EDK2_PLATFORMS_PATH)" || exit 1; \
+		test "$$(git rev-parse --show-toplevel)" = "$$(pwd -P)" || exit 1; \
 		origin_url=$$(git config --get remote.origin.url); \
 		if [ "$$origin_url" != "$(EDK2_PLATFORMS_REPOSITORY)" ]; then \
 			if [ -n "$$origin_url" ]; then \
@@ -393,10 +394,13 @@ $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 		$(update_submodules)
 
 $(EDK2_PATH): $(WORKSPACE)
+	test -n "$(EDK2_PATH_REPO_ROOT)" || \
+		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
 	if [ ! -d "$(EDK2_PATH)" ]; then \
-		git clone --recurse-submodules $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
+		git clone --recurse-submodules "$(EDK2_REPOSITORY)" "$(EDK2_PATH)" -j5 || exit 1; \
 	fi
-	cd "$(EDK2_PATH)"; \
+	cd "$(EDK2_PATH)" || exit 1; \
+		test "$$(git rev-parse --show-toplevel)" = "$$(pwd -P)" || exit 1; \
 		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
 		origin_url=$$(git config --get remote.origin.url); \
 		if [ "$$origin_url" != "$(EDK2_REPOSITORY)" ]; then \
