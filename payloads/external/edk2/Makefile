@@ -534,6 +534,7 @@ FixedMmService: prep print
 			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
 			$(FIXED_MM_CAPSULE_ARGS) \
 			$(CONFIG_EDK2_CUSTOM_BUILD_PARAMS) \
+			$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),$(FIXED_MM_CAPSULE_ARGS)) \
 			-y $(WORKSPACE)/Build/CorebootFixedMmService/FIXEDMMFV.txt || exit 1; \
 		cp $(WORKSPACE)/Build/CorebootFixedMmService/$(RELEASE_STR)_GCC/FV/FIXEDMMFV.Fv \
 			$(EDK2_FIXED_MM_OUT) || exit 1
