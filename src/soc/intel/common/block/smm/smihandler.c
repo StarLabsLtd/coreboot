@@ -471,7 +471,9 @@ static int finalize(void)
 
 	boot_device_init();
 
-	if (enable_smm_bios_protection()) {
+	const bool bios_protection = enable_smm_bios_protection();
+
+	if (bios_protection) {
 		fast_spi_enable_wp();
 		set_insmm_sts(false);
 	}
@@ -496,7 +498,7 @@ static int finalize(void)
 		fast_spi_enable_wp();
 		set_insmm_sts(false);
 		if (fast_spi_wpd_status() ||
-		    (enable_smm_bios_protection() && !fast_spi_bios_protected()))
+		    (bios_protection && !fast_spi_bios_protected()))
 			finalize_result |= APM_FINALIZE_EFI_ERROR;
 	}
 	finalize_done = 1;
