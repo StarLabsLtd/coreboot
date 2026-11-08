@@ -129,6 +129,27 @@ class BuildPolicyTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn('Star Labs VBOOT', result.stderr)
 
+    def test_fixed_mm_required_options_follow_custom_options(self):
+        result = subprocess.run([
+            'make', '--no-print-directory', '-n', '-o', 'prep', '-o', 'print',
+            'FixedMmService', 'CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y',
+            'CONFIG_VBOOT=y', 'CONFIG_ASS=y',
+            'CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=y',
+            'CONFIG_EDK2_SECURE_BOOT_SUPPORT=y',
+            'CONFIG_DRIVERS_EFI_MAIN_FW_GUID=' + str(NEW_GUID),
+            'CONFIG_DRIVERS_EFI_CAPSULE_REGIONS=EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A',
+            'CONFIG_LOCALVERSION=26.12',
+            'CONFIG_DRIVERS_EFI_MAIN_FW_VERSION=0x00000000',
+            'CONFIG_DRIVERS_EFI_MAIN_FW_LSV=0x00000000',
+            'CONFIG_EDK2_CUSTOM_BUILD_PARAMS=--def=CAPSULE_SUPPORT=FALSE',
+        ], cwd=ROOT / 'payloads/external/edk2', capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        command = result.stdout.split('build -a IA32', 1)[1]
+        self.assertGreater(command.rindex('-D CAPSULE_SUPPORT=TRUE'),
+                           command.index('--def=CAPSULE_SUPPORT=FALSE'))
+        self.assertGreater(command.rindex('-D FMP_DEVICE_PKCS7_PCD_INC='),
+                           command.index('--def=CAPSULE_SUPPORT=FALSE'))
+
     def test_repository_preparation_cannot_modify_its_parent_repository(self):
         environment = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull,
                            GIT_CONFIG_NOSYSTEM='1', GIT_ALLOW_PROTOCOL='file', LC_ALL='C')
