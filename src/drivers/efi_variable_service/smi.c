@@ -394,6 +394,7 @@ struct smm_variable_access32 {
 	CHAR16 name[];
 } __packed;
 
+#define SMM_VARIABLE_FUNCTION_GET_VARIABLE 1
 #define SMM_VARIABLE_FUNCTION_SET_VARIABLE 3
 
 static const EFI_GUID efi_smm_variable_protocol_guid = {
@@ -596,7 +597,7 @@ uint32_t efi_variable_service_communicate(void)
 	return EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
-bool efi_variable_service_boot_access_allowed(void)
+static enum cb_err boot_access_status(bool *allowed)
 {
 	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
 							    void *, size_t *);
@@ -604,13 +605,96 @@ bool efi_variable_service_boot_access_allowed(void)
 	size_t size = sizeof(query);
 	mm_manage manage;
 
-	if (current_state != SERVICE_READY || !entry_in_core(service->manage_entry))
-		return false;
+	if (current_state != SERVICE_READY || !service ||
+	    !entry_in_core(service->manage_entry))
+		return CB_EFI_ACCESS_ERROR;
 
 	/* Query the retained MM lifecycle using a native-owned request and result. */
 	manage = (void *)(uintptr_t)service->manage_entry;
-	return !manage(&efi_variable_service_ready_guid, NULL, &query, &size) &&
-		size == sizeof(query) && query == 1;
+	if (manage(&efi_variable_service_ready_guid, NULL, &query, &size) ||
+	    size != sizeof(query) || query > 1)
+		return CB_EFI_ACCESS_ERROR;
+	*allowed = query == 1;
+	return CB_SUCCESS;
+}
+
+bool efi_variable_service_boot_access_allowed(void)
+{
+	bool allowed;
+
+	return boot_access_status(&allowed) == CB_SUCCESS && allowed;
+}
+
+enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value)
+{
+	union {
+		uint64_t alignment;
+		uint8_t bytes[256];
+	} request;
+	struct smm_variable_header32 *variable = (void *)request.bytes;
+	struct smm_variable_access32 *access = (void *)variable->data;
+	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+							    void *, size_t *);
+	size_t max_name = (sizeof(request.bytes) - sizeof(*variable) - sizeof(*access) -
+			   sizeof(*value)) / sizeof(CHAR16);
+	size_t name_length, name_size, request_size, response_size;
+	mm_manage manage;
+	bool boot_access;
+
+	if (!name || !value)
+		return CB_ERR_ARG;
+	/* Keep the flash reader before initialization and after boot admission closes. */
+	if (current_state != SERVICE_READY)
+		return CB_ERR_NOT_IMPLEMENTED;
+	if (boot_access_status(&boot_access) != CB_SUCCESS)
+		return CB_EFI_ACCESS_ERROR;
+	if (!boot_access)
+		return CB_ERR_NOT_IMPLEMENTED;
+
+	name_length = strnlen(name, max_name);
+	if (!name_length || name_length == max_name)
+		return CB_ERR_NOT_IMPLEMENTED;
+	name_size = (name_length + 1) * sizeof(CHAR16);
+	request_size = sizeof(*variable) + sizeof(*access) + name_size + sizeof(*value);
+	response_size = request_size;
+	memset(&request, 0, sizeof(request));
+	variable->function = SMM_VARIABLE_FUNCTION_GET_VARIABLE;
+	variable->return_status = UINT32_MAX;
+	access->guid = efi_coreboot_nv_data_guid;
+	access->data_size = sizeof(*value);
+	access->name_size = name_size;
+	for (size_t i = 0; i < name_length; i++)
+		access->name[i] = (uint8_t)name[i];
+
+	manage = (void *)(uintptr_t)service->manage_entry;
+	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &response_size) ||
+	    response_size != request_size ||
+	    variable->function != SMM_VARIABLE_FUNCTION_GET_VARIABLE)
+		return CB_EFI_ACCESS_ERROR;
+	if (access->name_size != name_size ||
+	    memcmp(&access->guid, &efi_coreboot_nv_data_guid, sizeof(access->guid)))
+		return CB_EFI_ACCESS_ERROR;
+	for (size_t i = 0; i <= name_length; i++) {
+		if (access->name[i] != (uint8_t)name[i])
+			return CB_EFI_ACCESS_ERROR;
+	}
+	if (variable->return_status == EFI_NOT_FOUND)
+		return CB_EFI_OPTION_NOT_FOUND;
+	if (variable->return_status && variable->return_status != EFI_BUFFER_TOO_SMALL)
+		return CB_EFI_ACCESS_ERROR;
+	if ((!variable->return_status && access->data_size > sizeof(*value)) ||
+	    (variable->return_status == EFI_BUFFER_TOO_SMALL &&
+	     access->data_size <= sizeof(*value)))
+		return CB_EFI_ACCESS_ERROR;
+	/* The legacy reader sees only flash-backed variables, not volatile MM state. */
+	if (!(access->attributes & EFI_VARIABLE_NON_VOLATILE))
+		return CB_ERR_NOT_IMPLEMENTED;
+	if (variable->return_status == EFI_BUFFER_TOO_SMALL)
+		return CB_EFI_BUFFER_TOO_SMALL;
+	if (access->data_size != sizeof(*value))
+		return CB_EFI_ACCESS_ERROR;
+	memcpy(value, (uint8_t *)access->name + name_size, sizeof(*value));
+	return CB_SUCCESS;
 }
 
 enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)

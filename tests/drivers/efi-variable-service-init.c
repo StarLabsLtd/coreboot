@@ -2,10 +2,15 @@
 
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <drivers/efi/option.h>
+#include <option.h>
 #include <tests/test.h>
 #if CONFIG(VBOOT_SLOTS_RW_AB)
 #include <2nvstorage_fields.h>
 #endif
+#include <Uefi/UefiBaseType.h>
+#include <Guid/VariableFormat.h>
+#include <Pi/PiFirmwareVolume.h>
 
 static uint32_t read_spi_bar(pci_devfn_t dev, uint16_t reg)
 {
@@ -36,11 +41,20 @@ static struct {
 static bool resume;
 static bool read_error, write_error, readback_error;
 static unsigned int writes, starts;
+static unsigned int reads, gets;
 static uint32_t validation_at_start;
+static bool boot_access;
+static uint32_t cached_value, cached_size, cached_status, cached_attributes, native_result;
+static enum {
+	REPLY_VALID, REPLY_SHORT, REPLY_LONG, REPLY_FUNCTION,
+	REPLY_NAME_SIZE, REPLY_DATA_SIZE, REPLY_GUID, REPLY_NAME,
+} reply_fault;
+static enum { QUERY_VALID, QUERY_ERROR, QUERY_SIZE, QUERY_VALUE } query_fault;
 
 static ssize_t flash_read(const struct region_device *rdev, void *buf, size_t offset,
 			  size_t size)
 {
+	reads++;
 	if (read_error)
 		return -1;
 	memcpy(buf, flash + offset, size);
@@ -126,6 +140,73 @@ bool smm_efi_variable_service_is_s3_resume(void)
 	return resume;
 }
 
+int smmstore_lookup_region(struct region_device *rdev)
+{
+	return rdev_chain(rdev, &flash_device, 0, sizeof(flash));
+}
+
+static uint32_t mm_manage(const EFI_GUID *guid, const void *context,
+			 void *buffer, size_t *size)
+{
+	struct smm_variable_header32 *variable = buffer;
+	struct smm_variable_access32 *access = (void *)variable->data;
+	const char *name = "bios_lock";
+	size_t name_size = (strlen(name) + 1) * sizeof(CHAR16);
+
+	if (!memcmp(guid, &efi_variable_service_ready_guid, sizeof(*guid))) {
+		assert_int_equal(*size, 1);
+		*(uint8_t *)buffer = boot_access;
+		if (query_fault == QUERY_ERROR)
+			return EFI_DEVICE_ERROR;
+		if (query_fault == QUERY_SIZE)
+			*size = 0;
+		if (query_fault == QUERY_VALUE)
+			*(uint8_t *)buffer = 2;
+		return 0;
+	}
+	assert_memory_equal(guid, &efi_smm_variable_protocol_guid, sizeof(*guid));
+	assert_int_equal(variable->function, SMM_VARIABLE_FUNCTION_GET_VARIABLE);
+	assert_int_equal(access->data_size, sizeof(cached_value));
+	assert_int_equal(access->name_size, name_size);
+	assert_int_equal(*size, sizeof(*variable) + sizeof(*access) + name_size +
+			 sizeof(cached_value));
+	assert_memory_equal(&access->guid, &efi_coreboot_nv_data_guid, sizeof(*guid));
+	for (size_t i = 0; i <= strlen(name); i++)
+		assert_int_equal(access->name[i], name[i]);
+	gets++;
+	variable->return_status = cached_status;
+	access->attributes = cached_attributes;
+	access->data_size = cached_size;
+	if (!cached_status && cached_size <= sizeof(cached_value))
+		memcpy((uint8_t *)access->name + name_size, &cached_value, cached_size);
+	switch (reply_fault) {
+	case REPLY_SHORT:
+		*size = sizeof(*variable) - 1;
+		break;
+	case REPLY_LONG:
+		*size = SIZE_MAX;
+		break;
+	case REPLY_FUNCTION:
+		variable->function = 0;
+		break;
+	case REPLY_NAME_SIZE:
+		access->name_size++;
+		break;
+	case REPLY_DATA_SIZE:
+		access->data_size++;
+		break;
+	case REPLY_GUID:
+		access->guid.Data1++;
+		break;
+	case REPLY_NAME:
+		access->name[0]++;
+		break;
+	case REPLY_VALID:
+		break;
+	}
+	return native_result;
+}
+
 /* The external MM implementation is a dependency boundary, not a second parser. */
 static void mm_dispatch(const struct mm_entry_context *context)
 {
@@ -152,7 +233,7 @@ static void mm_start(const void *hob_base)
 	validation_at_start = private_validate();
 	if (validation_at_start == EFI_VARIABLE_SERVICE_RET_SUCCESS)
 		assert_int_equal(register_mm_entry((uintptr_t)mm_dispatch,
-						  (uintptr_t)mm_dispatch), 0);
+						  (uintptr_t)mm_manage), 0);
 }
 
 static int setup(void **unused)
@@ -168,12 +249,23 @@ static int setup(void **unused)
 	resume = false;
 	read_error = write_error = readback_error = false;
 	writes = starts = 0;
+	reads = gets = 0;
+	boot_access = true;
+	cached_value = 0x12345678;
+	cached_size = sizeof(cached_value);
+	cached_status = native_result = 0;
+	cached_attributes = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
+		EFI_VARIABLE_RUNTIME_ACCESS;
+	reply_fault = REPLY_VALID;
+	query_fault = QUERY_VALID;
 	validation_at_start = UINT32_MAX;
 	state.signature = EFI_VARIABLE_SERVICE_STATE_SIGNATURE;
 	state.revision = EFI_VARIABLE_SERVICE_STATE_REVISION;
 	state.size = sizeof(state);
-	state.core_base = MIN((uintptr_t)mm_start, (uintptr_t)mm_dispatch);
-	state.core_size = MAX((uintptr_t)mm_start, (uintptr_t)mm_dispatch) -
+	state.core_base = MIN(MIN((uintptr_t)mm_start, (uintptr_t)mm_dispatch),
+			      (uintptr_t)mm_manage);
+	state.core_size = MAX(MAX((uintptr_t)mm_start, (uintptr_t)mm_dispatch),
+			      (uintptr_t)mm_manage) -
 		state.core_base + 1;
 	state.core_entry = (uintptr_t)mm_start;
 	state.hob_base = (uintptr_t)&hobs;
@@ -366,6 +458,158 @@ static void acknowledge_boot(void **unused)
 	assert_int_equal(capsule_commit(0), EFI_VARIABLE_SERVICE_RET_FAILURE);
 }
 #endif
+static void prepare_flash_option(const char *name, uint32_t value)
+{
+	struct region_device rdev;
+
+	assert_int_equal(smmstore_lookup_region(&rdev), 0);
+	assert_int_equal(efi_fv_initialize(&rdev, CONFIG_SMMSTORE_BLOCK_SIZE), 0);
+	assert_int_equal(efi_fv_set_option(&rdev, &efi_coreboot_nv_data_guid,
+					 name, &value, sizeof(value)), 0);
+}
+
+static void prepare_cached_option(void)
+{
+	prepare_flash_option("bios_lock", 0x12345678);
+	assert_int_equal(efi_variable_service_finalize(), 0);
+}
+
+static void cached_option_read(void **unused)
+{
+	const uint32_t values[] = { 0, 1, 0x12345678, UINT32_MAX };
+	uint32_t value = 0;
+
+	prepare_cached_option();
+	read_error = true;
+	unsigned int before = reads;
+	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
+		cached_value = values[i];
+		assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_SUCCESS);
+		assert_int_equal(value, cached_value);
+		assert_int_equal(gets, i + 1);
+		assert_int_equal(reads, before);
+	}
+}
+
+static void cached_option_errors(void **unused)
+{
+	const uint32_t sentinel = 0xfeedbeef;
+	uint32_t value = sentinel;
+
+	prepare_cached_option();
+	read_error = true;
+	unsigned int before = reads;
+	cached_status = EFI_NOT_FOUND;
+	assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_EFI_OPTION_NOT_FOUND);
+	assert_int_equal(value, sentinel);
+	assert_int_equal(get_uint_option_status("bios_lock", 7, &value), CB_EFI_OPTION_NOT_FOUND);
+	assert_int_equal(value, 7);
+	value = sentinel;
+	cached_status = EFI_BUFFER_TOO_SMALL;
+	cached_size = sizeof(value) + 1;
+	assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_EFI_BUFFER_TOO_SMALL);
+	cached_size = sizeof(value);
+	cached_status = EFI_DEVICE_ERROR;
+	assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_EFI_ACCESS_ERROR);
+	cached_status = 0;
+	native_result = EFI_DEVICE_ERROR;
+	assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_EFI_ACCESS_ERROR);
+	native_result = 0;
+	for (reply_fault = REPLY_SHORT; reply_fault <= REPLY_NAME; reply_fault++) {
+		assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_EFI_ACCESS_ERROR);
+		assert_int_equal(value, sentinel);
+	}
+	reply_fault = REPLY_VALID;
+	state.manage_entry = 0;
+	assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_EFI_ACCESS_ERROR);
+	assert_int_equal(efi_variable_service_get_uint(NULL, &value), CB_ERR_ARG);
+	assert_int_equal(efi_variable_service_get_uint("bios_lock", NULL), CB_ERR_ARG);
+	assert_int_equal(value, sentinel);
+	assert_int_equal(reads, before);
+}
+
+static void cached_lifecycle_errors(void **unused)
+{
+	uint32_t value = 0xfeedbeef;
+
+	prepare_cached_option();
+	read_error = true;
+	unsigned int before = reads;
+	for (query_fault = QUERY_ERROR; query_fault <= QUERY_VALUE; query_fault++) {
+		assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_EFI_ACCESS_ERROR);
+		assert_false(efi_variable_service_boot_access_allowed());
+		assert_int_equal(value, 0xfeedbeef);
+		assert_int_equal(gets, 0);
+		assert_int_equal(reads, before);
+	}
+}
+
+static void legacy_option_without_owner(void **unused)
+{
+	uint32_t value = 42, result;
+
+	prepare_flash_option("bios_lock", value);
+	for (unsigned int i = 0; i < 2; i++) {
+		current_state = i ? SERVICE_FAILED : SERVICE_NOT_INITIALIZED;
+		assert_int_equal(efi_option_get_uint("bios_lock", &result), CB_SUCCESS);
+		assert_int_equal(result, value);
+	}
+	assert_int_equal(gets, 0);
+	assert_int_equal(starts, 0);
+}
+
+static void legacy_option_after_boot(void **unused)
+{
+	uint32_t value = 0;
+
+	prepare_cached_option();
+	EFI_FIRMWARE_VOLUME_HEADER *fv = (void *)flash;
+	AUTHENTICATED_VARIABLE_HEADER *var =
+		(void *)(flash + fv->HeaderLength + sizeof(VARIABLE_STORE_HEADER));
+	assert_int_equal(var->StartId, VARIABLE_DATA);
+	var->Attributes = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS;
+	boot_access = false;
+	assert_false(efi_variable_service_boot_access_allowed());
+	assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_SUCCESS);
+	assert_int_equal(value, 0x12345678);
+	assert_int_equal(gets, 0);
+}
+
+static void long_option_name(void **unused)
+{
+	char name[128];
+	uint32_t value = 42, result;
+
+	memset(name, 'a', sizeof(name) - 1);
+	name[sizeof(name) - 1] = 0;
+	prepare_flash_option(name, value);
+	assert_int_equal(efi_variable_service_finalize(), 0);
+	assert_int_equal(efi_option_get_uint(name, &result), CB_SUCCESS);
+	assert_int_equal(result, value);
+	assert_int_equal(gets, 0);
+}
+
+static void volatile_option_does_not_shadow_flash(void **unused)
+{
+	const struct { uint32_t size, status; } cases[] = {
+		{ 1, EFI_SUCCESS }, { 4, EFI_SUCCESS }, { 8, EFI_BUFFER_TOO_SMALL },
+	};
+	uint32_t value = 0;
+
+	prepare_cached_option();
+	cached_value = 0;
+	cached_attributes &= ~EFI_VARIABLE_NON_VOLATILE;
+	for (size_t i = 0; i < ARRAY_SIZE(cases); i++) {
+		unsigned int before = reads;
+
+		cached_size = cases[i].size;
+		cached_status = cases[i].status;
+		assert_int_equal(efi_option_get_uint("bios_lock", &value), CB_SUCCESS);
+		assert_int_equal(value, 0x12345678);
+		assert_int_equal(gets, i + 1);
+		assert_true(reads > before);
+	}
+}
 
 int main(void)
 {
@@ -380,6 +624,13 @@ int main(void)
 		cmocka_unit_test_setup(invalid_primary_reaches_mm, setup),
 		cmocka_unit_test_setup(initialization_io_failure, setup),
 		cmocka_unit_test_setup(resume_does_not_initialize, setup),
+		cmocka_unit_test_setup(cached_option_read, setup),
+		cmocka_unit_test_setup(cached_option_errors, setup),
+		cmocka_unit_test_setup(cached_lifecycle_errors, setup),
+		cmocka_unit_test_setup(legacy_option_without_owner, setup),
+		cmocka_unit_test_setup(legacy_option_after_boot, setup),
+		cmocka_unit_test_setup(long_option_name, setup),
+		cmocka_unit_test_setup(volatile_option_does_not_shadow_flash, setup),
 #if CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000
 		cmocka_unit_test_setup(legacy_store_migrates, setup),
 		cmocka_unit_test_setup(legacy_geometry_on_s3_is_refused, setup),
