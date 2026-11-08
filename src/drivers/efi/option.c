@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <efi_variable_service.h>
 #include <option.h>
 #include <smmstore.h>
 
@@ -19,6 +20,12 @@ enum cb_err efi_option_get_uint(const char *name, uint32_t *value)
 
 	if (!name || !value)
 		return CB_ERR_ARG;
+
+	if (ENV_SMM && CONFIG(ASS)) {
+		ret = efi_variable_service_get_uint(name, value);
+		if (ret != CB_ERR_NOT_IMPLEMENTED)
+			return ret;
+	}
 
 	if (smmstore_lookup_region(&rdev))
 		return CB_CMOS_OTABLE_DISABLED;
