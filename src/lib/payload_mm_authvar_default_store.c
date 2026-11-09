@@ -182,7 +182,8 @@ static bool default_store_prefix(uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
 }
 
 static enum payload_mm_authvar_default_store_source classify_source(
-	const uint8_t *source, const uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES], size_t region_size)
+	const uint8_t *source, const uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
+	size_t region_size, size_t enrollment_request_offset)
 {
 	bool erased = true;
 	bool complete = true;
@@ -191,7 +192,8 @@ static enum payload_mm_authvar_default_store_source classify_source(
 	for (size_t i = 0; i < region_size; i++) {
 		uint8_t expected = i < DEFAULT_STORE_PREFIX_BYTES ? prefix[i] : 0xffU;
 		erased &= source[i] == 0xffU;
-		complete &= source[i] == expected;
+		complete &= source[i] == expected ||
+			(i == enrollment_request_offset && source[i] == 1U);
 		subset &= (source[i] & expected) == expected;
 	}
 	if (erased)
@@ -208,11 +210,14 @@ payload_mm_authvar_default_store_classify(const void *source,
 					 size_t region_size, size_t block_size)
 {
 	uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES];
+	size_t enrollment_request_offset;
 
 	if (!span_valid(source, region_size) ||
-	    !default_store_prefix(prefix, region_size, block_size, NULL))
+	    !default_store_prefix(prefix, region_size, block_size,
+		&enrollment_request_offset))
 		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
-	return classify_source(source, prefix, region_size);
+	return classify_source(source, prefix, region_size,
+		enrollment_request_offset);
 }
 
 enum payload_mm_authvar_default_store_source
@@ -233,7 +238,8 @@ payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 	    !default_store_prefix(prefix, region_size, block_size,
 		&enrollment_request_offset))
 		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
-	source_kind = classify_source(source, prefix, region_size);
+	source_kind = classify_source(source, prefix, region_size,
+		enrollment_request_offset);
 #if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
 	if (source_kind == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED) {
 		if (enrollment_request_offset >= sizeof(prefix))
