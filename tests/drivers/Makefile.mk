@@ -106,3 +106,10 @@ efi-variable-service-vboot-test-config += CONFIG_VBOOT_SLOTS_RW_AB=1 \
 efi-variable-service-vboot-test-srcs += src/drivers/efi_variable_service/capsule_store.c \
 	3rdparty/vboot/firmware/2lib/2nvstorage.c 3rdparty/vboot/firmware/2lib/2crc8.c
 efi-variable-service-vboot-test-cflags += -I 3rdparty/vboot/firmware/2lib/include
+intel-fast-spi-resource-test-stage := ramstage
+intel-fast-spi-resource-test-srcs += tests/drivers/intel-fast-spi-resource-test.c \
+	src/device/device_util.c tests/stubs/console.c
+intel-fast-spi-resource-test-cflags += -I src/soc/intel/common/block/include \
+	-I src/soc/intel/alderlake/include -I src/soc/intel/common/block/fast_spi
+
+tests-y += intel-fast-spi-resource-test
