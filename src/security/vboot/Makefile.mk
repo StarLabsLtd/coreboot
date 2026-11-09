@@ -89,6 +89,7 @@ vbnv-flash-src := $(if $(filter y,$(CONFIG_VBOOT_VBNV_FLASH_REDUNDANT)),vbnv_fla
 
 ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
 smm-$(CONFIG_ASS) += $(vbnv-flash-src)
+smm-$(CONFIG_SMM_AUTHVAR) += $(vbnv-flash-src)
 endif
 
 bootblock-$(CONFIG_VBOOT_VBNV_CMOS_BACKUP_TO_FLASH) += $(vbnv-flash-src)
