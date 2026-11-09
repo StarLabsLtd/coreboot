@@ -32,9 +32,21 @@ ifneq ($(words $(filter y,$(CONFIG_BOOTMEDIA_LOCK_CONTROLLER) \
 	$(CONFIG_SOC_INTEL_COMMON_BLOCK_FAST_SPI))),4)
 $(error Star Labs VBOOT requires fail-closed Intel controller WP_RO locking)
 endif
-ifneq ($(words $(filter y,$(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN) \
-	$(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN))),2)
-$(error Star Labs VBOOT requires post-lockdown VBNV updates)
+ifneq ($(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN),y)
+$(error Star Labs VBOOT requires post-lockdown recovery clearing)
+endif
+ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
+ifneq ($(words $(filter y,$(CONFIG_PAYLOAD_CDK2) \
+	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES) $(CONFIG_SMM_AUTHVAR))),3)
+$(error Star Labs VBOOT A/B requires the protected CDK2 capsule owner)
+endif
+ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
+$(error Star Labs VBOOT A/B acknowledges boot success at ExitBootServices)
+endif
+else
+ifneq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
+$(error Star Labs VBOOT requires post-lockdown boot acknowledgement)
+endif
 endif
 ifeq ($(CONFIG_VBOOT_MOCK_SECDATA),y)
 $(error Refusing a Star Labs VBOOT image with mocked anti-rollback state)
