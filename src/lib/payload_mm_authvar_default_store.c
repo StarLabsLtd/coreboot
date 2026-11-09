@@ -254,7 +254,7 @@ payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 		   (enrollment_request_offset >= region_size ||
 		    ((const uint8_t *)source)[enrollment_request_offset] != 0U)) {
 		/* Do not turn an interrupted bootstrap into an unprotected store. */
-		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_FOREIGN;
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
 	}
 #endif
 	memset(candidate, 0xff, region_size);
