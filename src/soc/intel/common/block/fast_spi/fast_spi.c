@@ -131,6 +131,15 @@ void fast_spi_set_ext_bios_lock_enable(void)
 	fast_spi_read_post_write(SPI_BIOS_CONTROL);
 }
 
+bool fast_spi_bios_protected(void)
+{
+	const uint8_t required = SPI_BIOS_CONTROL_EISS | SPI_BIOS_CONTROL_LOCK_ENABLE |
+		SPI_BIOS_CONTROL_BILD;
+	const uint8_t control = pci_read_config8(PCH_DEV_SPI, SPI_BIOS_CONTROL);
+
+	return (control & (required | SPI_BIOS_CONTROL_WPD)) == required;
+}
+
 /*
  * Set FAST_SPIBAR BIOS Control EISS bit.
  */

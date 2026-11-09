@@ -81,6 +81,8 @@ bool fast_spi_clear_sync_smi_status(void);
  */
 bool fast_spi_wpd_status(void);
 bool fast_spi_eiss_status(void);
+/* Effective protected-owner policy, including immutable BIOS control bits. */
+bool fast_spi_bios_protected(void);
 /*
  * Enable SPI Write protect.
  */
