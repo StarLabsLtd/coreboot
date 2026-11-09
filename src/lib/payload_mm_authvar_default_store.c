@@ -61,6 +61,7 @@ static const uint8_t standard_mode = 0U;
 static const uint8_t empty_certdb[] = { 4, 0, 0, 0 };
 static const uint8_t vendor_keys_valid = 1U;
 #if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+/* Only erased media changes this baseline to a one-shot enrollment request. */
 static const uint8_t enroll_default_keys = 0U;
 #endif
 
