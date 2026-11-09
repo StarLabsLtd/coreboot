@@ -9,6 +9,11 @@
 #include <fmap_config.h>
 #include <smmstore.h>
 #include <string.h>
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+#include <bootmode.h>
+#include <security/vboot/misc.h>
+#include <vb2_api.h>
+#endif
 
 void lb_smm_capsule(struct lb_header *header)
 {
@@ -32,7 +37,8 @@ void lb_smm_capsule(struct lb_header *header)
 	handoff->region_count = count;
 	handoff->tag = LB_TAG_CAPSULE_HANDOFF;
 	handoff->size = sizeof(*handoff) + handoff->region_count * sizeof(handoff->regions[0]);
-	handoff->revision = LB_CAPSULE_HANDOFF_REVISION;
+	handoff->revision = CONFIG(VBOOT_SLOTS_RW_AB) ?
+		LB_CAPSULE_HANDOFF_VBOOT_REVISION : LB_CAPSULE_HANDOFF_REVISION;
 	handoff->header_size = sizeof(*handoff);
 	handoff->flags = LB_CAPSULE_HANDOFF_REQUIRED_FLAGS;
 	handoff->broker_type = LB_CAPSULE_BROKER_COREBOOT_UPDATE;
@@ -40,7 +46,8 @@ void lb_smm_capsule(struct lb_header *header)
 	handoff->authentication_format = LB_CAPSULE_AUTH_EFI_PKCS7;
 	handoff->board_binding_format = LB_CAPSULE_BOARD_BINDING_CBFS_BUILD_INFO_V1;
 	handoff->payload_format = LB_CAPSULE_PAYLOAD_MSS1_V1;
-	handoff->broker_capabilities = LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES;
+	handoff->broker_capabilities = LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES |
+		(CONFIG(VBOOT_SLOTS_RW_AB) ? LB_CAPSULE_BROKER_INACTIVE_SLOT_TRIAL : 0);
 	memcpy(handoff->image_type_guid, firmware.guid, 16);
 	handoff->version = firmware.version;
 	handoff->lowest_supported_version = firmware.lowest_supported_version;
@@ -49,6 +56,14 @@ void lb_smm_capsule(struct lb_header *header)
 	handoff->image_size = handoff->boot_media_size = CONFIG_ROM_SIZE;
 	handoff->smmstore_offset = FMAP_SECTION_SMMSTORE_START;
 	handoff->smmstore_size = FMAP_SECTION_SMMSTORE_SIZE;
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	if (vboot_recovery_mode_enabled())
+		handoff->boot_slot = 0;
+	else
+		handoff->boot_slot =
+			vboot_is_firmware_slot_a(vboot_get_context()) ? 1 : 2;
+	handoff->update_slot = handoff->boot_slot == 1 ? 2 : 1;
+#endif
 	memcpy(lb_new_record(header), &policy, handoff->size);
 	smm_capsule_endpoint(&endpoint, communication,
 		(uintptr_t)cbmem_entry_start(staging));

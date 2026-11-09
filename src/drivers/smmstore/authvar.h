@@ -13,7 +13,7 @@ struct lb_header;
 void lb_authvar_service(struct lb_header *header);
 void smm_authvar_endpoint(struct lb_authvar_service_endpoint *endpoint,
 	uintptr_t communication, size_t size);
-uint32_t smm_authvar_exec(void);
+uint32_t smm_authvar_exec(uint8_t subcommand);
 enum cb_err smm_authvar_close_exec(void);
 void smm_authvar_boot_endpoints(struct lb_authvar_presence_endpoint *setup,
 	struct lb_authvar_presence_lifecycle_close_endpoint *close,

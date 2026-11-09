@@ -482,6 +482,7 @@ enum cb_err smm_authvar_set_uint_option(const char *name, uint32_t value)
 
 static void southbridge_smi_authvar(const struct smm_save_state_ops *ops, uint8_t command)
 {
+	uint32_t eax;
 	uint32_t result = SMMSTORE_RET_FAILURE;
 	int node;
 
@@ -491,13 +492,16 @@ static void southbridge_smi_authvar(const struct smm_save_state_ops *ops, uint8_
 	node = ops->apmc_node(command);
 	if (node < 0)
 		return;
+	eax = command;
+	if (ops->get_reg(RAX, node, &eax, sizeof(eax)))
+		return;
 	if (authvar_protection_ready()) {
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 		if (command == APM_CNT_CAPSULE)
 			result = smm_authvar_capsule_exec();
 		else
 #endif
-			result = smm_authvar_exec();
+			result = smm_authvar_exec((uint8_t)(eax >> 8));
 	}
 	ops->set_reg(RAX, node, &result, sizeof(result));
 }
