@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define MSS1_SIGNATURE 0x3153534dU
-#define MSS1_HEADER_SIZE 16U
+#define MSS1_HEADER_SIZE 32U
 #define DEPENDENCY_LIMIT 4096U
 #define DEPENDENCY_STACK_SIZE 64U
 
@@ -300,9 +300,10 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 	header_size = read_le32(metadata + dependency_size + 4);
 	version = read_le32(metadata + dependency_size + 8);
 	floor = read_le32(metadata + dependency_size + 12);
-	if (header_size < MSS1_HEADER_SIZE ||
+	if (header_size != MSS1_HEADER_SIZE ||
 	    header_size >= image->payload_size - dependency_size ||
-	    version != attempted_version || floor > version)
+	    version != attempted_version || floor > version ||
+	    memcmp(metadata + dependency_size + 16, image_type, sizeof(guid_t)))
 		return CAPSULE_BROKER_IMAGE_REFUSED;
 	if (version < lowest_version)
 		return CAPSULE_BROKER_VERSION_REFUSED;
