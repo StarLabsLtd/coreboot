@@ -102,9 +102,10 @@ static bool commit_slot(uint32_t slot)
 {
 #if CONFIG(VBOOT_SLOTS_RW_AB)
 	struct vb2_context ctx = { 0 };
+	bool restore_wp;
+	bool saved;
 
-	if (!fast_spi_wpd_status() || slot > 2 ||
-	    (!slot && !capsule.boot_slot) ||
+	if (slot > 2 || (!slot && !capsule.boot_slot) ||
 	    (slot && slot != capsule.update_slot))
 		return false;
 	read_vbnv_flash(ctx.nvdata);
@@ -120,7 +121,11 @@ static bool commit_slot(uint32_t slot)
 		if (vb2_nv_get(&ctx, VB2_NV_TRY_NEXT) == capsule.boot_slot - 1)
 			vb2_nv_set(&ctx, VB2_NV_TRY_COUNT, 0);
 	}
-	return save_vbnv_flash(ctx.nvdata) == 0;
+	if (!fast_spi_smm_write_begin(&restore_wp))
+		return false;
+	saved = save_vbnv_flash(ctx.nvdata) == 0;
+	fast_spi_smm_write_end(restore_wp);
+	return saved;
 #else
 	return slot == 0;
 #endif
