@@ -117,6 +117,7 @@ postcar-y += vboot_common.c
 
 bootblock-y += common.c
 verstage-y += vboot_logic.c
+verstage-y += firmware_floor.c
 verstage-y += common.c
 ifeq ($(CONFIG_VBOOT_STARTS_BEFORE_BOOTBLOCK),)
 verstage-$(CONFIG_VBOOT_SEPARATE_VERSTAGE) += verstage.c

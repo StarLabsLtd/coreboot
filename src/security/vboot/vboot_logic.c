@@ -340,9 +340,13 @@ void verstage_main(void)
 		if (rv == VB2_ERROR_API_PHASE1_RECOVERY) {
 			printk(BIOS_INFO, "Recovery requested (%#x)\n", rv);
 			vboot_save_data(ctx);
-			rv = extend_pcrs(ctx);
-			if (CONFIG(PAYLOAD_CDK2) && rv)
-				die("Cannot hand off incomplete vboot recovery measurements: %#x\n", rv);
+			/* Capsule repair needs flash writes, not an unlocked rollback floor. */
+			if (CONFIG(SECURITY_FAIL_CLOSED) &&
+			    antirollback_lock_space_firmware() != TPM_SUCCESS)
+				die("Unable to lock firmware rollback floor in recovery\n");
+			tpm_rc = extend_pcrs(ctx);
+			if (tpm_rc && (CONFIG(PAYLOAD_CDK2) || CONFIG(SECURITY_FAIL_CLOSED)))
+				die("Unable to measure recovery state\n");
 			goto verstage_main_exit;
 		}
 		vboot_save_and_reboot(ctx, rv);
@@ -357,7 +361,7 @@ void verstage_main(void)
 	/* Try that slot (verify its keyblock and preamble) */
 	printk(BIOS_INFO, "Phase 3\n");
 	timestamp_add_now(TS_VERIFY_SLOT_START);
-	rv = vb2api_fw_phase3(ctx);
+	rv = vboot_verify_firmware(ctx);
 	timestamp_add_now(TS_VERIFY_SLOT_END);
 	if (rv)
 		vboot_save_and_reboot(ctx, rv);
@@ -380,6 +384,7 @@ void verstage_main(void)
 
 	if (rv)
 		vboot_fail_and_reboot(ctx, VB2_RECOVERY_FW_GET_FW_BODY, rv);
+	vboot_update_firmware_floor(ctx);
 	vboot_save_data(ctx);
 
 	/* Only extend PCRs once on boot. */
