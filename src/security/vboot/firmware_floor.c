@@ -19,10 +19,12 @@ static uint32_t fallback_version(struct vb2_context *ctx, uint32_t proposed)
 	struct vb2_keyblock *block;
 	struct vb2_fw_preamble *pre;
 	struct region_device vblock, body;
+	struct vb2_digest_context digest;
 	struct vb2_hash hash;
+	uint8_t block_data[CONFIG_VBOOT_HASH_BLOCK_SIZE];
 	uint8_t *root_data, *key_data;
-	void *data;
 	uint32_t size, key_size, pre_size, version;
+	size_t offset;
 	uint32_t floor = sd->fw_version_secdata;
 	vb2_error_t rv;
 
@@ -84,13 +86,21 @@ static uint32_t fallback_version(struct vb2_context *ctx, uint32_t proposed)
 
 	/* A signed header alone may belong to an interrupted, incomplete update. */
 	/* Native verification covers the signed body, not unused slot capacity. */
-	data = rdev_mmap(&body, 0, pre->body_signature.data_size);
-	if (!data)
+	rv = vb2_digest_init(&digest, key.allow_hwcrypto, key.hash_alg,
+		pre->body_signature.data_size);
+	if (rv)
 		return floor;
-	rv = vb2_hash_calculate(key.allow_hwcrypto, data,
-		pre->body_signature.data_size, key.hash_alg, &hash);
-	rdev_munmap(&body, data);
-	if (rv || vb2_verify_digest(&key, &pre->body_signature, hash.raw, &wb))
+	for (offset = 0; offset < pre->body_signature.data_size;) {
+		size_t length = MIN(sizeof(block_data),
+			pre->body_signature.data_size - offset);
+
+		if (rdev_readat(&body, block_data, offset, length) != length ||
+		    vb2_digest_extend(&digest, block_data, length))
+			return floor;
+		offset += length;
+	}
+	if (vb2_digest_finalize(&digest, hash.raw, vb2_digest_size(key.hash_alg)) ||
+	    vb2_verify_digest(&key, &pre->body_signature, hash.raw, &wb))
 		return floor;
 	return version;
 }
