@@ -370,3 +370,10 @@ $(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-metadata-test)
 vboot-fallback-floor-metadata-test-config += CONFIG_VBOOT_CBFS_INTEGRATION=1
 $(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-single-test)
 vboot-fallback-floor-single-test-config += CONFIG_VBOOT_SLOTS_RW_AB=0
+root_bridge_info-test-stage := ramstage
+root_bridge_info-test-srcs += tests/lib/root_bridge_info-test.c
+root_bridge_info-test-srcs += src/device/device_util.c
+root_bridge_info-test-srcs += tests/stubs/console.c
+root_bridge_info-test-config += CONFIG_PCI=1
+
+tests-y += root_bridge_info-test
