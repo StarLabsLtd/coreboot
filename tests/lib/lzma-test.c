@@ -89,7 +89,7 @@ static void test_ulzman_correct_file(void **state)
 	struct lzma_test_state *s = *state;
 	uint8_t *raw_buf = test_malloc(s->raw_file_sz);
 	uint8_t *decomp_buf = test_malloc(s->raw_file_sz);
-	uint8_t *comp_buf = test_malloc(s->comp_file_sz);
+	uint8_t *comp_buf = test_malloc(s->comp_file_sz + 63);
 
 	assert_non_null(raw_buf);
 	assert_non_null(decomp_buf);
@@ -99,9 +99,16 @@ static void test_ulzman_correct_file(void **state)
 	assert_int_equal(s->comp_file_sz,
 			 test_read_file(s->comp_filename, comp_buf, s->comp_file_sz));
 
-	assert_int_equal(s->raw_file_sz,
-			 ulzman(comp_buf, s->comp_file_sz, decomp_buf, s->raw_file_sz));
-	assert_memory_equal(raw_buf, decomp_buf, s->raw_file_sz);
+	/* Exercise every cache-line alignment of the compressed input. */
+	for (size_t offset = 0; offset < 64; offset++) {
+		if (offset)
+			memmove(comp_buf + offset, comp_buf + offset - 1, s->comp_file_sz);
+		memset(decomp_buf, 0xa5, s->raw_file_sz);
+		assert_int_equal(s->raw_file_sz,
+			ulzman(comp_buf + offset, s->comp_file_sz,
+			       decomp_buf, s->raw_file_sz));
+		assert_memory_equal(raw_buf, decomp_buf, s->raw_file_sz);
+	}
 
 	test_free(raw_buf);
 	test_free(decomp_buf);
