@@ -168,8 +168,10 @@ payloads/external/depthcharge/depthcharge/build/depthcharge.elf depthcharge: $(D
 # CDK2
 
 ifeq ($(CONFIG_PAYLOAD_CDK2),y)
-ifeq ($(CONFIG_SMM_AUTHVAR)$(CONFIG_VBOOT),yy)
-$(error Protected variables do not support vboot capsule regions; use ordinary SMMSTORE)
+ifeq ($(CONFIG_VBOOT),y)
+ifneq ($(CONFIG_CDK2_SECURE_BOOT),y)
+$(error VBOOT CDK2 images require Secure Boot enforcement)
+endif
 endif
 ifeq ($(CONFIG_IFWI_MEASURED_BOOT)$(CONFIG_TPM_MEASURED_BOOT),yy)
 ifneq ($(CONFIG_TPM_HASH_SHA256),y)
