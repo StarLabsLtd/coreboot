@@ -74,14 +74,15 @@
 	BufferLim = buffer + bufferSize; RC_INIT2
 
 
+/* Look eight cache lines ahead, keeping the whole target line in the input. */
 #define RC_NORMALIZE					\
 	if (Range < kTopValue) {			\
 		RC_TEST;				\
 		Range <<= 8;				\
 		Code = (Code << 8) | RC_READ_BYTE;	\
 		if (!((uintptr_t)Buffer & 63)) {		\
-			if ((BufferLim - Buffer) >= 128) {	\
-				__lzma_prefetch(Buffer[64]);	\
+			if ((BufferLim - Buffer) >= 576) {	\
+				__lzma_prefetch(Buffer[512]);	\
 			}					\
 		}					\
 	}
