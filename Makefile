@@ -58,6 +58,17 @@ CONFIG_SHELL := sh
 KBUILD_DEFCONFIG := configs/defconfig
 UNAME_RELEASE := $(shell uname -r)
 HAVE_DOTCONFIG := $(wildcard $(DOTCONFIG))
+
+# Resolve the development payload before Kconfig and build rules read it.
+ifeq ($(CDK2_SOURCE_READY),)
+ifneq ($(shell grep -l '^CONFIG_PAYLOAD_CDK2=y$$' $(DOTCONFIG) $(KBUILD_DEFCONFIG) 2>/dev/null),)
+CDK2_SOURCE_SYNC := $(shell sh payloads/external/cdk2/update-source.sh 1>&2 && echo ready)
+ifneq ($(CDK2_SOURCE_SYNC),ready)
+$(error Failed to update CDK2 main)
+endif
+export CDK2_SOURCE_READY := 1
+endif
+endif
 HAVE_KCONFIG_MAKEFILE_REAL := $(wildcard $(KCONFIG_MAKEFILE_REAL))
 MAKEFLAGS += -rR --no-print-directory
 

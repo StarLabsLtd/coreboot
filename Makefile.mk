@@ -287,7 +287,7 @@ ifneq ($(GIT),)
 ifneq ($(UPDATED_SUBMODULES),1)
 $(info Updating git submodules.)
 # try to fetch non-optional submodules if the source is under git
-forgetthis:=$(shell git submodule update --init $(quiet_errors))
+forgetthis:=$(shell git -c submodule.payloads/external/cdk2/cdk2.update=none submodule update --init $(quiet_errors))
 # Checkout Cmocka repository
 forgetthis:=$(shell git submodule update --init --checkout 3rdparty/cmocka $(quiet_errors))
 ifeq ($(CONFIG_USE_BLOBS),y)

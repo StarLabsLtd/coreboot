@@ -273,15 +273,11 @@ cdk2/config-file := $(CDK2_CONFIG)
 cdk2/config-type := raw
 cdk2/config-compression := LZMA
 
-# The nested build owns its source dependencies. Always enter it so an edit in
-# the pinned source checkout cannot leave a stale payload in the outer build.
+# The nested build owns its source dependencies. Always enter it so edits
+# cannot leave a stale payload in the outer build.
 .PHONY: cdk2-force
 cdk2-force:
-	@git -C $(CDK2_SOURCE) diff --quiet && git -C $(CDK2_SOURCE) diff --cached --quiet || \
-		{ echo 'CDK2 source has local changes' >&2; exit 1; }
-	@git -C $(CDK2_SOURCE) fetch origin main
-	@git -C $(CDK2_SOURCE) checkout --detach FETCH_HEAD
-	@git -C $(CDK2_SOURCE) submodule update --init --recursive
+	@test "$(CDK2_SOURCE_READY)" = 1 || { echo 'CDK2 source was not prepared' >&2; exit 1; }
 
 $(CDK2_CONFIG): $(CDK2_PAYLOAD)
 
