@@ -51,6 +51,7 @@ struct capsule_prefix {
 struct payload_header {
 	uint8_t signature[4];
 	uint32_t header_size, version, lowest_version;
+	uint8_t image_type[16];
 } __packed;
 
 struct region_manifest {
@@ -59,7 +60,7 @@ struct region_manifest {
 } __packed;
 
 _Static_assert(sizeof(struct capsule_prefix) == 128, "capsule header layout");
-_Static_assert(sizeof(struct payload_header) == 16, "payload header layout");
+_Static_assert(sizeof(struct payload_header) == 32, "payload header layout");
 _Static_assert(sizeof(struct region_manifest) == 8, "region manifest layout");
 
 struct options {
@@ -240,7 +241,8 @@ static uint8_t *build_payload(const uint8_t *rom, size_t rom_size,
 	uint32_t version, lowest;
 	size_t count = 0, capacity = strlen(options->regions) + 1;
 
-	if (!regions || !versions(options, &version, &lowest))
+	if (!regions || !versions(options, &version, &lowest) ||
+	    !guid_bytes(options->guid, header.image_type))
 		goto out;
 	/* Each nonempty name consumes at least one byte and one delimiter. */
 	names = calloc(capacity, sizeof(*names));
