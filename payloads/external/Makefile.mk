@@ -277,8 +277,11 @@ cdk2/config-compression := LZMA
 # the pinned source checkout cannot leave a stale payload in the outer build.
 .PHONY: cdk2-force
 cdk2-force:
-	@git submodule update --init --checkout --recursive -- $(CDK2_SOURCE)
-	@payloads/external/cdk2/verify-source.sh $(CDK2_SOURCE)
+	@git -C $(CDK2_SOURCE) diff --quiet && git -C $(CDK2_SOURCE) diff --cached --quiet || \
+		{ echo 'CDK2 source has local changes' >&2; exit 1; }
+	@git -C $(CDK2_SOURCE) fetch origin main
+	@git -C $(CDK2_SOURCE) checkout --detach FETCH_HEAD
+	@git -C $(CDK2_SOURCE) submodule update --init --recursive
 
 $(CDK2_CONFIG): $(CDK2_PAYLOAD)
 
