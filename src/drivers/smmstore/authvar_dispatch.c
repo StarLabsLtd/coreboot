@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LicenseRef-LICENSE-TBC */
 #include "authvar_dispatch.h"
-#include <boot/authvar_image_policy.h>
 #include <boot/payload_mm_authvar_format.h>
 #include <boot/payload_mm_authvar_policy.h>
 #include <string.h>
@@ -20,67 +19,6 @@ static bool state_predicate(const struct authvar_policy *policy,
 			return true;
 	}
 	return false;
-}
-
-static uint64_t image_snapshot(struct authvar_owner *owner, void *output,
-	size_t capacity, uint32_t *size)
-{
-	static const uint8_t global_guid[16] = {
-		0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
-		0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
-	};
-	static const uint8_t image_guid[16] = {
-		0xcb, 0xb2, 0x19, 0xd7, 0x3a, 0x3d, 0x96, 0x45,
-		0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f,
-	};
-	static const uint16_t names[4][4] = {
-		{ 'P', 'K', 0 }, { 'd', 'b', 0 },
-		{ 'd', 'b', 'x', 0 }, { 'd', 'b', 't', 0 },
-	};
-	struct payload_mm_authvar_view view;
-	struct payload_mm_authvar_view_value values[4] = { 0 };
-	uint32_t header[24] = { 0 };
-	size_t total = sizeof(header);
-	uint64_t status;
-
-	if (owner->runtime)
-		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
-	status = authvar_owner_view(owner, &view);
-	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
-		return status;
-	for (size_t i = 0; i < 4; i++) {
-		status = payload_mm_authvar_view_get(&view, i ? image_guid : global_guid,
-			names[i], i < 2 ? 6 : 8, UINT32_MAX, &values[i]);
-		if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
-			memset(&values[i], 0, sizeof(values[i]));
-			continue;
-		}
-		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
-		    values[i].data_size > AUTHVAR_IMAGE_POLICY_SNAPSHOT_MAX_VARIABLE_SIZE)
-			return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
-		header[8 + 4 * i] = 1;
-		header[9 + 4 * i] = values[i].attributes;
-		header[10 + 4 * i] = values[i].data_size;
-		total += (values[i].data_size + 7U) & ~(size_t)7U;
-	}
-	*size = total;
-	if (total > capacity)
-		return PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
-	header[0] = AUTHVAR_IMAGE_POLICY_SNAPSHOT_REVISION;
-	header[1] = sizeof(header);
-	header[2] = total;
-	header[3] = 4;
-	header[4] = view.volatile_modes;
-	header[5] = 6;
-	memcpy(output, header, sizeof(header));
-	total = sizeof(header);
-	for (size_t i = 0; i < 4; i++) {
-		if (!values[i].data_size)
-			continue;
-		memcpy((uint8_t *)output + total, values[i].data, values[i].data_size);
-		total += (values[i].data_size + 7U) & ~(size_t)7U;
-	}
-	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
 static uint64_t policy_get(void *context, const uint16_t *name, const void *guid,
@@ -359,7 +297,7 @@ enum cb_err smm_authvar_dispatch(struct smm_authvar_dispatch *service,
 		status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_IMAGE_POLICY_SNAPSHOT:
-		status = image_snapshot(&service->owner, result, in->data_capacity,
+		status = authvar_owner_image_snapshot(&service->owner, result, in->data_capacity,
 			&out->result_data_size);
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_KEY_CLASSIFY: {

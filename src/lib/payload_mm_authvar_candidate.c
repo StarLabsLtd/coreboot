@@ -417,7 +417,6 @@ static bool mutations_fit_and_match(
 				return false;
 		}
 		if (item->name_size > policy->maximum_name_size ||
-		    item->data_size > policy->maximum_data_size ||
 		    !payload_mm_authvar_record_layout(item->name_size,
 			item->data_size, &record_size, &data_offset) ||
 		    record_size > policy->maximum_record_size)
@@ -954,6 +953,19 @@ uint64_t payload_mm_authvar_candidate_build(
 		    ranges_overlap(scan_entries, entry_bytes, item->data,
 				   item->data_size))
 			return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	}
+	for (size_t i = 0U; i < bundle->mutation_count; i++) {
+		const struct payload_mm_authvar_bundle_mutation *item =
+			&bundle->mutations[i];
+		const struct payload_mm_authvar_store_entry *existing;
+
+		if (item->mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_DELETE ||
+		    item->data_size <= policy->maximum_data_size)
+			continue;
+		existing = payload_mm_authvar_store_find(index, item->vendor_guid,
+			item->name, item->name_size);
+		if (!existing || item->data_size > existing->data_size)
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
 	}
 
 	limits = (struct payload_mm_authvar_store_limits) {
