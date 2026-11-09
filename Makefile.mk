@@ -117,7 +117,7 @@ $(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) $(EFI_CAPSULE_TOOL) \
 			--version $(CONFIG_DRIVERS_EFI_MAIN_FW_VERSION) \
 			--lsv $(CONFIG_DRIVERS_EFI_MAIN_FW_LSV) \
 			--localversion $(CONFIG_LOCALVERSION) \
-			--regions $(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS) \
+			--regions $(CONFIG_DRIVERS_EFI_CAPSULE_PACKAGE_REGIONS) \
 			--signer "$(EFI_CAPSULE_SIGNER)" \
 			--intermediate "$(EFI_CAPSULE_INTERMEDIATE)" --root "$(EFI_CAPSULE_ROOT)" \
 			$(if $(filter y,$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)),--initiate-reset); \
