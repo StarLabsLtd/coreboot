@@ -4,6 +4,7 @@
 #define BOOT_AUTHVAR_OWNER_H
 
 #include <boot/authvar_fixed_policy.h>
+#include <boot/authvar_image_policy.h>
 #include <boot/payload_mm_authvar_candidate.h>
 #include <boot/payload_mm_authvar_view.h>
 #include <boot/payload_mm_authvar_writer.h>
@@ -40,7 +41,8 @@ struct authvar_owner_initialization {
 /* Caller owns the allocation and serializes every operation, including reads. */
 size_t authvar_owner_workspace_size(size_t store_size);
 uint64_t authvar_owner_init(struct authvar_owner *owner,
-	const void *store, size_t size, authvar_owner_commit_fn *commit, void *context,
+	const void *store, size_t size, size_t maximum_data_size,
+	authvar_owner_commit_fn *commit, void *context,
 	void *storage, size_t storage_size, bool secure_boot,
 	const struct authvar_fixed_policy *fixed, struct authvar_owner_initialization *report);
 uint64_t authvar_owner_refresh(struct authvar_owner *owner, const void *store,
@@ -73,5 +75,7 @@ void authvar_owner_enter_runtime(struct authvar_owner *owner);
 /* Borrowed view expires on mutation; consume or copy it under the owner's lock. */
 uint64_t authvar_owner_view(struct authvar_owner *owner,
 	struct payload_mm_authvar_view *view);
+uint64_t authvar_owner_image_snapshot(struct authvar_owner *owner,
+	void *output, size_t capacity, uint32_t *size);
 
 #endif

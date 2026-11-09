@@ -227,12 +227,16 @@ static bool initialize(void)
 
 	if (!required || required > sizeof(private.owner_workspace))
 		return false;
+	smm_authvar_endpoint(&private.endpoint, communication, communication_size);
+	if (payload_mm_authvar_service_endpoint_validate(&private.endpoint) != CB_SUCCESS)
+		return false;
 #if CONFIG(CDK2_SECURE_BOOT_FIXED_KEYS)
 	cdk2_fixed_secure_boot_assets(&private.fixed);
 	private.service.fixed = &private.fixed.policy;
 #endif
 	status = authvar_owner_init(&private.service.owner, media->store, media->store_size,
-		commit, media, private.owner_workspace, sizeof(private.owner_workspace),
+		private.endpoint.maximum_data_size, commit, media, private.owner_workspace,
+		sizeof(private.owner_workspace),
 		CONFIG(CDK2_SECURE_BOOT), private.service.fixed, NULL);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return false;
@@ -241,9 +245,6 @@ static bool initialize(void)
 	if (private.service.owner.restart_required)
 		full_reset();
 #endif
-	smm_authvar_endpoint(&private.endpoint, communication, communication_size);
-	if (payload_mm_authvar_service_endpoint_validate(&private.endpoint) != CB_SUCCESS)
-		return false;
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 	if (!smm_capsule_initialize())
 		return false;
