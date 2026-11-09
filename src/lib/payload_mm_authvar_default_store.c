@@ -11,7 +11,11 @@
 
 #define DEFAULT_STORE_FIRST_RECORD \
 	(PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE)
+#if CONFIG(VBOOT) && CONFIG(CDK2_SECURE_BOOT_VARIABLE_KEYS)
+#define DEFAULT_STORE_RECORD_BYTES 352U
+#else
 #define DEFAULT_STORE_RECORD_BYTES 252U
+#endif
 #define DEFAULT_STORE_PREFIX_BYTES (DEFAULT_STORE_FIRST_RECORD + DEFAULT_STORE_RECORD_BYTES)
 
 _Static_assert(DEFAULT_STORE_FIRST_RECORD == PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE,
@@ -29,6 +33,12 @@ static const uint8_t vendor_keys_nv_guid[16] = {
 	0xe0, 0xe4, 0x73, 0x90, 0xec, 0x60, 0x6e, 0x4b,
 	0x99, 0x03, 0x4c, 0x22, 0x3c, 0x26, 0x0f, 0x3c,
 };
+#if CONFIG(VBOOT) && CONFIG(CDK2_SECURE_BOOT_VARIABLE_KEYS)
+static const uint8_t enroll_default_keys_guid[16] = {
+	0xd4, 0x3a, 0x99, 0x2b, 0x44, 0x77, 0x5d, 0x4d,
+	0x96, 0x04, 0x8c, 0x2c, 0xa7, 0xc7, 0x46, 0x30,
+};
+#endif
 static const uint8_t custom_mode_name[] = {
 	'C', 0, 'u', 0, 's', 0, 't', 0, 'o', 0, 'm', 0, 'M', 0, 'o', 0,
 	'd', 0, 'e', 0, 0, 0,
@@ -40,9 +50,19 @@ static const uint8_t vendor_keys_nv_name[] = {
 	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
 	'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
 };
+#if CONFIG(VBOOT) && CONFIG(CDK2_SECURE_BOOT_VARIABLE_KEYS)
+static const uint8_t enroll_default_keys_name[] = {
+	'E', 0, 'n', 0, 'r', 0, 'o', 0, 'l', 0, 'l', 0,
+	'D', 0, 'e', 0, 'f', 0, 'a', 0, 'u', 0, 'l', 0, 't', 0,
+	'K', 0, 'e', 0, 'y', 0, 's', 0, 0, 0,
+};
+#endif
 static const uint8_t standard_mode = 0U;
 static const uint8_t empty_certdb[] = { 4, 0, 0, 0 };
 static const uint8_t vendor_keys_valid = 1U;
+#if CONFIG(VBOOT) && CONFIG(CDK2_SECURE_BOOT_VARIABLE_KEYS)
+static const uint8_t enroll_default_keys = 1U;
+#endif
 
 struct default_record {
 	const uint8_t *vendor_guid;
@@ -80,6 +100,16 @@ static const struct default_record defaults[] = {
 		&vendor_keys_valid, sizeof(vendor_keys_valid),
 		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
 	},
+#if CONFIG(VBOOT) && CONFIG(CDK2_SECURE_BOOT_VARIABLE_KEYS)
+	{
+		enroll_default_keys_guid, enroll_default_keys_name,
+		sizeof(enroll_default_keys_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		&enroll_default_keys, sizeof(enroll_default_keys),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+	},
+#endif
 };
 
 static bool span_valid(const void *data, size_t size)
