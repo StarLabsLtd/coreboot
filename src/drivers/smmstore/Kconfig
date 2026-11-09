@@ -31,7 +31,8 @@ config SMMSTORE_SRK_PROVISION
 config SMM_AUTHVAR
 	bool "SMM-owned authenticated UEFI variables"
 	default n
-	depends on SOC_INTEL_ALDERLAKE && SMM_TSEG && PAYLOAD_CDK2
+	depends on SOC_INTEL_COMMON_BLOCK_SMM && SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on SMM_TSEG && PAYLOAD_CDK2
 	depends on DISABLE_ACPI_HIBERNATE || CDK2_S4_LAYOUT_REQUIRED
 	depends on !HAVE_ACPI_RESUME || TSEG_STAGE_CACHE
 	depends on BOOTMEDIA_SMM_BWP && !BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
@@ -41,8 +42,8 @@ config SMM_AUTHVAR
 	  mutation through SMMSTORE is unavailable in this composition; firmware
 	  updates require a separate authenticated transport. S4 uses the shared
 	  fixed communication mailbox and the payload's stable allocation bins.
-	  The native protected update transport does not support vboot's split
-	  firmware regions. Vboot builds must retain the ordinary SMMSTORE owner.
+	  The protected update transport also owns verified inactive-slot updates
+	  when the producer supplies an A/B vboot layout.
 
 config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
 	bool
