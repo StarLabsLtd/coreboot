@@ -226,7 +226,7 @@ static void *fill_blt_buffer(const struct bmp_image_header *header,
 	uintptr_t logo, size_t blt_buffer_size, size_t row_size, size_t palette_size,
 	enum lb_fb_orientation orientation)
 {
-	struct blt_pixel *buffer = malloc(blt_buffer_size);
+	struct blt_pixel *buffer = calloc(1, blt_buffer_size);
 	const struct bmp_color_map *palette = (const void *)(logo + sizeof(*header));
 
 	if (!buffer)
