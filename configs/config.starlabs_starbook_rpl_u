@@ -24,9 +24,7 @@ CONFIG_POST_IO=n
 
 # CAPSULES #
 CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=y
-CONFIG_DRIVERS_EFI_MAIN_FW_GUID="41627bd8-70a0-490d-b834-5de90ccfb56d"
 CONFIG_DRIVERS_EFI_GENERATE_CAPSULE=y
-CONFIG_DRIVERS_EFI_CAPSULE_REGIONS="COREBOOT EC"
 CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT="/home/sean/Documents/certificates/starlabs_capsule/StarLabsCapsuleSigner.pem"
 CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT="/home/sean/Documents/certificates/starlabs_capsule/StarLabsCapsuleSub.pub.pem"
 CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT="/home/sean/Documents/certificates/starlabs_capsule/StarLabsCapsuleRoot.pub.pem"

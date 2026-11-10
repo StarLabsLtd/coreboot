@@ -34,9 +34,11 @@ static const struct psp_fw_name_entry psp_fw_name_table[] = {
 	{ "PSP_HW_IPCFG_FILE_SUB1",		AMD_FW_PSP_HW_IPCFG,			1, 0 },
 	{ "PSP_HW_IPCFG_FILE_SUB2",		AMD_FW_PSP_HW_IPCFG,			2, 0 },
 	{ "PSP_SMUFW1_SUB1_FILE",		AMD_FW_PSP_SMU_FIRMWARE,	1, 0 },
+	{ "PSP_SMUFW1_SUB1_INS1_FILE",		AMD_FW_PSP_SMU_FIRMWARE,	1, 1 },
 	{ "PSP_SMUFW1_SUB2_FILE",		AMD_FW_PSP_SMU_FIRMWARE,	2, 0 },
 	{ "PSP_SMUFW2_SUB0_FILE",		AMD_FW_PSP_SMU_FIRMWARE2,	0, 0 },
 	{ "PSP_SMUFW2_SUB1_FILE",		AMD_FW_PSP_SMU_FIRMWARE2,	1, 0 },
+	{ "PSP_SMUFW2_SUB1_INS1_FILE",		AMD_FW_PSP_SMU_FIRMWARE2,	1, 1 },
 	{ "PSP_TEEIPKEY_FILE",			AMD_FW_PSP_TEEIPKEY,		0, 0 },
 	{ "PSP_SMUFW2_SUB2_FILE",		AMD_FW_PSP_SMU_FIRMWARE2,	2, 0 },
 	{ "PSP_BOOT_DRIVER_FILE",		AMD_FW_PSP_BOOT_DRIVER,		0, 0 },
@@ -105,6 +107,7 @@ static const struct psp_fw_name_entry psp_fw_name_table[] = {
 	{ "PSP_KVM_ENGINE_DUMMY_FILE",		AMD_FW_PSP_KVM_IMAGE,		0, 0 },
 	{ "RPMC_FILE",				AMD_FW_PSP_RPMC_NVRAM,			0, 0 },
 	{ "PSPBTLDR_AB_FILE",			AMD_FW_PSP_BOOTLOADER_AB,	0, 0 },
+	{ "PSPBTLDR_AB_SUB1_FILE",		AMD_FW_PSP_BOOTLOADER_AB,	1, 0 },
 	{ "TA_IKEK_FILE",			AMD_FW_PSP_TA_IKEK,			0, 0 },
 	{ "SFDR_FILE",				AMD_FW_PSP_SFDR,			0, 0 },
 	{ "UMSMU_FILE",				AMD_FW_PSP_UMSMU,			0, 0 },
@@ -299,11 +302,12 @@ static uint8_t find_register_fw_filename_psp_dir(char *fw_name, char *filename,
 		    cb_config->recovery_ab)
 			return 1;
 	} else if (fw_type == AMD_FW_PSP_SECURED_DEBUG) {
+		/* Some platforms need authentication files outside of secure debug unlock. */
 		if (strcmp(fw_name, "PSP_SEC_DBG_KEY_FILE") == 0 &&
-		    !cb_config->unlock_secure)
+		    !cb_config->unlock_secure_supported)
 			return 1;
 	} else if (fw_type == AMD_FW_PSP_DEBUG_UNLOCK) {
-		if (!cb_config->unlock_secure)
+		if (!cb_config->unlock_secure_supported)
 			return 1;
 	} else if (fw_type == AMD_FW_PSP_SECURED_OS) {
 		if (!cb_config->use_secureos)

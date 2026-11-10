@@ -384,7 +384,8 @@ done:
 }
 
 u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password,
-			  u8 password_len, void *scratch, size_t scratch_size)
+			  u8 password_len, void *scratch, size_t scratch_size,
+			  u64 mmio_base, size_t mmio_size)
 {
 	struct opal_nvme nvme;
 	OPAL_SESSION Session;
@@ -419,7 +420,7 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password,
 	/* Use a 4KiB IO buffer after the queue pages. */
 	io_buf = queue_base + OPAL_NVME_QUEUE_BYTES;
 
-	if (opal_nvme_init(&nvme, dev, scratch, scratch_size)) {
+	if (opal_nvme_init(&nvme, dev, scratch, scratch_size, mmio_base, mmio_size)) {
 		/* Only pre-ownership unavailability may wait for a powered-off root. */
 		rc = nvme.regs ? 5 : 1;
 		goto out;

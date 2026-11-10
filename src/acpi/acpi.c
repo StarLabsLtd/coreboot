@@ -64,7 +64,7 @@ static void acpi_create_bgrt(acpi_header_t *header, void *unused)
 	struct lb_boot_splash splash;
 
 	if (!CONFIG(PAYLOAD_CDK2) || !CONFIG(BMP_LOGO) ||
-	    !CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
+	    !CONFIG(BOOT_SPLASH_HANDOFF))
 		return;
 	bootsplash_render_primary();
 	if (!bootsplash_get_handoff(&splash))

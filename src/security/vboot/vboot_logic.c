@@ -348,7 +348,7 @@ void verstage_main(void)
 			    antirollback_lock_space_firmware() != TPM_SUCCESS)
 				die("Unable to lock firmware rollback floor in recovery\n");
 			tpm_rc = extend_pcrs(ctx);
-			if (tpm_rc && (CONFIG(PAYLOAD_CDK2) || CONFIG(SECURITY_FAIL_CLOSED)))
+			if (tpm_rc && (CONFIG(SECURITY_FAIL_CLOSED) || CONFIG(PAYLOAD_CDK2)))
 				die("Unable to measure recovery state\n");
 			goto verstage_main_exit;
 		}

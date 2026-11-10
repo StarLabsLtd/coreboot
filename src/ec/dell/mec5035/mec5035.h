@@ -10,7 +10,9 @@
 enum mec5035_cmd {
 	CMD_MOUSE_TP = 0x1a,
 	CMD_RADIO_CTRL = 0x2b,
+	CMD_ACPI = 0x3a,
 	CMD_POWER_BUTTON_TO_HOST = 0x3e,
+	CMD_MUTE_CTRL = 0x60,
 	CMD_EN_CPU_THERMAL_THROTTLE = 0xbf,
 	CMD_CPU_OK = 0xc2,
 };
@@ -40,10 +42,17 @@ enum ec_power_button_route {
 	HOST
 };
 
+#define MUTE_CTRL_NUM_ARGS 1
+enum ec_mute {
+	MUTE = 0,
+	UNMUTE,
+};
+
 u8 mec5035_mouse_touchpad(enum ec_mouse_setting setting);
 void mec5035_cpu_ok(void);
 void mec5035_early_init(void);
 void mec5035_control_radio(enum ec_radio_dev device, enum ec_radio_state state);
+void mec5035_acpi_enable(void);
 void mec5035_allow_cpu_thermal_throttle(u8 i);
 
 #endif /* _EC_DELL_MEC5035_H_ */

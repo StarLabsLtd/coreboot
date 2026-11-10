@@ -6,6 +6,5 @@ romstage-y += romstage.c
 
 ramstage-y += devtree.c
 ramstage-y += gpio.c
-smm-y += gpio.c
 ramstage-y += hda_verb.c
 ramstage-y += ramstage.c

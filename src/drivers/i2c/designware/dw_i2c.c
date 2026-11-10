@@ -464,17 +464,17 @@ static enum cb_err dw_i2c_smm_get_regs(pci_devfn_t dev, struct dw_i2c_regs **reg
 	return CB_SUCCESS;
 }
 
-bool dw_i2c_smm_bus_is_runtime_suspended(unsigned int bus)
+enum cb_err dw_i2c_smm_bus_ready(unsigned int bus)
 {
 	struct dw_i2c_regs *regs;
 	pci_devfn_t dev;
 
 	if (dw_i2c_smm_get_dev(bus, &dev) != CB_SUCCESS)
-		return false;
+		return CB_ERR;
 	if (dw_i2c_smm_get_regs(dev, &regs) != CB_SUCCESS)
-		return false;
+		return CB_ERR;
 
-	return lpss_get_power_state(dev) == STATE_D3;
+	return lpss_get_power_state(dev) == STATE_D3 ? CB_SUCCESS : CB_ERR_BUSY;
 }
 
 static enum cb_err dw_i2c_smm_prepare(unsigned int bus, struct dw_i2c_regs **regs,

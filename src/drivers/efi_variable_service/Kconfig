@@ -1,0 +1,25 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config ASS
+	bool "Authorised SMM Service (ASS)"
+	depends on HAVE_SMI_HANDLER
+	depends on SMM_TSEG
+	depends on SMMSTORE
+	depends on ARCH_SMM_X86_32
+	depends on PAYLOAD_EDK2
+	depends on EDK2_REPO_CUSTOM
+	depends on SOC_INTEL_COMMON_BLOCK_SMM
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on !CONSOLE_SPI_FLASH
+	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
+	help
+	  ASS stands for Authorised SMM Service. Run the build-selected EFI
+	  variable and capsule service in a fixed SMRAM region. The payload can
+	  submit requests through a bounded shared buffer, but cannot supply
+	  executable code or choose the service address.
+	  The selected EDK2 repository must provide the fixed Standalone MM
+	  service description.
+
+# Keep the decompressed FV out of the S3-cached ramstage image.
+config HEAP_SIZE
+	default SMM_ASS_SIZE if ASS

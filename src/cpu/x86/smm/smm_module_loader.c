@@ -15,6 +15,7 @@
 #include <cpu/x86/gdt.h>
 #include <device/device.h>
 #include <device/mmio.h>
+#include <efi_variable_service.h>
 #include <rmodule.h>
 #include <smmstore.h>
 #include <stdio.h>
@@ -475,6 +476,8 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 #endif
 	}
 
+	if (CONFIG(ASS))
+		efi_variable_service_load(mod_params);
 #if CONFIG(PAYLOAD_SPI_FLASH_CONSOLE)
 	/* SMMSTORE has already reserved its S4 mailbox and raised the CBMEM floor. */
 	const struct cbmem_entry *spi_console = cbmem_entry_add(CBMEM_ID_PAYLOAD_SPI_CONSOLE,

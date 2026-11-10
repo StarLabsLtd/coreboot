@@ -14,6 +14,7 @@ ramstage-y += cpu.c
 ramstage-$(CONFIG_PAYLOAD_LOCAL_APIC_TIMER_INFO) += lapic_timer.c
 
 all-y += ../qemu-i440fx/bootmode.c
+all-y += ../qemu-i440fx/fw_cfg.c
 all-y += memmap.c
 
 ramstage-$(CONFIG_CHROMEOS) += chromeos.c

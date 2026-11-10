@@ -149,7 +149,8 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 	return (int)(c->dw[3] >> 17);
 }
 
-int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_t scratch_size)
+int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_t scratch_size,
+		   u64 mmio_base, size_t mmio_size)
 {
 	u64 regs;
 	u16 pmcap;
@@ -161,7 +162,7 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	if (pci_read_config16(dev, PCI_VENDOR_ID) == 0xffff)
 		return -1;
 
-	if (scratch_size < NVME_SCRATCH_MIN_BYTES)
+	if (mmio_size < NVME_REGS_MIN_SIZE || scratch_size < NVME_SCRATCH_MIN_BYTES)
 		return -1;
 
 	p = (u8 *)ALIGN_UP((uintptr_t)p, NVME_PAGE_SIZE);
@@ -172,6 +173,11 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	p += NVME_PAGE_SIZE;
 	nvme->cq = (struct nvme_cq_entry *)p;
 	p += NVME_PAGE_SIZE;
+
+	/* Do not carry OS-owned DMA into power or queue reconfiguration. */
+	pci_and_config16(dev, PCI_COMMAND, ~PCI_COMMAND_MASTER);
+	if (pci_read_config16(dev, PCI_COMMAND) & PCI_COMMAND_MASTER)
+		return -1;
 
 	/* Bring device to D0 if it supports PM capability. */
 	pmcap = pci_s_find_capability(dev, PCI_CAP_ID_PM);
@@ -184,9 +190,10 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 		}
 	}
 
-	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MEMORY);
 
-	if (nvme_read_bar0(dev, &regs)) {
+	/* Recheck after D0: never follow a changed decode into arbitrary MMIO. */
+	if (nvme_read_bar0(dev, &regs) || regs != mmio_base) {
 		printk(BIOS_ERR, "OPAL NVMe: invalid BAR0\n");
 		pci_and_config16(dev, PCI_COMMAND, ~(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER));
 		return -1;
@@ -195,6 +202,16 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	nvme->regs = (u8 *)(uintptr_t)regs;
 	nvme->cap = read64(nvme->regs + 0x0);
 	nvme->dstrd_bytes = 4U << ((nvme->cap >> 32) & 0xf);
+	/* The completion doorbell can lie beyond the initial register range. */
+	const size_t register_size = MAX(NVME_REGS_MIN_SIZE,
+					 0x1000U + nvme->dstrd_bytes + sizeof(u32));
+	if (register_size > mmio_size || smm_points_to_smram(nvme->regs, register_size)) {
+		printk(BIOS_ERR, "OPAL NVMe: doorbell overlaps SMRAM or wraps\n");
+		pci_and_config16(dev, PCI_COMMAND, ~(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER));
+		return -1;
+	}
+	/* Do not newly enable bus mastering until the SMRAM check passes. */
+	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 	nvme->sq_db = (u32 *)(nvme->regs + 0x1000 + (0 * nvme->dstrd_bytes));
 	nvme->cq_db = (u32 *)(nvme->regs + 0x1000 + (1 * nvme->dstrd_bytes));
 

@@ -22,12 +22,12 @@
 #include <cbfs.h>
 #include <cbmem.h>
 #include <bootmem.h>
-#include <bootsplash.h>
 #include <bootmode.h>
 #include <bootsplash.h>
 #include <inttypes.h>
 #include <spi_flash.h>
 #include <smmstore.h>
+#include <efi_variable_service.h>
 #include <drivers/smmstore/authvar.h>
 #include <types.h>
 #include <version.h>
@@ -176,7 +176,10 @@ static void lb_framebuffer(struct lb_header *header)
 	framebuffer->tag = LB_TAG_FRAMEBUFFER;
 	framebuffer->size = sizeof(*framebuffer);
 
-	if (CONFIG(BOOTSPLASH)) {
+	struct lb_boot_splash splash;
+	if (CONFIG(BOOTSPLASH) &&
+	    !(CONFIG(BMP_LOGO) && CONFIG(BOOT_SPLASH_HANDOFF) &&
+	      bootsplash_get_handoff(&splash))) {
 		if ((uintptr_t)framebuffer->physical_address != framebuffer->physical_address) {
 			printk(BIOS_WARNING, "Framebuffer above 4GiB, skipping bootsplash\n");
 			return;
@@ -652,8 +655,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	if (CONFIG(DRIVERS_OPTION_CFR))
 		lb_cfr_setup_menu(head);
 
-	/* Retain the displayed bitmap before publishing final CBMEM ownership. */
-	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING))
+	/* Retain the bitmap before the CBMEM reservation is serialized. */
+	if (CONFIG(BMP_LOGO) && CONFIG(BOOT_SPLASH_HANDOFF))
 		bootsplash_render_primary();
 
 	/* Serialize resource map into mem table types (LB_MEM_*) */
@@ -687,7 +690,7 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	lb_record_version_timestamp(head);
 	/* Record our framebuffer */
 	lb_framebuffer(head);
-	if (CONFIG(BMP_LOGO) && CONFIG(USE_COREBOOT_FOR_BMP_RENDERING)) {
+	if (CONFIG(BMP_LOGO) && CONFIG(BOOT_SPLASH_HANDOFF)) {
 		struct lb_boot_splash splash;
 
 		if (bootsplash_get_handoff(&splash))
@@ -717,6 +720,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* SMMSTORE */
 	if (CONFIG(SMMSTORE))
 		lb_smmstorev2(head);
+	if (CONFIG(ASS))
+		lb_efi_variable_service(head);
 	if (CONFIG(PAYLOAD_SPI_FLASH_CONSOLE))
 		lb_payload_spi_console(head);
 

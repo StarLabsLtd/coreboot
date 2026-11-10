@@ -20,6 +20,7 @@
 #include <lib.h>
 #include <soc/pci_devs.h>
 #include <spi_flash.h>
+#include <efi_variable_service.h>
 #include <spi-generic.h>
 #include <security/vboot/vbnv.h>
 
@@ -52,6 +53,10 @@ void *fast_spi_get_bar(void)
 		printk(BIOS_EMERG, "FAST_SPI: BAR0 0x%" PRIxPTR " overlaps SMRAM!\n", bar);
 		die("SMM BAR exploitation attempt detected.");
 	}
+
+	if (ENV_SMM && CONFIG(ASS) &&
+	    !efi_variable_service_spi_bar_valid(bar))
+		die("FAST_SPI: BAR0 changed after trusted finalization.");
 
 	return (void *)bar;
 }
@@ -730,10 +735,31 @@ static void fast_spi_read_resources(struct device *dev)
 	}
 }
 
+static void fast_spi_enable_resources(struct device *dev)
+{
+	struct resource *res = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	uint32_t bar = pci_read_config32(PCH_DEV_SPI, PCI_BASE_ADDRESS_0);
+	resource_t base = bar & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK;
+
+	/*
+	 * FSP notification can restore BAR0 after PCI resource assignment.
+	 * The allocator changed limit to the assigned end, not a BAR ceiling.
+	 */
+	if (res && (res->flags & IORESOURCE_MEM) && (res->flags & IORESOURCE_ASSIGNED) &&
+	    res->size && !(bar & PCI_BASE_ADDRESS_SPACE_IO) &&
+	    (bar & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) == PCI_BASE_ADDRESS_MEM_LIMIT_32 &&
+	    base && IS_ALIGNED(base, res->size) && res->size - 1 <= UINT32_MAX - base) {
+		res->base = base;
+		res->limit = base + res->size - 1;
+	}
+
+	pci_dev_enable_resources(dev);
+}
+
 static struct device_operations fast_spi_dev_ops = {
 	.read_resources			= fast_spi_read_resources,
 	.set_resources			= pci_dev_set_resources,
-	.enable_resources		= pci_dev_enable_resources,
+	.enable_resources		= fast_spi_enable_resources,
 	.acpi_fill_ssdt			= fast_spi_fill_ssdt,
 	.acpi_name			= fast_spi_acpi_name,
 	.ops_pci			= &pci_dev_ops_pci,

@@ -41,6 +41,16 @@ static uint32_t efi_fw_version_from_localversion(void)
 	return (major << 16) | minor;
 }
 
+void efi_fw_versions(uint32_t *version, uint32_t *lowest_supported_version)
+{
+	*version = CONFIG_DRIVERS_EFI_MAIN_FW_VERSION;
+	if (!*version)
+		*version = efi_fw_version_from_localversion();
+	*lowest_supported_version = CONFIG_DRIVERS_EFI_MAIN_FW_LSV;
+	if (!*lowest_supported_version)
+		*lowest_supported_version = *version;
+}
+
 bool efi_firmware_info(struct lb_efi_fw_info *fw_info)
 {
 	uint8_t guid[16];
@@ -59,18 +69,11 @@ bool efi_firmware_info(struct lb_efi_fw_info *fw_info)
 
 	memcpy(fw_info->guid, guid, sizeof(guid));
 
-	fw_version = CONFIG_DRIVERS_EFI_MAIN_FW_VERSION;
-	if (fw_version == 0) {
-		fw_version = efi_fw_version_from_localversion();
-		if (fw_version != 0)
-			printk(BIOS_DEBUG,
-			       "EFI FW version derived from CONFIG_LOCALVERSION '%s': 0x%08x\n",
-			       CONFIG_LOCALVERSION, fw_version);
-	}
-
-	lsv = CONFIG_DRIVERS_EFI_MAIN_FW_LSV;
-	if (lsv == 0)
-		lsv = fw_version;
+	efi_fw_versions(&fw_version, &lsv);
+	if (!CONFIG_DRIVERS_EFI_MAIN_FW_VERSION && fw_version)
+		printk(BIOS_DEBUG,
+		       "EFI FW version derived from CONFIG_LOCALVERSION '%s': 0x%08x\n",
+		       CONFIG_LOCALVERSION, fw_version);
 
 	fw_info->version = fw_version;
 	fw_info->lowest_supported_version = lsv;

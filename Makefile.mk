@@ -86,7 +86,11 @@ ifeq ($(CONFIG_PAYLOAD_EDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVER
 finalised_rom:: $(obj)/coreboot.cap
 capsule:: $(obj)/coreboot.cap
 
-$(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) | files_added
+# Command-line capsule mode and target identity must be checked on every request.
+.PHONY: $(obj)/coreboot.cap
+
+$(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) payloads/external/Makefile.mk \
+	payloads/external/edk2/Makefile util/efi_capsule/validate_capsule.py | files_added
 	$(MAKE) -C payloads/external/edk2 coreboot_capsule \
 		COREBOOT_ROM="$(abspath $<)" \
 		COREBOOT_CAPSULE_OUT="$(abspath $@)" \
@@ -283,7 +287,7 @@ ifneq ($(GIT),)
 ifneq ($(UPDATED_SUBMODULES),1)
 $(info Updating git submodules.)
 # try to fetch non-optional submodules if the source is under git
-forgetthis:=$(shell git submodule update --init $(quiet_errors))
+forgetthis:=$(shell git -c submodule.payloads/external/cdk2/cdk2.update=none submodule update --init $(quiet_errors))
 # Checkout Cmocka repository
 forgetthis:=$(shell git submodule update --init --checkout 3rdparty/cmocka $(quiet_errors))
 ifeq ($(CONFIG_USE_BLOBS),y)

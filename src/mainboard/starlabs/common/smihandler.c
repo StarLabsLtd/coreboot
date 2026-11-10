@@ -14,6 +14,9 @@
 #endif
 #include <ec/acpi/ec.h>
 #include <ec/starlabs/merlin/ec.h>
+#if CONFIG(ASS)
+#include <efi_variable_service.h>
+#endif
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
 #include <acpi/acpi_gnvs.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
@@ -77,6 +80,7 @@ int mainboard_smi_finalize(void)
 }
 #endif
 
+#if CONFIG(USE_UEFI_VARIABLE_STORE)
 struct starlabs_efiopt_entry {
 	const char *name;
 	enum starlabs_efiopt_id id;
@@ -410,62 +414,13 @@ static enum cb_err get_stored_efiopt_value(enum starlabs_efiopt_id id, uint32_t 
 	return CB_SUCCESS;
 }
 
-#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
-static enum cb_err apply_touchpad_efiopts(void)
-{
-	enum { HAPTICS, PRESS, RELEASE, RATE };
-	const enum starlabs_efiopt_id ids[] = {
-		[HAPTICS] = STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS,
-		[PRESS] = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS,
-		[RELEASE] = STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE,
-#if CONFIG(STARLABS_TOUCHPAD_PIXART)
-		[RATE] = STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE,
-#endif
-	};
-	struct efi_uint_option options[ARRAY_SIZE(ids)];
-	uint32_t rate = STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT;
-	enum cb_err ret;
-
-	for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
-		const struct starlabs_efiopt_entry *opt = find_efiopt(ids[i]);
-
-		options[i] = (struct efi_uint_option) {
-			.name = opt->name,
-			.value = opt->fallback,
-		};
-	}
-
-	ret = efi_option_get_uints(options, ARRAY_SIZE(options));
-	if (ret != CB_SUCCESS)
-		return ret;
-
-	for (size_t i = 0; i < ARRAY_SIZE(options); i++) {
-		if (options[i].result != CB_SUCCESS &&
-		    options[i].result != CB_EFI_OPTION_NOT_FOUND)
-			return options[i].result;
-
-		const uint32_t stored = options[i].value;
-
-		if (normalize_value(ids[i], &options[i].value) != CB_SUCCESS ||
-		    options[i].value != stored)
-			return CB_ERR_ARG;
-	}
-#if CONFIG(STARLABS_TOUCHPAD_PIXART)
-	rate = options[RATE].value;
-#endif
-
-	return starlabs_touchpad_runtime_apply(options[HAPTICS].value, options[PRESS].value,
-					       options[RELEASE].value, rate);
-}
-#endif
-
 static enum cb_err apply_ec_value(uint8_t reg, uint32_t value)
 {
 	enum cb_err ret = CB_ERR;
 
 	/* The interrupted OS may own an incomplete EC transaction. */
 	if (!smm_acpi_global_lock_acquire())
-		return CB_ERR;
+		return CB_ERR_BUSY;
 
 	if (!send_ec_command(WR_EC) && !send_ec_data(reg) && !send_ec_data(value))
 		ret = CB_SUCCESS;
@@ -535,7 +490,7 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
 #endif
-		return apply_touchpad_efiopts();
+		return starlabs_touchpad_runtime_apply(id, value);
 #endif
 #if CONFIG(STARLABS_AUTOMATIC_START)
 	case STARLABS_EFIOPT_ID_AUTOMATIC_START: {
@@ -559,22 +514,6 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 
 static enum cb_err apply_stored_efiopt(enum starlabs_efiopt_id id)
 {
-#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
-	switch (id) {
-	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
-	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
-	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
-#if CONFIG(STARLABS_TOUCHPAD_PIXART)
-	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
-#endif
-		if (!starlabs_touchpad_runtime_available())
-			return CB_ERR;
-		return apply_touchpad_efiopts();
-	default:
-		break;
-	}
-#endif
-
 	uint32_t value;
 	enum cb_err ret = get_stored_efiopt_value(id, &value);
 
@@ -657,7 +596,10 @@ int starlabs_efi_option_smi(u8 data)
 			break;
 		}
 #endif
-		status = set_uint_option(opt->name, value);
+		if (CONFIG(ASS))
+			status = efi_variable_service_set_uint(opt->name, value);
+		else
+			status = set_uint_option(opt->name, value);
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI) && !CONFIG(SMM_AUTHVAR)
 		fast_spi_smm_write_end(restore_wp);
 #endif
@@ -676,3 +618,4 @@ int starlabs_efi_option_smi(u8 data)
 	return 1;
 }
 #endif
+#endif /* USE_UEFI_VARIABLE_STORE */

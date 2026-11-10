@@ -53,6 +53,7 @@ enum {
 	LB_TAG_SERIAL			= 0x000f,
 	LB_TAG_CONSOLE			= 0x0010,
 	LB_TAG_FORWARD			= 0x0011,
+	LB_TAG_BOOT_SPLASH		= 0x0051,
 	LB_TAG_FRAMEBUFFER		= 0x0012,
 	LB_TAG_GPIO			= 0x0013,
 	LB_TAG_TIMESTAMPS		= 0x0016,
@@ -103,9 +104,9 @@ enum {
 	LB_TAG_PANEL_POWEROFF		= 0x0049,
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_BOOT_REASON		= 0x004b,
+	LB_TAG_EFI_VARIABLE_SERVICE	= 0x004c,
 	LB_TAG_LOCAL_APIC_TIMER_INFO	= 0x004e,
 	LB_TAG_PAYLOAD_SPI_CONSOLE	= 0x0050,
-	LB_TAG_BOOT_SPLASH		= 0x0051,
 	LB_TAG_AUTHVAR_SERVICE_ENDPOINT	= 0x0055,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x005b,
 	LB_TAG_EC_BATTERY_DESCRIPTOR	= 0x005a,
@@ -905,6 +906,23 @@ struct lb_smmstorev2 {
 					   written out by coreboot. */
 };
 
+/* Fixed authenticated-variable service provided by coreboot SMM. */
+struct lb_efi_variable_service {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint8_t apm_cmd;
+	uint8_t flags;
+	uint64_t communication_buffer;
+	uint32_t communication_buffer_size;
+} __packed;
+
+_Static_assert(sizeof(struct lb_efi_variable_service) == 24,
+	       "Unexpected EFI variable service record size");
+_Static_assert(offsetof(struct lb_efi_variable_service, apm_cmd) == 10,
+	       "Unexpected EFI variable service APMC offset");
+_Static_assert(offsetof(struct lb_efi_variable_service, communication_buffer) == 12,
+	       "Unexpected EFI variable service buffer offset");
 struct lb_payload_spi_console {
 	uint32_t tag;
 	uint32_t size;

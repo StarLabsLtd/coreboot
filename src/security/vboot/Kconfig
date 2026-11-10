@@ -29,8 +29,13 @@ config VBOOT_SLOTS_RW_A
 	help
 	  Have one update partition beside the RO partition.
 
+config VBOOT_SLOTS_RW_AB_SUPPORTED
+	bool
+	default y
+
 config VBOOT_SLOTS_RW_AB
 	bool "Firmware RO + RW_A + RW_B"
+	depends on VBOOT_SLOTS_RW_AB_SUPPORTED
 	select VBOOT_SLOTS_RW_A
 	help
 	  Have two update partitions beside the RO partition.

@@ -211,7 +211,7 @@ static bool cbfs_file_hash_mismatch(const void *buffer, size_t size,
 		if (!hash ||
 		    tspi_cbfs_measurement(mdata->h.filename, be32toh(mdata->h.type), hash)) {
 			ERROR("failed to measure '%s' into TPM log\n", mdata->h.filename);
-			if (CONFIG(PAYLOAD_CDK2) || CONFIG(SECURITY_FAIL_CLOSED))
+			if (CONFIG(SECURITY_FAIL_CLOSED) || CONFIG(PAYLOAD_CDK2))
 				die("Required CBFS measurement failed\n");
 		}
 	}

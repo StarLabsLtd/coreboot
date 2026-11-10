@@ -173,6 +173,8 @@ coreboot_table-test-srcs += src/lib/imd_cbmem.c
 coreboot_table-test-srcs += src/lib/imd.c
 coreboot_table-test-cflags += -I tests/include/tests/lib/fmap
 coreboot_table-test-mocks += cbmem_top_chipset
+coreboot_table-test-config += CONFIG_BMP_LOGO=1 CONFIG_BOOT_SPLASH_HANDOFF=1 \
+	CONFIG_USE_COREBOOT_FOR_BMP_RENDERING=0
 
 rtc-test-srcs += tests/lib/rtc-test.c
 rtc-test-srcs += src/lib/rtc.c
@@ -308,3 +310,70 @@ ux_locales-test-mocks += _cbfs_alloc \
 			vb2api_get_locale_id \
 			vboot_get_context
 ux_locales-test-config += CONFIG_VBOOT=1
+
+# Retained splash owner and physical framebuffer are exercised without firmware.
+tests-y += bootsplash-retained-test
+bootsplash-retained-test-stage := ramstage
+bootsplash-retained-test-srcs += tests/lib/bootsplash-retained-test.c
+bootsplash-retained-test-srcs += src/lib/imd.c
+bootsplash-retained-test-srcs += tests/stubs/console.c
+bootsplash-retained-test-srcs += tests/stubs/die.c
+bootsplash-retained-test-config += CONFIG_BMP_LOGO=1
+bootsplash-retained-test-config += CONFIG_BOOT_SPLASH_HANDOFF=1
+bootsplash-retained-test-config += CONFIG_SPLASH_SCREEN_FOOTER=1
+
+bootsplash-retained-test-config += CONFIG_BMP_LOGO_SOURCE_SCALE=1
+
+tests-y += bootsplash-hidpi-source-test
+bootsplash-hidpi-source-test-stage := ramstage
+bootsplash-hidpi-source-test-srcs := $(bootsplash-retained-test-srcs)
+bootsplash-hidpi-source-test-config := $(filter-out CONFIG_BMP_LOGO_SOURCE_SCALE=1, \
+	$(bootsplash-retained-test-config)) CONFIG_BMP_LOGO_SOURCE_SCALE=2
+
+# Exercise strict recovery locking without changing permissive recovery policy.
+tests-y += vboot-recovery-lock-test vboot-recovery-permissive-test
+vboot-recovery-lock-test-srcs += tests/lib/vboot-recovery-lock-test.c tests/stubs/console.c
+vboot-recovery-lock-test-stage := romstage
+vboot-recovery-lock-test-cflags += -I tests/include/tests/lib/fmap
+vboot-recovery-lock-test-config += CONFIG_VBOOT=1 CONFIG_TPM=1 CONFIG_TPM1=0 CONFIG_TPM2=1 \
+	CONFIG_SECURITY_FAIL_CLOSED=1 CONFIG_VBOOT_CBFS_INTEGRATION=1 \
+	CONFIG_VBOOT_HASH_BLOCK_SIZE=0x1000 CONFIG_TPM_GOOGLE=0 \
+	CONFIG_BOOTMEDIA_LOCK_IN_VERSTAGE=0 CONFIG_RESUME_PATH_SAME_AS_BOOT=0 \
+	CONFIG_VBOOT_DISABLE_DEV_ON_RECOVERY=0 CONFIG_VBOOT_WIPEOUT_SUPPORTED=0 \
+	CONFIG_VBOOT_LID_SWITCH=0 CONFIG_VBOOT_MUST_REQUEST_DISPLAY=0 \
+	CONFIG_TPM_SETUP_HIBERNATE_ON_ERR=0 CONFIG_EC_GOOGLE_CHROMEEC=0 \
+	CONFIG_VBOOT_HAS_REC_HASH_SPACE=0 CONFIG_VBOOT_SLOTS_RW_AB=1
+$(call copy-test,vboot-recovery-lock-test,vboot-recovery-permissive-test)
+vboot-recovery-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
+
+tests-y += vboot-floor-write-test vboot-floor-write-permissive-test
+vboot-floor-write-test-srcs += tests/lib/vboot-floor-write-test.c tests/stubs/console.c
+vboot-floor-write-test-stage := romstage
+vboot-floor-write-test-config += CONFIG_VBOOT=1 CONFIG_SECURITY_FAIL_CLOSED=1 \
+	CONFIG_VBOOT_MOCK_SECDATA=0
+$(call copy-test,vboot-floor-write-test,vboot-floor-write-permissive-test)
+vboot-floor-write-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
+
+tests-y += vboot-fallback-floor-test
+vboot-fallback-floor-test-srcs += tests/lib/vboot-fallback-floor-test.c \
+	3rdparty/vboot/firmware/2lib/2common.c \
+	3rdparty/vboot/firmware/2lib/2secdata_firmware.c \
+	3rdparty/vboot/firmware/2lib/2crc8.c
+vboot-fallback-floor-test-stage := romstage
+vboot-fallback-floor-test-config += CONFIG_VBOOT_SLOTS_RW_AB=1 \
+	CONFIG_VBOOT_CBFS_INTEGRATION=0
+vboot-fallback-floor-test-cflags += -DCHROMEOS_ENVIRONMENT \
+	-I3rdparty/vboot/firmware/2lib/include \
+	-Itests/include/tests/lib/fmap
+tests-y += vboot-fallback-floor-metadata-test vboot-fallback-floor-single-test
+$(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-metadata-test)
+vboot-fallback-floor-metadata-test-config += CONFIG_VBOOT_CBFS_INTEGRATION=1
+$(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-single-test)
+vboot-fallback-floor-single-test-config += CONFIG_VBOOT_SLOTS_RW_AB=0
+root_bridge_info-test-stage := ramstage
+root_bridge_info-test-srcs += tests/lib/root_bridge_info-test.c
+root_bridge_info-test-srcs += src/device/device_util.c
+root_bridge_info-test-srcs += tests/stubs/console.c
+root_bridge_info-test-config += CONFIG_PCI=1
+
+tests-y += root_bridge_info-test

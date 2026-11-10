@@ -35,6 +35,7 @@ export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
+EDK2_FIXED_MM_OUT ?= $(abspath ../../../build/FIXEDMMFV.Fv)
 
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
 BUILD_STR += -t GCC
@@ -54,6 +55,14 @@ endif
 ifneq ($(CONFIG_EDK2_BOOTSPLASH_FILE),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
 endif
+CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE ?= 1
+ifneq ($(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE),1)
+ifneq ($(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE),2)
+$(error Boot logo source scale must be 1 or 2)
+endif
+endif
+BUILD_STR += -D BOOT_LOGO_SOURCE_SCALE=$(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE)
+
 # BOOT_MANAGER_ESCAPE		= FALSE
 ifeq ($(CONFIG_EDK2_BOOT_MANAGER_ESCAPE),y)
 BUILD_STR += -D BOOT_MANAGER_ESCAPE=TRUE
@@ -68,6 +77,7 @@ endif
 ifneq ($(CONFIG_EDK2_CPU_TIMER_LIB),y)
 BUILD_STR += -D CPU_TIMER_LIB_ENABLE=FALSE
 else
+BUILD_STR += -D CPU_TIMER_LIB_ENABLE=TRUE
 BUILD_STR += --pcd gUefiCpuPkgTokenSpaceGuid.PcdCpuCoreCrystalClockFrequency=$(CONFIG_CPU_XTAL_HZ)
 endif
 # DISABLE_SERIAL_TERMINAL	= FALSE
@@ -77,7 +87,10 @@ BUILD_STR += -D DISABLE_SERIAL_TERMINAL=TRUE
 endif
 # VARIABLE_SUPPORT		= EMU
 # MAX_VARIABLE_SIZE		= 0x10000
-ifeq ($(CONFIG_SMMSTORE),y)
+ifeq ($(CONFIG_ASS),y)
+BUILD_STR += -D VARIABLE_SUPPORT=SPI
+BUILD_STR += -D ASS=TRUE
+else ifeq ($(CONFIG_SMMSTORE),y)
 BUILD_STR += -D VARIABLE_SUPPORT=SMMSTORE
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize=0x8000
 endif
@@ -157,12 +170,55 @@ FIRMWARE_GUID := $(subst ",,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
 COREBOOT_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
 CAPSULE_LOCALVERSION := $(COREBOOT_LOCALVERSION)
+ifeq ($(CAPSULE_LAYOUT_TRANSITION),1)
+ifneq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+$(error Layout-transition capsules require the Star Labs vboot profile)
+endif
+endif
 ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+ifneq ($(CONFIG_EDK2_SECURE_BOOT_SUPPORT),y)
+$(error Star Labs VBOOT requires EDK2 Secure Boot support)
+endif
+starlabs-vboot-custom-params := $(subst --define=, ,$(subst --pcd=, ,\
+	$(subst ',,$(call strip_quotes,$(CONFIG_EDK2_CUSTOM_BUILD_PARAMS)))))
+starlabs-vboot-custom-policy := $(filter SECURE_BOOT_ENABLE=% CAPSULE_SUPPORT=% \
+	CAPSULE_MAIN_FW_GUID=% \
+	gUefiPayloadPkgTokenSpaceGuid.PcdDefaultSecureBootEnable=% \
+	gEfiMdeModulePkgTokenSpaceGuid.PcdTpm2MeasurementRequired=%, \
+	$(subst -D, ,$(starlabs-vboot-custom-params)))
+ifneq ($(filter-out SECURE_BOOT_ENABLE=TRUE CAPSULE_SUPPORT=TRUE \
+	CAPSULE_MAIN_FW_GUID=$(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)) \
+	gUefiPayloadPkgTokenSpaceGuid.PcdDefaultSecureBootEnable=TRUE \
+	gEfiMdeModulePkgTokenSpaceGuid.PcdTpm2MeasurementRequired=TRUE, \
+	$(starlabs-vboot-custom-policy)),)
+$(error Star Labs VBOOT payload parameters must preserve measured Secure Boot)
+endif
+ifneq ($(or $(findstring FMP_DEVICE_PKCS7_PCD_INC,$(starlabs-vboot-custom-params)), \
+	$(findstring PcdFmpDevicePkcs7CertBufferXdr,$(starlabs-vboot-custom-params))),)
+$(error Star Labs VBOOT capsule trust must come from the configured public certificate)
+endif
+ifneq ($(findstring ImageVerificationPolicy,$(starlabs-vboot-custom-params)),)
+$(error Star Labs VBOOT uses the required EDK2 image verification policies)
+endif
+ifeq ($(CAPSULE_LAYOUT_TRANSITION),1)
+ifeq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(FIRMWARE_GUID)' | tr A-F a-f))
+$(error A layout-transition capsule must target the installed non-vboot GUID)
+endif
+else
 ifneq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(FIRMWARE_GUID)' | tr A-F a-f))
 $(error Star Labs VBOOT capsule GUID must match the configured firmware GUID)
 endif
+ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
+ifneq ($(CAPSULE_REGIONS),EC)
+ifneq ($(CAPSULE_REGIONS),FW_MAIN_A RW_FWID_A VBLOCK_A FW_MAIN_B RW_FWID_B VBLOCK_B)
+$(error Star Labs A/B VBOOT capsules must contain EC only or both signed RW slot tuples)
+endif
+endif
+else
 ifneq ($(CAPSULE_REGIONS),EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
 $(error Star Labs VBOOT capsules must update EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A)
+endif
+endif
 endif
 ifneq ($(CAPSULE_LOCALVERSION),$(COREBOOT_LOCALVERSION))
 $(error Star Labs VBOOT capsule version must match CONFIG_LOCALVERSION)
@@ -274,6 +330,21 @@ ifneq ($(CONFIG_EDK2_CUSTOM_BUILD_PARAMS),)
 BUILD_STR += $(CONFIG_EDK2_CUSTOM_BUILD_PARAMS)
 endif
 
+# The release profile owns these settings, including alternate CLI spellings.
+ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+BUILD_STR += -D SECURE_BOOT_ENABLE=TRUE
+BUILD_STR += --pcd gUefiPayloadPkgTokenSpaceGuid.PcdDefaultSecureBootEnable=TRUE
+BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdTpm2MeasurementRequired=TRUE
+BUILD_STR += --pcd gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy=0x04
+BUILD_STR += --pcd gEfiSecurityPkgTokenSpaceGuid.PcdFixedMediaImageVerificationPolicy=0x04
+BUILD_STR += --pcd gEfiSecurityPkgTokenSpaceGuid.PcdRemovableMediaImageVerificationPolicy=0x04
+ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+BUILD_STR += -D CAPSULE_SUPPORT=TRUE
+BUILD_STR += -D CAPSULE_MAIN_FW_GUID=$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID)
+BUILD_STR += -D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
+endif
+endif
+
 all: UefiPayloadPkg
 
 $(WORKSPACE):
@@ -289,9 +360,10 @@ endef
 
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
-		git clone --recurse-submodules $(CONFIG_EDK2_PLATFORMS_REPOSITORY) $(EDK2_PLATFORMS_PATH) -j5; \
+		git clone --recurse-submodules "$(EDK2_PLATFORMS_REPOSITORY)" "$(EDK2_PLATFORMS_PATH)" -j5 || exit 1; \
 	fi
-	cd $(EDK2_PLATFORMS_PATH); \
+	cd "$(EDK2_PLATFORMS_PATH)" || exit 1; \
+		test "$$(git rev-parse --show-toplevel)" = "$$(pwd -P)" || exit 1; \
 		origin_url=$$(git config --get remote.origin.url); \
 		if [ "$$origin_url" != "$(EDK2_PLATFORMS_REPOSITORY)" ]; then \
 			if [ -n "$$origin_url" ]; then \
@@ -323,10 +395,13 @@ $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 		$(update_submodules)
 
 $(EDK2_PATH): $(WORKSPACE)
+	test -n "$(EDK2_PATH_REPO_ROOT)" || \
+		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
 	if [ ! -d "$(EDK2_PATH)" ]; then \
-		git clone --recurse-submodules $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
+		git clone --recurse-submodules "$(EDK2_REPOSITORY)" "$(EDK2_PATH)" -j5 || exit 1; \
 	fi
-	cd "$(EDK2_PATH)"; \
+	cd "$(EDK2_PATH)" || exit 1; \
+		test "$$(git rev-parse --show-toplevel)" = "$$(pwd -P)" || exit 1; \
 		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
 		origin_url=$$(git config --get remote.origin.url); \
 		if [ "$$origin_url" != "$(EDK2_REPOSITORY)" ]; then \
@@ -403,7 +478,8 @@ checktools:
 	fi
 
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
-capsule_keys: $(EDK2_PATH)
+# Generate trust data after prep removes the previous workspace outputs.
+capsule_keys: $(EDK2_PATH) clean
 	type openssl > /dev/null 2>&1 || { echo "ERROR: Please install openssl."; exit 1; }; \
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"; \
 	binto_pcd="$(EDK2_PATH)/BaseTools/Scripts/BinToPcd.py"; \
@@ -443,8 +519,31 @@ prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools Source/C Source/Python 2>&1; \
 
+ifeq ($(CONFIG_ASS),y)
+ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+FIXED_MM_CAPSULE_ARGS := -D CAPSULE_SUPPORT=TRUE \
+	-D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
+endif
+FixedMmService: prep print
+	cd $(WORKSPACE); \
+		source $(EDK2_PATH)/edksetup.sh; \
+		if [ ! -f $(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.dsc ]; then \
+			echo "EDK2: The selected repository does not support the fixed MM service"; \
+			exit 1; \
+		fi; \
+		build -a IA32 -b $(RELEASE_STR) -t GCC \
+			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
+			$(FIXED_MM_CAPSULE_ARGS) \
+			$(CONFIG_EDK2_CUSTOM_BUILD_PARAMS) \
+			$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),$(FIXED_MM_CAPSULE_ARGS)) \
+			-y $(WORKSPACE)/Build/CorebootFixedMmService/FIXEDMMFV.txt || exit 1; \
+		cp $(WORKSPACE)/Build/CorebootFixedMmService/$(RELEASE_STR)_GCC/FV/FIXEDMMFV.Fv \
+			$(EDK2_FIXED_MM_OUT) || exit 1
+fixed_mm_service := FixedMmService
+endif
+
 $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
-	prep print
+	prep print $(fixed_mm_service)
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		echo -n "EDK2: Building... "; \
@@ -479,7 +578,8 @@ distclean:
 		git -C "$$path" clean -xffd || exit 1; \
 	done
 
-.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo UefiPayloadPkg clean distclean
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo FixedMmService \
+	UefiPayloadPkg clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
@@ -507,7 +607,9 @@ coreboot_capsule: $(EDK2_PATH)
 	trap cleanup EXIT; \
 	set -e; \
 	cp "$(COREBOOT_ROM)" "$$firmware_rom"; \
-	if [ "$(CONFIG_VBOOT)" = "y" ]; then \
+	if [ "$(CAPSULE_LAYOUT_TRANSITION)" = "1" ]; then \
+		cp "$$firmware_rom" "$$rmap_rom"; \
+	elif [ "$(CONFIG_VBOOT)" = "y" ]; then \
 		test -n "$(EDK2_APPEND_RMAP_MANIFEST)"; \
 		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
 	elif [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
@@ -557,7 +659,7 @@ coreboot_capsule: $(EDK2_PATH)
 		--guid "$(CAPSULE_GUID)" \
 		--embedded-drivers "$$embedded_driver_count" \
 		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)" \
-		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" --layout-fmap "$(COREBOOT_FMAP_LAYOUT)" --payload "$$payload" $(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)")); \
+		$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),--firmware-rom "$$firmware_rom" --layout-fmap "$(COREBOOT_FMAP_LAYOUT)" --payload "$$payload" $(if $(filter 1,$(CAPSULE_LAYOUT_TRANSITION)),--firmware-guid "$(FIRMWARE_GUID)",$(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)"))); \
 	mv -f "$$capsule_tmp" "$(COREBOOT_CAPSULE_OUT)"; \
 	trap - EXIT; \
 	rm -f "$$rmap_rom" "$$firmware_rom" "$$payload"

@@ -2,16 +2,32 @@
 
 if VENDOR_STARLABS
 
+config BMP_LOGO
+	default y if PAYLOAD_EDK2 && EDK2_BOOTSPLASH_FILE != ""
+
+config BMP_LOGO_FILE_NAME
+	default "\$(obj)/starlabs-logo.bmp" if PAYLOAD_EDK2
+
+config BOOT_SPLASH_HANDOFF
+	default y if PAYLOAD_EDK2
+
+config BMP_LOGO_SOURCE_SCALE
+	default EDK2_BOOTSPLASH_SOURCE_SCALE if PAYLOAD_EDK2 && !HAVE_CUSTOM_BMP_LOGO && \
+		BMP_LOGO_FILE_NAME = "\$(obj)/starlabs-logo.bmp"
+
+config EDK2_BOOTSPLASH_SOURCE_SCALE
+	default 2 if EDK2_BOOTSPLASH_FILE = "3rdparty/blobs/mainboard/starlabs/Logo-HiDPI.bmp"
+
 config EDK2_BOOTSPLASH_FILE
 	string
-	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"
+	default "3rdparty/blobs/mainboard/starlabs/Logo-HiDPI.bmp"
 
 if PAYLOAD_CDK2
 
 config BMP_LOGO
 	default y if LINEAR_FRAMEBUFFER
 
-config USE_COREBOOT_FOR_BMP_RENDERING
+config BOOT_SPLASH_HANDOFF
 	default y
 
 config BMP_LOGO_FILE_NAME
@@ -40,9 +56,6 @@ config EC_STARLABS_ITE_BIN_PATH
 
 if BOARD_STARLABS_ADL_SERIES || BOARD_STARLABS_STARBOOK_SERIES || \
 	BOARD_STARLABS_STARFIGHTER_SERIES
-
-config D3COLD_SUPPORT
-	default n
 
 config DIMM_SPD_SIZE
 	default 1024 if BOARD_STARLABS_STARBOOK_MTL
@@ -127,10 +140,21 @@ config VBOOT
 	select VBOOT_VBNV_FLASH
 	select VBOOT_VBNV_FLASH_PRIMARY
 
+config VBOOT_SLOTS_RW_AB_SUPPORTED
+	default y if BOARD_STARLABS_STARFIGHTER_MTL
+	default n
+
 config VBOOT_SLOTS_RW_AB
 	default y if VBOOT && PAYLOAD_CDK2 && DRIVERS_EFI_UPDATE_CAPSULES && \
 		BOARD_STARLABS_STARFIGHTER_MTL
 	select VBOOT_VBNV_FLASH_REDUNDANT
+
+config EDK2_SECURE_BOOT_SUPPORT
+	default y if VBOOT
+
+
+config SMM_AUTHVAR
+	default y if VBOOT_SLOTS_RW_AB && PAYLOAD_CDK2
 
 config TPM_MEASURE_MRC_CACHE
 	default y if VBOOT
@@ -176,8 +200,16 @@ config VBOOT_KEYBLOCK_VERSION
 
 endif # STARLABS_VBOOT_RELEASE_POLICY
 
+config DRIVERS_EFI_MAIN_FW_GUID
+	default "b96a6b09-dc2c-4e3a-86ee-47016c7b035a" if VBOOT && BOARD_STARLABS_ADL_HORIZON
+	default "581c8874-50e1-4231-af48-04cff1c4668f" if VBOOT && BOARD_STARLABS_STARBOOK_RPL_U
+	default "eef5c7c3-124f-406a-87fe-4b58589fd331" if VBOOT && BOARD_STARLABS_STARFIGHTER_MTL
+	default "634fefb2-7099-4e5c-8b85-bd458132f51e" if BOARD_STARLABS_ADL_HORIZON
+	default "41627bd8-70a0-490d-b834-5de90ccfb56d" if BOARD_STARLABS_STARBOOK_RPL_U
+	default "75b29ff6-e882-41c7-903f-5af89e004113" if BOARD_STARLABS_STARFIGHTER_MTL
+
 config DRIVERS_EFI_CAPSULE_REGIONS
-	default "EC FW_MAIN_A RW_FWID_A VBLOCK_A FW_MAIN_B RW_FWID_B VBLOCK_B" if VBOOT_SLOTS_RW_AB
+	default "FW_MAIN_A RW_FWID_A VBLOCK_A FW_MAIN_B RW_FWID_B VBLOCK_B" if VBOOT_SLOTS_RW_AB && STARLABS_VBOOT_RELEASE_POLICY
 	default "EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A" if VBOOT && STARLABS_VBOOT_RELEASE_POLICY
 	default "COREBOOT EC" if BOARD_STARLABS_ADL_HORIZON || \
 		BOARD_STARLABS_STARBOOK_RPL_U || BOARD_STARLABS_STARFIGHTER_MTL
@@ -247,7 +279,7 @@ config STARLABS_TOUCHPAD
 
 config STARLABS_TOUCHPAD_RUNTIME
 	def_bool STARLABS_TOUCHPAD && STARLABS_SMM_OPTION_HANDLER && \
-		SOC_INTEL_COMMON_BLOCK_I2C_SMM
+		SOC_INTEL_COMMON_BLOCK_I2C_SMM && USE_UEFI_VARIABLE_STORE
 
 config STARLABS_TOUCHPAD_CONTROLLER
 	string
@@ -259,27 +291,6 @@ config STARLABS_TOUCHPAD_PIXART
 config STARLABS_TOUCHPAD_CST
 	def_bool STARLABS_TOUCHPAD_CONTROLLER = "cst"
 	select STARLABS_TOUCHPAD
-
-config STARLABS_NVME_POWER_SEQUENCE
-	bool "Enable NVMe/M.2 slot power sequence"
-	depends on SOC_INTEL_COMMON_BLOCK_GPIO
-	default n
-	help
-	  Enable Fatcat-style 3-stage NVMe/M.2 slot sequencing using PWREN, PERST#
-	  and CLKREQ# pads.
-
-	  The sequencing is:
-	    1) pre-mem: PERST# asserted; PWREN=0; CLKREQ# disabled
-	    2) BS_PRE_DEVICE exit: PERST# still asserted; PWREN=1; CLKREQ# native
-	    3) BS_DEV_INIT_CHIPS entry: PERST# deasserted
-
-	  Boards selecting this option must provide their own pad configs and
-	  implement stage 1 (pre-mem) in their early pad configuration.
-
-	  For stage 2 and stage 3, boards must either implement the
-	  `variant_nvme_power_sequence_*()` helpers or provide pad tables via
-	  `variant_nvme_power_sequence_pads()` and
-	  `variant_nvme_power_sequence_post_pads()`.
 
 config TCG_OPAL_S3_UNLOCK
 	default y if ARCH_X86 && HAVE_SMI_HANDLER && HAVE_ACPI_RESUME && PCI && \

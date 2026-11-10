@@ -23,6 +23,7 @@
 #include <drivers/smmstore/capsule.h>
 #endif
 #include <elog.h>
+#include <efi_variable_service.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/oc_wdt.h>
@@ -358,6 +359,23 @@ reply:
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
 }
 
+static void southbridge_smi_efi_variable_service(
+	const struct smm_save_state_ops *save_state_ops)
+{
+	int node = save_state_ops->apmc_node(APM_CNT_EFI_VARIABLE_SERVICE);
+	if (node < 0)
+		return;
+
+	bool restore_wp = false;
+	uint32_t ret = EFI_VARIABLE_SERVICE_RET_FAILURE;
+
+	if (fast_spi_smm_write_begin(&restore_wp)) {
+		ret = efi_variable_service_communicate();
+		fast_spi_smm_write_end(restore_wp);
+	}
+	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
+}
+
 __weak int soc_gpio_lock_finalize(void)
 {
 	return 0;
@@ -531,21 +549,39 @@ static int finalize(void)
 {
 	static int finalize_done;
 	static int finalize_result;
+	const int other_error = CONFIG(ASS) ? APM_FINALIZE_OTHER_ERROR : -1;
 
 	if (finalize_done) {
 		printk(BIOS_DEBUG, "SMM already finalized.\n");
 		return finalize_result;
 	}
 
+	if (CONFIG(ASS)) {
+		bool restore_wp = false;
+
+		/* FTW recovery may need to write while the service is initialized. */
+		bool writable = fast_spi_smm_write_begin(&restore_wp);
+		int ret = writable ? efi_variable_service_finalize() : -1;
+
+		if (ret == EFI_VARIABLE_SERVICE_REBOOT_REQUIRED)
+			finalize_result |= APM_FINALIZE_REBOOT_REQUIRED;
+		else if (ret)
+			finalize_result |= APM_FINALIZE_EFI_ERROR;
+		if (writable)
+			fast_spi_smm_write_end(restore_wp);
+	}
+
 	enable_smm_code_access_check();
 
-	if (CONFIG(SPI_FLASH_SMM))
-		/* Re-init SPI driver to handle locked BAR */
+	/* The private service already uses SPI. Do not reopen writes or clear EISS. */
+	if (CONFIG(SPI_FLASH_SMM) && !CONFIG(ASS))
 		fast_spi_init();
 
 	boot_device_init();
 
-	if (enable_smm_bios_protection()) {
+	const bool bios_protection = enable_smm_bios_protection();
+
+	if (bios_protection) {
 		fast_spi_smm_write_end(true);
 	}
 
@@ -555,15 +591,22 @@ static int finalize(void)
 	 * therefore, this call must precede smihandler_soc_at_finalize().
 	 */
 	if (mainboard_smi_finalize())
-		finalize_result = -1;
+		finalize_result |= other_error;
 
 	/* Lock down all GPIOs that may have been requested by the SoC and/or the mainboard. */
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS) && soc_lock_gpios())
-		finalize_result = -1;
+		finalize_result |= other_error;
 
 	/* Specific SOC SMI handler during ramstage finalize phase */
 	if (smihandler_soc_at_finalize())
-		finalize_result = -1;
+		finalize_result |= other_error;
+	/* Hooks and fast_spi_init() may have opened writes: close last, before RSM. */
+	if (CONFIG(ASS)) {
+		fast_spi_smm_write_end(true);
+		if (fast_spi_wpd_status() ||
+		    (bios_protection && !fast_spi_bios_protected()))
+			finalize_result |= APM_FINALIZE_EFI_ERROR;
+	}
 	finalize_done = 1;
 
 	return finalize_result;
@@ -589,6 +632,10 @@ void smihandler_southbridge_apmc(
 	case APM_CNT_SMMSTORE:
 		if (CONFIG(SMMSTORE))
 			southbridge_smi_store(save_state_ops);
+		break;
+	case APM_CNT_EFI_VARIABLE_SERVICE:
+		if (CONFIG(ASS))
+			southbridge_smi_efi_variable_service(save_state_ops);
 		break;
 	case APM_CNT_AUTHVAR:
 #if CONFIG(SMM_AUTHVAR)
@@ -681,7 +728,7 @@ void smihandler_southbridge_tco(
 	fast_spi_clear_sync_smi_status();
 
 	/* If enabled, enforce SMM BIOS write protection */
-	if (enable_smm_bios_protection() && fast_spi_wpd_status()) {
+	if (fast_spi_wpd_status() && enable_smm_bios_protection()) {
 		/*
 		 * BWE is RW, so the SMI was caused by a
 		 * write to BWE, not by a write to the BIOS

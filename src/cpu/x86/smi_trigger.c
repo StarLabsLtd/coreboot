@@ -5,6 +5,7 @@
 #include <cpu/x86/smm.h>
 #include <smm_call.h>
 #include <stdint.h>
+#include <reset.h>
 
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_GPIO)
 #include <intelblocks/smm_gpio_defs.h>
@@ -28,6 +29,11 @@ static void apmc_log(const char *fn, u8 cmd)
 		break;
 	case APM_CNT_CFR_RUNTIME_APPLY:
 		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
+			break;
+		printk(BIOS_DEBUG, "%s: Unknown APMC 0x%02x.\n", fn, cmd);
+		break;
+	case APM_CNT_EFI_VARIABLE_SERVICE:
+		if (CONFIG(ASS))
 			break;
 		printk(BIOS_DEBUG, "%s: Unknown APMC 0x%02x.\n", fn, cmd);
 		break;
@@ -64,10 +70,15 @@ enum cb_err apm_control(u8 cmd)
 
 	/* Now raise the SMI. */
 	u32 ret = apm_control_call_smm(cmd);
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) &&
+	if (CONFIG(ASS) && cmd == APM_CNT_FINALIZE && ret == APM_FINALIZE_REBOOT_REQUIRED) {
+		printk(BIOS_INFO, "Rebooting after EFI variable store migration\n");
+		board_reset();
+	}
+	if ((CONFIG(SOC_INTEL_COMMON_BLOCK_SMM) || CONFIG(ASS)) &&
 	    cmd == APM_CNT_FINALIZE && ret) {
 		printk(BIOS_ERR, "APMC command 0x%02x failed.\n", cmd);
-		if (CONFIG(SECURITY_FAIL_CLOSED))
+		if (CONFIG(SECURITY_FAIL_CLOSED) ||
+		    (CONFIG(ASS) && ret != APM_FINALIZE_OTHER_ERROR))
 			die("SMM finalization failed\n");
 		return CB_ERR;
 	}

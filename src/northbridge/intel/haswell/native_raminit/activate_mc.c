@@ -69,7 +69,9 @@ static void update_sdll_length(struct sysinfo *ctrl)
 
 static void set_rx_clk_stg_num(struct sysinfo *ctrl, const uint8_t channel)
 {
-	const uint8_t rcven_drift = ctrl->lpddr ? DIV_ROUND_UP(tDQSCK_DRIFT, ctrl->qclkps) : 1;
+	const union ddr_data_control_0_reg ddr_data_control_0 = {
+		.raw = ctrl->dq_control_0[channel],
+	};
 	uint8_t max_rcven = 0;
 	for (uint8_t rank = 0; rank < NUM_SLOTRANKS; rank++) {
 		if (!rank_in_ch(ctrl, rank, channel))
@@ -78,15 +80,17 @@ static void set_rx_clk_stg_num(struct sysinfo *ctrl, const uint8_t channel)
 		for (uint8_t byte = 0; byte < ctrl->lanes; byte++)
 			max_rcven = MAX(max_rcven, ctrl->rcven[channel][rank][byte] / 64);
 	}
-	const union ddr_data_control_1_reg ddr_data_control_1 = {
-		.raw = ctrl->dq_control_1[channel][0],
-	};
-	const bool lpddr_long_odt = ddr_data_control_1.lpddr_long_odt_en;
-	const uint8_t rcven_turnoff = max_rcven + 18 + 2 * rcven_drift + lpddr_long_odt;
-	const union ddr_data_control_0_reg ddr_data_control_0 = {
-		.raw = ctrl->dq_control_0[channel],
-	};
+	const uint8_t rcven_drift = ctrl->lpddr ? DIV_ROUND_UP(tDQSCK_DRIFT, ctrl->qclkps) : 1;
+	const uint8_t tmp = (5 - 6) + 1 + 7 + 3 + 3 + 2;
+	uint8_t rcven_turnoff = max_rcven + tmp + 2 * rcven_drift;
 	for (uint8_t byte = 0; byte < ctrl->lanes; byte++) {
+		const union ddr_data_control_1_reg ddr_data_control_1 = {
+			.raw = ctrl->dq_control_1[channel][byte],
+		};
+		if (ddr_data_control_1.lpddr_long_odt_en) {
+			/* Stagger byte turn-off */
+			rcven_turnoff++;
+		}
 		union ddr_data_control_2_reg ddr_data_control_2 = {
 			.raw = ctrl->dq_control_2[channel][byte],
 		};
@@ -218,7 +222,7 @@ static inline uint32_t max(const uint32_t a, const uint32_t b)
 	return MAX(a, b);
 }
 
-enum raminit_status activate_mc(struct sysinfo *ctrl)
+enum nri_status activate_mc(struct sysinfo *ctrl)
 {
 	const bool enable_scrambling = true;
 	const bool enable_cmd_tristate = true;
@@ -329,10 +333,10 @@ enum raminit_status activate_mc(struct sysinfo *ctrl)
 		mchbar_write32(PM_THRT_CKE_MIN_ch(channel), 0x30);
 	}
 	mchbar_write32(PCU_DDR_PTM_CTL, 0x40);
-	return RAMINIT_STATUS_SUCCESS;
+	return NRI_STATUS_SUCCESS;
 }
 
-enum raminit_status normal_state(struct sysinfo *ctrl)
+enum nri_status normal_state(struct sysinfo *ctrl)
 {
 	/* Enable periodic COMP */
 	mchbar_write32(M_COMP, (union pcu_comp_reg) {
@@ -345,7 +349,7 @@ enum raminit_status normal_state(struct sysinfo *ctrl)
 		reut_set_normal_mode(channel);
 	}
 	power_down_config(ctrl);
-	return RAMINIT_STATUS_SUCCESS;
+	return NRI_STATUS_SUCCESS;
 }
 
 static void mc_lockdown(void)
@@ -368,7 +372,7 @@ static void mc_lockdown(void)
 	pci_or_config32(HOST_BRIDGE, TOLUD,       1 <<  0);
 }
 
-enum raminit_status raminit_done(struct sysinfo *ctrl)
+enum nri_status raminit_done(struct sysinfo *ctrl)
 {
 	union mc_init_state_g_reg mc_init_state_g = {
 		.raw = mchbar_read32(MC_INIT_STATE_G),
@@ -399,5 +403,5 @@ enum raminit_status raminit_done(struct sysinfo *ctrl)
 	/* Provide some data for the graphics driver. Yes, it's hardcoded. */
 	mchbar_write32(SSKPD + 0, 0x05a2404f);
 	mchbar_write32(SSKPD + 4, 0x140000a0);
-	return RAMINIT_STATUS_SUCCESS;
+	return NRI_STATUS_SUCCESS;
 }

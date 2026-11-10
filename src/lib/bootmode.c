@@ -25,7 +25,7 @@ void gfx_set_init_done(int done)
 
 int display_init_required(void)
 {
-	/* For vboot, honor VB2_CONTEXT_DISPLAY_INIT. */
+	/* Honor both the vboot display request and this stage's display policy. */
 	if (CONFIG(VBOOT)) {
 		/*
 		 * Display init requires VBOOT_MUST_REQUEST_DISPLAY || VBOOT_ALWAYS_ENABLE_DISPLAY;
@@ -33,7 +33,8 @@ int display_init_required(void)
 		 */
 		if (!CONFIG(VBOOT_MUST_REQUEST_DISPLAY) && !CONFIG(VBOOT_ALWAYS_ENABLE_DISPLAY))
 			dead_code();
-		return vboot_get_context()->flags & VB2_CONTEXT_DISPLAY_INIT;
+		return CONFIG(VBOOT_ALWAYS_ENABLE_DISPLAY) ||
+			(vboot_get_context()->flags & VB2_CONTEXT_DISPLAY_INIT);
 	}
 
 	/* By default always initialize display. */

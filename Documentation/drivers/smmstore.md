@@ -279,19 +279,21 @@ with highest bit set can be used.
 
 ### - SMMSTORE_CMD_USE_FULL_FLASH = 0x80
 
-This command can only be executed once and is done by the firmware.
-Calling this function at runtime has no effect. It takes one additional
-parameter that, contrary to other commands, isn't a pointer. Instead,
-`%ebx` indicates requested state of full flash access. If it equals 0,
-commands for accessing full flash are permanently disabled, otherwise
-they are permanently enabled until the next boot.
+The firmware uses this command to set the initial state of full flash
+access. The additional parameter is not a pointer: `%ebx` indicates the
+requested state. A nonzero value enables access only if the state has not
+yet been set. A zero value disables access, including an enabled state;
+once disabled, access cannot be enabled again until the next boot.
+
+The firmware disables full flash access before returning to the OS on S3
+resume. A runtime caller can also disable access, but cannot re-enable it.
 
 The assumption is that if capsule updates are enabled at build time and
 whole flash access is enabled at runtime, a UEFI payload (highly likely
 EDK2 or its derivative) won't allow a regular OS to boot if the handler is
-enabled without rebooting first. There could be a way of deactivating the
-handler, but coreboot, having no way of enforcing its usage, might as well
-permit access until a reboot and rely on the payload to do the right thing.
+enabled without rebooting first. Disabling the handler is also possible,
+but the payload is responsible for ensuring that it is disabled before
+returning control to an untrusted caller.
 
 ## External links
 

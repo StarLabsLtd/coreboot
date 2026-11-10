@@ -30,7 +30,8 @@ struct opal_nvme {
  *
  * The scratch memory must not be in SMRAM. It must be preserved across S3.
  */
-int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_t scratch_size);
+int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_t scratch_size,
+		   u64 mmio_base, size_t mmio_size);
 /* Returns only after DMA has stopped; otherwise reset or halt without reusing scratch. */
 void opal_nvme_deinit(struct opal_nvme *nvme);
 

@@ -36,12 +36,19 @@ ifneq ($(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT requires post-lockdown recovery clearing)
 endif
 ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
+ifeq ($(CONFIG_PAYLOAD_EDK2),y)
+ifneq ($(words $(filter y,$(CONFIG_ASS) $(CONFIG_PAYLOAD_EDK2) \
+	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES))),3)
+$(error Star Labs VBOOT A/B requires the EDK2 ASS capsule owner for boot acknowledgement)
+endif
+else
 ifneq ($(words $(filter y,$(CONFIG_PAYLOAD_CDK2) \
 	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES) $(CONFIG_SMM_AUTHVAR))),3)
 $(error Star Labs VBOOT A/B requires the protected CDK2 capsule owner)
 endif
+endif
 ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
-$(error Star Labs VBOOT A/B acknowledges boot success at ExitBootServices)
+$(error Star Labs VBOOT A/B acknowledges boot success at the payload handoff)
 endif
 else
 ifeq ($(CONFIG_PAYLOAD_CDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_SMM_AUTHVAR),yyy)
@@ -50,6 +57,12 @@ endif
 ifneq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT requires post-lockdown boot acknowledgement)
 endif
+endif
+ifneq ($(CONFIG_BOOTMEDIA_SMM_BWP),y)
+$(error Star Labs VBOOT requires SMM BIOS write protection)
+endif
+ifeq ($(CONFIG_BOOTMEDIA_SMM_BWP_RUNTIME_OPTION),y)
+$(error Star Labs VBOOT must not expose the BIOS lock runtime option)
 endif
 ifeq ($(CONFIG_VBOOT_MOCK_SECDATA),y)
 $(error Refusing a Star Labs VBOOT image with mocked anti-rollback state)
@@ -133,12 +146,28 @@ subdirs-$(CONFIG_VENDOR_STARLABS) += fsp_params
 subdirs-$(CONFIG_VENDOR_STARLABS) += pin_mux
 subdirs-$(CONFIG_VENDOR_STARLABS) += smbios
 
-ramstage-$(CONFIG_STARLABS_NVME_POWER_SEQUENCE) += nvme_seq.c
-
 CPPFLAGS_common += -I$(src)/mainboard/starlabs/common/include
 
 ramstage-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += gnvs.c
 ramstage-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
 smm-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
 smm-$(CONFIG_STARLABS_SMM_OPTION_HANDLER) += smihandler.c
+
+ifeq ($(CONFIG_PAYLOAD_EDK2),y)
+# FSP's native splash renderer has no display-density selection.
+ifeq ($(CONFIG_BOOT_SPLASH_HANDOFF)$(CONFIG_USE_COREBOOT_FOR_BMP_RENDERING),)
+ifeq ($(CONFIG_BMP_LOGO_SOURCE_SCALE),2)
+starlabs-logo-resize := -filter box -resize 50%
+endif
+endif
+$(obj)/starlabs-logo.bmp: $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)) \
+		$(obj)/config.h $(src)/mainboard/starlabs/common/Makefile.mk
+	@printf "    CONVERT    %s\n" "$@"
+	@if test -n "$(starlabs-logo-resize)"; then \
+		parity=$$(convert -ping "$<" -format '%[fx:w%2+h%2]' info:) || exit 1; \
+		test "$$parity" = 0 || \
+		{ printf '%s\n' 'Double-density boot logo requires even dimensions' >&2; exit 1; }; \
+	fi
+	convert -background None "$<" $(starlabs-logo-resize) -type TrueColor "BMP3:$@"
+endif
 smm-y += smi_apmc.c

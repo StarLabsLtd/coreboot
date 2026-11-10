@@ -6,6 +6,7 @@
 #include <cpu/x86/save_state.h>
 #include <cpu/x86/smm.h>
 #include <delay.h>
+#include <efi_variable_service.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <device/pci_type.h>
@@ -26,7 +27,7 @@
 #define OPAL_S3_UNLOCK_RETRIES          10
 
 #define OPAL_S3_STATE_SIGNATURE 0x33534c4f /* "OLS3" */
-#define OPAL_S3_STATE_VERSION   0x0001
+#define OPAL_S3_STATE_VERSION   0x0002
 #define OPAL_S3_SECRET_COUNT OPAL_S3_MAX_SECRETS
 
 #define OPAL_S3_ARMED_NONE      0
@@ -49,6 +50,8 @@ struct __packed opal_s3_secret {
 
 	u32 nvme_bar0_low;
 	u32 nvme_bar0_high;
+	u32 nvme_id;
+	size_t nvme_mmio_size;
 
 	u32 unlocked_cycle;
 };
@@ -67,6 +70,9 @@ struct __packed opal_s3_state {
 
 	struct opal_s3_secret secret[OPAL_S3_SECRET_COUNT];
 };
+
+_Static_assert(sizeof(struct opal_s3_state) <= CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE,
+	       "OPAL state exceeds its retained SMRAM reservation");
 
 static struct opal_s3_state state_fallback;
 
@@ -161,6 +167,33 @@ static struct opal_s3_secret *opal_s3_alloc_secret(struct opal_s3_state *st)
 	return NULL;
 }
 
+static const volatile struct resource *opal_s3_trusted_bar(pci_devfn_t dev)
+{
+	const volatile struct smm_pci_resource_info *slots;
+	size_t count;
+
+	smm_pci_get_stored_resources(&slots, &count);
+	for (size_t i = 0; i < count; i++) {
+		const volatile struct smm_pci_resource_info *slot = &slots[i];
+
+		if (!slot->vendor_id || slot->pci_addr != dev ||
+		    (((u32)slot->class_device << 8) | slot->class_prog) != OPAL_NVME_CLASS ||
+		    pci_read_config32(dev, PCI_VENDOR_ID) !=
+			((u32)slot->device_id << 16 | slot->vendor_id) ||
+		    (pci_read_config32(dev, PCI_CLASS_REVISION) >> 8) != OPAL_NVME_CLASS)
+			continue;
+		for (size_t j = 0; j < ARRAY_SIZE(slot->resources); j++) {
+			const volatile struct resource *res = &slot->resources[j];
+
+			if (res->index == PCI_BASE_ADDRESS_0 &&
+			    (res->flags & (IORESOURCE_MEM | IORESOURCE_ASSIGNED)) ==
+				(IORESOURCE_MEM | IORESOURCE_ASSIGNED))
+				return res;
+		}
+	}
+	return NULL;
+}
+
 static u32 opal_s3_clear_device(const struct opal_s3_smm_ctx *ctx)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
@@ -187,7 +220,7 @@ static u32 opal_s3_clear_device(const struct opal_s3_smm_ctx *ctx)
 	return 0;
 }
 
-static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
+static u32 opal_s3_set_secret_snapshot(const struct opal_s3_smm_ctx *ctx)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
 	struct opal_s3_secret *s;
@@ -196,6 +229,9 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	uintptr_t aligned_base = 0;
 	size_t aligned_size = 0;
 	pci_devfn_t nvme_dev;
+	const volatile struct resource *bar;
+	u32 bar_low, bar_high;
+	u64 base;
 
 	if (ctx->signature != OPAL_S3_SMM_CTX_SIGNATURE)
 		return 3;
@@ -217,7 +253,26 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 		return 7;
 	}
 
+	if (ctx->dev > 31 || ctx->func > 7)
+		return 9;
 	nvme_dev = PCI_DEV(ctx->bus, ctx->dev, ctx->func);
+	bar = opal_s3_trusted_bar(nvme_dev);
+	if (!bar || !bar->base || bar->size < 0x2000 ||
+	    bar->base > UINTPTR_MAX || bar->size - 1 > UINTPTR_MAX - bar->base)
+		return 9;
+	bar_low = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0);
+	bar_high = (bar_low & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) ==
+		PCI_BASE_ADDRESS_MEM_LIMIT_64 ? pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4) : 0;
+	base = ((u64)bar_high << 32) | (bar_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK);
+	/* Enrollment uses the trusted cold-boot allocation, never arbitrary live MMIO. */
+	if ((bar_low & PCI_BASE_ADDRESS_SPACE) || base != bar->base ||
+	    smm_points_to_smram((void *)(uintptr_t)base, bar->size))
+		return 9;
+
+	/* Ineligible devices were classified without modifying retained state or hardware.
+	 * MM retains handoff closure across S3 and CLEAR_SECRET. */
+	if (CONFIG(ASS) && !efi_variable_service_boot_access_allowed())
+		return 10;
 
 	if (st->signature != OPAL_S3_STATE_SIGNATURE || st->version != OPAL_S3_STATE_VERSION ||
 	    st->size != sizeof(*st)) {
@@ -247,12 +302,13 @@ static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
 	st->version = OPAL_S3_STATE_VERSION;
 	st->size = sizeof(*st);
 
-	s->nvme_bar0_low = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0);
-	s->nvme_bar0_high = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4);
+	s->nvme_bar0_low = bar_low;
+	s->nvme_bar0_high = bar_high;
+	s->nvme_id = pci_read_config32(nvme_dev, PCI_VENDOR_ID);
+	s->nvme_mmio_size = bar->size;
 
 	return 0;
 }
-
 
 static void opal_s3_arm_for_s3(void)
 {
@@ -281,26 +337,33 @@ static void opal_s3_arm_for_s3(void)
 	st->armed_state = OPAL_S3_ARMED_S3;
 }
 
-static void opal_s3_restore_nvme_bar0_if_needed(pci_devfn_t nvme_dev, u32 saved_bar0_low,
+static bool opal_s3_restore_nvme_bar0_if_needed(pci_devfn_t nvme_dev, u32 saved_bar0_low,
 						u32 saved_bar0_high)
 {
 	const u32 cur_low = pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0);
-	const u32 cur_base = cur_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK;
-	const u32 saved_base = saved_bar0_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK;
 	const bool is_saved_mem =
 		((saved_bar0_low & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY);
 	const bool is_saved_64 =
 		((saved_bar0_low & PCI_BASE_ADDRESS_MEM_LIMIT_MASK) == PCI_BASE_ADDRESS_MEM_LIMIT_64);
+	const u64 saved_base = (saved_bar0_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK) |
+		(is_saved_64 ? (u64)saved_bar0_high << 32 : 0);
 
-	if (cur_low != 0xffffffff && cur_base != 0)
-		return;
+	if (cur_low == saved_bar0_low &&
+	    (!is_saved_64 || pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4) == saved_bar0_high))
+		return true;
 
 	if (!saved_bar0_low || saved_base == 0 || !is_saved_mem)
-		return;
+		return false;
 
-	pci_write_config32(nvme_dev, PCI_BASE_ADDRESS_0, saved_bar0_low);
+	/* Decode and DMA stay off while restoring the enrollment-owned allocation. */
+	pci_and_config16(nvme_dev, PCI_COMMAND, ~(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER));
+	if (pci_read_config16(nvme_dev, PCI_COMMAND) & (PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER))
+		return false;
 	if (is_saved_64)
 		pci_write_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4, saved_bar0_high);
+	pci_write_config32(nvme_dev, PCI_BASE_ADDRESS_0, saved_bar0_low);
+	return pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0) == saved_bar0_low &&
+		(!is_saved_64 || pci_read_config32(nvme_dev, PCI_BASE_ADDRESS_0 + 4) == saved_bar0_high);
 }
 
 static bool opal_s3_unlock_should_keep_armed(u32 rc)
@@ -354,8 +417,19 @@ static u32 opal_s3_unlock_if_armed(void)
 			continue;
 
 		nvme_dev = PCI_DEV(s->bus, s->dev, s->func);
-		opal_s3_restore_nvme_bar0_if_needed(nvme_dev, s->nvme_bar0_low,
-						    s->nvme_bar0_high);
+		/* Check immutable device identity before power, decode, BAR or MMIO changes. */
+		if (pci_read_config32(nvme_dev, PCI_VENDOR_ID) != s->nvme_id ||
+		    (pci_read_config32(nvme_dev, PCI_CLASS_REVISION) >> 8) != OPAL_NVME_CLASS) {
+			rc = 9;
+			continue;
+		}
+		if (!opal_s3_restore_nvme_bar0_if_needed(nvme_dev, s->nvme_bar0_low,
+						      s->nvme_bar0_high)) {
+			rc = 9;
+			continue;
+		}
+		const u64 mmio_base = ((u64)s->nvme_bar0_high << 32) |
+			(s->nvme_bar0_low & ~PCI_BASE_ADDRESS_MEM_ATTR_MASK);
 
 		one_rc = 1;
 		for (int attempt = 0; attempt < OPAL_S3_UNLOCK_RETRIES; attempt++) {
@@ -365,7 +439,7 @@ static u32 opal_s3_unlock_if_armed(void)
 			one_rc = opal_nvme_opal_unlock(nvme_dev, s->base_comid, s->password,
 						       s->password_len,
 						       (void *)(uintptr_t)aligned_base,
-						       aligned_size);
+						       aligned_size, mmio_base, s->nvme_mmio_size);
 			if (one_rc == 0)
 				break;
 			if (one_rc != 1)
@@ -452,7 +526,7 @@ int opal_s3_smi_apmc(u8 apmc)
 		/* Validate and consume the same copy, never mutable caller memory. */
 		memcpy(&ctx, (const void *)(uintptr_t)rbx, sizeof(ctx));
 		if (subcmd == OPAL_SMM_SUBCMD_SET_SECRET)
-			ret = opal_s3_set_secret(&ctx);
+			ret = opal_s3_set_secret_snapshot(&ctx);
 		else
 			ret = opal_s3_clear_device(&ctx);
 		opal_explicit_bzero(&ctx, sizeof(ctx));

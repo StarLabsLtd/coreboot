@@ -164,11 +164,11 @@ static struct device_operations device_ops = {
 };
 
 static const unsigned short pci_device_ids[] = {
-	0x0c01, 0x0c05, 0x0c09, 0x0c0d,
+	0x0c01, 0x0c05, 0x0c09, /* Haswell */
 	0x0d01, 0x0d05, 0x0d09, /* Crystal Well */
 	0 };
 
-static const struct pci_driver pch_pcie __pci_driver = {
+static const struct pci_driver sa_pcie __pci_driver = {
 	.ops		= &device_ops,
 	.vendor		= PCI_VID_INTEL,
 	.devices	= pci_device_ids,
