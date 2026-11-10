@@ -2,7 +2,9 @@
 
 #include <acpi/acpigen_dsm.h>
 #include <acpi/acpi_device.h>
+#include <acpi/acpi.h>
 #include <assert.h>
+#include <delay.h>
 #include <device/device.h>
 #include <stdio.h>
 
@@ -53,9 +55,51 @@ static const char *i2c_hid_acpi_name(const struct device *dev)
 }
 #endif
 
+#if CONFIG(PAYLOAD_CDK2) && CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO)
+static void i2c_hid_init(struct device *dev)
+{
+	const struct drivers_i2c_hid_config *config = dev->chip_info;
+	const struct drivers_i2c_generic_config *power = &config->generic;
+	const struct acpi_gpio *gpios[] = {
+		&power->reset_gpio, &power->enable_gpio, &power->stop_gpio,
+	};
+
+	if (!power->has_power_resource || acpi_is_wakeup_s3())
+		return;
+	/* Use the same native GPIO resources and ordering as the ACPI _ON method. */
+	for (size_t i = 0; i < ARRAY_SIZE(gpios); i++) {
+		const struct acpi_gpio *gpio = gpios[i];
+
+		if (gpio->pin_count && (gpio->pin_count != 1 || gpio->resource ||
+		    gpio->type != ACPI_GPIO_TYPE_IO ||
+		    gpio->io_restrict != ACPI_GPIO_IO_RESTRICT_OUTPUT)) {
+			printk(BIOS_ERR, "%s: unsupported payload power GPIO\n", dev_path(dev));
+			return;
+		}
+	}
+	if (power->reset_gpio.pin_count)
+		gpio_set(power->reset_gpio.pins[0], !power->reset_gpio.active_low);
+	if (power->enable_gpio.pin_count) {
+		gpio_set(power->enable_gpio.pins[0], !power->enable_gpio.active_low);
+		mdelay(power->enable_delay_ms);
+	}
+	if (power->reset_gpio.pin_count) {
+		gpio_set(power->reset_gpio.pins[0], power->reset_gpio.active_low);
+		mdelay(power->reset_delay_ms);
+	}
+	if (power->stop_gpio.pin_count) {
+		gpio_set(power->stop_gpio.pins[0], power->stop_gpio.active_low);
+		mdelay(power->stop_delay_ms);
+	}
+}
+#endif
+
 static struct device_operations i2c_hid_ops = {
 	.read_resources		= noop_read_resources,
 	.set_resources		= noop_set_resources,
+#if CONFIG(PAYLOAD_CDK2) && CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO)
+	.init			= i2c_hid_init,
+#endif
 #if CONFIG(HAVE_ACPI_TABLES)
 	.acpi_name		= i2c_hid_acpi_name,
 	.acpi_fill_ssdt		= i2c_hid_fill_ssdt_generator,
