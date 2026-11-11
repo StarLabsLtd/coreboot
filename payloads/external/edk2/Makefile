@@ -62,8 +62,8 @@ endif
 # OPTION			= DEFAULT_VALUE
 #
 # BOOTSPLASH_IMAGE		= FALSE
-# Skip when EDK2_CBFS_ASSETS (logo goes to CBFS as efi/logo.bmp).
-ifneq ($(CONFIG_EDK2_CBFS_ASSETS),y)
+# Skip the embedded copy when CBFS provides it or coreboot retains the splash.
+ifeq ($(filter y,$(CONFIG_EDK2_CBFS_ASSETS) $(CONFIG_BOOT_SPLASH_HANDOFF)),)
 ifneq ($(CONFIG_EDK2_BOOTSPLASH_FILE),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
 endif
