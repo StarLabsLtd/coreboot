@@ -7,7 +7,7 @@ if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
 	exit 2
 fi
 
-source_path=$1
+source_path=$(realpath --relative-to="$(git rev-parse --show-toplevel)" "$1")
 development=0
 case ${2:-} in
 	''|0) ;;

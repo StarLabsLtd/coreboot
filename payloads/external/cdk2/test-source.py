@@ -28,11 +28,11 @@ with tempfile.TemporaryDirectory(prefix="cdk2-source-") as directory:
     pinned = git(source, "rev-parse", "HEAD")
     git(root, "update-index", "--add", "--cacheinfo", "160000", pinned, "payload")
 
-    def verify(expected, development=""):
+    def verify(expected, development="", path="payload"):
         before = (git(source, "rev-parse", "HEAD"), tracked.read_bytes(),
                   git(source, "status", "--porcelain"))
         result = subprocess.run(
-            ["sh", str(verifier), "payload", development], cwd=root,
+            ["sh", str(verifier), str(path), development], cwd=root,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
             env={**os.environ, "development": "1"})
         assert result.returncode == expected, result.stderr
@@ -41,9 +41,12 @@ with tempfile.TemporaryDirectory(prefix="cdk2-source-") as directory:
         assert before == after, "source verification modified the checkout"
 
     verify(0)
+    verify(0, path=source)
     tracked.write_text("developer edit\n")
     verify(1)
+    verify(1, path=source)
     verify(0, "1")
+    verify(0, "1", path=source)
     verify(2, "yes")
     git(source, "commit", "-qam", "New source")
     verify(1)
