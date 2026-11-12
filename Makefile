@@ -62,7 +62,8 @@ HAVE_DOTCONFIG := $(wildcard $(DOTCONFIG))
 # Check the recorded source before Kconfig and build rules read it. Never fetch
 # or switch a developer's checkout while parsing a makefile (including make -n).
 ifneq ($(filter-out clean distclean help,$(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)),)
-ifneq ($(shell grep -l '^CONFIG_PAYLOAD_CDK2=y$$' $(DOTCONFIG) $(KBUILD_DEFCONFIG) 2>/dev/null),)
+# Kconfig reads the payload definitions even before a payload is selected.
+ifneq ($(strip $(filter %config,$(MAKECMDGOALS)) $(shell grep -l '^CONFIG_PAYLOAD_CDK2=y$$' $(DOTCONFIG) $(KBUILD_DEFCONFIG) 2>/dev/null)),)
 CDK2_SOURCE_CHECK := $(shell sh payloads/external/cdk2/verify-source.sh \
 	payloads/external/cdk2/cdk2 "$(CDK2_DEVELOPMENT)" 1>&2 && echo ready)
 ifneq ($(CDK2_SOURCE_CHECK),ready)
