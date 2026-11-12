@@ -59,15 +59,14 @@ KBUILD_DEFCONFIG := configs/defconfig
 UNAME_RELEASE := $(shell uname -r)
 HAVE_DOTCONFIG := $(wildcard $(DOTCONFIG))
 
-# Resolve the development payload before Kconfig and build rules read it.
-ifeq ($(CDK2_SOURCE_READY),)
+# Check the recorded source before Kconfig and build rules read it. Never fetch
+# or switch a developer's checkout while parsing a makefile (including make -n).
 ifneq ($(filter-out clean distclean help,$(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)),)
 ifneq ($(shell grep -l '^CONFIG_PAYLOAD_CDK2=y$$' $(DOTCONFIG) $(KBUILD_DEFCONFIG) 2>/dev/null),)
-CDK2_SOURCE_SYNC := $(shell sh payloads/external/cdk2/update-source.sh 1>&2 && echo ready)
-ifneq ($(CDK2_SOURCE_SYNC),ready)
-$(error Failed to update CDK2 main)
-endif
-export CDK2_SOURCE_READY := 1
+CDK2_SOURCE_CHECK := $(shell sh payloads/external/cdk2/verify-source.sh \
+	payloads/external/cdk2/cdk2 "$(CDK2_DEVELOPMENT)" 1>&2 && echo ready)
+ifneq ($(CDK2_SOURCE_CHECK),ready)
+$(error CDK2 source verification failed)
 endif
 endif
 endif

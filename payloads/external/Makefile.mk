@@ -277,7 +277,7 @@ cdk2/config-compression := LZMA
 # cannot leave a stale payload in the outer build.
 .PHONY: cdk2-force
 cdk2-force:
-	@test "$(CDK2_SOURCE_READY)" = 1 || { echo 'CDK2 source was not prepared' >&2; exit 1; }
+	@sh payloads/external/cdk2/verify-source.sh $(CDK2_SOURCE) "$(CDK2_DEVELOPMENT)"
 
 $(CDK2_CONFIG): $(CDK2_PAYLOAD)
 
