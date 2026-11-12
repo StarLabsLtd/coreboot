@@ -26,3 +26,14 @@ git add payloads/external/cdk2/cdk2
 
 The update script refuses local changes. Review and commit the new gitlink with
 the producer changes it requires. Normal make targets never invoke this script.
+
+Run `python3 payloads/external/cdk2/test-profiles.py --out /absolute/output/path`
+to resolve the 19 native Star Labs profiles and check their selected board,
+architecture, payload, update GUID and variable owner. This checks configuration,
+not compilation or platform qualification. These profiles select ordinary
+SMMSTORE variables; they do not qualify protected variables or early DMA.
+
+The former `config.starlabs_starfighter_phx` EDK2 profile is not supported in
+this tree: neither its board selector nor its Phoenix firmware description
+exists here. It has been removed rather than letting Kconfig silently select a
+different motherboard while retaining a Phoenix update GUID.
