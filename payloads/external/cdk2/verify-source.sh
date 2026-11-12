@@ -8,6 +8,7 @@ if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
 fi
 
 source_path=$1
+development=0
 case ${2:-} in
 	''|0) ;;
 	1) development=1 ;;

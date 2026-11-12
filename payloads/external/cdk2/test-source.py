@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """Exercise the production source verifier without network access or real repos."""
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 
@@ -32,7 +33,8 @@ with tempfile.TemporaryDirectory(prefix="cdk2-source-") as directory:
                   git(source, "status", "--porcelain"))
         result = subprocess.run(
             ["sh", str(verifier), "payload", development], cwd=root,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env={**os.environ, "development": "1"})
         assert result.returncode == expected, result.stderr
         after = (git(source, "rev-parse", "HEAD"), tracked.read_bytes(),
                  git(source, "status", "--porcelain"))
