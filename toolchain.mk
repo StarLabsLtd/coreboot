@@ -175,11 +175,12 @@ ifneq ($(NOCOMPILE),1)
 # llvm/clang also needs patches supplied by the coreboot build
 COMPILERFAIL:=0
 IASLFAIL:=0
+toolchain_arches := $(sort $(foreach stage,$(COREBOOT_STANDARD_STAGES),$(ARCH-$(stage)-y)) \
+	$(if $(filter y,$(CONFIG_PAYLOAD_CDK2)),x86_64))
 
 ifneq ($(CONFIG_ANY_TOOLCHAIN),y)
 # Verify that the coreboot toolchain is being used.
-$(foreach arch,$(sort $(foreach stage,\
-	$(COREBOOT_STANDARD_STAGES),$(ARCH-$(stage)-y))), \
+$(foreach arch,$(toolchain_arches), \
 	$(if $(shell if [ -n "$(CC_$(arch))" ]; then \
 		$(CC_$(arch)) -v 2>&1 | grep -q "coreboot toolchain" || \
 		echo not-coreboot; else echo not-coreboot; fi), \
@@ -199,8 +200,7 @@ $(if $(shell if [ -n "$(IASL)" ]; then \
 		'$(shell util/crossgcc/buildgcc -s iasl)' was not found))
 else #$(CONFIG_ANY_TOOLCHAIN)
 # If the coreboot toolchain isn't being used, verify that there is A toolchain
-$(foreach arch,$(sort \
-	$(foreach stage,$(COREBOOT_STANDARD_STAGES),$(ARCH-$(stage)-y))), \
+$(foreach arch,$(toolchain_arches), \
 	$(if $(CC_$(arch)),, $(eval COMPILERFAIL:=1) \
 	$(warning No compiler found for '$(arch)' architecture. \
 		Install one or use the coreboot toolchain?)) )

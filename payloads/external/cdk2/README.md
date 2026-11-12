@@ -6,6 +6,11 @@ Initialize the recorded payload and its dependencies before configuring:
 git submodule update --init --recursive payloads/external/cdk2/cdk2
 ```
 
+Build coreboot's `crossgcc-i386` and `crossgcc-x64` targets, plus `iasl`.
+The native payload is x86-64 even when coreboot's stages are 32-bit. Both
+compilers participate in the ordinary toolchain check; a distribution compiler
+is not silently substituted for a missing payload cross-compiler.
+
 Ordinary configuration, builds and dry runs require the clean CDK2 checkout
 recorded by coreboot's staged gitlink. They do not fetch or switch CDK2 sources.
 Once the pinned objects and dependencies are present, source selection needs
