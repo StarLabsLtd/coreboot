@@ -569,6 +569,26 @@ static void lb_add_acpi_rsdp(struct lb_header *head)
 	acpi_rsdp->rsdp_pointer = get_coreboot_rsdp();
 }
 
+static void lb_add_acpi_s5_info(struct lb_header *head)
+{
+	struct lb_acpi_s5_info *info;
+
+	if (!CONFIG(ACPI_COMMON_SLEEP_STATES) || acpi_tables_from_fw_cfg() ||
+	    CONFIG(ACPI_INTEL_HARDWARE_SLEEP_VALUES) == CONFIG(ACPI_AMD_HARDWARE_SLEEP_VALUES))
+		return;
+	info = (struct lb_acpi_s5_info *)lb_new_record(head);
+	*info = (struct lb_acpi_s5_info) {
+		.tag = LB_TAG_ACPI_S5_INFO,
+		.size = sizeof(*info),
+		.revision = LB_ACPI_S5_INFO_REVISION,
+		.kind = LB_ACPI_S5_PM1,
+		.sleep_type_a = CONFIG(ACPI_INTEL_HARDWARE_SLEEP_VALUES) ?
+			ACPI_COMMON_INTEL_S5_A : ACPI_COMMON_AMD_S5_A,
+		.sleep_type_b = CONFIG(ACPI_INTEL_HARDWARE_SLEEP_VALUES) ?
+			ACPI_COMMON_INTEL_S5_B : ACPI_COMMON_AMD_S5_B,
+	};
+}
+
 static void lb_add_boot_mode(struct lb_header *header)
 {
 	struct lb_boot_mode *mode = (struct lb_boot_mode *)lb_new_record(header);
@@ -742,8 +762,10 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* Add all cbmem entries into the coreboot tables. */
 	cbmem_add_records_to_cbtable(head);
 
-	if (CONFIG(HAVE_ACPI_TABLES))
+	if (CONFIG(HAVE_ACPI_TABLES)) {
 		lb_add_acpi_rsdp(head);
+		lb_add_acpi_s5_info(head);
+	}
 
 	lb_add_boot_mode(head);
 	lb_add_boot_reason(head);
