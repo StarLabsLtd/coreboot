@@ -89,6 +89,7 @@ enum sm_object_kind {
 
 struct sm_object {
 	enum sm_object_kind kind;
+	bool restore_default;
 	const struct sm_object *dep;
 	const uint32_t *dep_values;
 	const uint32_t num_dep_values;
@@ -124,6 +125,7 @@ struct sm_object {
 				  .ctor = NULL, .sm_form    = __VA_ARGS__ }
 
 #define WITH_CALLBACK(c) .ctor = (c)
+#define WITH_RESTORE_DEFAULT .restore_default = true
 #define WITH_DEP(d) .dep = (d)
 #define WITH_DEP_VALUES(d, ...)							\
 	.dep = (d),								\
@@ -177,6 +179,7 @@ void cfr_register_overrides(const struct cfr_default_override *overrides);
 void cfr_write_setup_menu(struct lb_cfr *cfr_root, struct sm_obj_form *sm_root[]);
 void cfr_write_form_roles(struct lb_header *header, const struct lb_cfr *root);
 void cfr_write_form_categories(struct lb_header *header, const struct lb_cfr *root);
+void cfr_write_default_options(struct lb_header *header, const struct lb_cfr *root);
 
 #if ENV_RAMSTAGE
 #define __cfr_form __attribute__((used, __section__(".rodata.cfr_forms")))
