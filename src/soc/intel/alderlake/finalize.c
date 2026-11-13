@@ -13,6 +13,7 @@
 #include <device/mmio.h>
 #include <device/pci.h>
 #include <intelblocks/cse.h>
+#include <intelblocks/cpulib.h>
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/pcr.h>
 #include <intelblocks/pmclib.h>
@@ -85,7 +86,10 @@ static void soc_finalize(void *unused)
 	printk(BIOS_DEBUG, "Finalizing chipset.\n");
 
 	pch_finalize();
-	apm_control(APM_CNT_FINALIZE);
+	if (apm_control(APM_CNT_FINALIZE) != CB_SUCCESS && CONFIG(SECURITY_FAIL_CLOSED))
+		die("Chipset finalization failed\n");
+	if (CONFIG(TPM_MEASURED_BOOT) && CONFIG(SECURITY_FAIL_CLOSED))
+		intel_measure_boot_policy();
 	tbt_finalize();
 	if (CONFIG(USE_FSP_NOTIFY_PHASE_READY_TO_BOOT) &&
 			 CONFIG(USE_FSP_NOTIFY_PHASE_END_OF_FIRMWARE))

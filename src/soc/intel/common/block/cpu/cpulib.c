@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
 #include <acpi/acpigen.h>
 #include <assert.h>
 #include <console/console.h>
 #include <cpu/cpu.h>
 #include <cpu/intel/common/common.h>
+#include <cpu/intel/msr.h>
+#include <cpu/intel/microcode.h>
 #include <cpu/intel/turbo.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mtrr.h>
@@ -12,6 +15,8 @@
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <smp/node.h>
+#include <security/tpm/tspi.h>
+#include <stdio.h>
 #include <soc/soc_chip.h>
 #include <static.h>
 #include <types.h>
@@ -513,4 +518,30 @@ void disable_signaling_three_strike_event(void)
 	msr = rdmsr(MSR_DISABLE_SIGNALING_THREE_STRIKE_EVENT);
 	msr.lo = msr.lo | THREE_STRIKE_COUNT;
 	wrmsr(MSR_DISABLE_SIGNALING_THREE_STRIKE_EVENT, msr);
+}
+
+void intel_measure_boot_policy(void)
+{
+	char event[50];
+
+	if (!CONFIG(TPM_MEASURED_BOOT) || !CONFIG(SECURITY_FAIL_CLOSED) || acpi_is_wakeup_s3())
+		return;
+	/* Observation after initialization, not proof of pre-CRTM execution. */
+	snprintf(event, sizeof(event), "CPU:v1:id=%08x,ucode=%08x",
+		 cpuid_eax(1), get_current_microcode_rev());
+	tpm_measure_policy(event);
+	/* Record the hardware activation register independently of FSP's input. */
+	if (is_tme_supported()) {
+		msr_t activate = rdmsr(MSR_TME_ACTIVATE);
+
+		snprintf(event, sizeof(event), "TME:v1:activate=%08x%08x", activate.hi, activate.lo);
+	} else {
+		snprintf(event, sizeof(event), "TME:v1:unsupported");
+	}
+	tpm_measure_policy(event);
+	/* Read back protection after SMM finalize, rather than assuming configuration took effect. */
+	snprintf(event, sizeof(event), "BIOS:v1:bwp=%u,runtime=%u,protected=%u",
+		 CONFIG(BOOTMEDIA_SMM_BWP), CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION),
+		 fast_spi_bios_protected());
+	tpm_measure_policy(event);
 }
