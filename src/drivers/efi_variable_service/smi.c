@@ -524,6 +524,23 @@ uint32_t efi_variable_service_communicate(void)
 	return EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
+bool efi_variable_service_boot_access_allowed(void)
+{
+	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+							    void *, size_t *);
+	uint8_t query = 1;
+	size_t size = sizeof(query);
+	mm_manage manage;
+
+	if (current_state != SERVICE_READY || !entry_in_core(service->manage_entry))
+		return false;
+
+	/* Query the retained MM lifecycle using a native-owned request and result. */
+	manage = (void *)(uintptr_t)service->manage_entry;
+	return !manage(&efi_variable_service_ready_guid, NULL, &query, &size) &&
+		size == sizeof(query) && query == 1;
+}
+
 enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 {
 	union {

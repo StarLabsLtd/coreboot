@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <types.h>
 
+/* PCI NVM storage class, NVM Express programming interface. */
+#define OPAL_NVME_CLASS 0x010802
+
 static inline void opal_explicit_bzero(void *ptr, size_t len)
 {
 	volatile u8 *p = (volatile u8 *)ptr;

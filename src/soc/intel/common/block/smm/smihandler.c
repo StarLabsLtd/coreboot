@@ -459,6 +459,9 @@ static int finalize(void)
 		}
 	}
 
+	if (opal_s3_finalize_resources())
+		finalize_result |= other_error;
+
 	enable_smm_code_access_check();
 
 	/* The private service already uses SPI. Do not reopen writes or clear EISS. */

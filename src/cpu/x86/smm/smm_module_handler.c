@@ -8,6 +8,8 @@
 #include <console/uart.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
+#include <security/tcg/opal_s3.h>
+#include <security/tcg/opal_s3_smm.h>
 #include <rmodule.h>
 #include <types.h>
 #include <security/intel/stm/SmmStm.h>
@@ -117,6 +119,13 @@ void smm_get_opal_s3_scratch_buffer(uintptr_t *base, size_t *size)
 {
 	*base = smm_runtime.opal_s3_scratch_base;
 	*size = smm_runtime.opal_s3_scratch_size;
+}
+#endif
+
+#if CONFIG(TCG_OPAL_S3_UNLOCK)
+int opal_s3_finalize_resources(void)
+{
+	return opal_s3_import_pci_resources(&smm_runtime);
 }
 #endif
 
@@ -294,6 +303,12 @@ asmlinkage void smm_handler_start(void *arg)
 #if CONFIG(SMM_PCI_RESOURCE_STORE)
 const volatile struct smm_pci_resource_info *smm_get_pci_resource_store(void)
 {
+#if CONFIG(TCG_OPAL_S3_UNLOCK)
+	const struct smm_pci_resource_info *resources = opal_s3_get_pci_resources();
+
+	if (resources)
+		return resources;
+#endif
 	return &smm_runtime.pci_resources[0];
 }
 #endif
