@@ -86,6 +86,9 @@ ifeq ($(CONFIG_PAYLOAD_EDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVER
 finalised_rom:: $(obj)/coreboot.cap
 capsule:: $(obj)/coreboot.cap
 
+# Command-line capsule mode and target identity must be checked on every request.
+.PHONY: $(obj)/coreboot.cap
+
 $(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) payloads/external/Makefile.mk \
 	payloads/external/edk2/Makefile util/efi_capsule/validate_capsule.py | files_added
 	$(MAKE) -C payloads/external/edk2 coreboot_capsule \

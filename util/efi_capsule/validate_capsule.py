@@ -248,9 +248,10 @@ def validate_rmap(image, expected_regions, expected_firmware=None,
             raise ValidationError(f"RMAP region '{region}' overlaps immutable WP_RO")
     if "RW_NVRAM" not in areas:
         raise ValidationError("RMAP policy has no RW_NVRAM region")
-    nvram_offset, nvram_size = areas["RW_NVRAM"]
-    if image[nvram_offset:nvram_offset + nvram_size] != b"\xff" * nvram_size:
-        raise ValidationError("RW_NVRAM must be erased in a vboot capsule")
+    if "RW_NVRAM" in regions:
+        nvram_offset, nvram_size = areas["RW_NVRAM"]
+        if image[nvram_offset:nvram_offset + nvram_size] != b"\xff" * nvram_size:
+            raise ValidationError("RW_NVRAM must be erased in a vboot capsule")
 
 
 def parse_ffs_files(data):
@@ -342,7 +343,7 @@ def validate_embedded_driver(driver, module_dir, expected_guid):
 
 def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
              fmp_module_dir=None, expected_rmap_regions=None,
-             expected_firmware=None, expected_layout=None, payload=None):
+             expected_firmware=None, expected_layout=None, payload=None, firmware_guid=None):
     capsule_guid, embedded, image, image_support = parse_capsule(capsule)
     embedded_count = len(embedded)
     if capsule_guid != expected_guid:
@@ -365,16 +366,32 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
         if firmware_volume not in packaged_volumes:
             raise ValidationError("expected DXE firmware volume is not in the packaged payload")
 
+    resident_guid = expected_guid if firmware_guid is None else firmware_guid
     matching_drivers = sum(
-        file_guid == expected_guid and file_type == FFS_FILETYPE_DRIVER
+        file_guid == resident_guid and file_type == FFS_FILETYPE_DRIVER
         for file_guid, file_type in parse_ffs_files(firmware_volume)
     )
-    if matching_drivers > 1 or (not embedded and matching_drivers != 1):
+    require_resident = not embedded or firmware_guid is not None
+    if matching_drivers > 1 or (require_resident and matching_drivers != 1):
         raise ValidationError(
             f"firmware volume has {matching_drivers} resident FMP drivers "
-            f"with GUID {expected_guid}, expected {'0 or 1' if embedded else '1'}"
+            f"with GUID {resident_guid}, expected {'1' if require_resident else '0 or 1'}"
         )
     firmware = unwrap_update_image(image, image_support, expected_guid)
+    if firmware_guid is not None and expected_rmap_regions is None:
+        if expected_firmware is None or firmware != expected_firmware:
+            raise ValidationError("transition payload does not match the new firmware image")
+        if expected_layout is None:
+            raise ValidationError("transition requires the new firmware FMAP")
+        _, _, _, areas = parse_fmap(expected_layout, 0)
+        if "FMAP" not in areas:
+            raise ValidationError("transition layout has no FMAP area")
+        offset, size = areas["FMAP"]
+        candidate = parse_fmap(firmware, offset, len(firmware))
+        count = struct.unpack_from("<H", expected_layout, 54)[0]
+        length = FMAP_HEADER_SIZE + count * FMAP_AREA_SIZE
+        if candidate[3] != areas or firmware[offset:offset + length] != expected_layout[:length]:
+            raise ValidationError("transition FMAP does not match the new firmware layout")
     if expected_rmap_regions is not None:
         validate_rmap(firmware, expected_rmap_regions,
                       expected_firmware, expected_layout)
@@ -385,6 +402,8 @@ def main():
     parser.add_argument("--capsule", required=True, help="generated FMP capsule")
     parser.add_argument("--firmware-volume", required=True, help="EDK2 DXE FV")
     parser.add_argument("--guid", required=True, type=uuid.UUID)
+    parser.add_argument("--firmware-guid", type=uuid.UUID,
+                        help="new firmware identity for an explicit layout transition")
     parser.add_argument("--embedded-drivers", required=True, type=int)
     parser.add_argument("--fmp-module-dir", help="FmpDxe module build directory")
     parser.add_argument("--rmap-region", action="append", dest="rmap_regions",
@@ -414,7 +433,7 @@ def main():
             with open(args.payload, "rb") as payload_file:
                 payload = payload_file.read()
         validate(capsule, firmware_volume, args.guid, args.embedded_drivers,
-                 args.fmp_module_dir, args.rmap_regions, firmware, layout, payload)
+                 args.fmp_module_dir, args.rmap_regions, firmware, layout, payload, args.firmware_guid)
     except (OSError, ValidationError) as error:
         print(f"capsule validation failed: {error}", file=sys.stderr)
         return 1
