@@ -285,12 +285,6 @@ const struct gpio_lock_config *soc_gpio_lock_config(size_t *num);
 /* Finish SoC-specific lockdown after attempting the pad locks. */
 int soc_gpio_lock_finalize(void);
 
-#if !CONFIG(PCR_COMMON_IOSF_1_0)
-/* Access protected GPIO outputs through SBI from SMM only. */
-int gpio_sbi_get_tx(gpio_t pad, int *value);
-int gpio_sbi_set_tx(gpio_t pad, int value);
-#endif
-
 /*
  * Returns the pmc_gpe to gpio_gpe mapping table
  *
