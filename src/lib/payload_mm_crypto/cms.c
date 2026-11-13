@@ -492,8 +492,7 @@ static enum payload_mm_verify_status parse_cms(
 	size_t *certificate_count, size_t *signer_index,
 	struct payload_mm_crypto_span *signed_attributes,
 	struct payload_mm_crypto_span *signature,
-	enum payload_mm_hash_algorithm *digest_algorithm,
-	enum payload_mm_crypto_failure_source *failure_source)
+	enum payload_mm_hash_algorithm *digest_algorithm)
 {
 	struct certificate_identity identities[PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES];
 	struct payload_mm_crypto_span signer_issuer;
@@ -515,8 +514,6 @@ static enum payload_mm_verify_status parse_cms(
 	enum payload_mm_hash_algorithm signer_algorithm;
 	enum payload_mm_verify_status status;
 	enum signed_attributes_result attributes_result;
-
-	*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_FORMAT;
 
 	if (!der_expect(&cursor, 0x30U, &object) || cursor.size != 0U ||
 	    !der_validate(&object, 0U, &objects) ||
@@ -613,13 +610,9 @@ static enum payload_mm_verify_status parse_cms(
 		return PAYLOAD_MM_VERIFY_MALFORMED;
 	attributes_result = parse_signed_attributes(&object, content_digest,
 		content_digest_size);
-	if (attributes_result != SIGNED_ATTRIBUTES_VALID) {
-		if (attributes_result == SIGNED_ATTRIBUTES_AUTHENTICATED)
-			*failure_source =
-				PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_SIGNATURE;
+	if (attributes_result != SIGNED_ATTRIBUTES_VALID)
 		return attributes_result == SIGNED_ATTRIBUTES_AUTHENTICATED ?
 			PAYLOAD_MM_VERIFY_REJECTED : PAYLOAD_MM_VERIFY_MALFORMED;
-	}
 	*signed_attributes = object.full;
 	if (!der_expect(&fields, 0x30U, &algorithm))
 		return PAYLOAD_MM_VERIFY_MALFORMED;
@@ -637,10 +630,8 @@ static enum payload_mm_verify_status parse_cms(
 			matches++;
 		}
 	}
-	if (matches != 1U) {
-		*failure_source = PAYLOAD_MM_CRYPTO_FAILURE_CAPSULE_SIGNATURE;
+	if (matches != 1U)
 		return PAYLOAD_MM_VERIFY_REJECTED;
-	}
 	return PAYLOAD_MM_VERIFY_OK;
 }
 
@@ -719,7 +710,6 @@ enum payload_mm_verify_status payload_mm_cms_verify_streamed_untrusted(
 	struct payload_mm_crypto_span attributes;
 	struct payload_mm_crypto_span signature;
 	struct payload_mm_crypto_span hash_spans[2];
-	enum payload_mm_crypto_failure_source failure_source;
 	enum payload_mm_verify_status status;
 	uint8_t attribute_tag = 0x31U;
 	uint8_t attribute_digest[PAYLOAD_MM_MAX_DIGEST_SIZE];
@@ -741,7 +731,7 @@ enum payload_mm_verify_status payload_mm_cms_verify_streamed_untrusted(
 		return status;
 	status = parse_cms(signed_data, hash_content, hash_context, published.certificates,
 		&published.certificate_count, &signer, &attributes, &signature,
-		&published.digest_algorithm, &failure_source);
+		&published.digest_algorithm);
 	if (status == PAYLOAD_MM_VERIFY_OK) {
 		hash_spans[0].data = &attribute_tag;
 		hash_spans[0].size = 1U;
