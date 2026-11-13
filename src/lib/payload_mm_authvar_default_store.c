@@ -11,7 +11,11 @@
 
 #define DEFAULT_STORE_FIRST_RECORD \
 	(PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE)
+#if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+#define DEFAULT_STORE_RECORD_BYTES 352U
+#else
 #define DEFAULT_STORE_RECORD_BYTES 252U
+#endif
 #define DEFAULT_STORE_PREFIX_BYTES (DEFAULT_STORE_FIRST_RECORD + DEFAULT_STORE_RECORD_BYTES)
 
 _Static_assert(DEFAULT_STORE_FIRST_RECORD == PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE,
@@ -29,6 +33,12 @@ static const uint8_t vendor_keys_nv_guid[16] = {
 	0xe0, 0xe4, 0x73, 0x90, 0xec, 0x60, 0x6e, 0x4b,
 	0x99, 0x03, 0x4c, 0x22, 0x3c, 0x26, 0x0f, 0x3c,
 };
+#if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+static const uint8_t enroll_default_keys_guid[16] = {
+	0xd4, 0x3a, 0x99, 0x2b, 0x44, 0x77, 0x5d, 0x4d,
+	0x96, 0x04, 0x8c, 0x2c, 0xa7, 0xc7, 0x46, 0x30,
+};
+#endif
 static const uint8_t custom_mode_name[] = {
 	'C', 0, 'u', 0, 's', 0, 't', 0, 'o', 0, 'm', 0, 'M', 0, 'o', 0,
 	'd', 0, 'e', 0, 0, 0,
@@ -40,9 +50,20 @@ static const uint8_t vendor_keys_nv_name[] = {
 	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
 	'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
 };
+#if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+static const uint8_t enroll_default_keys_name[] = {
+	'E', 0, 'n', 0, 'r', 0, 'o', 0, 'l', 0, 'l', 0,
+	'D', 0, 'e', 0, 'f', 0, 'a', 0, 'u', 0, 'l', 0, 't', 0,
+	'K', 0, 'e', 0, 'y', 0, 's', 0, 0, 0,
+};
+#endif
 static const uint8_t standard_mode = 0U;
 static const uint8_t empty_certdb[] = { 4, 0, 0, 0 };
 static const uint8_t vendor_keys_valid = 1U;
+#if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+/* Only erased media changes this baseline to a one-shot enrollment request. */
+static const uint8_t enroll_default_keys = 0U;
+#endif
 
 struct default_record {
 	const uint8_t *vendor_guid;
@@ -55,6 +76,16 @@ struct default_record {
 };
 
 static const struct default_record defaults[] = {
+#if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+	{
+		enroll_default_keys_guid, enroll_default_keys_name,
+		sizeof(enroll_default_keys_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		&enroll_default_keys, sizeof(enroll_default_keys),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+	},
+#endif
 	{
 		custom_mode_guid, custom_mode_name, sizeof(custom_mode_name),
 		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
@@ -88,12 +119,16 @@ static bool span_valid(const void *data, size_t size)
 }
 
 static bool default_store_prefix(uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
-				 size_t region_size, size_t block_size)
+				 size_t region_size, size_t block_size,
+				 size_t *enrollment_request_offset)
 {
 	struct payload_mm_authvar_fv_geometry geometry;
 	size_t candidate_used = DEFAULT_STORE_FIRST_RECORD;
 	size_t records_used = 0U;
 	uint8_t *records = prefix + DEFAULT_STORE_FIRST_RECORD;
+
+	if (enrollment_request_offset)
+		*enrollment_request_offset = SIZE_MAX;
 
 	if (!payload_mm_authvar_fv_geometry(&geometry, region_size, block_size))
 		return false;
@@ -120,14 +155,26 @@ static bool default_store_prefix(uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
 			.data = defaults[i].data,
 			.size = defaults[i].data_size,
 		};
+		size_t encoded_size;
+		size_t data_offset;
 		uint32_t record_size;
 
+		if (!payload_mm_authvar_record_layout(defaults[i].name_size,
+			defaults[i].data_size, &encoded_size, &data_offset))
+			return false;
 		memcpy(descriptor.vendor_guid, defaults[i].vendor_guid,
 			sizeof(descriptor.vendor_guid));
 		if (!payload_mm_authvar_record_encode(&descriptor, &span, 1U,
 			defaults[i].timestamp_mode, records + records_used,
-			DEFAULT_STORE_RECORD_BYTES - records_used, &record_size))
+			DEFAULT_STORE_RECORD_BYTES - records_used, &record_size) ||
+		    record_size != encoded_size)
 			return false;
+#if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+		if (defaults[i].data == &enroll_default_keys &&
+		    enrollment_request_offset)
+			*enrollment_request_offset = DEFAULT_STORE_FIRST_RECORD +
+				records_used + data_offset;
+#endif
 		records[records_used + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
 		records_used += record_size;
 	}
@@ -137,7 +184,8 @@ static bool default_store_prefix(uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
 }
 
 static enum payload_mm_authvar_default_store_source classify_source(
-	const uint8_t *source, const uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES], size_t region_size)
+	const uint8_t *source, const uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
+	size_t region_size, size_t enrollment_request_offset)
 {
 	bool erased = true;
 	bool complete = true;
@@ -146,7 +194,8 @@ static enum payload_mm_authvar_default_store_source classify_source(
 	for (size_t i = 0; i < region_size; i++) {
 		uint8_t expected = i < DEFAULT_STORE_PREFIX_BYTES ? prefix[i] : 0xffU;
 		erased &= source[i] == 0xffU;
-		complete &= source[i] == expected;
+		complete &= source[i] == expected ||
+			(i == enrollment_request_offset && source[i] == 1U);
 		subset &= (source[i] & expected) == expected;
 	}
 	if (erased)
@@ -163,10 +212,14 @@ payload_mm_authvar_default_store_classify(const void *source,
 					 size_t region_size, size_t block_size)
 {
 	uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES];
+	size_t enrollment_request_offset;
 
-	if (!span_valid(source, region_size) || !default_store_prefix(prefix, region_size, block_size))
+	if (!span_valid(source, region_size) ||
+	    !default_store_prefix(prefix, region_size, block_size,
+		&enrollment_request_offset))
 		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
-	return classify_source(source, prefix, region_size);
+	return classify_source(source, prefix, region_size,
+		enrollment_request_offset);
 }
 
 enum payload_mm_authvar_default_store_source
@@ -174,6 +227,8 @@ payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 					 size_t region_size, size_t block_size)
 {
 	uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES];
+	size_t enrollment_request_offset;
+	enum payload_mm_authvar_default_store_source source_kind;
 	const uintptr_t source_address = (uintptr_t)source;
 	const uintptr_t candidate_address = (uintptr_t)candidate;
 
@@ -182,9 +237,27 @@ payload_mm_authvar_default_store_compose(const void *source, void *candidate,
 	if ((source_address <= candidate_address ?
 	     candidate_address - source_address :
 	     source_address - candidate_address) < region_size ||
-	    !default_store_prefix(prefix, region_size, block_size))
+	    !default_store_prefix(prefix, region_size, block_size,
+		&enrollment_request_offset))
 		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	source_kind = classify_source(source, prefix, region_size,
+		enrollment_request_offset);
+#if CONFIG_VBOOT && CONFIG_CDK2_SECURE_BOOT_VARIABLE_KEYS
+	if (source_kind == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED ||
+	    (source_kind == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_NOR_SUBSET &&
+	     enrollment_request_offset < region_size &&
+	     ((const uint8_t *)source)[enrollment_request_offset] == 1U)) {
+		if (enrollment_request_offset >= sizeof(prefix))
+			return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+		prefix[enrollment_request_offset] = 1U;
+	} else if (source_kind == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_NOR_SUBSET &&
+		   (enrollment_request_offset >= region_size ||
+		    ((const uint8_t *)source)[enrollment_request_offset] != 0U)) {
+		/* Do not turn an interrupted bootstrap into an unprotected store. */
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	}
+#endif
 	memset(candidate, 0xff, region_size);
 	memcpy(candidate, prefix, sizeof(prefix));
-	return classify_source(source, prefix, region_size);
+	return source_kind;
 }
