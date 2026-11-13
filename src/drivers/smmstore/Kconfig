@@ -28,6 +28,24 @@ config SMMSTORE_SRK_PROVISION
 	  must remain in the trusted provisioning environment. Existing or
 	  partially written records cannot be replaced or erased through SMM.
 
+config SMM_AUTHVAR
+	bool "SMM-owned authenticated UEFI variables"
+	default n
+	depends on SOC_INTEL_ALDERLAKE && SMM_TSEG && PAYLOAD_CDK2
+	depends on DISABLE_ACPI_HIBERNATE || CDK2_S4_LAYOUT_REQUIRED
+	depends on !HAVE_ACPI_RESUME || TSEG_STAGE_CACHE
+	depends on BOOTMEDIA_SMM_BWP && !BOOTMEDIA_SMM_BWP_RUNTIME_OPTION
+	select SPI_FLASH_SMM
+	help
+	  Keep the authenticated variable owner and policy in SMRAM. Raw flash
+	  mutation through SMMSTORE is unavailable in this composition; firmware
+	  updates require a separate authenticated transport. S4 uses the shared
+	  fixed communication mailbox and the payload's stable allocation bins.
+
+config PAYLOAD_MM_AUTHVAR_SERVICE_ROUTE_ATTESTED
+	bool
+	default y if SMM_AUTHVAR
+
 config SMMSTORE_SIZE
 	hex "size of the SMMSTORE FMAP region"
 	default 0x80000

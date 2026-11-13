@@ -164,6 +164,13 @@
 	REGION(asan_shadow, ., _shadow_size, ARCH_POINTER_ALIGN_SIZE)
 #endif
 
+/* The SMM owner survives S3; transient handler state remains ordinary BSS. */
+.smm_authvar . (NOLOAD) : {
+	KEEP(*(.smm_authvar))
+} : to_load
+_authvar_tail = ASSERT(SIZEOF(.smm_authvar) == 0 || ADDR(.smm_authvar) == _ebss,
+	"SMM variable state must immediately follow BSS");
+
 _eprogram = .;
 RECORD_SIZE(program)
 

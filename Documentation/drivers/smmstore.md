@@ -66,11 +66,26 @@ this size is recommended.
 ### Communication buffer
 
 To prevent malicious ring0 code to access arbitrary memory locations,
-SMMSTORE uses a communication buffer in CBMEM/HOB for all transfers.
+SMMSTORE uses a firmware-owned communication buffer for all transfers.
 This buffer is sized to match the logical block size and must be
 installed before calling any of the SMMSTORE read or write operations.
 Usually, coreboot will install this buffer to transfer data between
 ring0 and the [SMM] handler.
+
+For CDK2's producer-derived S4 layout, the buffer occupies the fixed top 64 KiB
+of the shared 8 MiB window defined in `commonlib/cdk2_s4_memory.h`. A smaller
+logical flash block still uses this complete mailbox. The SMM
+loader checks RAM coverage and current ownership before installing it. CBMEM
+growth, capsule coalescing and payload loading exclude that window; final
+memory-table publication independently checks remaining RAM ownership. The
+mailbox is published as table memory, while the payload owns the remaining
+stable allocation bins. Other compositions retain the CBMEM allocation.
+Consumers use the advertised address rather than searching CBMEM for an entry.
+
+The fixed layout is incompatible with hibernation images from the earlier
+CBMEM-mailbox layout. Install the matching producer/payload pair after a full
+shutdown, without a retained OS hibernation image. Initial programmer flashing
+does not remove a hibernation image from disk.
 
 In order to get the communication buffer address, the payload or OS
 has to read the coreboot table with tag `0x0039`, containing:
