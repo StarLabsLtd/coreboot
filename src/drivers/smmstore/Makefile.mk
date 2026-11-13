@@ -2,6 +2,37 @@
 
 all-$(CONFIG_SMMSTORE) += store.c
 
-ramstage-$(CONFIG_SMMSTORE) += ramstage.c
+ramstage-$(CONFIG_SMMSTORE) += ramstage.c communication.c
 
 smm-$(CONFIG_SMMSTORE) += store.c smi.c
+
+smm_crypto_sources :=
+smm_crypto_flags :=
+
+ifeq ($(CONFIG_SMM_AUTHVAR),y)
+include $(src)/lib/authvar_sources.mk
+smm-y += authvar.c authvar_dispatch.c authvar_endpoint.c
+ramstage-y += authvar_ramstage.c authvar_endpoint.c
+smm-srcs += src/lib/payload_mm_authvar_service.c \
+	src/lib/authvar_image_policy.c
+ramstage-srcs += src/lib/payload_mm_authvar_service.c src/lib/authvar_image_policy.c
+smm_crypto_sources += $(authvar_sources)
+smm_crypto_flags += -DPAYLOAD_MM_AUTHVAR_CRYPTO
+$(call src-to-obj,smm,3rdparty/mbedtls/library/x509_crt.c): CFLAGS_smm += \
+	-DMBEDTLS_TEST_SW_INET_PTON
+$(obj)/smm/smm.elf: LDFLAGS_rmodules_x86_32 += --wrap=mbedtls_rsa_parse_pubkey
+$(obj)/smm/smm.elf: LDFLAGS_rmodules_x86_64 += --wrap=mbedtls_rsa_parse_pubkey
+endif
+
+ifneq ($(strip $(smm_crypto_sources)),)
+smm-srcs += $(sort $(smm_crypto_sources))
+smm_crypto_objects := $(foreach source,$(sort $(smm_crypto_sources)),$(call src-to-obj,smm,$(source)))
+$(smm_crypto_objects): .EXTRA_PREREQS += $(src)/drivers/smmstore/Makefile.mk \
+	$(src)/lib/authvar_sources.mk
+$(obj)/smm/smm.elf: .EXTRA_PREREQS += $(src)/drivers/smmstore/Makefile.mk \
+	$(src)/lib/authvar_sources.mk
+$(smm_crypto_objects): CFLAGS_smm += -Wno-redundant-decls $(smm_crypto_flags) \
+	-I$(src)/lib -I$(src)/lib/payload_mm_crypto \
+	-I$(src)/../3rdparty/mbedtls/include -I$(src)/../3rdparty/mbedtls/library \
+	-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"'
+endif
