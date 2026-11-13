@@ -116,11 +116,18 @@ static enum cb_err region_is_erased(const struct region_device *rdev, size_t siz
 	*erased = false;
 	mapping = rdev_mmap(rdev, 0, size);
 	if (mapping) {
-		for (size_t i = 0; i < size; i++) {
-			if (mapping[i] != UINT8_MAX) {
-				rdev_munmap(rdev, (void *)mapping);
-				return CB_SUCCESS;
+		/* Avoid a separate mapped-flash access for every byte. */
+		while (offset < size) {
+			const size_t chunk = MIN(sizeof(buf), size - offset);
+
+			memcpy(buf, mapping + offset, chunk);
+			for (size_t i = 0; i < chunk; i++) {
+				if (buf[i] != UINT8_MAX) {
+					rdev_munmap(rdev, (void *)mapping);
+					return CB_SUCCESS;
+				}
 			}
+			offset += chunk;
 		}
 		rdev_munmap(rdev, (void *)mapping);
 		*erased = true;
