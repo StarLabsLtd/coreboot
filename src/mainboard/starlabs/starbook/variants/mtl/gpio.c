@@ -6,7 +6,8 @@
 /* clang-format off */
 const struct pad_config early_gpio_table[] = {
 	/* Debug Connector */
-#if CONFIG(EDK2_DEBUG)
+#if CONFIG(CONSOLE_SERIAL) || CONFIG(CONSOLE_SERIAL_RUNTIME) || \
+	CONFIG(CONSOLE_CBMEM_DUMP_TO_UART)
 	PAD_CFG_NF(GPP_H08, NONE, DEEP, NF1),				/* RXD */
 	PAD_CFG_NF(GPP_H09, NONE, DEEP, NF1),				/* TXD */
 #else
