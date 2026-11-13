@@ -285,6 +285,51 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
+uint64_t authvar_owner_refresh(struct authvar_owner *local, const void *store,
+	size_t size, const struct authvar_fixed_policy *fixed)
+{
+	struct payload_mm_authvar_store_index next;
+	uint8_t bank, modes;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
+
+	if (!local || !store || !local->runtime || local->failed ||
+	    size != local->index.store_size || local->generation == UINT64_MAX ||
+	    local->fixed_keys != (fixed != NULL))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+
+	bank = local->active ^ 1U;
+	memcpy(local_buffer(local, LOCAL_NV_FIRST + bank), store, size);
+	next = (struct payload_mm_authvar_store_index) {
+		.entries = local_entries(local, LOCAL_NV_FIRST + bank),
+		.entry_capacity = local->limits.maximum_records,
+	};
+	if (payload_mm_authvar_store_scan(&next,
+	    local_buffer(local, LOCAL_NV_FIRST + bank), size, &local->limits) != CB_SUCCESS ||
+	    next.dirty_tail_offset ||
+	    !payload_mm_authvar_coordinator_source_modes(&next, true, true,
+	    local->modes, &modes) || modes != local->modes)
+		goto fail;
+
+	for (size_t i = 0; i < next.entry_count; i++)
+		if (!(next.entries[i].attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE))
+			goto fail;
+#if CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS
+	if (local->fixed_keys) {
+		status = authvar_fixed_validate(&next, fixed);
+		if (status_error(status))
+			goto fail;
+	}
+#endif
+	local->active = bank;
+	local->index = next;
+	local->generation++;
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+
+fail:
+	local->failed = true;
+	return status;
+}
+
 uint64_t authvar_owner_get(struct authvar_owner *local,
 	const uint16_t *name, const void *guid, uint32_t *attributes,
 	size_t *data_size, void *data)
