@@ -43,6 +43,17 @@ tests-y += cbfs-lookup-no-mcache-test
 tests-y += cbfs-lookup-has-mcache-test
 tests-y += lzma-test
 tests-y += ux_locales-test
+tests-y += tpm-resume-test
+
+tpm-resume-test-srcs += tests/lib/tpm-resume-test.c tests/stubs/console.c tests/stubs/die.c
+tpm-resume-test-stage := romstage
+tpm-resume-test-cflags += -I tests/include/tests/lib/fmap
+tpm-resume-test-config += CONFIG_VBOOT=1 CONFIG_VBOOT_STARTS_IN_BOOTBLOCK=1 \
+	CONFIG_VBOOT_STARTS_IN_ROMSTAGE=0 CONFIG_VBOOT_SEPARATE_VERSTAGE=1 \
+	CONFIG_VBOOT_RETURN_FROM_VERSTAGE=0 CONFIG_TPM2=1 CONFIG_TPM1=0 \
+	CONFIG_TPM_MEASURED_BOOT=1 CONFIG_TPM_LOG_TPM2=1 CONFIG_TPM_LOG_CB=0 \
+	CONFIG_TPM_LOG_TPM1=0 CONFIG_TPM_HASH_SHA256=1 CONFIG_TPM_HASH_SHA1=0 \
+	CONFIG_TPM_MEASURED_BOOT_RUNTIME_DATA=\"\"
 
 lib-test-srcs += tests/lib/lib-test.c
 
