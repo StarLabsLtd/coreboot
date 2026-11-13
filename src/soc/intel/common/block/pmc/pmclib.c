@@ -92,9 +92,15 @@ static void migrate_power_state(int is_recovery)
 	}
 	memcpy(ps_cbmem, &power_state, sizeof(*ps_cbmem));
 	/* Older payload consumers do not recognize the S4 boot-mode value. */
-	if (CONFIG(PAYLOAD_CDK2) && power_state.prev_sleep_state == ACPI_S4 &&
-	    get_boot_mode() == LB_BOOT_MODE_NORMAL)
-		set_boot_mode(LB_BOOT_MODE_S4_RESUME);
+	if (CONFIG(PAYLOAD_CDK2) && !is_recovery) {
+		const enum boot_mode_t *saved = cbmem_find(CBMEM_ID_BOOT_MODE);
+		enum boot_mode_t mode = saved ? *saved : LB_BOOT_MODE_NORMAL;
+
+		if (mode == LB_BOOT_MODE_NORMAL && power_state.prev_sleep_state == ACPI_S4)
+			mode = LB_BOOT_MODE_S4_RESUME;
+		/* Keep later GNVS and FACS allocations at the same addresses on S4 boots. */
+		set_boot_mode(mode);
+	}
 }
 CBMEM_CREATION_HOOK(migrate_power_state);
 
