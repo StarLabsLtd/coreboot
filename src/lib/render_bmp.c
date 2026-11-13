@@ -5,6 +5,7 @@
 #include <bootsplash.h>
 #include <bootstate.h>
 #include <console/console.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <symbols.h>
@@ -13,136 +14,6 @@
 #include "render_bmp.h"
 
 #define MAX_SPLASH_TEXT_WIDTH 32
-
-static bool is_bmp_image_valid(struct bmp_image_header *header)
-{
-	/* Check if the BMP Header Signature is valid */
-	if (header->CharB != 'B' || header->CharM != 'M')
-		return false;
-
-	/* Check if the BMP Image Header Length is valid */
-	if (!header->PixelHeight || !header->PixelWidth)
-		return false;
-
-	if (header->Size < header->ImageOffset)
-		return false;
-
-	if (header->ImageOffset < sizeof(struct bmp_image_header))
-		return false;
-
-	return true;
-}
-
-static bool is_bmp_image_compressed(struct bmp_image_header *header)
-{
-	return header->CompressionType != 0;
-}
-
-static bool is_bitmap_format_supported(struct bmp_image_header *header)
-{
-	/*
-	 * Check BITMAP format is supported
-	 * BMP_IMAGE_HEADER = BITMAP_FILE_HEADER + BITMAP_INFO_HEADER
-	 */
-	if (header->HeaderSize != sizeof(struct bmp_image_header) -
-			 OFFSET_OF(struct bmp_image_header, HeaderSize))
-		return false;
-
-	return true;
-}
-
-static bool do_bmp_image_authentication(struct bmp_image_header *header)
-{
-	if (!is_bmp_image_valid(header)) {
-		printk(BIOS_ERR, "%s: BMP Image Header is invalid.\n", __func__);
-		return false;
-	}
-
-	/*
-	 * BMP image compression is unsupported by FSP implementation,
-	 * hence, exit if the BMP image is compressed.
-	 */
-	if (is_bmp_image_compressed(header)) {
-		printk(BIOS_ERR, "%s: BMP Image Compression is unsupported.\n", __func__);
-		return false;
-	}
-
-	if (!is_bitmap_format_supported(header)) {
-		printk(BIOS_ERR, "%s: BmpHeader Header Size (0x%x) is not as expected.\n",
-			 __func__, header->HeaderSize);
-		return false;
-	}
-
-	return true;
-}
-
-static size_t calculate_blt_buffer_size(struct bmp_image_header *header)
-{
-	size_t blt_buffer_size;
-
-	/* Calculate the size required for BLT buffer */
-	blt_buffer_size = header->PixelWidth * header->PixelHeight * sizeof(struct blt_pixel);
-
-	if (!blt_buffer_size || blt_buffer_size > UINT32_MAX)
-		return 0;
-
-	return blt_buffer_size;
-}
-
-/* Reconcile pixel-data length implied by Width/Height/bpp with the actual file size. */
-static bool bmp_pixel_data_fits(const struct bmp_image_header *header,
-				size_t logo_size)
-{
-	if (header->ImageOffset < sizeof(struct bmp_image_header) ||
-	    header->ImageOffset > logo_size)
-		return false;
-
-	/* BMP row stride: 4-byte aligned (DWORD aligned) */
-	const size_t width_in_bits = (size_t)header->PixelWidth * header->BitPerPixel;
-	const size_t bytes_per_row = DIV_ROUND_UP(width_in_bits, 32) * 4;
-	if (!bytes_per_row)
-		return false;
-
-	const size_t available = (logo_size - header->ImageOffset) / bytes_per_row;
-
-	/* Prevent 64-bit multiplication overflow: required <= available */
-	return (size_t)header->PixelHeight <= available;
-}
-
-static int get_color_map_num(struct bmp_image_header *header)
-{
-	int col_map_number;
-
-	switch (header->BitPerPixel) {
-	case 1:
-		col_map_number = 2;
-		break;
-	case 4:
-		col_map_number = 16;
-		break;
-	case 8:
-		col_map_number = 256;
-		break;
-	default:
-		/*
-		 * For other bit depths (e.g., 24-bit and 32-bit) that doesn't have
-		 * a standard palette, col_map_number remains 0.
-		 */
-		col_map_number = 0;
-		break;
-	}
-
-	/*
-	 * At times BMP file may have padding data between its header section and the
-	 * data section.
-	 */
-	if (header->ImageOffset < sizeof(struct bmp_image_header) ||
-	    header->ImageOffset - sizeof(struct bmp_image_header) <
-			 sizeof(struct bmp_color_map) * col_map_number)
-		return -1;
-
-	return col_map_number;
-}
 
 static struct lb_boot_splash boot_splash_handoff;
 static bool boot_splash_handoff_valid;
@@ -351,201 +222,181 @@ static struct blt_pixel *get_gop_blt_pixel(
  * |  GOP Blit Buffer (Framebuffer)                                   |
  * +------------------------------------------------------------------+
  */
-static void *fill_blt_buffer(struct bmp_image_header *header,
-	uintptr_t logo, size_t blt_buffer_size, enum lb_fb_orientation orientation)
+static void *fill_blt_buffer(const struct bmp_image_header *header,
+	uintptr_t logo, size_t blt_buffer_size, size_t row_size, size_t palette_size,
+	enum lb_fb_orientation orientation)
 {
-	struct blt_pixel *gop_blt_buffer;
-	struct blt_pixel *gop_blt_ptr;
-	struct blt_pixel *gop_blt;
-	uint8_t *bmp_image;
-	uint8_t *bmp_header;
-	struct bmp_color_map *color_map;
-	size_t image_index;
+	struct blt_pixel *buffer = calloc(1, blt_buffer_size);
+	const struct bmp_color_map *palette = (const void *)(logo + sizeof(*header));
 
-	gop_blt_ptr = calloc(1, blt_buffer_size);
-	if (!gop_blt_ptr) {
-		printk(BIOS_ERR, "%s: out of memory. Consider increasing `CONFIG_HEAP_SIZE`\n",
-		       __func__);
+	if (!buffer)
 		return NULL;
-	}
 
-	bmp_image = ((uint8_t *)logo) + header->ImageOffset;
-	bmp_header = bmp_image;
-	gop_blt_buffer = gop_blt_ptr;
-	color_map = (struct bmp_color_map *)(logo + sizeof(struct bmp_image_header));
+	for (uint32_t y = 0; y < header->PixelHeight; y++) {
+		const uint8_t *row = (const void *)(logo + header->ImageOffset + y * row_size);
 
-	for (size_t height = 0; height < header->PixelHeight; height++) {
-		for (size_t width = 0; width < header->PixelWidth; width++, bmp_image++) {
+		for (uint32_t x = 0; x < header->PixelWidth; x++) {
+			struct blt_pixel *pixel = get_gop_blt_pixel(buffer, header, x, y,
+								 orientation);
 			size_t index = 0;
 
-			gop_blt = get_gop_blt_pixel(gop_blt_buffer, header, width, height,
-							 orientation);
-			if (!gop_blt) {
-				free(gop_blt_ptr);
-				return NULL;
-			}
-
 			switch (header->BitPerPixel) {
-			/* Translate 1-bit (2 colors) BMP to 24-bit color */
 			case 1:
-				for (index = 0; index < 8 && width < header->PixelWidth; index++) {
-					uint8_t bit = ((*bmp_image) >> (7 - index)) & 0x1;
-					gop_blt->Red = color_map[bit].Red;
-					gop_blt->Green = color_map[bit].Green;
-					gop_blt->Blue = color_map[bit].Blue;
-					width++;
-					gop_blt = get_gop_blt_pixel(gop_blt_buffer, header, width, height,
-								 orientation);
-					if (!gop_blt) {
-						free(gop_blt_ptr);
-						return NULL;
-					}
-				}
-				width--;
+				index = (row[x / 8] >> (7 - x % 8)) & 1;
 				break;
-
-			/* Translate 4-bit (16 colors) BMP Palette to 24-bit color */
 			case 4:
-				index = (*bmp_image) >> 4;
-				gop_blt->Red = color_map[index].Red;
-				gop_blt->Green = color_map[index].Green;
-				gop_blt->Blue = color_map[index].Blue;
-				if (width < (header->PixelWidth - 1)) {
-					width++;
-					gop_blt = get_gop_blt_pixel(gop_blt_buffer, header, width, height,
-								 orientation);
-					if (!gop_blt) {
-						free(gop_blt_ptr);
-						return NULL;
-					}
-					index = (*bmp_image) & 0x0f;
-					gop_blt->Red = color_map[index].Red;
-					gop_blt->Green = color_map[index].Green;
-					gop_blt->Blue = color_map[index].Blue;
-				}
+				index = (row[x / 2] >> (x % 2 ? 0 : 4)) & 0xf;
 				break;
-
-			/* Translate 8-bit (256 colors) BMP Palette to 24-bit color */
 			case 8:
-				gop_blt->Red = color_map[*bmp_image].Red;
-				gop_blt->Green = color_map[*bmp_image].Green;
-				gop_blt->Blue = color_map[*bmp_image].Blue;
+				index = row[x];
 				break;
-
-			/* For 24-bit BMP */
 			case 24:
-				gop_blt->Blue = *bmp_image++;
-				gop_blt->Green = *bmp_image++;
-				gop_blt->Red = *bmp_image;
-				break;
+			case 32: {
+				const uint8_t *source = row + (size_t)x * (header->BitPerPixel / 8);
 
-			/* Convert 32 bit to 24bit bmp - just ignore the final byte of each pixel */
-			case 32:
-				gop_blt->Blue = *bmp_image++;
-				gop_blt->Green = *bmp_image++;
-				gop_blt->Red = *bmp_image++;
-				break;
-
-			/* Other bit format of BMP is not supported. */
-			default:
-				free(gop_blt_ptr);
-				gop_blt_ptr = NULL;
-
-				printk(BIOS_ERR, "%s, BMP Bit format not supported. 0x%X\n", __func__,
-					 header->BitPerPixel);
+				*pixel = (struct blt_pixel) {
+					.Blue = source[0], .Green = source[1], .Red = source[2],
+				};
+				continue;
+			}
+			}
+			if (index >= palette_size) {
+				free(buffer);
 				return NULL;
 			}
+			*pixel = (struct blt_pixel) {
+				.Blue = palette[index].Blue,
+				.Green = palette[index].Green,
+				.Red = palette[index].Red,
+			};
 		}
-		image_index = (uintptr_t)bmp_image - (uintptr_t)bmp_header;
-		/* Each row in BMP Image should be 4-byte align */
-		if ((image_index % 4) != 0)
-			bmp_image = bmp_image + (4 - (image_index % 4));
 	}
 
-	return gop_blt_ptr;
+	return buffer;
 }
 
-/* Helper function to perform the common BMP to GOP BLT conversion logic */
-static bool convert_bmp_to_gop_blt_common(uintptr_t logo, size_t logo_size,
-	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height,
-	uint32_t *pixel_width, enum lb_fb_orientation orientation)
+/* Convert a BMP to an owned BGRX buffer. All outputs remain zero on failure. */
+bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
+	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
+	enum lb_fb_orientation orientation)
 {
-	size_t blt_buffer_size;
-	struct bmp_image_header *bmp_header;
+	const struct bmp_image_header *header = (const void *)logo;
+	size_t row_size, buffer_size, palette_size;
+	uint64_t row_bytes, pixel_bytes, buffer_bytes;
+	uintptr_t buffer;
+	bool standard_orientation;
 
-	*blt = 0;
-	*blt_size = 0;
-	*pixel_height = 0;
-	*pixel_width = 0;
-	if (!logo || logo_size < sizeof(*bmp_header))
+	if (blt)
+		*blt = 0;
+	if (blt_size)
+		*blt_size = 0;
+	if (pixel_height)
+		*pixel_height = 0;
+	if (pixel_width)
+		*pixel_width = 0;
+	if (!blt || !blt_size || !pixel_height || !pixel_width ||
+	    !logo || logo_size < sizeof(*header) || logo_size - 1U > UINTPTR_MAX - logo ||
+	    orientation < LB_FB_ORIENTATION_NORMAL || orientation > LB_FB_ORIENTATION_RIGHT_UP)
 		return false;
-
-	bmp_header = (struct bmp_image_header *)logo;
-
-	/* Authenticate BMP header and validate size against provided logo_size */
-	if (!do_bmp_image_authentication(bmp_header) || (bmp_header->Size != logo_size))
-		return false;
-
-	if (!bmp_pixel_data_fits(bmp_header, logo_size)) {
-		printk(BIOS_ERR, "%s: BMP pixel data exceeds file bounds.\n", __func__);
+	printk(BIOS_DEBUG, "BMP source: %ux%u, %u bits/pixel\n", header->PixelWidth,
+	       header->PixelHeight, header->BitPerPixel);
+	printk(BIOS_DEBUG, "BMP source: file %u bytes, DIB header %u bytes\n",
+	       header->Size, header->HeaderSize);
+	printk(BIOS_DEBUG, "BMP source: pixels at %#x, declared data %u bytes\n",
+	       header->ImageOffset, header->ImageSize);
+	printk(BIOS_DEBUG, "BMP source: supplied %zu bytes, compression %#x, %u planes\n",
+	       logo_size, header->CompressionType, header->Planes);
+	/* Validate the complete source layout before allocating or reading pixels. */
+	if (header->CharB != 'B' || header->CharM != 'M' ||
+	    header->Size != logo_size || header->ImageOffset > logo_size ||
+	    header->ImageOffset < sizeof(*header) ||
+	    header->HeaderSize != sizeof(*header) - offsetof(struct bmp_image_header, HeaderSize) ||
+	    header->Planes != 1 || header->CompressionType != 0 ||
+	    !header->PixelWidth || !header->PixelHeight ||
+	    header->PixelWidth > INT32_MAX || header->PixelHeight > INT32_MAX) {
+		printk(BIOS_DEBUG, "BMP source header is invalid\n");
 		return false;
 	}
 
-	blt_buffer_size = calculate_blt_buffer_size(bmp_header);
-	if (!blt_buffer_size)
+	switch (header->BitPerPixel) {
+	case 1:
+	case 4:
+	case 8:
+		palette_size = header->NumberOfColors ? header->NumberOfColors :
+			1U << header->BitPerPixel;
+		if (palette_size > (1U << header->BitPerPixel) ||
+		    palette_size > (header->ImageOffset - sizeof(*header)) /
+				sizeof(struct bmp_color_map)) {
+			printk(BIOS_DEBUG, "BMP palette exceeds source header bounds\n");
+			return false;
+		}
+		break;
+	case 24:
+	case 32:
+		palette_size = 0;
+		break;
+	default:
+		printk(BIOS_DEBUG, "Unsupported BMP pixel format\n");
 		return false;
+	}
 
-	if (get_color_map_num(bmp_header) < 0)
+	row_bytes = (((uint64_t)header->PixelWidth * header->BitPerPixel + 31) / 32) * 4;
+	pixel_bytes = row_bytes * header->PixelHeight;
+	buffer_bytes = (uint64_t)header->PixelWidth * header->PixelHeight * sizeof(struct blt_pixel);
+	if (row_bytes > SIZE_MAX || buffer_bytes > SIZE_MAX ||
+	    pixel_bytes > logo_size - header->ImageOffset ||
+	    (header->ImageSize && (header->ImageSize < pixel_bytes ||
+				header->ImageSize > logo_size - header->ImageOffset))) {
+		printk(BIOS_DEBUG, "BMP layout rejected: row %llu bytes, pixels %llu bytes, "
+		       "BGRX %llu bytes\n",
+		       (unsigned long long)row_bytes, (unsigned long long)pixel_bytes,
+		       (unsigned long long)buffer_bytes);
 		return false;
+	}
+	row_size = row_bytes;
+	buffer_size = buffer_bytes;
 
-	bool is_standard_orientation = (orientation == LB_FB_ORIENTATION_NORMAL ||
-					orientation == LB_FB_ORIENTATION_BOTTOM_UP);
-
-	uintptr_t buffer = (uintptr_t)fill_blt_buffer(bmp_header, logo, blt_buffer_size,
-						  orientation);
+	printk(BIOS_DEBUG, "BMP BGRX allocation: %zu bytes\n", buffer_size);
+	buffer = (uintptr_t)fill_blt_buffer(header, logo, buffer_size, row_size,
+					  palette_size, orientation);
 	if (!buffer)
 		return false;
+
+	standard_orientation = orientation == LB_FB_ORIENTATION_NORMAL ||
+		orientation == LB_FB_ORIENTATION_BOTTOM_UP;
 	*blt = buffer;
-	*blt_size = blt_buffer_size;
-	*pixel_height = is_standard_orientation ? bmp_header->PixelHeight : bmp_header->PixelWidth;
-	*pixel_width = is_standard_orientation ? bmp_header->PixelWidth : bmp_header->PixelHeight;
+	*blt_size = buffer_size;
+	*pixel_height = standard_orientation ? header->PixelHeight : header->PixelWidth;
+	*pixel_width = standard_orientation ? header->PixelWidth : header->PixelHeight;
 	return true;
 }
 
-/* Convert a *.BMP graphics image to a blt buffer */
-void load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
+bool load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation)
 {
-	uintptr_t bmp;
-	size_t bmp_size;
+	uintptr_t bmp = 0;
+	size_t bmp_size = 0;
 
+	if (logo)
+		*logo = 0;
+	if (logo_size)
+		*logo_size = 0;
+	/* Initialize every supplied output even when another output is missing. */
+	convert_bmp_to_blt(0, 0, blt, blt_size, pixel_height, pixel_width, orientation);
 	if (!logo || !logo_size || !blt || !blt_size || !pixel_height || !pixel_width)
-		return;
+		return false;
 
-	*logo = 0;
-	*logo_size = 0;
-	bmp_size = 0;
 	bmp = (uintptr_t)bmp_load_logo(&bmp_size);
-	if (!convert_bmp_to_gop_blt_common(bmp, bmp_size, blt, blt_size,
-					   pixel_height, pixel_width, orientation)) {
+	if (!convert_bmp_to_blt(bmp, bmp_size, blt, blt_size,
+			       pixel_height, pixel_width, orientation)) {
 		bmp_release_logo();
-		return;
+		return false;
 	}
+
 	*logo = bmp;
 	*logo_size = bmp_size;
-}
-
-/* Convert a *.BMP graphics image (as per input `logo`) to a GOP blt buffer */
-void convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
-	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
-	enum lb_fb_orientation orientation)
-{
-	if (!blt || !blt_size || !pixel_height || !pixel_width)
-		return;
-
-	convert_bmp_to_gop_blt_common(logo, logo_size, blt, blt_size,
-				      pixel_height, pixel_width, orientation);
+	return true;
 }
 
 /*
@@ -627,12 +478,12 @@ static void copy_logo_to_framebuffer(
 {
 	size_t pixel_size = sizeof(struct blt_pixel);
 	size_t bytes_per_logo_line = logo_width * pixel_size;
-	uint8_t *framebuffer_offset = (uint8_t *)framebuffer_base + dest_y * bytes_per_scanline
+	uint8_t *framebuffer_offset = (uint8_t *)framebuffer_base + (size_t)dest_y * bytes_per_scanline
 					 + dest_x * pixel_size;
 	uint8_t *dst_row_address = framebuffer_offset;
 	for (uint32_t i = 0; i < logo_height; i++) {
 		const struct blt_pixel *src = (const struct blt_pixel *)logo_buffer +
-			(i / scale) * (logo_width / scale);
+			(size_t)(i / scale) * (logo_width / scale);
 		struct blt_pixel *dst = (void *)dst_row_address;
 
 		if (scale == 1)
@@ -697,6 +548,21 @@ static void get_logo_layout(
 	}
 }
 
+static bool valid_logo_framebuffer(const struct logo_config *config)
+{
+	uint64_t span;
+
+	if (!config || !config->framebuffer_base || !config->horizontal_resolution ||
+	    !config->vertical_resolution || config->bytes_per_scanline % sizeof(struct blt_pixel) ||
+	    (uint64_t)config->horizontal_resolution * sizeof(struct blt_pixel) >
+		config->bytes_per_scanline ||
+	    config->panel_orientation < LB_FB_ORIENTATION_NORMAL ||
+	    config->panel_orientation > LB_FB_ORIENTATION_RIGHT_UP)
+		return false;
+	span = (uint64_t)config->vertical_resolution * config->bytes_per_scanline;
+	return span <= SIZE_MAX && span - 1U <= UINTPTR_MAX - config->framebuffer_base;
+}
+
 /* Reduce a double-density BLT in place, averaging each 2x2 pixel block. */
 static void halve_logo_blt(struct blt_pixel *pixels, uint32_t width, uint32_t height)
 {
@@ -733,9 +599,9 @@ static int load_and_render_logo_to_framebuffer(
 {
 	int result = -1;
 	uintptr_t logo;
-	size_t logo_size;
-	size_t blt_size;
-	uintptr_t blt_buffer;
+	size_t logo_size = 0;
+	size_t blt_size = 0;
+	uintptr_t blt_buffer = 0;
 	uint32_t logo_height, logo_width;
 	struct logo_coordinates logo_coords;
 	enum fw_splash_horizontal_alignment halignment;
@@ -744,7 +610,7 @@ static int load_and_render_logo_to_framebuffer(
 	unsigned int scale = 1;
 	bool resized = false;
 
-	if (!config)
+	if (!valid_logo_framebuffer(config))
 		return -1;
 
 	logo = (uintptr_t)bmp_load_logo_by_type(logo_type, &logo_size);
@@ -917,17 +783,7 @@ void render_logo_to_framebuffer(struct logo_config *config)
 		config->panel_orientation = fb->orientation;
 	}
 
-	if (!config->horizontal_resolution || !config->vertical_resolution ||
-	    !config->bytes_per_scanline ||
-	    config->vertical_resolution >
-		(UINTPTR_MAX - config->framebuffer_base) / config->bytes_per_scanline)
-		return;
-
-	/* Ensure bytes_per_scanline is sufficient for the horizontal resolution */
-	const uint64_t min_scanline_bytes = (uint64_t)config->horizontal_resolution *
-				 sizeof(struct blt_pixel);
-
-	if (min_scanline_bytes > config->bytes_per_scanline) {
+	if (!valid_logo_framebuffer(config)) {
 		printk(BIOS_ERR, "CBFS Logo: Invalid stride %u for resolution %ux%u\n",
 		       config->bytes_per_scanline,
 		       config->horizontal_resolution,
