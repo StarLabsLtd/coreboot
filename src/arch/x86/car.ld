@@ -26,7 +26,8 @@
 #if CONFIG(TPM_MEASURED_BOOT)
 	/* Vboot measured boot TPM log measurements.
 	 * Needs to be transferred until CBMEM is available */
-	TPM_LOG(., 2K)
+	/* Fifteen SHA-512 fixed slots plus the header exceed 2 KiB. */
+	TPM_LOG(., 4K)
 #endif
 	/* Stack for CAR stages. Since it persists across all stages that
 	 * use CAR it can be reused. The chipset/SoC is expected to provide

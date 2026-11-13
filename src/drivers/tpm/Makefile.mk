@@ -2,6 +2,10 @@
 
 ifeq ($(CONFIG_TPM),y)
 
+ifeq ($(CONFIG_PAYLOAD_CDK2)$(CONFIG_DRIVERS_EMULATION_QEMU_FW_CFG),yy)
+ramstage-$(CONFIG_HAVE_ACPI_TABLES) += ppi_mmio.c
+endif
+
 ramstage-$(CONFIG_TPM_INIT_RAMSTAGE) += tpm.c
 
 ifeq ($(CONFIG_TPM_PPI),y)
