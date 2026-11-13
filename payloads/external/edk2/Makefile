@@ -82,6 +82,7 @@ endif
 ifneq ($(CONFIG_EDK2_CPU_TIMER_LIB),y)
 BUILD_STR += -D CPU_TIMER_LIB_ENABLE=FALSE
 else
+BUILD_STR += -D CPU_TIMER_LIB_ENABLE=TRUE
 BUILD_STR += --pcd gUefiCpuPkgTokenSpaceGuid.PcdCpuCoreCrystalClockFrequency=$(CONFIG_CPU_XTAL_HZ)
 endif
 # DISABLE_SERIAL_TERMINAL	= FALSE
