@@ -68,6 +68,15 @@ config DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
 	  Scanning DRAM for capsules is not reliable on some platforms, so this option is
 	  required for those platforms.
 
+config DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT
+	bool
+	depends on SMM_AUTHVAR && DRIVERS_EFI_UPDATE_CAPSULES
+	default y
+	help
+	  Authenticate and apply firmware updates in the protected variable owner's
+	  SMM service. Shared capsule bytes are bound to private block snapshots;
+	  the legacy full-flash SMMSTORE writer remains unavailable.
+
 config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 	bool "Allow embedded drivers in update capsules"
 	depends on PAYLOAD_EDK2 && DRIVERS_EFI_UPDATE_CAPSULES
@@ -83,9 +92,11 @@ config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 
 config DRIVERS_EFI_GENERATE_CAPSULE
 	bool "Generate an update capsule during the build"
-	depends on PAYLOAD_EDK2 && DRIVERS_EFI_UPDATE_CAPSULES
+	depends on (PAYLOAD_EDK2 || PAYLOAD_CDK2) && DRIVERS_EFI_UPDATE_CAPSULES
+	depends on !DAVE_FACTORY_PROVISIONING
 	help
-	  Generates a UEFI capsule from the final ROM image using EDK2 BaseTools.
+	  Generates a signed UEFI capsule from the final ROM image. CDK2 uses
+	  coreboot's native host utility; EDK2 uses its BaseTools.
 	  This is intended for fwupd update workflows that use the ESRT/FMP
 	  mechanism.
 
@@ -115,31 +126,35 @@ config DRIVERS_EFI_CAPSULE_INITIATE_RESET
 config DRIVERS_EFI_CAPSULE_REGIONS
 	string "FMAP regions to include in the capsule manifest"
 	default "COREBOOT"
-	depends on DRIVERS_EFI_GENERATE_CAPSULE
+	depends on DRIVERS_EFI_UPDATE_CAPSULES
 	help
 	  Whitespace-separated list of FMAP regions that the update capsule is
-	  allowed to modify. The list is embedded as a manifest inside the ROM
-	  image prior to building the capsule.
+	  allowed to modify. The list is published to the payload and embedded
+	  as a signed manifest when generating a capsule.
 
 menu "Capsule signing certificates"
-	depends on DRIVERS_EFI_UPDATE_CAPSULES
+	depends on DRIVERS_EFI_UPDATE_CAPSULES || (PAYLOAD_CDK2 && CDK2_NATIVE_SYSTEM_FMP)
 
 config DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT
 	string "PEM file used to sign generated capsules"
+	default "" if PAYLOAD_CDK2
 	default "BaseTools/Source/Python/Pkcs7Sign/TestCert.pem"
 	depends on DRIVERS_EFI_GENERATE_CAPSULE
 	help
 	  Path to a PEM file containing the private key and leaf certificate used
-	  when signing the capsule with EDK2 GenerateCapsule.
+	  when signing the capsule.
 
 	  If the path is relative, it is interpreted relative to the configured
-	  EDK2 repository (payloads/external/edk2 workspace).
+	  EDK2 repository (payloads/external/edk2 workspace). CDK2 resolves
+	  relative paths against the coreboot source directory and requires
+	  an explicitly configured signing certificate.
 
 	  See Documentation/drivers/efi_capsule_generation.md and
 	  BaseTools/Source/Python/Pkcs7Sign/Readme.md in the EDK2 tree.
 
 config DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT
 	string "Intermediate certificate for capsule signing (PEM)"
+	default "" if PAYLOAD_CDK2
 	default "BaseTools/Source/Python/Pkcs7Sign/TestSub.pub.pem"
 	depends on DRIVERS_EFI_GENERATE_CAPSULE
 	help
@@ -147,17 +162,20 @@ config DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT
 	  signature for the capsule.
 
 	  If the path is relative, it is interpreted relative to the configured
-	  EDK2 repository (payloads/external/edk2 workspace).
+	  EDK2 repository (payloads/external/edk2 workspace), or the coreboot
+	  source directory for CDK2.
 
 config DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT
 	string "Trusted root certificate for capsule signing (PEM)"
+	default "" if PAYLOAD_CDK2
 	default "BaseTools/Source/Python/Pkcs7Sign/TestRoot.pub.pem"
-	depends on DRIVERS_EFI_UPDATE_CAPSULES
+	depends on DRIVERS_EFI_UPDATE_CAPSULES || (PAYLOAD_CDK2 && CDK2_NATIVE_SYSTEM_FMP)
 	help
 	  Path to the trusted root certificate (PEM) used when generating a PKCS#7
 	  signature for the capsule.
 
-	  If the path is relative, it is interpreted relative to the configured
-	  EDK2 repository (payloads/external/edk2 workspace).
+	  CDK2 embeds this certificate as its firmware update trust anchor.
+	  Relative paths for CDK2 are relative to the coreboot source directory;
+	  EDK2 resolves them relative to its configured repository.
 
 endmenu
