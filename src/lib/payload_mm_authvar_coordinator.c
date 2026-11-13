@@ -459,7 +459,7 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 	}
 	efi_status = payload_mm_authvar_candidate_build(index, &bundle, policy,
 		binding, candidate, candidate_capacity, scan_entries,
-		scan_entry_capacity, &draft.candidate);
+		scan_entry_capacity, &draft.volatile_modes);
 #if ENV_TEST
 #endif
 	if (efi_status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
@@ -469,7 +469,6 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 	}
 	if (efi_status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return efi_status;
-	draft.volatile_modes = draft.candidate.volatile_modes;
 	*result = draft;
 #if ENV_TEST
 #endif
@@ -568,7 +567,7 @@ uint64_t payload_mm_authvar_presence_prepare(
 	}
 	status = payload_mm_authvar_candidate_build(index, &bundle, policy,
 		binding, candidate, candidate_capacity, scan_entries,
-		scan_entry_capacity, &draft.candidate);
+		scan_entry_capacity, &draft.volatile_modes);
 	if (status == PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER ||
 	    status == PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION) {
 		*invariant_failure = true;
@@ -577,7 +576,6 @@ uint64_t payload_mm_authvar_presence_prepare(
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return status;
 	draft.outcome = PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION;
-	draft.volatile_modes = draft.candidate.volatile_modes;
 	*result = draft;
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
