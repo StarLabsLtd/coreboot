@@ -3,8 +3,10 @@
 #include <amdblocks/acpi.h>
 #include <amdblocks/gpio.h>
 #include <amdblocks/pmlib.h>
+#include <bootmode.h>
 #include <cbmem.h>
 #include <elog.h>
+#include <soc/southbridge.h>
 #include <string.h>
 
 static struct chipset_power_state chipset_state;
@@ -27,8 +29,14 @@ static void add_chipset_state_cbmem(int unused)
 
 	state = cbmem_add(CBMEM_ID_POWER_STATE, sizeof(*state));
 
-	if (state)
+	if (state) {
 		memcpy(state, &chipset_state, sizeof(*state));
+		/* Older payload consumers do not recognize the S4 boot-mode value. */
+		if (CONFIG(PAYLOAD_CDK2) && state->gpe_state.previous_sx_state == ACPI_S4 &&
+		    (state->gpe_state.pm1_sts & WAK_STS) &&
+		    get_boot_mode() == LB_BOOT_MODE_NORMAL)
+			set_boot_mode(LB_BOOT_MODE_S4_RESUME);
+	}
 }
 
 CBMEM_CREATION_HOOK(add_chipset_state_cbmem);
