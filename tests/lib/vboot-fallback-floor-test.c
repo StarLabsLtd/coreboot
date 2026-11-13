@@ -5,13 +5,26 @@
 
 static uint8_t workbuf[VB2_FIRMWARE_WORKBUF_RECOMMENDED_SIZE]
 	__aligned(VB2_WORKBUF_ALIGN);
-static uint8_t vblock_data[512], body_data[64];
+static uint8_t vblock_data[512];
+static uint8_t body_data[3 * CONFIG_VBOOT_HASH_BLOCK_SIZE + 23];
 static struct vb2_context *ctx;
 static struct vb2_shared_data *sd;
 static struct vb2_gbb_header gbb;
 static bool missing, short_read, bad_keyblock, bad_preamble, bad_body;
+static bool short_body_read;
 static unsigned int body_checks;
 static uint32_t signed_size;
+static struct vb2_digest_context *active_digest;
+static uint32_t digest_bytes;
+static unsigned int body_reads, digest_inits, digest_extends, digest_finalizes;
+static bool digest_finalized;
+static enum {
+	DIGEST_SUCCESS,
+	DIGEST_INIT_FAILURE,
+	DIGEST_EXTEND_FAILURE,
+	DIGEST_FINALIZE_FAILURE,
+} digest_failure;
+static const uint8_t expected_digest[VB2_SHA256_DIGEST_SIZE] = "checked body digest";
 
 void vb2ex_printf(const char *func, const char *fmt, ...)
 {
@@ -61,21 +74,17 @@ int fmap_locate_area_as_rdev(const char *name, struct region_device *rdev)
 ssize_t rdev_readat(const struct region_device *rdev, void *buf, size_t offset,
 		   size_t size)
 {
-	assert_true(offset + size <= sizeof(vblock_data));
-	memcpy(buf, vblock_data + offset, size);
-	return short_read ? size - 1 : size;
-}
+	bool vblock = region_device_offset(rdev) == 1;
+	size_t capacity = vblock ? sizeof(vblock_data) : sizeof(body_data);
 
-void *rdev_mmap(const struct region_device *rdev, size_t offset, size_t size)
-{
-	assert_int_equal(offset, 0);
-	assert_int_equal(size, signed_size);
-	return body_data;
-}
-
-int rdev_munmap(const struct region_device *rdev, void *mapping)
-{
-	return 0;
+	assert_true(offset <= capacity);
+	assert_true(size <= capacity - offset);
+	memcpy(buf, (vblock ? vblock_data : body_data) + offset, size);
+	if (vblock)
+		return short_read ? size - 1 : size;
+	assert_int_equal(offset, digest_bytes);
+	body_reads++;
+	return short_body_read && body_reads == 2 ? size - 1 : size;
 }
 
 vb2_error_t vb2_unpack_key_buffer(struct vb2_public_key *key, const uint8_t *buf,
@@ -98,11 +107,52 @@ vb2_error_t vb2_verify_fw_preamble(struct vb2_fw_preamble *pre, uint32_t size,
 	return bad_preamble ? VB2_ERROR_UNKNOWN : VB2_SUCCESS;
 }
 
-vb2_error_t vb2_hash_calculate(bool hwcrypto, const void *buf, uint32_t size,
-		enum vb2_hash_algorithm algo, struct vb2_hash *hash)
+/* Check the stream and digest handoff; signature validity remains a policy input. */
+vb2_error_t vb2_digest_init(struct vb2_digest_context *digest, bool hwcrypto,
+		enum vb2_hash_algorithm algorithm, uint32_t size)
 {
-	assert_ptr_equal(buf, body_data);
+	assert_false(hwcrypto);
+	assert_int_equal(algorithm, VB2_HASH_SHA256);
 	assert_int_equal(size, signed_size);
+	active_digest = digest;
+	digest_bytes = 0;
+	digest_finalized = false;
+	digest_inits++;
+	return digest_failure == DIGEST_INIT_FAILURE ? VB2_ERROR_UNKNOWN : VB2_SUCCESS;
+}
+
+vb2_error_t vb2_digest_extend(struct vb2_digest_context *digest, const uint8_t *buf,
+		uint32_t size)
+{
+	assert_ptr_equal(digest, active_digest);
+	assert_true(size > 0 && size <= CONFIG_VBOOT_HASH_BLOCK_SIZE);
+	assert_true(digest_bytes <= signed_size);
+	assert_true(size <= signed_size - digest_bytes);
+	assert_memory_equal(buf, body_data + digest_bytes, size);
+	digest_extends++;
+	if (digest_failure == DIGEST_EXTEND_FAILURE && digest_extends == 2)
+		return VB2_ERROR_UNKNOWN;
+	digest_bytes += size;
+	return VB2_SUCCESS;
+}
+
+size_t vb2_digest_size(enum vb2_hash_algorithm algorithm)
+{
+	assert_int_equal(algorithm, VB2_HASH_SHA256);
+	return sizeof(expected_digest);
+}
+
+vb2_error_t vb2_digest_finalize(struct vb2_digest_context *digest, uint8_t *output,
+		uint32_t size)
+{
+	assert_ptr_equal(digest, active_digest);
+	assert_int_equal(digest_bytes, signed_size);
+	assert_int_equal(size, sizeof(expected_digest));
+	digest_finalizes++;
+	if (digest_failure == DIGEST_FINALIZE_FAILURE)
+		return VB2_ERROR_UNKNOWN;
+	memcpy(output, expected_digest, size);
+	digest_finalized = true;
 	return VB2_SUCCESS;
 }
 
@@ -110,6 +160,9 @@ vb2_error_t vb2_verify_digest(const struct vb2_public_key *key,
 		struct vb2_signature *sig, const uint8_t *digest,
 		const struct vb2_workbuf *wb)
 {
+	assert_true(digest_finalized);
+	assert_int_equal(sig->data_size, signed_size);
+	assert_memory_equal(digest, expected_digest, sizeof(expected_digest));
 	body_checks++;
 	return bad_body ? VB2_ERROR_UNKNOWN : VB2_SUCCESS;
 }
@@ -142,6 +195,9 @@ static void set_other_version(uint32_t version)
 static int setup(void **state)
 {
 	memset(workbuf, 0, sizeof(workbuf));
+	memset(vblock_data, 0, sizeof(vblock_data));
+	for (size_t i = 0; i < sizeof(body_data); i++)
+		body_data[i] = (i * 13 + 7) ^ (i >> 8);
 	sd = (void *)workbuf;
 	ctx = (void *)(workbuf + offsetof(struct vb2_shared_data, ctx));
 	sd->workbuf_used = vb2_wb_round_up(sizeof(*sd));
@@ -155,7 +211,16 @@ static int setup(void **state)
 	ctx->flags = 0;
 	gbb.rootkey_size = 64;
 	missing = short_read = bad_keyblock = bad_preamble = bad_body = false;
+	short_body_read = false;
+	digest_finalized = false;
 	body_checks = 0;
+	body_reads = 0;
+	digest_inits = 0;
+	digest_extends = 0;
+	digest_finalizes = 0;
+	digest_bytes = 0;
+	active_digest = NULL;
+	digest_failure = DIGEST_SUCCESS;
 	signed_size = sizeof(body_data);
 	set_other_version(0x10007);
 	return 0;
@@ -286,6 +351,74 @@ static void invalid_signed_size(void **state)
 	assert_int_equal(body_checks, 0);
 }
 
+static void signed_prefix_across_chunks(void **state)
+{
+	struct vb2_fw_preamble pre;
+
+	set_other_version(0x10008);
+	memcpy(&pre, vblock_data + 256, sizeof(pre));
+	signed_size = 2 * CONFIG_VBOOT_HASH_BLOCK_SIZE + 13;
+	pre.body_signature.data_size = signed_size;
+	memcpy(vblock_data + 256, &pre, sizeof(pre));
+	expect_floor(0x10008);
+	assert_true(body_reads > 1);
+	assert_int_equal(digest_inits, 1);
+	assert_int_equal(digest_extends, body_reads);
+	assert_int_equal(digest_bytes, signed_size);
+	assert_int_equal(digest_finalizes, 1);
+	assert_int_equal(body_checks, 1);
+}
+
+static void short_body_does_not_advance(void **state)
+{
+	set_other_version(0x10008);
+	short_body_read = true;
+	expect_floor(0x10007);
+	assert_int_equal(body_reads, 2);
+	assert_int_equal(digest_extends, 1);
+	assert_true(digest_bytes > 0 && digest_bytes < signed_size);
+	assert_int_equal(digest_finalizes, 0);
+	assert_int_equal(body_checks, 0);
+	assert_false(ctx->flags & VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED);
+}
+
+static void failed_digest_init_does_not_advance(void **state)
+{
+	set_other_version(0x10008);
+	digest_failure = DIGEST_INIT_FAILURE;
+	expect_floor(0x10007);
+	assert_int_equal(digest_inits, 1);
+	assert_int_equal(body_reads, 0);
+	assert_int_equal(digest_extends, 0);
+	assert_int_equal(digest_finalizes, 0);
+	assert_int_equal(body_checks, 0);
+	assert_false(ctx->flags & VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED);
+}
+
+static void failed_digest_extend_does_not_advance(void **state)
+{
+	set_other_version(0x10008);
+	digest_failure = DIGEST_EXTEND_FAILURE;
+	expect_floor(0x10007);
+	assert_int_equal(body_reads, 2);
+	assert_int_equal(digest_extends, 2);
+	assert_true(digest_bytes > 0 && digest_bytes < signed_size);
+	assert_int_equal(digest_finalizes, 0);
+	assert_int_equal(body_checks, 0);
+	assert_false(ctx->flags & VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED);
+}
+
+static void failed_digest_finalize_does_not_advance(void **state)
+{
+	set_other_version(0x10008);
+	digest_failure = DIGEST_FINALIZE_FAILURE;
+	expect_floor(0x10007);
+	assert_int_equal(digest_bytes, signed_size);
+	assert_int_equal(digest_finalizes, 1);
+	assert_int_equal(body_checks, 0);
+	assert_false(ctx->flags & VB2_CONTEXT_SECDATA_FIRMWARE_CHANGED);
+}
+
 static void unchanged_policy(void **state)
 {
 	assert_int_equal(vboot_verify_firmware(ctx), VB2_SUCCESS);
@@ -309,6 +442,11 @@ int main(void)
 		cmocka_unit_test_setup(other_slot_direction, setup),
 		cmocka_unit_test_setup(signed_prefix, setup),
 		cmocka_unit_test_setup(invalid_signed_size, setup),
+		cmocka_unit_test_setup(signed_prefix_across_chunks, setup),
+		cmocka_unit_test_setup(short_body_does_not_advance, setup),
+		cmocka_unit_test_setup(failed_digest_init_does_not_advance, setup),
+		cmocka_unit_test_setup(failed_digest_extend_does_not_advance, setup),
+		cmocka_unit_test_setup(failed_digest_finalize_does_not_advance, setup),
 	};
 	const struct CMUnitTest compatibility[] = {
 		cmocka_unit_test_setup(unchanged_policy, setup),
