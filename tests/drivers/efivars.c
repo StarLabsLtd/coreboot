@@ -474,6 +474,18 @@ static void efi_test_validate_tail_after_match(void **state)
 			CB_EFI_VS_CORRUPTED_INVALID : CB_SUCCESS);
 		if (ret == CB_SUCCESS)
 			assert_string_equal((const char *)value, "is great");
+		struct efi_fv_option options[] = {
+			{ .name = name, .data = value, .size = sizeof("is great") },
+			{ .name = "absent", .data = NULL, .size = 0 },
+		};
+		memset(value, 0, sizeof(value));
+		assert_int_equal(efi_fv_get_options(&flash_rdev_rw, &EficorebootNvDataGuid,
+			options, ARRAY_SIZE(options)), ret);
+		if (ret == CB_SUCCESS) {
+			assert_int_equal(options[0].result, CB_SUCCESS);
+			assert_string_equal((const char *)value, "is great");
+			assert_int_equal(options[1].result, CB_EFI_OPTION_NOT_FOUND);
+		}
 		assert_int_equal(efi_fv_set_option(&flash_rdev_rw, &EficorebootNvDataGuid,
 			name, "changed", sizeof("changed")), CB_EFI_VS_CORRUPTED_INVALID);
 		assert_memory_equal(before, flash_buffer, sizeof(before));

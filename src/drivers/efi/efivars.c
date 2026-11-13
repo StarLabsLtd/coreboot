@@ -1198,7 +1198,8 @@ enum cb_err efi_fv_get_options(const struct region_device *rdev,
 		.done = done,
 		.count = count,
 	};
-	ret = walk_variables(&store_rdev, auth_format, find_many_and_copy, &args, NULL);
+	ret = walk_variables(&store_rdev, auth_format, find_many_and_copy, &args, NULL,
+			     CHECK_UNUSED_NEXT_HEADER);
 
 	/* No aggregate match is expected when one or more requested names are absent. */
 	return ret == CB_EFI_OPTION_NOT_FOUND ? CB_SUCCESS : ret;
