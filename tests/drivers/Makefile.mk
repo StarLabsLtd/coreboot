@@ -64,6 +64,13 @@ efi-variable-service-resume-test-srcs += tests/drivers/efi-variable-service-resu
 efi-variable-service-resume-test-stage := ramstage
 efi-variable-service-resume-test-config += CONFIG_ASS=1 CONFIG_HAVE_ACPI_RESUME=1
 
+tests-y += efi-store-migration-test
+efi-store-migration-test-srcs += tests/drivers/efi-store-migration.c \
+	src/drivers/efi/efivars.c src/lib/crc_byte.c src/commonlib/region.c tests/stubs/console.c
+efi-store-migration-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32 \
+	-I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include
+
 tests-y += opal-s3-resources-test
 opal-s3-resources-test-srcs += tests/drivers/opal-s3-resources.c src/commonlib/region.c \
 	tests/stubs/console.c
