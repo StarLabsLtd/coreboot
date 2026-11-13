@@ -134,8 +134,6 @@ static void empty_workspace(uint8_t *workspace, size_t size)
 	memcpy(workspace + 16, &checksum, sizeof(checksum));
 }
 
-#define STEP(operation) do { status = (operation); if (error(status)) return status; } while (0)
-
 static uint64_t restore_workspace(struct authvar_media *media,
 	const struct authvar_media_io *io, uint8_t *workspace)
 {
@@ -143,8 +141,12 @@ static uint64_t restore_workspace(struct authvar_media *media,
 	uint64_t status;
 
 	workspace[20] = 0xffU;
-	STEP(erase(media, io, g->working_offset, g->working_size));
-	STEP(program(media, io, g->working_offset, workspace, g->working_size));
+	status = erase(media, io, g->working_offset, g->working_size);
+	if (error(status))
+		return status;
+	status = program(media, io, g->working_offset, workspace, g->working_size);
+	if (error(status))
+		return status;
 	return marker(media, io, g->working_offset + 20U, 0xffU, 0xfeU);
 }
 
@@ -155,12 +157,23 @@ static uint64_t rebuild_workspace(struct authvar_media *media,
 	uint64_t status;
 
 	empty_workspace(media->workspace, g->working_size);
-	STEP(erase(media, io, g->spare_offset, g->spare_size));
-	STEP(program(media, io, g->spare_offset, media->workspace, g->working_size));
-	STEP(marker(media, io, g->spare_offset + 20U, 0xffU, 0xfeU));
-	if (invalidate)
-		STEP(marker(media, io, g->working_offset + 20U, 0xfeU, 0xfcU));
-	STEP(restore_workspace(media, io, media->workspace));
+	status = erase(media, io, g->spare_offset, g->spare_size);
+	if (error(status))
+		return status;
+	status = program(media, io, g->spare_offset, media->workspace, g->working_size);
+	if (error(status))
+		return status;
+	status = marker(media, io, g->spare_offset + 20U, 0xffU, 0xfeU);
+	if (error(status))
+		return status;
+	if (invalidate) {
+		status = marker(media, io, g->working_offset + 20U, 0xfeU, 0xfcU);
+		if (error(status))
+			return status;
+	}
+	status = restore_workspace(media, io, media->workspace);
+	if (error(status))
+		return status;
 	return erase(media, io, g->spare_offset, g->spare_size);
 }
 
@@ -171,10 +184,18 @@ static uint64_t finish_image(struct authvar_media *media, const struct authvar_m
 	uint32_t queue = g->working_offset + media->plan.queue_offset;
 	uint64_t status;
 
-	STEP(erase(media, io, g->variable_offset, g->variable_size));
-	STEP(program(media, io, g->variable_offset, image, g->variable_size));
-	STEP(marker(media, io, queue + 40U, 0xfdU, 0xf9U));
-	STEP(marker(media, io, queue, 0xfcU, 0xf8U));
+	status = erase(media, io, g->variable_offset, g->variable_size);
+	if (error(status))
+		return status;
+	status = program(media, io, g->variable_offset, image, g->variable_size);
+	if (error(status))
+		return status;
+	status = marker(media, io, queue + 40U, 0xfdU, 0xf9U);
+	if (error(status))
+		return status;
+	status = marker(media, io, queue, 0xfcU, 0xf8U);
+	if (error(status))
+		return status;
 	return erase(media, io, g->spare_offset, g->spare_size);
 }
 
@@ -201,20 +222,29 @@ static uint64_t recover_once(struct authvar_media *media, const struct authvar_m
 		header_state = media->image[queue];
 		if (header_state == 0xfeU)
 			return marker(media, io, queue, 0xfeU, 0xfaU);
-		STEP(erase(media, io, g->spare_offset, g->spare_size));
+		status = erase(media, io, g->spare_offset, g->spare_size);
+		if (error(status))
+			return status;
 		return marker(media, io, queue, 0xfcU, 0xf8U);
 	case PAYLOAD_MM_AUTHVAR_FTW_REPLAY_SPARE:
 		return finish_image(media, io, media->image + g->spare_offset);
 	case PAYLOAD_MM_AUTHVAR_FTW_COMPLETE_NEW:
-		STEP(marker(media, io, queue, 0xfcU, 0xf8U));
+		status = marker(media, io, queue, 0xfcU, 0xf8U);
+		if (error(status))
+			return status;
 		return erase(media, io, g->spare_offset, g->spare_size);
 	case PAYLOAD_MM_AUTHVAR_FTW_RESTORE_WORKSPACE:
 		memcpy(media->workspace, media->image + g->spare_offset, g->working_size);
 		header_state = media->workspace[p->queue_offset];
-		STEP(restore_workspace(media, io, media->workspace));
-		if (p->queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD)
-			STEP(marker(media, io, queue, header_state,
-				header_state == 0xfeU ? 0xfaU : 0xf8U));
+		status = restore_workspace(media, io, media->workspace);
+		if (error(status))
+			return status;
+		if (p->queue_disposition == PAYLOAD_MM_AUTHVAR_FTW_QUEUE_ABORT_OLD) {
+			status = marker(media, io, queue, header_state,
+				header_state == 0xfeU ? 0xfaU : 0xf8U);
+			if (error(status))
+				return status;
+		}
 		return erase(media, io, g->spare_offset, g->spare_size);
 	default:
 		return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
@@ -350,7 +380,8 @@ uint64_t authvar_media_commit(struct authvar_media *media,
 		if (!error(status) && replacing)
 			status = marker(media, io, media->plan.fv_header_size + old_state,
 				append->steps[0].expected_state, append->steps[0].new_state);
-		if (!error(status)) status = program(media, io, physical, body, length);
+		if (!error(status))
+			status = program(media, io, physical, body, length);
 		for (size_t i = first + 1U; !error(status) && i < append->step_count; i++)
 			status = marker(media, io, media->plan.fv_header_size + append->steps[i].offset,
 				append->steps[i].expected_state, append->steps[i].new_state);
@@ -374,15 +405,22 @@ uint64_t authvar_media_commit(struct authvar_media *media,
 	write_u64(metadata + 64, media->store_size);
 	write_u64(metadata + 72, (uint64_t)-(int64_t)g->spare_offset);
 	status = program(media, io, queue + 1, metadata + 1, 39);
-	if (!error(status)) status = marker(media, io, queue, 0xffU, 0xfeU);
-	if (!error(status)) status = marker(media, io, queue, 0xfeU, 0xfcU);
-	if (!error(status)) status = program(media, io, queue + 41, metadata + 41, 39);
-	if (!error(status)) status = erase(media, io, g->spare_offset, g->spare_size);
+	if (!error(status))
+		status = marker(media, io, queue, 0xffU, 0xfeU);
+	if (!error(status))
+		status = marker(media, io, queue, 0xfeU, 0xfcU);
+	if (!error(status))
+		status = program(media, io, queue + 41, metadata + 41, 39);
+	if (!error(status))
+		status = erase(media, io, g->spare_offset, g->spare_size);
 	if (!error(status))
 		status = program(media, io, g->spare_offset, media->candidate, g->variable_size);
-	if (!error(status)) status = marker(media, io, queue + 40, 0xffU, 0xfdU);
-	if (!error(status)) status = finish_image(media, io, media->candidate);
-	if (!error(status)) status = recover(media, io, true, false);
+	if (!error(status))
+		status = marker(media, io, queue + 40, 0xffU, 0xfdU);
+	if (!error(status))
+		status = finish_image(media, io, media->candidate);
+	if (!error(status))
+		status = recover(media, io, true, false);
 	if (!error(status) && memcmp(media->image + media->plan.fv_header_size,
 	    store, size))
 		status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;

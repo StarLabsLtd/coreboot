@@ -2,6 +2,7 @@
 #ifndef COMMONLIB_CAPSULE_SERVICE_H
 #define COMMONLIB_CAPSULE_SERVICE_H
 
+#include <commonlib/bsd/compiler.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -44,7 +45,7 @@ struct lb_capsule_update_region {
 	uint64_t size;
 	uint32_t flags;
 	uint32_t reserved;
-} __attribute__((packed));
+} __packed;
 
 struct lb_capsule_handoff {
 	uint32_t tag;
@@ -73,7 +74,7 @@ struct lb_capsule_handoff {
 	uint32_t boot_slot;
 	uint32_t update_slot;
 	struct lb_capsule_update_region regions[];
-} __attribute__((packed));
+} __packed;
 
 _Static_assert(sizeof(struct lb_capsule_update_region) == 32U,
 	"capsule update region ABI");
@@ -132,7 +133,7 @@ struct lb_capsule_broker_endpoint {
 	uint32_t trigger_address;
 	uint32_t trigger_value;
 	uint32_t reserved[3];
-} __attribute__((packed));
+} __packed;
 
 _Static_assert(sizeof(struct lb_capsule_broker_endpoint) == 80U,
 	"capsule broker endpoint ABI");

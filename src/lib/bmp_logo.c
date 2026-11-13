@@ -15,7 +15,6 @@ static const struct cbmem_entry *logo_entry;
 struct bmp_cbmem_allocation {
 	uint32_t id;
 	const struct cbmem_entry *entry;
-	bool decoded;
 };
 
 static void *bmp_cbmem_allocator(void *argument, size_t size,
@@ -138,10 +137,7 @@ void *bmp_load_logo(size_t *logo_size)
 void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
 	unsigned int scale, size_t *bmp_size)
 {
-	struct bmp_cbmem_allocation allocation = {
-		.id = CBMEM_ID_BOOT_SPLASH,
-		.decoded = true,
-	};
+	struct bmp_cbmem_allocation allocation = { .id = CBMEM_ID_BOOT_SPLASH };
 	struct bmp_image_header *header;
 	uint64_t row_size, pixel_bytes, source_size;
 

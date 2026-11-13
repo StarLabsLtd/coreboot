@@ -40,7 +40,7 @@ static struct {
 	uint32_t region_count;
 	uint32_t boot_slot, update_slot;
 	bool ready, closed, spent;
-} capsule __attribute__((section(".smm_authvar")));
+} capsule __section(".smm_authvar");
 
 bool smm_capsule_state_name(const uint16_t *name, const void *guid)
 {

@@ -457,10 +457,17 @@ static bool authvar_protection_ready(void)
 	uint32_t length;
 
 	switch (CONFIG_ECAM_MMCONF_BUS_NUMBER) {
-	case 256: length = PCIEXBAR_LENGTH_256MB; break;
-	case 128: length = PCIEXBAR_LENGTH_128MB; break;
-	case 64: length = PCIEXBAR_LENGTH_64MB; break;
-	default: return false;
+	case 256:
+		length = PCIEXBAR_LENGTH_256MB;
+		break;
+	case 128:
+		length = PCIEXBAR_LENGTH_128MB;
+		break;
+	case 64:
+		length = PCIEXBAR_LENGTH_64MB;
+		break;
+	default:
+		return false;
 	}
 	if (pci_io_read_config32(PCI_DEV(0, 0, 0), PCIEXBAR + 4) ||
 	    pci_io_read_config32(PCI_DEV(0, 0, 0), PCIEXBAR) !=
