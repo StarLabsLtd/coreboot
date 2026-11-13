@@ -240,8 +240,7 @@ enum cb_err payload_mm_authvar_service_request_validate(
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_SET:
 		if (!name_valid(endpoint, message, frame->name_size) ||
-		    frame->name_capacity != 0U || frame->data_capacity != 0U ||
-		    (frame->attributes == 0U && frame->data_size != 0U))
+		    frame->name_capacity != 0U || frame->data_capacity != 0U)
 			return CB_ERR_ARG;
 		break;
 	case PAYLOAD_MM_AUTHVAR_SERVICE_QUERY:
