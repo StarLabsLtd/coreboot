@@ -41,6 +41,8 @@ romstage-y += spi.c
 
 smm-y += mmap_boot.c
 smm-y += pmutil.c
+smm-y += reset.c
+smm-y += heci.c
 smm-y += smihandler.c
 smm-y += spi.c
 smm-y += uart.c
