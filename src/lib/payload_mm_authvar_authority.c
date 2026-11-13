@@ -296,7 +296,6 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 		.custom_mode = snapshot->facts.custom_mode,
 		.trusted_physical_presence =
 			snapshot->facts.trusted_physical_presence,
-		.require_self_signed_pk = snapshot->facts.require_self_signed_pk,
 	};
 	memcpy(route_request.vendor_guid, request->vendor_guid,
 		sizeof(route_request.vendor_guid));
