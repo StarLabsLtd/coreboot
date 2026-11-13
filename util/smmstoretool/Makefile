@@ -31,12 +31,13 @@ else
 endif
 
 # there files are in this directory
-SRC := data.c fv.c guids.c main.c storage.c utils.c vs.c
+SRC := data.c fv.c guids.c main.c migrate.c storage.c utils.c vs.c
 # and these are in $(TOP)/util/cbfstool/flashmap/
 SRC += fmap.c kv_pair.c valstr.c
 
 OBJ := $(SRC:.c=.o)
-DEP := $(SRC:.c=.o.d)
+OBJ += authvar-ftw.o authvar-fv.o authvar-store.o
+DEP := $(OBJ:=.d)
 
 .PHONY: all debug clean install
 
@@ -60,6 +61,11 @@ $(PRG): $(OBJ)
 	$(HOSTCC) $(HOSTCFLAGS) -c -o $@ -MF $@.d $<
 
 %.o: $(TOP)/util/cbfstool/flashmap/%.c
+	$(HOSTCC) $(HOSTCFLAGS) -c -o $@ -MF $@.d $<
+
+migrate.o authvar-ftw.o authvar-fv.o authvar-store.o: HOSTCFLAGS += -idirafter $(ROOT)/include
+
+authvar-%.o: $(ROOT)/lib/payload_mm_authvar_%.c
 	$(HOSTCC) $(HOSTCFLAGS) -c -o $@ -MF $@.d $<
 
 -include $(DEP)
