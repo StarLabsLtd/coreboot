@@ -5,6 +5,7 @@
 #include <cpu/x86/smm.h>
 #include <drivers/option/cfr_runtime.h>
 #if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
+#include <drivers/efi/option.h>
 #include <drivers/i2c/designware/dw_i2c.h>
 #endif
 #include <ec/acpi/ec.h>
@@ -15,9 +16,6 @@
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
 #include <acpi/acpi_gnvs.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-#include <cpu/intel/msr.h>
-#include <cpu/x86/msr.h>
-#include <device/mmio.h>
 #include <intelblocks/fast_spi.h>
 #endif
 #include <soc/nvs.h>
@@ -31,57 +29,11 @@
 #endif
 #include <option.h>
 #include <starlabs/efi_option_smi.h>
+#include <starlabs/smi.h>
 #include <types.h>
 #include "ecdefs.h"
 
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-static void set_insmm_sts(const bool enable_writes)
-{
-	msr_t msr = {
-		.lo = read32p(0xfed30880),
-		.hi = 0,
-	};
-
-	if (enable_writes)
-		msr.lo |= 1;
-	else
-		msr.lo &= ~1;
-
-	wrmsr(MSR_SPCL_CHIPSET_USAGE, msr);
-}
-#endif
-
-static bool chipset_disable_wp(void)
-{
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-	const bool wp_enabled = !fast_spi_wpd_status();
-
-	if (wp_enabled) {
-		set_insmm_sts(true);
-		/*
-		 * As per BWG, clearing "SPI_BIOS_CONTROL_SYNC_SS"
-		 * bit is a must prior setting SPI_BIOS_CONTROL_WPD" bit
-		 * to avoid 3-strike error.
-		 */
-		fast_spi_clear_sync_smi_status();
-		fast_spi_disable_wp();
-	}
-
-	return wp_enabled;
-#endif
-
-	return false;
-}
-
-static void chipset_enable_wp(void)
-{
-#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
-	fast_spi_enable_wp();
-	set_insmm_sts(false);
-#endif
-}
-
 static struct starlabs_dnvs_efiopt *get_starlabs_dnvs_efiopt(void)
 {
 	if (!gnvs)
@@ -552,7 +504,7 @@ enum cb_err cfr_runtime_apply_option(uint32_t id)
 }
 
 #if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
-int mainboard_smi_apmc(u8 data)
+int starlabs_efi_option_smi(u8 data)
 {
 	if (data != STARLABS_APMC_CMD_EFI_OPTION)
 		return 0;
@@ -563,65 +515,80 @@ int mainboard_smi_apmc(u8 data)
 
 	const enum starlabs_efiopt_cmd cmd = dnvs->cmd;
 	const enum starlabs_efiopt_id id = dnvs->id;
+	const uint32_t request_value = dnvs->value;
 	const struct starlabs_efiopt_entry *opt = NULL;
+	uint32_t response_value = request_value;
+	enum cb_err status = CB_ERR_ARG;
 
 	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED)
 		opt = find_efiopt(id);
 
 	if (cmd != STARLABS_EFIOPT_CMD_GET_SUPPORTED && !opt) {
-		dnvs->status = CB_ERR_ARG;
+		dnvs->value = response_value;
+		dnvs->status = status;
 		return 1;
 	}
 
 	switch (cmd) {
 	case STARLABS_EFIOPT_CMD_GET_SUPPORTED:
-		dnvs->value = get_supported_efiopts();
-		dnvs->status = CB_SUCCESS;
+		response_value = get_supported_efiopts();
+		status = CB_SUCCESS;
 		break;
 	case STARLABS_EFIOPT_CMD_GET: {
 		unsigned int value;
-		enum cb_err ret = get_uint_option_status(opt->name, opt->fallback, &value);
 
-		if (ret == CB_EFI_OPTION_NOT_FOUND) {
-			dnvs->value = opt->fallback;
-			ret = CB_SUCCESS;
-		} else if (ret == CB_SUCCESS) {
+		status = get_uint_option_status(opt->name, opt->fallback, &value);
+		if (status == CB_EFI_OPTION_NOT_FOUND) {
+			response_value = opt->fallback;
+			status = CB_SUCCESS;
+		} else if (status == CB_SUCCESS) {
 			const unsigned int stored = value;
 
-			ret = normalize_value(id, &value);
+			status = normalize_value(id, &value);
 			if (value != stored)
-				ret = CB_ERR_ARG;
-			if (ret == CB_SUCCESS)
-				dnvs->value = value;
+				status = CB_ERR_ARG;
+			if (status == CB_SUCCESS)
+				response_value = value;
 		}
-		dnvs->status = ret;
 		break;
 	}
 	case STARLABS_EFIOPT_CMD_SET: {
-		uint32_t value = dnvs->value;
-		enum cb_err ret = normalize_value(id, &value);
-		if (ret != CB_SUCCESS) {
-			dnvs->status = ret;
+		uint32_t value = request_value;
+		status = normalize_value(id, &value);
+		if (status != CB_SUCCESS)
+			break;
+		response_value = value;
+
+		if (!CONFIG(SMM_AUTHVAR) && !smm_wait_for_cpus()) {
+			status = CB_ERR;
 			break;
 		}
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI) && !CONFIG(SMM_AUTHVAR)
+		bool restore_wp;
 
-		const bool wp_enabled = chipset_disable_wp();
-#if CONFIG(ASS)
-		ret = efi_variable_service_set_uint(opt->name, value);
-#else
-		ret = set_uint_option(opt->name, value);
+		if (!fast_spi_smm_write_begin(&restore_wp)) {
+			status = CB_ERR;
+			break;
+		}
 #endif
-		if (wp_enabled)
-			chipset_enable_wp();
-		if (ret == CB_SUCCESS)
-			ret = apply_runtime_efiopt(id, value);
-		dnvs->status = ret;
+		if (CONFIG(ASS))
+			status = efi_variable_service_set_uint(opt->name, value);
+		else
+			status = set_uint_option(opt->name, value);
+#if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI) && !CONFIG(SMM_AUTHVAR)
+		fast_spi_smm_write_end(restore_wp);
+#endif
+		if (status == CB_SUCCESS)
+			status = apply_runtime_efiopt(id, value);
 		break;
 	}
 	default:
-		dnvs->status = CB_ERR_ARG;
 		break;
 	}
+
+	/* Publish the reply only after all decisions have used local state. */
+	dnvs->value = response_value;
+	dnvs->status = status;
 
 	return 1;
 }
