@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config ACPI_COMMON_SLEEP_STATES
+	def_bool n
+	help
+	  The platform DSDT uses the common sleep-state implementation, which
+	  supports S4 unless DISABLE_ACPI_HIBERNATE is set. Payloads can use this
+	  capability to keep hibernation allocations stable on ordinary boots.
+	  This does not report runtime overrides of the exposed sleep states.
+
 config ACPI_AMD_HARDWARE_SLEEP_VALUES
 	def_bool n
 	help
