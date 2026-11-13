@@ -158,3 +158,4 @@ $(obj)/starlabs-logo.bmp: $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)) \
 	fi
 	convert -background None "$<" $(starlabs-logo-resize) -type TrueColor "BMP3:$@"
 endif
+smm-y += smi_apmc.c
