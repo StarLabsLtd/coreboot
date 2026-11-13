@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <acpi/acpi.h>
+
 /* S1 support: bit 0, S2 Support: bit 1, etc. S0 & S5 assumed */
 #if CONFIG(HAVE_ACPI_RESUME)
 Name (SSFG, 0x0D)
@@ -33,4 +35,4 @@ If (SSFG & 0x08) {
 	Name(\_S4, Package () {0x06, 0x04, 0x00, 0x00} )	/* (S4) - Suspend to Disk */
 }
 
-Name(\_S5, Package () {0x07, 0x00, 0x00, 0x00} )	/* (S5) - Soft Off */
+Name(\_S5, Package () {ACPI_COMMON_INTEL_S5_A, ACPI_COMMON_INTEL_S5_B, 0x00, 0x00} )
