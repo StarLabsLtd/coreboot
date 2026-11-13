@@ -27,6 +27,11 @@ struct __packed global_nvs {
 	u64	hest_log_addr; /* 0x30 - 0x37 err log addr (used in SMM, not ASL code) */
 	u8	wadt; /* 0x38 - WADT wake status mask */
 	u8	wadt_armed; /* 0x39 - WADT armed timer mask */
+	u16	reserved_gpio; /* 0x3a - 0x3b */
+	u32	gpio_pad; /* 0x3c - 0x3f SMM GPIO pad */
+	u8	gpio_op; /* 0x40 - SMM GPIO operation */
+	u8	gpio_value; /* 0x41 - SMM GPIO value */
+	u8	gpio_status; /* 0x42 - SMM GPIO status */
 };
 
 #endif
