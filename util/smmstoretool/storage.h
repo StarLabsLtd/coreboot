@@ -18,6 +18,8 @@ bool storage_open(const char store_file[], struct storage_t *storage, bool rw);
 
 bool storage_write_back(struct storage_t *storage);
 
+bool storage_migrate_cdk2_padded(const char input[], const char output[]);
+
 void storage_drop(struct storage_t *storage);
 
 #endif // SMMSTORETOOL__STORAGE_H__
