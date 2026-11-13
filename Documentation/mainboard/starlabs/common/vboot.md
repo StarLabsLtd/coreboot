@@ -151,10 +151,20 @@ An acknowledgement failure is logged; the firmware does not invent a successful
 write. S3 reuses the completed lifecycle and does not acknowledge again.
 
 This boundary represents firmware-to-loader handoff, not successful OS boot.
-The notification can be sent by privileged DXE code, and vboot may advance its
-TPM firmware-version floor on a subsequent boot after success. An older fallback
-can then become ineligible. These consequences must be considered before
-provisioning rollback policy.
+The notification can be sent by privileged DXE code. For full-body A/B
+verification, the following successful boot advances the TPM firmware-version
+floor only to the lower authenticated version of the two slots. The alternate
+slot's root signature, preamble and complete body must verify before an increase.
+An older fallback therefore remains eligible after a single capsule installation;
+there is no need to install the same release twice. Missing or incomplete alternate
+firmware retains the existing floor without preventing the selected slot from
+booting. The floor is never lowered, including when converting an existing system.
+
+Versions include both the data-key and firmware version. The selected slot must
+retain vboot's previous-boot success qualification. This does not establish that
+both current image identities independently completed ExitBootServices. Single-slot
+and CBFS-metadata verification retain their existing advancement policy. This
+policy executes in RO and cannot be installed by a routine inactive-slot capsule.
 
 The vboot payload defaults Secure Boot on only when enrolling the initial keys.
 It preserves existing enrolled keys and the user's existing enable setting.
