@@ -3,6 +3,7 @@
 #include <tests/test.h>
 #include <boardid.h>
 #include <bootmode.h>
+#include <bootsplash.h>
 #include <boot/coreboot_tables.h>
 #include <boot/tables.h>
 #include <cbfs.h>
@@ -204,6 +205,36 @@ enum boot_mode_t get_boot_mode(void)
 	return LB_BOOT_MODE_NORMAL;
 }
 
+/* Renderer behavior is covered separately; exercise its actual table dispatch here. */
+static bool retained_splash;
+static unsigned int splash_render_calls;
+static const struct lb_boot_splash expected_splash = {
+	.tag = LB_TAG_BOOT_SPLASH,
+	.size = sizeof(struct lb_boot_splash),
+	.revision = LB_BOOT_SPLASH_REVISION,
+	.flags = LB_BOOT_SPLASH_FLAG_DISPLAYED | LB_BOOT_SPLASH_FLAG_BMP,
+	.framebuffer_address = 0x80000000,
+	.image_offset_x = 10,
+	.image_offset_y = 20,
+	.image_width = 30,
+	.image_height = 40,
+	.bmp_address = 0x100000,
+	.bmp_size = 54 + 30 * 40 * 4,
+};
+
+void bootsplash_render_primary(void)
+{
+	splash_render_calls++;
+}
+
+bool bootsplash_get_handoff(struct lb_boot_splash *splash)
+{
+	if (!retained_splash)
+		return false;
+	*splash = expected_splash;
+	return true;
+}
+
 struct resource mock_bootmem_ranges[] = {
 	{.base = 0x1000, .size = 0x2000, .flags = LB_MEM_RAM},
 	{.base = 0x0000, .size = 0x4000, .flags = LB_MEM_RAM},
@@ -211,6 +242,7 @@ struct resource mock_bootmem_ranges[] = {
 
 void bootmem_write_memory_table(struct lb_memory *mem)
 {
+	assert_int_equal(splash_render_calls, 1);
 	struct lb_memory_range *lb_r = &mem->map[0];
 	int i;
 
@@ -280,6 +312,9 @@ static int teardown_write_tables_test(void **state)
 
 static int setup_write_tables_test(void **state)
 {
+	retained_splash = false;
+	splash_render_calls = 0;
+
 	/* Allocate more data to have space for alignment */
 	void *top_ptr = malloc(CBMEM_SIZE + DYN_CBMEM_ALIGN_SIZE);
 	int32_t *mmc_status = NULL;
@@ -338,6 +373,7 @@ static void test_write_tables(void **state)
 	struct lb_record *record;
 	int32_t *mmc_status = cbmem_find(CBMEM_ID_MMC_STATUS);
 	size_t i = 0;
+	bool saw_splash = false;
 
 	/* Expect function to store cbtable entry in cbmem */
 	cbtable_start = write_tables();
@@ -354,6 +390,12 @@ static void test_write_tables(void **state)
 	LB_RECORD_FOR_EACH(record, i, header)
 	{
 		switch (record->tag) {
+		case LB_TAG_BOOT_SPLASH:
+			assert_true(retained_splash);
+			assert_memory_equal(record, &expected_splash, sizeof(expected_splash));
+			assert_false(saw_splash);
+			saw_splash = true;
+			break;
 		case LB_TAG_MEMORY:
 			/* Should be the same as in bootmem_write_memory_table() */
 			assert_int_equal(sizeof(struct lb_memory)
@@ -512,6 +554,13 @@ static void test_write_tables(void **state)
 			fail_msg("Unexpected tag found in record. Tag ID: 0x%x", record->tag);
 		}
 	}
+	assert_int_equal(saw_splash, retained_splash);
+}
+
+static void test_write_tables_with_retained_splash(void **state)
+{
+	retained_splash = true;
+	test_write_tables(state);
 }
 
 int main(void)
@@ -524,6 +573,8 @@ int main(void)
 		cmocka_unit_test_setup(test_write_coreboot_forwarding_table, setup_test_header),
 		cmocka_unit_test_setup_teardown(test_write_tables, setup_write_tables_test,
 						teardown_write_tables_test),
+		cmocka_unit_test_setup_teardown(test_write_tables_with_retained_splash,
+			setup_write_tables_test, teardown_write_tables_test),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);

@@ -2,6 +2,15 @@
 
 if VENDOR_STARLABS
 
+config BMP_LOGO
+	default y if PAYLOAD_EDK2 && EDK2_BOOTSPLASH_FILE != ""
+
+config BMP_LOGO_FILE_NAME
+	default "\$(obj)/starlabs-logo.bmp" if PAYLOAD_EDK2
+
+config BOOT_SPLASH_HANDOFF
+	default y if PAYLOAD_EDK2
+
 config EDK2_BOOTSPLASH_FILE
 	string
 	default "3rdparty/blobs/mainboard/starlabs/Logo.bmp"

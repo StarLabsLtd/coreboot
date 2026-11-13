@@ -180,6 +180,14 @@ const char *mainboard_bmp_logo_filename(void);
 const char *bmp_logo_filename(void);
 void *bmp_load_logo(size_t *logo_size);
 void *bmp_load_logo_by_type(enum bootsplash_type type, size_t *logo_size);
+void bootsplash_render_primary(void);
+/* Fill platform alignment and margin policy before rendering the primary image. */
+void platform_get_logo_config(struct logo_config *config);
+bool bootsplash_get_handoff(struct lb_boot_splash *handoff);
+void *bmp_retain_logo_from_blt(const void *blt, uint32_t width, uint32_t height,
+	size_t *bmp_size);
+void bmp_retain_logo(void);
+
 void bmp_release_logo(void);
 /*
  * Platform specific callbacks for power-off handling.
