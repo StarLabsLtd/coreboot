@@ -23,6 +23,13 @@
 #include <cbmem.h>
 #include <vb2_sha.h>
 
+static int tpm2_log_reject(void)
+{
+	if (CONFIG(SECURITY_FAIL_CLOSED))
+		die("Required TPM event log entry failed\n");
+	return 0;
+}
+
 static size_t tpm2_log_entry_header_size(void)
 {
 	return offsetof(struct tpm_2_log_entry, data);
@@ -240,11 +247,11 @@ static int tpm2_log_append_fixed_event(struct tpm_2_log_table *tclt, const uint3
 
 	if (!tpm2_log_event_is_valid(digest_algo, digest, digest_len, (const uint8_t *)name,
 				     data_len))
-		return 0;
+		return tpm2_log_reject();
 
 	if (le16toh(tclt->vendor.num_entries) >= le16toh(tclt->vendor.max_entries)) {
 		printk(BIOS_WARNING, "TPM LOG: log table is full\n");
-		return 0;
+		return tpm2_log_reject();
 	}
 
 	entry = &tclt->entries[le16toh(tclt->vendor.num_entries)];
@@ -276,11 +283,11 @@ static int tpm2_log_append_packed_event(struct tpm_2_log_table *tclt, const uint
 	size_t capacity;
 
 	if (!tpm2_log_event_is_valid(digest_algo, digest, digest_len, data, data_len))
-		return 0;
+		return tpm2_log_reject();
 
 	if (le16toh(tclt->vendor.num_entries) >= le16toh(tclt->vendor.max_entries)) {
 		printk(BIOS_WARNING, "TPM LOG: log table is full\n");
-		return 0;
+		return tpm2_log_reject();
 	}
 
 	new_entry_size = tpm2_log_entry_header_size() + data_len;
@@ -288,7 +295,7 @@ static int tpm2_log_append_packed_event(struct tpm_2_log_table *tclt, const uint
 	capacity = tpm2_log_capacity(tclt);
 	if (used_size > capacity || new_entry_size > capacity - used_size) {
 		printk(BIOS_WARNING, "TPM LOG: log table is full\n");
-		return 0;
+		return tpm2_log_reject();
 	}
 
 	entry = (uint8_t *)tclt->entries + used_size;
@@ -398,12 +405,14 @@ void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 
 	if (!name) {
 		printk(BIOS_WARNING, "TPM LOG: entry name not set\n");
+		tpm2_log_reject();
 		return;
 	}
 
 	tclt = tpm_log_init();
 	if (!tclt) {
 		printk(BIOS_WARNING, "TPM LOG: non-existent!\n");
+		tpm2_log_reject();
 		return;
 	}
 
@@ -422,6 +431,7 @@ void tpm2_log_add_table_entry(const char *name, const uint32_t pcr,
 					     digest_len, event_name, name_len);
 	} else {
 		printk(BIOS_WARNING, "TPM LOG: unknown entry layout\n");
+		tpm2_log_reject();
 	}
 }
 
@@ -454,15 +464,19 @@ int tpm2_log_get(int entry_idx, int *pcr, const uint8_t **digest_data,
 	const uint8_t *entry;
 
 	tclt = tpm_log_init();
-	if (!tclt)
+	if (!tclt) {
+		tpm2_log_reject();
 		return 1;
+	}
 
 	if (entry_idx < 0 || entry_idx >= le16toh(tclt->vendor.num_entries))
 		return 1;
 
 	entry = tpm2_log_get_entry_at(tclt, entry_idx);
-	if (!entry)
+	if (!entry) {
+		tpm2_log_reject();
 		return 1;
+	}
 
 	*pcr = tpm2_log_read_le32(entry, offsetof(struct tpm_2_log_entry, pcr));
 	*digest_data = tpm2_log_entry_digest(entry);
@@ -507,6 +521,7 @@ void tpm2_log_copy_entries(const void *from, void *to)
 
 		if (!from_entry) {
 			printk(BIOS_WARNING, "TPM LOG: malformed entry\n");
+			tpm2_log_reject();
 			return;
 		}
 

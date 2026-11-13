@@ -67,6 +67,8 @@ static tpm_result_t tspi_init_crtm(void)
 		}
 	} else {
 		printk(BIOS_ERR, "TSPI: Could not find FMAP!\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			return TPM_CB_FAIL;
 	}
 
 	/* measure bootblock from RO */
@@ -259,11 +261,15 @@ static void recover_tpm_log(int is_recovery)
 
 	if (tpm_log_get_size(preram_log) > MAX_PRERAM_TPM_LOG_ENTRIES) {
 		printk(BIOS_WARNING, "TPM LOG: pre-RAM log is too full, possible corruption\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Required TPM log is corrupt\n");
 		return;
 	}
 
 	if (ram_log == NULL) {
 		printk(BIOS_WARNING, "TPM LOG: CBMEM not available, something went wrong\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Required TPM log cannot be retained\n");
 		return;
 	}
 
