@@ -10,6 +10,7 @@
 #include <device/pci_ops.h>
 #include <cpu/x86/smm.h>
 #include <efi_variable_service.h>
+#include <drivers/efi/efivars.h>
 #include <fmap.h>
 #include <cbmem.h>
 #include <smmstore.h>
@@ -273,6 +274,18 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	    smmstore_get_info(&info) || fmap_locate_area("SMMSTORE", &store))
 		return -1;
 	store_size = (uint64_t)info.num_blocks * info.block_size;
+	/* One-time legacy FTW recovery must run with its original geometry. */
+	if (CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000) {
+		struct mem_region_device mapped;
+		size_t block_size;
+
+		mem_region_device_ro_init(&mapped, (void *)(uintptr_t)info.mmap_addr, store_size);
+		if (efi_fv_store_block_size(&mapped.rdev, info.block_size, &block_size) !=
+		    CB_SUCCESS)
+			return -1;
+		info.block_size = block_size;
+		info.num_blocks = store_size / block_size;
+	}
 	spare_size = (info.num_blocks / 2) * (uint64_t)info.block_size;
 	if (store_size <= spare_size + info.block_size)
 		return -1;

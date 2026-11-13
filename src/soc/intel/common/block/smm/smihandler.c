@@ -448,7 +448,11 @@ static int finalize(void)
 			smmstore_drain_sync_smi();
 			fast_spi_disable_wp();
 		}
-		if (!fast_spi_wpd_status() || efi_variable_service_finalize())
+		int ret = fast_spi_wpd_status() ? efi_variable_service_finalize() : -1;
+
+		if (ret == EFI_VARIABLE_SERVICE_REBOOT_REQUIRED)
+			finalize_result |= APM_FINALIZE_REBOOT_REQUIRED;
+		else if (ret)
 			finalize_result |= APM_FINALIZE_EFI_ERROR;
 		if (wp_enabled) {
 			smmstore_drain_sync_smi();
