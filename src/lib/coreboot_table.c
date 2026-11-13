@@ -460,6 +460,8 @@ static void lb_cfr_setup_menu(struct lb_header *header)
 	struct lb_cfr *cfr_root = (struct lb_cfr *)current;
 
 	mb_cfr_setup_menu(cfr_root);
+	cfr_write_form_roles(header, cfr_root);
+	cfr_write_form_categories(header, cfr_root);
 }
 
 #if CONFIG(USE_OPTION_TABLE)
