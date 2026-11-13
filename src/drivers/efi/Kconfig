@@ -124,13 +124,21 @@ config DRIVERS_EFI_CAPSULE_INITIATE_RESET
 
 
 config DRIVERS_EFI_CAPSULE_REGIONS
-	string "FMAP regions to include in the capsule manifest"
+	string "FMAP regions admitted for capsule updates"
 	default "COREBOOT"
 	depends on DRIVERS_EFI_UPDATE_CAPSULES
 	help
-	  Whitespace-separated list of FMAP regions that the update capsule is
-	  allowed to modify. The list is published to the payload and embedded
-	  as a signed manifest when generating a capsule.
+	  Whitespace-separated list of FMAP regions that capsule updates may
+	  modify. The list is published to the payload's update owner.
+
+config DRIVERS_EFI_CAPSULE_PACKAGE_REGIONS
+	string
+	default DRIVERS_EFI_CAPSULE_REGIONS
+	depends on DRIVERS_EFI_GENERATE_CAPSULE
+	help
+	  FMAP regions placed in the generated firmware capsule. This normally
+	  matches the update owner's allowlist, but a protected owner may admit
+	  independently signed update classes that must not share one manifest.
 
 menu "Capsule signing certificates"
 	depends on DRIVERS_EFI_UPDATE_CAPSULES || (PAYLOAD_CDK2 && CDK2_NATIVE_SYSTEM_FMP)
