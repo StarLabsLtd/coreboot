@@ -3,6 +3,7 @@
 #ifndef SECURITY_TCG_OPAL_S3_H
 #define SECURITY_TCG_OPAL_S3_H
 
+#include <commonlib/bsd/compiler.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -49,7 +50,7 @@ struct opal_s3_smm_ctx {
 	uint8_t password_len;
 	uint8_t reserved2[3];
 	uint8_t password[OPAL_S3_MAX_PASSWORD_LEN];
-} __attribute__((packed));
+} __packed;
 
 _Static_assert(sizeof(struct opal_s3_smm_ctx) == 52, "OPAL S3 version 1 wire size");
 

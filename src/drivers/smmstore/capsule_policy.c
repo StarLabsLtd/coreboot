@@ -174,7 +174,7 @@ static bool board_matches(struct smm_capsule_image *image, size_t raw_offset,
 {
 	uint8_t header[256], info[BUILD_INFO_LIMIT];
 	size_t offset = 0, files = 0, matches = 0;
-	const char expected[] = "\nMAINBOARD_VENDOR: " CONFIG_MAINBOARD_VENDOR
+	static const char expected[] = "\nMAINBOARD_VENDOR: " CONFIG_MAINBOARD_VENDOR
 		"\nMAINBOARD_PART_NUMBER: " CONFIG_MAINBOARD_PART_NUMBER "\n";
 
 	/* Layout changes require a programmer installation, not an update. */
@@ -239,12 +239,23 @@ static bool board_matches(struct smm_capsule_image *image, size_t raw_offset,
 					return false;
 				attribute_size = be32dec(header + attribute + 4);
 				switch (be32dec(header + attribute + 8)) {
-				case VB2_HASH_SHA1: digest_size = VB2_SHA1_DIGEST_SIZE; break;
-				case VB2_HASH_SHA256: digest_size = VB2_SHA256_DIGEST_SIZE; break;
-				case VB2_HASH_SHA512: digest_size = VB2_SHA512_DIGEST_SIZE; break;
-				case VB2_HASH_SHA224: digest_size = VB2_SHA224_DIGEST_SIZE; break;
-				case VB2_HASH_SHA384: digest_size = VB2_SHA384_DIGEST_SIZE; break;
-				default: return false;
+				case VB2_HASH_SHA1:
+					digest_size = VB2_SHA1_DIGEST_SIZE;
+					break;
+				case VB2_HASH_SHA256:
+					digest_size = VB2_SHA256_DIGEST_SIZE;
+					break;
+				case VB2_HASH_SHA512:
+					digest_size = VB2_SHA512_DIGEST_SIZE;
+					break;
+				case VB2_HASH_SHA224:
+					digest_size = VB2_SHA224_DIGEST_SIZE;
+					break;
+				case VB2_HASH_SHA384:
+					digest_size = VB2_SHA384_DIGEST_SIZE;
+					break;
+				default:
+					return false;
 				}
 				if (attribute_size != 12 + digest_size ||
 				    attribute_size > data_offset - attribute)

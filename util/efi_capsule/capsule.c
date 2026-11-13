@@ -491,18 +491,41 @@ int main(int argc, char **argv)
 
 	while ((option = getopt_long(argc, argv, "", arguments, NULL)) != -1) {
 		switch (option) {
-		case 'i': options.rom = optarg; break;
-		case 'o': options.output = optarg; break;
-		case 'g': options.guid = optarg; break;
-		case 'v': options.version = optarg; break;
-		case 'l': options.lowest_version = optarg; break;
-		case 'V': options.localversion = optarg; break;
-		case 'r': options.regions = optarg; break;
-		case 's': options.signer = optarg; break;
-		case 'c': options.intermediate = optarg; break;
-		case 't': options.root = optarg; break;
-		case 'R': options.initiate_reset = true; break;
-		default: return EXIT_FAILURE;
+		case 'i':
+			options.rom = optarg;
+			break;
+		case 'o':
+			options.output = optarg;
+			break;
+		case 'g':
+			options.guid = optarg;
+			break;
+		case 'v':
+			options.version = optarg;
+			break;
+		case 'l':
+			options.lowest_version = optarg;
+			break;
+		case 'V':
+			options.localversion = optarg;
+			break;
+		case 'r':
+			options.regions = optarg;
+			break;
+		case 's':
+			options.signer = optarg;
+			break;
+		case 'c':
+			options.intermediate = optarg;
+			break;
+		case 't':
+			options.root = optarg;
+			break;
+		case 'R':
+			options.initiate_reset = true;
+			break;
+		default:
+			return EXIT_FAILURE;
 		}
 	}
 	if (optind != argc || !options.rom || !options.output || !options.guid ||

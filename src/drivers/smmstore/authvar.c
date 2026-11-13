@@ -55,7 +55,7 @@ static struct {
 	struct lb_authvar_service_endpoint endpoint;
 	uintptr_t authority_base;
 	enum { OWNER_UNINITIALIZED, OWNER_FAILED, OWNER_READY } state;
-} private __attribute__((section(".smm_authvar")));
+} private __section(".smm_authvar");
 
 static uint64_t read_media(void *context, uint32_t offset, void *buffer, size_t size)
 {
