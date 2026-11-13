@@ -112,6 +112,9 @@ $(EFI_CAPSULE_TOOL): util/efi_capsule/capsule.c
 finalised_rom:: $(obj)/coreboot.cap
 capsule:: $(obj)/coreboot.cap
 
+# Finalization hooks can rewrite the ROM after make has cached its timestamp.
+.PHONY: $(obj)/coreboot.cap
+
 $(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) $(EFI_CAPSULE_TOOL) \
 		$(EFI_CAPSULE_SIGNER) $(EFI_CAPSULE_INTERMEDIATE) $(EFI_CAPSULE_ROOT) | files_added
 	@set -e; temporary="$@.tmp"; trap 'rm -f "$$temporary"' EXIT HUP INT TERM; \
