@@ -122,7 +122,6 @@ enum payload_mm_verify_status payload_mm_authvar_trust_anchor_verify(
 {
 	struct payload_mm_crypto_span intermediates[
 		PAYLOAD_MM_CRYPTO_MAX_CERTIFICATES - 1U];
-	enum payload_mm_crypto_failure_source failure_source;
 	enum payload_mm_verify_status status;
 	size_t intermediate_count = 0U;
 	size_t signer_index = 0U;
@@ -141,6 +140,6 @@ enum payload_mm_verify_status payload_mm_authvar_trust_anchor_verify(
 	}
 	status = payload_mm_authvar_x509_chain_verify_detailed(
 		&verified->certificates[signer_index], intermediates,
-		intermediate_count, trust_anchor, &failure_source);
+		intermediate_count, trust_anchor);
 	return payload_mm_crypto_end(owner, status);
 }
