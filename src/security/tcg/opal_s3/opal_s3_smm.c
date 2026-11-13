@@ -310,24 +310,6 @@ static u32 opal_s3_set_secret_snapshot(const struct opal_s3_smm_ctx *ctx)
 	return 0;
 }
 
-static u32 opal_s3_set_secret(const struct opal_s3_smm_ctx *ctx)
-{
-	struct opal_s3_smm_ctx snapshot;
-	u32 ret;
-
-	if (!ctx)
-		return 1;
-
-	if (smm_points_to_smram(ctx, sizeof(*ctx)))
-		return 2;
-
-	/* The caller's buffer can change while SMM is handling the request. */
-	memcpy(&snapshot, ctx, sizeof(snapshot));
-	ret = opal_s3_set_secret_snapshot(&snapshot);
-	opal_explicit_bzero(&snapshot, sizeof(snapshot));
-	return ret;
-}
-
 static void opal_s3_arm_for_s3(void)
 {
 	struct opal_s3_state *st = opal_s3_get_state();
@@ -544,7 +526,7 @@ int opal_s3_smi_apmc(u8 apmc)
 		/* Validate and consume the same copy, never mutable caller memory. */
 		memcpy(&ctx, (const void *)(uintptr_t)rbx, sizeof(ctx));
 		if (subcmd == OPAL_SMM_SUBCMD_SET_SECRET)
-			ret = opal_s3_set_secret(&ctx);
+			ret = opal_s3_set_secret_snapshot(&ctx);
 		else
 			ret = opal_s3_clear_device(&ctx);
 		opal_explicit_bzero(&ctx, sizeof(ctx));
