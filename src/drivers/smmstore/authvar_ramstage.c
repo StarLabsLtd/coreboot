@@ -8,6 +8,22 @@
 #include <smm_call.h>
 #include <smmstore.h>
 #include <string.h>
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+#include <bootmode.h>
+#include <security/vboot/misc.h>
+#include <vb2_api.h>
+#endif
+
+static uint8_t capsule_boot_slot(void)
+{
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	if (vboot_recovery_mode_enabled())
+		return 0;
+	return vboot_is_firmware_slot_a(vboot_get_context()) ? 1 : 2;
+#else
+	return 0;
+#endif
+}
 
 void lb_authvar_service(struct lb_header *header)
 {
@@ -26,7 +42,7 @@ void lb_authvar_service(struct lb_header *header)
 	if (payload_mm_authvar_service_endpoint_validate(&endpoint) != CB_SUCCESS)
 		die("Authenticated variables: invalid communication geometry\n");
 	/* Only a successful, synchronous protected-owner initialization admits it. */
-	if (call_smm(APM_CNT_AUTHVAR, 0, NULL) != SMMSTORE_RET_SUCCESS)
+	if (call_smm(APM_CNT_AUTHVAR, capsule_boot_slot(), NULL) != SMMSTORE_RET_SUCCESS)
 		die("Authenticated variables: protected owner unavailable\n");
 	authority = cbmem_entry_find(CBMEM_ID_AUTHVAR_BOOT_AUTHORITY);
 	if (!authority || cbmem_entry_size(authority) != AUTHVAR_BOOT_AUTHORITY_BACKING_SIZE)

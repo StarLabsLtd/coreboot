@@ -194,7 +194,7 @@ failed:
 	return false;
 }
 
-static bool initialize(void)
+static bool initialize(uint8_t boot_slot)
 {
 	uintptr_t communication;
 	size_t communication_size;
@@ -246,7 +246,7 @@ static bool initialize(void)
 		full_reset();
 #endif
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
-	if (!smm_capsule_initialize())
+	if (!smm_capsule_initialize(boot_slot))
 		return false;
 #endif
 	if (!initialize_authority())
@@ -277,7 +277,7 @@ uint64_t smm_authvar_store_uint_option(const char *name, uint32_t value)
 }
 
 /* The caller holds the SMI lock, has parked every peer, and checked protection. */
-uint32_t smm_authvar_exec(void)
+uint32_t smm_authvar_exec(uint8_t subcommand)
 {
 	if (smm_is_s3_resume())
 		close_authority();
@@ -287,7 +287,7 @@ uint32_t smm_authvar_exec(void)
 			private.state = OWNER_FAILED;
 			return SMMSTORE_RET_FAILURE;
 		}
-		return initialize() ? SMMSTORE_RET_SUCCESS : SMMSTORE_RET_FAILURE;
+		return initialize(subcommand) ? SMMSTORE_RET_SUCCESS : SMMSTORE_RET_FAILURE;
 	}
 	if (!owner_ready())
 		return SMMSTORE_RET_FAILURE;
@@ -341,6 +341,10 @@ enum cb_err smm_authvar_close_exec(void)
 		if (request.reserved[i])
 			return CB_ERR;
 	}
+#if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT) && CONFIG(VBOOT_SLOTS_RW_AB)
+	if (request.source == LB_AUTHVAR_CLOSE_CLOSED_REPROOF && !smm_capsule_ack_boot())
+		return CB_ERR;
+#endif
 	authority->last_close_request_id = request.request_id;
 	authority->closed_sources |= request.source;
 	request.status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;

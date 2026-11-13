@@ -270,14 +270,19 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 	struct smm_capsule_image *image, const uint8_t image_type[16],
 	uint32_t current_version, uint32_t lowest_version, uint32_t attempted_version,
 	const void *fmap, size_t fmap_size, uint32_t region_count,
-	struct capsule_broker_raw_image *raw, uint32_t *selected)
+	uint32_t update_slot, struct capsule_broker_raw_image *raw, uint32_t *selected)
 {
+	static const uint8_t slot_names[6][16] = {
+		"FW_MAIN_A", "RW_FWID_A", "VBLOCK_A",
+		"FW_MAIN_B", "RW_FWID_B", "VBLOCK_B",
+	};
+	static const uint8_t ec_name[16] = "EC";
 	uint8_t metadata[DEPENDENCY_LIMIT + MSS1_HEADER_SIZE];
 	uint8_t names[SMM_CAPSULE_MAX_REGIONS][16], trailer[8];
 	size_t dependency_size = 0, size = MIN(image->payload_size, sizeof(metadata));
 	size_t offset;
 	uint32_t header_size, version, floor;
-	uint32_t count;
+	uint32_t count, slot_selected = 0;
 
 	*raw = (struct capsule_broker_raw_image) { 0 };
 	*selected = 0;
@@ -312,6 +317,13 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 		count * sizeof(names[0])) ||
 	    !board_matches(image, offset, fmap, fmap_size))
 		return CAPSULE_BROKER_IMAGE_REFUSED;
+	if (update_slot) {
+		bool ec_only = count == 1 && !memcmp(names[0], ec_name, sizeof(ec_name));
+
+		if (!ec_only && (count != ARRAY_SIZE(slot_names) ||
+		    memcmp(names, slot_names, sizeof(slot_names))))
+			return CAPSULE_BROKER_IMAGE_REFUSED;
+	}
 	for (size_t i = 0; i < count; i++) {
 		const char *entry = CONFIG_DRIVERS_EFI_CAPSULE_REGIONS;
 		size_t length = 0, region = 0;
@@ -341,6 +353,9 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 				if (region >= region_count || (*selected & (1U << region)))
 					return CAPSULE_BROKER_IMAGE_REFUSED;
 				*selected |= 1U << region;
+				if (!update_slot || count == 1 ||
+				    (update_slot == 1 ? i < 3 : i >= 3))
+					slot_selected |= 1U << region;
 				found = true;
 				break;
 			}
@@ -349,6 +364,8 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 		if (!found)
 			return CAPSULE_BROKER_IMAGE_REFUSED;
 	}
+	if (update_slot)
+		*selected = slot_selected;
 	*raw = (struct capsule_broker_raw_image) {
 		.offset = offset, .size = CONFIG_ROM_SIZE, .lowest_supported_version = floor,
 	};
