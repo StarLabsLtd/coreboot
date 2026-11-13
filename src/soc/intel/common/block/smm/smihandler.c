@@ -366,24 +366,14 @@ static void southbridge_smi_efi_variable_service(
 	if (node < 0)
 		return;
 
-	const bool wp_enabled = !fast_spi_wpd_status();
-	if (wp_enabled) {
-		set_insmm_sts(true);
-		smmstore_drain_sync_smi();
-		fast_spi_disable_wp();
+	bool restore_wp = false;
+	uint32_t ret = EFI_VARIABLE_SERVICE_RET_FAILURE;
+
+	if (fast_spi_smm_write_begin(&restore_wp)) {
+		ret = efi_variable_service_communicate();
+		fast_spi_smm_write_end(restore_wp);
 	}
-
-	uint32_t ret = fast_spi_wpd_status() ? efi_variable_service_communicate() :
-		EFI_VARIABLE_SERVICE_RET_FAILURE;
-	smmstore_drain_sync_smi();
 	save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
-
-	/* Restore protection we changed; preserve a pre-existing write window. */
-	if (wp_enabled)
-		fast_spi_enable_wp();
-	set_insmm_sts(false);
-	if (wp_enabled && fast_spi_wpd_status())
-		die("EFI variable service: cannot restore SPI write protection.");
 }
 
 __weak int soc_gpio_lock_finalize(void)
@@ -567,27 +557,18 @@ static int finalize(void)
 	}
 
 	if (CONFIG(ASS)) {
-		const bool wp_enabled = !fast_spi_wpd_status();
+		bool restore_wp = false;
 
 		/* FTW recovery may need to write while the service is initialized. */
-		if (wp_enabled) {
-			set_insmm_sts(true);
-			smmstore_drain_sync_smi();
-			fast_spi_disable_wp();
-		}
-		int ret = fast_spi_wpd_status() ? efi_variable_service_finalize() : -1;
+		bool writable = fast_spi_smm_write_begin(&restore_wp);
+		int ret = writable ? efi_variable_service_finalize() : -1;
 
 		if (ret == EFI_VARIABLE_SERVICE_REBOOT_REQUIRED)
 			finalize_result |= APM_FINALIZE_REBOOT_REQUIRED;
 		else if (ret)
 			finalize_result |= APM_FINALIZE_EFI_ERROR;
-		if (wp_enabled) {
-			smmstore_drain_sync_smi();
-			fast_spi_enable_wp();
-			set_insmm_sts(false);
-			if (fast_spi_wpd_status())
-				finalize_result |= APM_FINALIZE_EFI_ERROR;
-		}
+		if (writable)
+			fast_spi_smm_write_end(restore_wp);
 	}
 
 	enable_smm_code_access_check();
@@ -621,8 +602,7 @@ static int finalize(void)
 		finalize_result |= other_error;
 	/* Hooks and fast_spi_init() may have opened writes: close last, before RSM. */
 	if (CONFIG(ASS)) {
-		fast_spi_enable_wp();
-		set_insmm_sts(false);
+		fast_spi_smm_write_end(true);
 		if (fast_spi_wpd_status() ||
 		    (bios_protection && !fast_spi_bios_protected()))
 			finalize_result |= APM_FINALIZE_EFI_ERROR;

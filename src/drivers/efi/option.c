@@ -16,16 +16,6 @@ static const EFI_GUID EficorebootNvDataGuid = {
 
 #define EFI_UINT_OPTION_BATCH_MAX 16
 
-enum cb_err efi_option_initialize_store(void)
-{
-	struct region_device rdev;
-
-	if (smmstore_lookup_region(&rdev))
-		return CB_CMOS_OTABLE_DISABLED;
-
-	return efi_fv_initialize(&rdev, SMM_BLOCK_SIZE);
-}
-
 enum cb_err efi_option_get_uint(const char *name, uint32_t *value)
 {
 	struct region_device rdev;
