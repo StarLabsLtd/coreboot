@@ -8,6 +8,7 @@
 #include <common/cfr.h>
 
 static struct sm_obj_form audio_video_group = {
+	.category = LB_CFR_FORM_CATEGORY_AUDIO,
 	.ui_name = "Audio/Video",
 	.obj_list = (const struct sm_object *[]) {
 		&microphone,
@@ -20,6 +21,7 @@ static struct sm_obj_form audio_video_group = {
 };
 
 static struct sm_obj_form battery_group = {
+	.category = LB_CFR_FORM_CATEGORY_BATTERY,
 	.ui_name = "Battery",
 	.obj_list = (const struct sm_object *[]) {
 		&power_on_after_fail_bool,
@@ -36,6 +38,7 @@ static struct sm_obj_form io_expansion_group = {
 };
 
 static struct sm_obj_form keyboard_group = {
+	.category = LB_CFR_FORM_CATEGORY_KEYBOARD,
 	.ui_name = "Keyboard",
 	.obj_list = (const struct sm_object *[]) {
 		&fn_ctrl_swap,
@@ -45,6 +48,7 @@ static struct sm_obj_form keyboard_group = {
 };
 
 static struct sm_obj_form security_group = {
+	.role = LB_CFR_FORM_ROLE_SECURITY,
 	.ui_name = "Security",
 	.obj_list = (const struct sm_object *[]) {
 #if CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION)
