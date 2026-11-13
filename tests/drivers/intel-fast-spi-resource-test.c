@@ -34,6 +34,94 @@ static void enable_resources(struct device *dev)
 static struct device device;
 static struct resource resource;
 
+/* ASan retains the driver's operations table. These callbacks are outside
+ * the resource-enable tests and must not be called by the exercised path. */
+struct pci_operations pci_dev_ops_pci;
+struct resource *free_resources;
+
+void pci_dev_read_resources(struct device *dev)
+{
+	fail();
+}
+
+void pci_dev_set_resources(struct device *dev)
+{
+	fail();
+}
+
+void scan_static_bus(struct device *dev)
+{
+	fail();
+}
+
+const char *acpi_device_scope(const struct device *dev)
+{
+	fail();
+	return NULL;
+}
+
+const char *acpi_device_name(const struct device *dev)
+{
+	fail();
+	return NULL;
+}
+
+void acpi_device_write_uid(const struct device *dev)
+{
+	fail();
+}
+
+int acpi_device_status(const struct device *dev)
+{
+	fail();
+	return 0;
+}
+
+void acpigen_write_scope(const char *name)
+{
+	fail();
+}
+
+void acpigen_write_device(const char *name)
+{
+	fail();
+}
+
+void acpigen_write_name_string(const char *name, const char *string)
+{
+	fail();
+}
+
+void acpigen_write_STA(uint8_t status)
+{
+	fail();
+}
+
+void acpigen_write_name(const char *name)
+{
+	fail();
+}
+
+void acpigen_write_resourcetemplate_header(void)
+{
+	fail();
+}
+
+void acpigen_write_mem32fixed(int readwrite, uint32_t base, uint32_t size)
+{
+	fail();
+}
+
+void acpigen_write_resourcetemplate_footer(void)
+{
+	fail();
+}
+
+void acpigen_pop_len(void)
+{
+	fail();
+}
+
 static int setup(void **state)
 {
 	memset(&device, 0, sizeof(device));
