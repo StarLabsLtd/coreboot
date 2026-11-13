@@ -51,6 +51,9 @@ ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT A/B acknowledges boot success at the payload handoff)
 endif
 else
+ifeq ($(CONFIG_PAYLOAD_CDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_SMM_AUTHVAR),yyy)
+$(error Star Labs protected VBOOT capsule updates require A/B slots)
+endif
 ifneq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT requires post-lockdown boot acknowledgement)
 endif
