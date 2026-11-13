@@ -14,10 +14,12 @@
 
 /* Intel ME State */
 static const struct sm_object me_state = SM_DECLARE_ENUM({
+	.flags		= CONFIG(DAVE_MODE) && CONFIG(HAVE_INTEL_PTT) ? CFR_OPTFLAG_SUPPRESS : 0,
 	.opt_name	= "me_state",
 	.ui_name	= "Intel Management Engine",
 	.ui_helptext	= "Enable or disable the Intel Management Engine",
-	.default_value	= CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED),
+	.default_value	= !(CONFIG(DAVE_MODE) && CONFIG(HAVE_INTEL_PTT)) &&
+			  CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED),
 	.values		= (const struct sm_enum_value[]) {
 				{ "Disabled",		1		},
 				{ "Enabled",		0		},

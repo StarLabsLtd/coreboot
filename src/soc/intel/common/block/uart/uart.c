@@ -3,10 +3,13 @@
 #include <acpi/acpi.h>
 #include <acpi/acpigen.h>
 #include <acpi/acpi_gnvs.h>
+#include <boot/coreboot_tables.h>
 #include <console/uart.h>
 #include <cpu/x86/smm.h>
 #include <device/device.h>
+#include <device/mmio.h>
 #include <device/pci.h>
+#include <device/pci_def.h>
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <intelblocks/irq.h>
@@ -116,6 +119,66 @@ void uart_bootblock_init(void)
 }
 
 #if ENV_RAMSTAGE
+
+#define LPSS_UART_IIR		0x08
+#define LPSS_UART_FIFO_ENABLED	0xc0
+#define LPSS_UART_CPR		0xf4
+#define LPSS_UART_CPR_FIFO_MODE	0x00ff0000
+#define LPSS_UART_CPR_APB_WIDTH	0x3
+
+enum cb_err fill_lb_serial_capability(struct lb_prh_serial_capability *serial)
+{
+	const struct device *dev;
+	const struct resource *resource;
+	struct lb_serial port = { 0 };
+	uint32_t parameters, clock, expected_clock, fifo;
+	uintptr_t base;
+
+	if (!CONFIG(INTEL_LPSS_UART_FOR_CONSOLE) || !console_serial_enabled() ||
+	    !serial || !(dev = uart_get_device()) || !dev->enabled || dev->hidden ||
+	    fill_lb_serial(&port) != CB_SUCCESS || port.type != LB_SERIAL_TYPE_MEMORY_MAPPED ||
+	    port.regwidth != 4 || !port.input_hertz)
+		return CB_ERR;
+	resource = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	if (!resource || (resource->flags & (IORESOURCE_MEM | IORESOURCE_ASSIGNED)) !=
+	    (IORESOURCE_MEM | IORESOURCE_ASSIGNED) || resource->base != port.baseaddr ||
+	    resource->size < 0x300 || resource->size > UINT32_MAX)
+		return CB_ERR;
+	base = port.baseaddr;
+	/* PRH has already quiesced DMA; a polling UART needs memory decode, not BME. */
+	if (!base || (pci_read_config32(dev, PCI_BASE_ADDRESS_0) & ~0xfffU) != base ||
+	    !(pci_read_config16(dev, PCI_COMMAND) & PCI_COMMAND_MEMORY) ||
+	    lpss_get_power_state(PCI_BDF(dev)) != STATE_D0 ||
+	    (read32((void *)(base + LPSS_RESET_CTL_REG)) & 3U) != 3U)
+		return CB_ERR;
+	clock = read32((void *)(base + LPSS_CLOCK_CTL_REG));
+	expected_clock = LPSS_CNT_CLOCK_EN |
+		LPSS_CLOCK_DIV_M(CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_M_VAL) |
+		LPSS_CLOCK_DIV_N(CONFIG_SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL);
+	if ((clock & ~LPSS_CNT_CLK_UPDATE) != expected_clock)
+		return CB_ERR;
+	parameters = read32((void *)(base + LPSS_UART_CPR));
+	fifo = ((parameters & LPSS_UART_CPR_FIFO_MODE) >> 16) * 16U;
+	if ((parameters & LPSS_UART_CPR_APB_WIDTH) != 2U || fifo < 16U || fifo > 2048U ||
+	    (fifo & (fifo - 1U)))
+		return CB_ERR;
+	*serial = (struct lb_prh_serial_capability) {
+		.revision = LB_PRH_SERIAL_CAPABILITY_REVISION,
+		.family = LB_PRH_SERIAL_FAMILY_INTEL_LPSS,
+		.base = base,
+		/* Preserve the same nominal baud-generator reference as LB_TAG_SERIAL. */
+		.input_hertz = port.input_hertz,
+		.register_window = resource->size,
+		.fifo_capacity = fifo,
+		.type = port.type,
+		.register_width = 4,
+		.register_stride = 4,
+		.flags = LB_PRH_SERIAL_INITIALIZED |
+			((read32((void *)(base + LPSS_UART_IIR)) & LPSS_UART_FIFO_ENABLED) ==
+			 LPSS_UART_FIFO_ENABLED ? LB_PRH_SERIAL_FIFO_ENABLED : 0),
+	};
+	return CB_SUCCESS;
+}
 
 static void uart_read_resources(struct device *dev)
 {
