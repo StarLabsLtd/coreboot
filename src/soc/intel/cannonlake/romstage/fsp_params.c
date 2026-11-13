@@ -145,7 +145,6 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	m_cfg->Heci1BarAddress = HECI1_BASE_ADDRESS;
 
 	mainboard_memory_init_params(mupd);
-	tconfig->PchHdaDspEnable &= cse_is_me_state_requested_enabled();
 }
 
 __weak void mainboard_memory_init_params(FSPM_UPD *mupd)
