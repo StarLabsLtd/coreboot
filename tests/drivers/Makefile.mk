@@ -108,7 +108,7 @@ efi-variable-service-vboot-test-srcs += src/drivers/efi_variable_service/capsule
 efi-variable-service-vboot-test-cflags += -I 3rdparty/vboot/firmware/2lib/include
 intel-fast-spi-resource-test-stage := ramstage
 intel-fast-spi-resource-test-srcs += tests/drivers/intel-fast-spi-resource-test.c \
-	src/device/device_util.c tests/stubs/console.c
+	src/device/device_util.c tests/stubs/console.c tests/stubs/die.c
 intel-fast-spi-resource-test-cflags += -I src/soc/intel/common/block/include \
 	-I src/soc/intel/alderlake/include -I src/soc/intel/common/block/fast_spi
 
