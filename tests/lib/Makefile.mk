@@ -167,6 +167,7 @@ dimm_info_util-test-srcs += tests/stubs/console.c
 
 coreboot_table-test-srcs += tests/lib/coreboot_table-test.c
 coreboot_table-test-srcs += tests/stubs/console.c
+coreboot_table-test-srcs += tests/stubs/die.c
 coreboot_table-test-srcs += src/commonlib/bsd/ipchksum.c
 coreboot_table-test-srcs += src/lib/coreboot_table.c
 coreboot_table-test-srcs += src/lib/imd_cbmem.c
@@ -361,7 +362,7 @@ vboot-fallback-floor-test-srcs += tests/lib/vboot-fallback-floor-test.c \
 	3rdparty/vboot/firmware/2lib/2crc8.c
 vboot-fallback-floor-test-stage := romstage
 vboot-fallback-floor-test-config += CONFIG_VBOOT_SLOTS_RW_AB=1 \
-	CONFIG_VBOOT_CBFS_INTEGRATION=0
+	CONFIG_VBOOT_CBFS_INTEGRATION=0 CONFIG_VBOOT_HASH_BLOCK_SIZE=64
 vboot-fallback-floor-test-cflags += -DCHROMEOS_ENVIRONMENT \
 	-I3rdparty/vboot/firmware/2lib/include \
 	-Itests/include/tests/lib/fmap
