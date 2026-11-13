@@ -8,6 +8,7 @@
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <efi_variable_service.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "ipl.h"
@@ -22,12 +23,18 @@ static bool entry_in_core(const struct efi_variable_service_state *state, uint32
 	return entry >= state->core_base && entry - state->core_base < state->core_size;
 }
 
+static void *allocate_fv(void *arg_unused, size_t size,
+			 const union cbfs_mdata *mdata_unused)
+{
+	return malloc(size);
+}
+
 void efi_variable_service_load(struct smm_runtime *runtime)
 {
 	uintptr_t base;
 	size_t region_size;
 	size_t fv_size;
-	void *fv;
+	void *fv = NULL;
 	struct efi_variable_service_state *state;
 	struct efi_variable_service_image image;
 	uintptr_t fv_base;
@@ -44,10 +51,17 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 	    !base || base > UINT32_MAX || region_size < SERVICE_STATE_AREA_SIZE)
 		return;
 	state = (void *)base;
-	fv = cbfs_map("efi_variable_service_fv", &fv_size);
-	if (!fv) {
-		printk(BIOS_ERR, "EFI variable service FV is missing\n");
-		return;
+	if (acpi_is_wakeup_s3()) {
+		/* The FV and its layout are retained in SMRAM across S3. */
+		fv_size = state->fv_size;
+		if (!fv_size)
+			return;
+	} else {
+		fv = cbfs_alloc("efi_variable_service_fv", allocate_fv, NULL, &fv_size);
+		if (!fv) {
+			printk(BIOS_ERR, "EFI variable service FV is missing\n");
+			return;
+		}
 	}
 	fv_base = ALIGN_UP(base + SERVICE_STATE_AREA_SIZE, 8);
 	core_base = ALIGN_UP(fv_base + fv_size, 0x1000);
@@ -133,7 +147,7 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 	service_prepared = true;
 
 out:
-	cbfs_unmap(fv);
+	free(fv);
 }
 
 void lb_efi_variable_service(struct lb_header *header)
