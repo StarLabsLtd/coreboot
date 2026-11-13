@@ -63,6 +63,100 @@ size_t authvar_owner_workspace_size(size_t store_size)
 	return workspace_layout(store_size).size;
 }
 
+static const uint8_t image_policy_global_guid[16] = {
+	0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+	0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c,
+};
+static const uint8_t image_policy_image_guid[16] = {
+	0xcb, 0xb2, 0x19, 0xd7, 0x3a, 0x3d, 0x96, 0x45,
+	0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f,
+};
+static const uint16_t image_policy_names[AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS][4] = {
+	{ 'P', 'K', 0 }, { 'd', 'b', 0 },
+	{ 'd', 'b', 'x', 0 }, { 'd', 'b', 't', 0 },
+};
+
+static uint64_t image_policy_snapshot_values(
+	const struct payload_mm_authvar_store_index *index, uint8_t modes,
+	struct payload_mm_authvar_view_value values[AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS],
+	size_t *size)
+{
+	struct payload_mm_authvar_view view;
+	size_t total = AUTHVAR_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE;
+
+	if (!index || !values || !size ||
+	    payload_mm_authvar_view_init(&view, index, modes, false) != CB_SUCCESS)
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	memset(values, 0, sizeof(*values) * AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS);
+	for (size_t i = 0; i < AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS; i++) {
+		const uint8_t *guid = i ? image_policy_image_guid : image_policy_global_guid;
+		size_t name_size = i < AUTHVAR_IMAGE_POLICY_SNAPSHOT_DBX ? 6U : 8U;
+		uint64_t status = payload_mm_authvar_view_get(&view, guid,
+			image_policy_names[i], name_size, UINT32_MAX, &values[i]);
+
+		if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND)
+			continue;
+		if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS ||
+		    values[i].data_size > AUTHVAR_IMAGE_POLICY_SNAPSHOT_MAX_VARIABLE_SIZE)
+			return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		size_t aligned_size = ((size_t)values[i].data_size + 7U) & ~(size_t)7U;
+		if (total > SIZE_MAX - aligned_size)
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+		total += aligned_size;
+	}
+	*size = total;
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+uint64_t authvar_owner_image_snapshot(struct authvar_owner *local,
+	void *output, size_t capacity, uint32_t *size)
+{
+	struct payload_mm_authvar_view view;
+	struct payload_mm_authvar_view_value values[AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS];
+	uint32_t header[AUTHVAR_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE / sizeof(uint32_t)] = { 0 };
+	size_t total;
+	uint64_t status;
+
+	if (!local || !output || !size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (local->runtime)
+		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+	status = authvar_owner_view(local, &view);
+	if (status_error(status))
+		return status;
+	status = image_policy_snapshot_values(view.persistent,
+		view.volatile_modes, values, &total);
+	if (status_error(status))
+		return status;
+	*size = (uint32_t)total;
+	if (total > capacity)
+		return PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
+
+	header[0] = AUTHVAR_IMAGE_POLICY_SNAPSHOT_REVISION;
+	header[1] = AUTHVAR_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE;
+	header[2] = (uint32_t)total;
+	header[3] = AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS;
+	header[4] = view.volatile_modes;
+	header[5] = 6U;
+	for (size_t i = 0; i < AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS; i++) {
+		if (!values[i].data_size)
+			continue;
+		header[8U + 4U * i] = 1U;
+		header[9U + 4U * i] = values[i].attributes;
+		header[10U + 4U * i] = values[i].data_size;
+	}
+	memset(output, 0, total);
+	memcpy(output, header, sizeof(header));
+	size_t offset = sizeof(header);
+	for (size_t i = 0; i < AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS; i++) {
+		if (!values[i].data_size)
+			continue;
+		memcpy((uint8_t *)output + offset, values[i].data, values[i].data_size);
+		offset += ((size_t)values[i].data_size + 7U) & ~(size_t)7U;
+	}
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
 /* Backing storage travels with the owner allocation across virtual mapping. */
 static uint8_t *local_buffer(struct authvar_owner *local, enum local_buffer buffer)
 {
@@ -146,7 +240,8 @@ uint64_t authvar_owner_view(struct authvar_owner *local,
 }
 
 uint64_t authvar_owner_init(struct authvar_owner *local,
-	const void *store, size_t size, authvar_owner_commit_fn *commit, void *context,
+	const void *store, size_t size, size_t maximum_data_size,
+	authvar_owner_commit_fn *commit, void *context,
 	void *storage, size_t storage_size, bool secure_boot,
 	const struct authvar_fixed_policy *fixed, struct authvar_owner_initialization *report)
 {
@@ -163,7 +258,7 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	if (fixed)
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 #endif
-	if (!local || !store || !commit || !workspace.size ||
+	if (!local || !store || !commit || !workspace.size || !maximum_data_size ||
 	    (fixed && !secure_boot) ||
 	    !storage || storage_size < workspace.size ||
 	    (uintptr_t)storage % _Alignof(struct payload_mm_authvar_store_entry) ||
@@ -181,17 +276,20 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	memset((uint8_t *)storage + workspace.entries_offset, 0,
 		workspace.size - workspace.entries_offset);
 	local->failed = true;
+	size_t store_data_size = (size_t)size - PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE -
+		PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE;
+	if (maximum_data_size > store_data_size)
+		maximum_data_size = store_data_size;
 	local->limits = (struct payload_mm_authvar_store_limits) {
 		.maximum_store_size = (uint32_t)size,
 		.maximum_name_size = PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE,
-		.maximum_data_size = (uint32_t)size - PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE -
-			PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE,
+		.maximum_data_size = store_data_size,
 		.maximum_records = workspace.records,
 	};
 	local->policy = (struct payload_mm_authvar_write_policy) {
 		.maximum_name_size = local->limits.maximum_name_size,
 		.maximum_record_size = (uint32_t)size - PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE,
-		.maximum_data_size = local->limits.maximum_data_size,
+		.maximum_data_size = maximum_data_size,
 		.maximum_records = local->limits.maximum_records,
 	};
 	memcpy(local_buffer(local, LOCAL_NV_FIRST), store, size);
@@ -585,7 +683,7 @@ static uint64_t ordinary_volatile_set(struct authvar_owner *local,
 				existing->data_size,
 			};
 		}
-		if (data_size > local->limits.maximum_data_size)
+		if (data_size > local->policy.maximum_data_size)
 			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
 		spans[span_count++] = (struct payload_mm_authvar_record_span) {
 			request->data, request->data_size,
@@ -714,6 +812,18 @@ static uint64_t volatile_set(struct authvar_owner *local,
 				PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES : PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 		certdb_data = local_buffer(local, LOCAL_RECORD);
 	}
+	if (certdb_size > local->policy.maximum_data_size &&
+	    certdb_size > certdb->data_size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+	if (decision.mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_WRITE &&
+	    decision.data_size > local->policy.maximum_data_size) {
+		const struct payload_mm_authvar_store_entry *existing =
+			payload_mm_authvar_store_find(&local->volatile_index,
+				request->vendor_guid, request->name, request->name_size);
+
+		if (!existing || decision.data_size > existing->data_size)
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
+	}
 	memset(candidate, 0xff, local->volatile_index.store_size);
 	memcpy(candidate, local->volatile_index.store, PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE);
 	for (size_t i = 0; i < local->volatile_index.entry_count; i++) {
@@ -756,6 +866,11 @@ static uint64_t publish_candidate(struct authvar_owner *local, uint8_t bank, uin
 		.entries = local_entries(local, LOCAL_NV_FIRST + bank),
 		.entry_capacity = local->limits.maximum_records,
 	};
+	struct payload_mm_authvar_view_value values[AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS];
+	size_t current_snapshot_size;
+	size_t candidate_snapshot_size;
+	uint64_t status;
+
 	if (local->generation == UINT64_MAX)
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (payload_mm_authvar_store_scan(&next, local_buffer(local, LOCAL_NV_FIRST + bank),
@@ -766,6 +881,17 @@ static uint64_t publish_candidate(struct authvar_owner *local, uint8_t bank, uin
 		local->failed = true;
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
+	status = image_policy_snapshot_values(&local->index, local->modes,
+		values, &current_snapshot_size);
+	if (status_error(status))
+		return status;
+	status = image_policy_snapshot_values(&next, modes, values,
+		&candidate_snapshot_size);
+	if (status_error(status))
+		return status;
+	if (candidate_snapshot_size > local->policy.maximum_data_size &&
+	    candidate_snapshot_size > current_snapshot_size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
 #if CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS
 	if (local->fixed_keys) {
 		if (!fixed)
@@ -784,7 +910,7 @@ static uint64_t publish_candidate(struct authvar_owner *local, uint8_t bank, uin
 	(void)fixed;
 #endif
 	/* Neither the new value nor mode/certdb intents become visible before durability. */
-	uint64_t status = local->commit(local->commit_context,
+	status = local->commit(local->commit_context,
 		local_buffer(local, LOCAL_NV_FIRST + bank), next.store_size,
 		append, append ? local_buffer(local, LOCAL_RECORD) : NULL);
 	if (status_error(status)) {
