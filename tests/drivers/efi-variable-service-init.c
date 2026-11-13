@@ -3,6 +3,7 @@
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <drivers/efi/option.h>
+#include <fmap.h>
 #include <option.h>
 #include <tests/test.h>
 #if CONFIG(VBOOT_SLOTS_RW_AB)
@@ -142,6 +143,12 @@ bool smm_efi_variable_service_is_s3_resume(void)
 
 int smmstore_lookup_region(struct region_device *rdev)
 {
+	return rdev_chain(rdev, &flash_device, 0, sizeof(flash));
+}
+
+int fmap_locate_area_as_rdev(const char *name, struct region_device *rdev)
+{
+	assert_string_equal(name, "SMMSTORE");
 	return rdev_chain(rdev, &flash_device, 0, sizeof(flash));
 }
 
