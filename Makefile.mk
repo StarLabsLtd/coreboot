@@ -99,6 +99,35 @@ $(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) payloads/external/Makefile
 		$(EDK2_CAPSULE_ARGS)
 endif
 
+ifeq ($(CONFIG_PAYLOAD_CDK2)$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)$(CONFIG_DRIVERS_EFI_GENERATE_CAPSULE),yyy)
+EFI_CAPSULE_TOOL := $(objutil)/efi_capsule/capsule
+EFI_CAPSULE_SIGNER := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))
+EFI_CAPSULE_INTERMEDIATE := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))
+EFI_CAPSULE_ROOT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
+
+$(EFI_CAPSULE_TOOL): util/efi_capsule/capsule.c
+	mkdir -p $(dir $@)
+	$(HOSTCC) $(HOSTCFLAGS) -Isrc/commonlib/bsd/include -o $@ $< -lcrypto
+
+finalised_rom:: $(obj)/coreboot.cap
+capsule:: $(obj)/coreboot.cap
+
+$(obj)/coreboot.cap: $(obj)/coreboot.rom $(DOTCONFIG) $(EFI_CAPSULE_TOOL) \
+		$(EFI_CAPSULE_SIGNER) $(EFI_CAPSULE_INTERMEDIATE) $(EFI_CAPSULE_ROOT) | files_added
+	@set -e; temporary="$@.tmp"; trap 'rm -f "$$temporary"' EXIT HUP INT TERM; \
+		rm -f "$$temporary"; \
+		$(EFI_CAPSULE_TOOL) --rom "$<" --output "$$temporary" \
+			--guid $(CONFIG_DRIVERS_EFI_MAIN_FW_GUID) \
+			--version $(CONFIG_DRIVERS_EFI_MAIN_FW_VERSION) \
+			--lsv $(CONFIG_DRIVERS_EFI_MAIN_FW_LSV) \
+			--localversion $(CONFIG_LOCALVERSION) \
+			--regions $(CONFIG_DRIVERS_EFI_CAPSULE_PACKAGE_REGIONS) \
+			--signer "$(EFI_CAPSULE_SIGNER)" \
+			--intermediate "$(EFI_CAPSULE_INTERMEDIATE)" --root "$(EFI_CAPSULE_ROOT)" \
+			$(if $(filter y,$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)),--initiate-reset); \
+		mv "$$temporary" "$@"; trap - EXIT HUP INT TERM
+endif
+
 # This target should come just before the show_notices target.  If there
 # are no notices, the build should finish with the text of what was just
 # built.
@@ -258,7 +287,7 @@ ifneq ($(GIT),)
 ifneq ($(UPDATED_SUBMODULES),1)
 $(info Updating git submodules.)
 # try to fetch non-optional submodules if the source is under git
-forgetthis:=$(shell git submodule update --init $(quiet_errors))
+forgetthis:=$(shell git -c submodule.payloads/external/cdk2/cdk2.update=none submodule update --init $(quiet_errors))
 # Checkout Cmocka repository
 forgetthis:=$(shell git submodule update --init --checkout 3rdparty/cmocka $(quiet_errors))
 ifeq ($(CONFIG_USE_BLOBS),y)
@@ -370,10 +399,10 @@ cbfs-files-processor-nvramtool= \
 # arg2: output
 define cbfs-files-processor-config
 	$(eval $(2): $(1) $(obj)/build.h $(objutil)/kconfig/conf; \
-		+printf "    CREATE     $(2) (from $(1))\n"; \
+		printf "    CREATE     $(2) (from $(1))\n"; \
 		printf "# This image was built using coreboot " > $(2).tmp && \
 		grep "\<COREBOOT_VERSION\>" $(obj)/build.h |cut -d\" -f2 >> $(2).tmp && \
-		$(MAKE) DOTCONFIG=$(1) DEFCONFIG=$(2).tmp2 savedefconfig && \
+		KCONFIG_CONFIG=$(1) $(objutil)/kconfig/conf --savedefconfig=$(2).tmp2 $(KBUILD_KCONFIG) && \
 		cat $(2).tmp2 >> $(2).tmp && \
 		printf "# End of defconfig. Derivable values start here.\n" >> $(2).tmp && \
 		grep "^CONFIG" $(1) | grep -F -v -f $(2).tmp2 >> $(2).tmp && \
@@ -685,7 +714,7 @@ $(build_h): $$(shell $$(build_h_check))
 	@printf "    GEN        build.h\n"
 	mv $< $@
 
-$(obj)/build_info:
+$(obj)/build_info: $(obj)/build.h $(KCONFIG_AUTOHEADER)
 	@echo 'COREBOOT_VERSION: $(call strip_quotes,$(KERNELVERSION))' > $@.tmp
 	@echo 'MAINBOARD_VENDOR: $(call strip_quotes,$(CONFIG_MAINBOARD_VENDOR))' >> $@.tmp
 	@echo 'MAINBOARD_PART_NUMBER: $(call strip_quotes,$(CONFIG_MAINBOARD_PART_NUMBER))' >> $@.tmp
@@ -1191,12 +1220,22 @@ endif
 FMAP_FMAP_BASE := $(FMAP_CURRENT_BASE)
 FMAP_FMAP_SIZE := 0x1000
 
+ifneq ($(filter y,$(CONFIG_DAVE_MODE) $(CONFIG_SMMSTORE_SRK_PIN)),)
+FMAP_FMAP_BASE := $(call int-align, $(FMAP_CURRENT_BASE), $(CONFIG_SMMSTORE_BLOCK_SIZE))
+FMAP_FMAP_SIZE := $(CONFIG_SMMSTORE_BLOCK_SIZE)
+FMAP_SRK_BASE := $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE))
+FMAP_SRK_ENTRY := SRK_PIN_V1@$(call _tohex,$(FMAP_SRK_BASE)) $(call _tohex,$(CONFIG_SMMSTORE_BLOCK_SIZE))
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_SRK_BASE) $(CONFIG_SMMSTORE_BLOCK_SIZE))
+else
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE))
+endif
+
 #
 # X86 COREBOOT default cbfs FMAP region
 #
 # position of CBFS, relative to BIOS_BASE
 # will extend to the end of the flash/bios region
-FMAP_CBFS_BASE := $(call int-align, $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE)), 0x1000)
+FMAP_CBFS_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x1000)
 
 else # ifeq ($(CONFIG_ARCH_X86),y)
 
@@ -1253,6 +1292,7 @@ define FMAP_EMIT_X86_BIOS
 	$(if $(strip $(FMAP_CONSOLE_ENTRY)),printf '\t\t%s\n' '$(FMAP_CONSOLE_ENTRY)';) \
 	$(if $(strip $(FMAP_HSPHY_FW_ENTRY)),printf '\t\t%s\n' '$(FMAP_HSPHY_FW_ENTRY)';) \
 	printf '\t\tFMAP@0x%x 0x%x\n' $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE); \
+	$(if $(strip $(FMAP_SRK_ENTRY)),printf '\t\t%s\n' '$(FMAP_SRK_ENTRY)';) \
 	printf '\t\tCOREBOOT(CBFS)@0x%x\n' $(FMAP_CBFS_BASE); \
 	printf '\t}\n';
 endef
