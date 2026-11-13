@@ -29,9 +29,12 @@ if [ "${development:-0}" = 1 ]; then
 	exit 0
 fi
 
-if [ "$expected" != "$actual" ] ||
-	[ -n "$(git -C "$source_path" status --porcelain \
-		--untracked-files=normal --ignore-submodules=none)" ]; then
+source_status=$(git -C "$source_path" status --porcelain \
+	--untracked-files=normal --ignore-submodules=none) || {
+	echo 'Cannot inspect CDK2 source changes' >&2
+	exit 1
+}
+if [ "$expected" != "$actual" ] || [ -n "$source_status" ]; then
 	echo 'CDK2 source must match the clean, staged coreboot gitlink' >&2
 	exit 1
 fi
