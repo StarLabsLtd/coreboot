@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <acpi/acpigen.h>
+#include <boot/coreboot_tables.h>
 #include <device/device.h>
 
 #if CONFIG(SYSTEM_TYPE_DETACHABLE)
@@ -18,6 +19,27 @@
 #define EC_ACPI_PATH           "\\_SB.PCI0.LPCB.EC"
 #define EC_ACPI_METHOD(method) EC_ACPI_PATH "." method
 #define EC_ACPI_FIELD(field)   EC_ACPI_PATH "." field
+
+enum cb_err fill_lb_ec_battery(struct lb_ec_battery_descriptor *descriptor)
+{
+#if defined(STARLABS_EC_BATTERY_MAP_MERLIN)
+	if (!descriptor)
+		return CB_ERR_ARG;
+	*descriptor = (struct lb_ec_battery_descriptor) {
+		.tag = LB_TAG_EC_BATTERY_DESCRIPTOR,
+		.size = sizeof(*descriptor),
+		.revision = LB_EC_BATTERY_DESCRIPTOR_REVISION,
+		.header_size = sizeof(*descriptor),
+		.profile = LB_EC_BATTERY_PROFILE_MERLIN,
+		.transport = LB_EC_BATTERY_TRANSPORT_ACPI_IO8,
+		.data_port = 0x62,
+		.status_port = 0x66,
+	};
+	return CB_SUCCESS;
+#else
+	return CB_ERR_NOT_IMPLEMENTED;
+#endif
+}
 
 static void write_ec_resources(void)
 {
