@@ -11,6 +11,7 @@
 
 #define BCD(x, y) (((x) << 4) | ((y) << 0))
 
+
 static void set_package_element_op(const char *package_name, unsigned int element,
 				   uint8_t src_op)
 {
@@ -750,6 +751,11 @@ void lb_tpm_ppi(struct lb_header *header)
 	enum tpm_family family;
 	void *ppib;
 
+	if (CONFIG(PAYLOAD_CDK2) && CONFIG(DRIVERS_EMULATION_QEMU_FW_CFG) &&
+	    acpi_tables_from_fw_cfg()) {
+		tpm_ppi_add_mmio_handoff(header);
+		return;
+	}
 	ppib = cbmem_find(CBMEM_ID_TPM_PPI);
 	if (!ppib)
 		return;
