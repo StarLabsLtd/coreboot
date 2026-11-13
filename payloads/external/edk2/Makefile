@@ -57,8 +57,11 @@ endif
 # OPTION			= DEFAULT_VALUE
 #
 # BOOTSPLASH_IMAGE		= FALSE
+# A retained coreboot splash does not need another copy in the payload.
+ifneq ($(CONFIG_BOOT_SPLASH_HANDOFF),y)
 ifneq ($(CONFIG_EDK2_BOOTSPLASH_FILE),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
+endif
 endif
 CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE ?= 1
 ifneq ($(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE),1)
