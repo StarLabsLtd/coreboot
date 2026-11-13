@@ -566,60 +566,75 @@ static enum cb_err starlabs_touchpad_ensure_settings(
 }
 
 #if ENV_SMM
-static enum cb_err starlabs_touchpad_apply_runtime_ctx(
-	const struct starlabs_touchpad_op_ctx *ctx)
+enum cb_err starlabs_touchpad_runtime_apply(enum starlabs_efiopt_id id, uint32_t value)
 {
+	const struct starlabs_touchpad_op_ctx ctx = {
+		.bus = STARLABS_TOUCHPAD_I2C_BUS,
+		.cmd_reg = STARLABS_TOUCHPAD_FALLBACK_CMD_REG,
+		.data_reg = STARLABS_TOUCHPAD_FALLBACK_DATA_REG,
+	};
 	uint16_t press, release;
 	uint8_t level;
+	enum cb_err ready = dw_i2c_smm_bus_ready(ctx.bus);
 	int ret;
 
-	starlabs_touchpad_wake(ctx);
+	if (ready != CB_SUCCESS)
+		return ready;
+	starlabs_touchpad_wake(&ctx);
 
-	/* Let the device apply each acknowledged change after SMM returns. */
+	/* Verify only the requested setting; let acknowledged writes settle outside SMM. */
+	switch (id) {
+	case STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS:
+		ret = starlabs_touchpad_get_haptics(ctx.bus, ctx.cmd_reg, ctx.data_reg, &level);
+		if (ret)
+			return CB_ERR;
+		if (level == value)
+			return CB_SUCCESS;
+		ret = starlabs_touchpad_set_haptics(ctx.bus, ctx.cmd_reg, ctx.data_reg, value);
+		return ret ? CB_ERR : CB_ERR_BUSY;
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS:
+	case STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE:
+		/* Both thresholds share one report. Preserve the unrequested threshold. */
+		ret = starlabs_touchpad_get_force(ctx.bus, ctx.cmd_reg, ctx.data_reg,
+						 &press, &release);
+		if (ret)
+			return CB_ERR;
+		if (id == STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS) {
+			if (press == value)
+				return CB_SUCCESS;
+			press = value;
+		} else {
+			if (release == value)
+				return CB_SUCCESS;
+			release = value;
+		}
+		ret = starlabs_touchpad_set_force(ctx.bus, ctx.cmd_reg, ctx.data_reg,
+						 press, release);
+		return ret ? CB_ERR : CB_ERR_BUSY;
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
-	uint8_t bank, addr, value;
+	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE: {
+		uint8_t bank, addr, rate;
 
-	ret = starlabs_touchpad_read_user_reg(ctx->bus, ctx->cmd_reg,
-					    ctx->data_reg, &bank, &addr, &value);
-	if (ret)
-		return CB_ERR;
-	if (bank != ctx->bank || addr != ctx->addr || value != ctx->value) {
-		ret = starlabs_touchpad_write_user_reg(ctx->bus, ctx->cmd_reg,
-				ctx->data_reg, ctx->bank, ctx->addr, ctx->value);
+		ret = starlabs_touchpad_read_user_reg(ctx.bus, ctx.cmd_reg, ctx.data_reg,
+						    &bank, &addr, &rate);
+		if (ret)
+			return CB_ERR;
+		if (bank == STARLABS_TOUCHPAD_USER_REG_BANK &&
+		    addr == STARLABS_TOUCHPAD_USER_REG_ADDR_RATE && rate == value)
+			return CB_SUCCESS;
+		ret = starlabs_touchpad_write_user_reg(ctx.bus, ctx.cmd_reg, ctx.data_reg,
+			STARLABS_TOUCHPAD_USER_REG_BANK, STARLABS_TOUCHPAD_USER_REG_ADDR_RATE, value);
 		return ret ? CB_ERR : CB_ERR_BUSY;
 	}
 #endif
-
-	ret = starlabs_touchpad_get_force(ctx->bus, ctx->cmd_reg,
-					ctx->data_reg, &press, &release);
-	if (ret)
-		return CB_ERR;
-	if (press != ctx->press || release != ctx->release) {
-		ret = starlabs_touchpad_set_force(ctx->bus, ctx->cmd_reg,
-					ctx->data_reg, ctx->press, ctx->release);
-		return ret ? CB_ERR : CB_ERR_BUSY;
+	default:
+		return CB_ERR_ARG;
 	}
-
-	ret = starlabs_touchpad_get_haptics(ctx->bus, ctx->cmd_reg,
-					  ctx->data_reg, &level);
-	if (ret)
-		return CB_ERR;
-	if (level != ctx->level) {
-		ret = starlabs_touchpad_set_haptics(ctx->bus, ctx->cmd_reg,
-					  ctx->data_reg, ctx->level);
-		return ret ? CB_ERR : CB_ERR_BUSY;
-	}
-
-	/* Success means all requested values were read back in this invocation. */
-	return CB_SUCCESS;
 }
 #endif
 
-static enum cb_err starlabs_touchpad_apply_ctx(const struct starlabs_touchpad_op_ctx *ctx)
+static enum cb_err __maybe_unused starlabs_touchpad_apply_ctx(const struct starlabs_touchpad_op_ctx *ctx)
 {
-#if ENV_SMM
-	return starlabs_touchpad_apply_runtime_ctx(ctx);
-#endif
 	int ret;
 
 	starlabs_touchpad_wake(ctx);
@@ -667,33 +682,6 @@ static enum cb_err starlabs_touchpad_apply_ctx(const struct starlabs_touchpad_op
 #endif
 
 	return CB_SUCCESS;
-}
-
-enum cb_err starlabs_touchpad_runtime_apply(uint8_t haptics, uint16_t press,
-					    uint16_t release, uint8_t rate)
-{
-	struct starlabs_touchpad_op_ctx ctx;
-
-#if ENV_SMM
-	enum cb_err ret = dw_i2c_smm_bus_ready(STARLABS_TOUCHPAD_I2C_BUS);
-
-	/* Retry only when the OS may still be using the controller. */
-	if (ret != CB_SUCCESS)
-		return ret;
-#endif
-
-	ctx = (struct starlabs_touchpad_op_ctx) {
-		.bus = STARLABS_TOUCHPAD_I2C_BUS,
-		.cmd_reg = STARLABS_TOUCHPAD_FALLBACK_CMD_REG,
-		.data_reg = STARLABS_TOUCHPAD_FALLBACK_DATA_REG,
-		.level = haptics,
-		.press = press,
-		.release = release,
-		.bank = STARLABS_TOUCHPAD_USER_REG_BANK,
-		.addr = STARLABS_TOUCHPAD_USER_REG_ADDR_RATE,
-		.value = rate,
-	};
-	return starlabs_touchpad_apply_ctx(&ctx);
 }
 
 #if ENV_RAMSTAGE

@@ -458,30 +458,6 @@ static enum cb_err get_stored_efiopt_value(enum starlabs_efiopt_id id, uint32_t 
 	return CB_SUCCESS;
 }
 
-#if CONFIG(STARLABS_TOUCHPAD_RUNTIME)
-static enum cb_err apply_touchpad_efiopts(void)
-{
-	uint32_t haptics;
-	uint32_t press;
-	uint32_t release;
-	uint32_t rate = STARLABS_TOUCHPAD_REPORT_RATE_DEFAULT;
-
-	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_HAPTICS, &haptics))
-		return CB_ERR_ARG;
-
-	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_PRESS, &press) ||
-	    get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_FORCE_RELEASE, &release))
-		return CB_ERR_ARG;
-
-#if CONFIG(STARLABS_TOUCHPAD_PIXART)
-	if (get_stored_efiopt_value(STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE, &rate))
-		return CB_ERR_ARG;
-#endif
-
-	return starlabs_touchpad_runtime_apply(haptics, press, release, rate);
-}
-#endif
-
 static enum cb_err apply_ec_value(uint8_t reg, uint32_t value)
 {
 	enum cb_err ret = CB_ERR;
@@ -558,7 +534,7 @@ static enum cb_err apply_runtime_efiopt(enum starlabs_efiopt_id id, uint32_t val
 #if CONFIG(STARLABS_TOUCHPAD_PIXART)
 	case STARLABS_EFIOPT_ID_TOUCHPAD_REPORT_RATE:
 #endif
-		return apply_touchpad_efiopts();
+		return starlabs_touchpad_runtime_apply(id, value);
 #endif
 #if CONFIG(STARLABS_AUTOMATIC_START)
 	case STARLABS_EFIOPT_ID_AUTOMATIC_START: {
