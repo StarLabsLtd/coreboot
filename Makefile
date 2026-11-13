@@ -58,6 +58,19 @@ CONFIG_SHELL := sh
 KBUILD_DEFCONFIG := configs/defconfig
 UNAME_RELEASE := $(shell uname -r)
 HAVE_DOTCONFIG := $(wildcard $(DOTCONFIG))
+
+# Check the recorded source before Kconfig and build rules read it. Never fetch
+# or switch a developer's checkout while parsing a makefile (including make -n).
+ifneq ($(filter-out clean distclean help help_kconfig help_toolchain gitconfig,$(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)),)
+# Kconfig reads the payload definitions even before a payload is selected.
+ifneq ($(strip $(filter %config,$(MAKECMDGOALS)) $(shell grep -l '^CONFIG_PAYLOAD_CDK2=y$$' $(DOTCONFIG) $(KBUILD_DEFCONFIG) 2>/dev/null)),)
+CDK2_SOURCE_CHECK := $(shell sh payloads/external/cdk2/verify-source.sh \
+	payloads/external/cdk2/cdk2 "$(CDK2_DEVELOPMENT)" 1>&2 && echo ready)
+ifneq ($(CDK2_SOURCE_CHECK),ready)
+$(error CDK2 source verification failed)
+endif
+endif
+endif
 HAVE_KCONFIG_MAKEFILE_REAL := $(wildcard $(KCONFIG_MAKEFILE_REAL))
 MAKEFLAGS += -rR --no-print-directory
 
@@ -236,9 +249,19 @@ real-all: site-local-target real-target
 # date on a subsequent no-op build. Mark it as not intermediate to prevent this
 .NOTINTERMEDIATE: $(objutil)/kconfig/conf
 
-$(KCONFIG_AUTOHEADER): $(KCONFIG_CONFIG) $(objutil)/kconfig/conf
+# Switching DOTCONFIG can select an older file in an existing output directory.
+PHONY += config-source-force
+$(obj)/config.source: config-source-force
+	@mkdir -p $(dir $@)
+	@set -e; temporary=$$(mktemp "$@.XXXXXX"); \
+		trap 'rm -f "$$temporary"' EXIT HUP INT TERM; \
+		printf '%s\n' '$(abspath $(KCONFIG_CONFIG))' > "$$temporary"; \
+		if ! cmp -s "$$temporary" "$@"; then mv "$$temporary" "$@"; fi
+
+$(KCONFIG_AUTOHEADER): $(KCONFIG_CONFIG) $(objutil)/kconfig/conf $(obj)/config.source
 	$(MAKE) olddefconfig
 	$(MAKE) syncconfig
+	@touch $@
 
 $(KCONFIG_AUTOCONFIG): $(KCONFIG_AUTOHEADER)
 	true
@@ -272,13 +295,14 @@ add-special-class= \
 src-to-obj=\
 	$(patsubst $(obj)/%,$(obj)/$(1)/%,\
 	$(patsubst $(obj)/$(1)/%,$(obj)/%,\
+	$(patsubst payloads/%,$(obj)/payloads/%,\
 	$(patsubst 3rdparty/%,$(obj)/%,\
 	$(patsubst src/%,$(obj)/%,\
 	$(patsubst %.ads,%.o,\
 	$(patsubst %.adb,%.o,\
 	$(patsubst %.c,%.o,\
 	$(patsubst %.S,%.o,\
-	$(subst .$(1),,$(2))))))))))
+	$(subst .$(1),,$(2)))))))))))
 
 # Converts one or more source file paths to the corresponding build/ paths
 # of their Ada library information (.ali) files.
