@@ -270,7 +270,8 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 	struct smm_capsule_image *image, const uint8_t image_type[16],
 	uint32_t current_version, uint32_t lowest_version, uint32_t attempted_version,
 	const void *fmap, size_t fmap_size, uint32_t region_count,
-	uint32_t update_slot, struct capsule_broker_raw_image *raw, uint32_t *selected)
+	uint32_t update_slot, struct capsule_broker_raw_image *raw, uint32_t *selected,
+	bool *updates_slot)
 {
 	static const uint8_t slot_names[6][16] = {
 		"FW_MAIN_A", "RW_FWID_A", "VBLOCK_A",
@@ -286,6 +287,7 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 
 	*raw = (struct capsule_broker_raw_image) { 0 };
 	*selected = 0;
+	*updates_slot = false;
 	if (size < MSS1_HEADER_SIZE + 1 ||
 	    !smm_capsule_image_read(image, image->payload_offset, metadata, size))
 		return CAPSULE_BROKER_IMAGE_REFUSED;
@@ -323,6 +325,7 @@ enum capsule_broker_authentication_status smm_capsule_policy(
 		if (!ec_only && (count != ARRAY_SIZE(slot_names) ||
 		    memcmp(names, slot_names, sizeof(slot_names))))
 			return CAPSULE_BROKER_IMAGE_REFUSED;
+		*updates_slot = !ec_only;
 	}
 	for (size_t i = 0; i < count; i++) {
 		const char *entry = CONFIG_DRIVERS_EFI_CAPSULE_REGIONS;

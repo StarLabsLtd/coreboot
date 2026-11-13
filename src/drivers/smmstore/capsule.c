@@ -215,6 +215,7 @@ static void execute(struct smm_authvar_dispatch *service,
 	enum capsule_broker_authentication_status policy;
 	bool set = intent->operation == PAYLOAD_MM_FMP_CAPSULE_SET;
 	bool recorded = false;
+	bool updates_slot;
 	uint32_t outcome = CAPSULE_BROKER_LAST_ATTEMPT_UNSUCCESSFUL;
 	uint32_t floor, selected;
 
@@ -243,7 +244,7 @@ static void execute(struct smm_authvar_dispatch *service,
 	policy = smm_capsule_policy(&capsule.image, capsule.firmware.guid,
 		capsule.firmware.version, floor, intent->attempted_version,
 		capsule.fmap, sizeof(capsule.fmap), capsule.region_count,
-		capsule.update_slot, &raw, &selected);
+		capsule.update_slot, &raw, &selected, &updates_slot);
 	if (policy != CAPSULE_BROKER_AUTHENTICATED) {
 		if (policy == CAPSULE_BROKER_VERSION_REFUSED) {
 			result->result = CAPSULE_BROKER_RESULT_VERSION_REFUSED;
@@ -268,7 +269,7 @@ static void execute(struct smm_authvar_dispatch *service,
 	recorded = true;
 	if (!apply_image(&raw, selected))
 		goto out;
-	if (capsule.update_slot && !commit_slot(capsule.update_slot))
+	if (updates_slot && !commit_slot(capsule.update_slot))
 		goto out;
 	state[0] = state[1] = 1;
 	le32enc(state + 4, intent->attempted_version);
