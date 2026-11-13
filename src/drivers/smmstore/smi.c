@@ -8,6 +8,33 @@
 #include <stdint.h>
 #include <string.h>
 
+/* SMI handlers are serialized by the common handler lock. */
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
+static bool variable_busy;
+
+bool smmstore_variable_busy(void)
+{
+	uint64_t *generation = smm_get_smmstore_generation();
+
+	return variable_busy || !generation ||
+		*generation == UINT64_MAX;
+}
+
+bool smmstore_variable_changed(void)
+{
+	uint64_t *generation = smm_get_smmstore_generation();
+
+	if (!generation || *generation == UINT64_MAX)
+		return false;
+	(*generation)++;
+	return true;
+}
+#endif
+
+#if CONFIG(SMMSTORE_SRK_PIN)
+static void *com_buffer;
+#endif
+
 /*
  * Check that the given range is legal.
  *
@@ -28,9 +55,6 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 {
 	uint32_t ret = SMMSTORE_RET_FAILURE;
 	static bool initialized = false;
-#if CONFIG(SMMSTORE_SRK_PIN)
-	static void *com_buffer;
-#endif
 
 	/* Fixed-MM updates use the signature-enforcing owner, never raw mutations. */
 	if (CONFIG(ASS)) {
@@ -113,6 +137,32 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 			ret = SMMSTORE_RET_SUCCESS;
 		break;
 	}
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
+	case SMMSTORE_CMD_VARIABLE_BEGIN: {
+		uint64_t *generation = smm_get_smmstore_generation();
+		uintptr_t base;
+		size_t size;
+
+		if (!generation)
+			return SMMSTORE_RET_FAILURE;
+		if (variable_busy)
+			return SMMSTORE_RET_BUSY;
+		smm_get_smmstore_com_buffer(&base, &size);
+		if (size < sizeof(*generation))
+			return SMMSTORE_RET_FAILURE;
+		variable_busy = true;
+		uint64_t value = *generation;
+		memcpy((void *)base, &value, sizeof(value));
+		ret = SMMSTORE_RET_SUCCESS;
+		break;
+	}
+	case SMMSTORE_CMD_VARIABLE_END:
+		if (!variable_busy)
+			break;
+		variable_busy = false;
+		ret = SMMSTORE_RET_SUCCESS;
+		break;
+#endif
 	default:
 		printk(BIOS_DEBUG, "Unknown SMM store command: 0x%02x\n", command);
 		ret = SMMSTORE_RET_UNSUPPORTED;

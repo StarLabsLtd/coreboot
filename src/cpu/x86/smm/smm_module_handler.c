@@ -186,6 +186,13 @@ bool smm_efi_variable_service_is_s3_resume(void)
 	return smm_runtime.efi_variable_service_s3_resume;
 }
 #endif
+#if CONFIG(CDK2_SMMSTORE_VARIABLE_RUNTIME)
+uint64_t *smm_get_smmstore_generation(void)
+{
+	return smm_runtime.smmstore_generation;
+}
+#endif
+
 #if CONFIG(DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)
 void smm_get_capsule_staging(uintptr_t *base, size_t *size)
 {
