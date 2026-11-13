@@ -6,7 +6,12 @@ source_path=payloads/external/cdk2/cdk2
 if [ ! -e "$source_path/.git" ]; then
 	git submodule update --init --checkout -- "$source_path"
 fi
-if [ -n "$(git -C "$source_path" status --porcelain --untracked-files=normal --ignore-submodules=none)" ]; then
+source_status=$(git -C "$source_path" status --porcelain \
+	--untracked-files=normal --ignore-submodules=none) || {
+	echo 'Cannot inspect CDK2 source changes' >&2
+	exit 1
+}
+if [ -n "$source_status" ]; then
 	echo 'CDK2 source has local changes' >&2
 	exit 1
 fi
