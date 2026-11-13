@@ -15,6 +15,11 @@
 #include "hob.h"
 #include "private_store.h"
 #include "capsule_store.h"
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+#include <security/vboot/vbnv.h>
+#include <vb2_api.h>
+#include <2nvstorage.h>
+#endif
 
 #include <Uefi/UefiBaseType.h>
 #include <Uefi/UefiMultiPhase.h>
@@ -107,18 +112,52 @@ static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range 
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+static uint32_t capsule_boot_slot;
+
+static uint32_t capsule_commit(uint32_t slot)
+{
+	struct vb2_context ctx = { 0 };
+
+	if (!fast_spi_wpd_status() || slot > 2 || (!slot && !capsule_boot_slot) ||
+	    (slot && slot != (capsule_boot_slot == 1 ? 2 : 1)))
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+	read_vbnv_flash(ctx.nvdata);
+	if (vb2_nv_check_crc(&ctx))
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+
+	if (slot) {
+		/* Preserve the executing slot; give the completed image three tries. */
+		vb2_nv_set(&ctx, VB2_NV_TRY_NEXT, slot - 1);
+		vb2_nv_set(&ctx, VB2_NV_TRY_COUNT, 3);
+	} else {
+		/* Only the payload handoff can acknowledge this RW boot. */
+		if (vb2_nv_get(&ctx, VB2_NV_FW_TRIED) != capsule_boot_slot - 1)
+			return EFI_VARIABLE_SERVICE_RET_FAILURE;
+		vb2_nv_set(&ctx, VB2_NV_FW_RESULT, VB2_FW_RESULT_SUCCESS);
+		/* Do not cancel an inactive-slot trial armed during this boot. */
+		if (vb2_nv_get(&ctx, VB2_NV_TRY_NEXT) == capsule_boot_slot - 1)
+			vb2_nv_set(&ctx, VB2_NV_TRY_COUNT, 0);
+	}
+	return save_vbnv_flash(ctx.nvdata) ? EFI_VARIABLE_SERVICE_RET_FAILURE :
+		EFI_VARIABLE_SERVICE_RET_SUCCESS;
+}
+#endif
+
 static int prepare_capsule_store(void)
 {
 	struct capsule_info_hob *info;
+	const size_t info_size = CONFIG(VBOOT_SLOTS_RW_AB) ?
+		sizeof(struct capsule_vboot_hob) : sizeof(*info);
 
 	if (!CONFIG(DRIVERS_EFI_UPDATE_CAPSULES))
 		return 0;
 	if (service->capsule_info < service->hob_base ||
 	    service->capsule_info - service->hob_base > service->hob_size ||
-	    service->hob_size - (service->capsule_info - service->hob_base) < sizeof(*info))
+	    service->hob_size - (service->capsule_info - service->hob_base) < info_size)
 		return -1;
 	info = (void *)(uintptr_t)service->capsule_info;
-	if (info->revision != 1 || info->size != sizeof(*info) ||
+	if (info->revision != (CONFIG(VBOOT_SLOTS_RW_AB) ? 2 : 1) || info->size != info_size ||
 	    info->flash_size != CONFIG_ROM_SIZE || info->block_size != EFI_CAPSULE_BLOCK_SIZE)
 		return -1;
 	/* MM retains copied HOBs: resumed bindings must remain identical. */
@@ -129,6 +168,17 @@ static int prepare_capsule_store(void)
 	     info->buffer != (uintptr_t)variable_store_buffer ||
 	     info->buffer_size != EFI_CAPSULE_BLOCK_SIZE))
 		return -1;
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	struct capsule_vboot_hob *vboot = (void *)info;
+
+	if (vboot->boot_slot > 2)
+		return -1;
+	if (smm_efi_variable_service_is_s3_resume() &&
+	    vboot->commit != (uintptr_t)capsule_commit)
+		return -1;
+	capsule_boot_slot = vboot->boot_slot;
+	vboot->commit = (uintptr_t)capsule_commit;
+#endif
 	info->read = (uintptr_t)capsule_read;
 	info->resolve = (uintptr_t)capsule_resolve;
 	info->program = (uintptr_t)capsule_program;
