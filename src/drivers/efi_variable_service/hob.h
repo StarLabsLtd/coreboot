@@ -65,6 +65,14 @@ struct capsule_info_hob {
 	uint8_t image_guid[16];
 } __packed;
 
+struct capsule_vboot_hob {
+	struct capsule_info_hob base;
+	uint32_t boot_slot; /* 0: RO recovery, 1: RW A, 2: RW B. */
+	uint32_t commit; /* Private callback: 0 acknowledges boot, 1/2 arms a trial. */
+} __packed;
+
+_Static_assert(sizeof(struct capsule_vboot_hob) == 64, "Vboot capsule HOB ABI");
+
 _Static_assert(sizeof(struct capsule_info_hob) == 56, "Capsule HOB must be 8-byte aligned");
 
 struct efi_variable_service_state;
