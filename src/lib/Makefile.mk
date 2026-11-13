@@ -129,6 +129,9 @@ ramstage-y += prog_ops.c
 ramstage-y += hardwaremain.c
 ramstage-y += selfboot.c
 ramstage-y += coreboot_table.c
+ifeq ($(CONFIG_PCI),y)
+ramstage-$(CONFIG_PAYLOAD_EDK2) += root_bridge_info.c
+endif
 ramstage-$(CONFIG_GENERATE_SMBIOS_TABLES) += smbios.c
 ramstage-$(CONFIG_GENERATE_SMBIOS_TABLES) += smbios_defaults.c
 ramstage-y += bootmem.c
