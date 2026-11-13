@@ -293,3 +293,11 @@ bootsplash-retained-test-srcs += tests/stubs/die.c
 bootsplash-retained-test-config += CONFIG_BMP_LOGO=1
 bootsplash-retained-test-config += CONFIG_BOOT_SPLASH_HANDOFF=1
 bootsplash-retained-test-config += CONFIG_SPLASH_SCREEN_FOOTER=1
+
+bootsplash-retained-test-config += CONFIG_BMP_LOGO_SOURCE_SCALE=1
+
+tests-y += bootsplash-hidpi-source-test
+bootsplash-hidpi-source-test-stage := ramstage
+bootsplash-hidpi-source-test-srcs := $(bootsplash-retained-test-srcs)
+bootsplash-hidpi-source-test-config := $(filter-out CONFIG_BMP_LOGO_SOURCE_SCALE=1, \
+	$(bootsplash-retained-test-config)) CONFIG_BMP_LOGO_SOURCE_SCALE=2
