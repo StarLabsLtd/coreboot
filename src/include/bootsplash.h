@@ -161,10 +161,11 @@ struct logo_coordinates calculate_logo_coordinates(
 	enum fw_splash_horizontal_alignment halignment,
 	enum fw_splash_vertical_alignment valignment);
 void render_logo_to_framebuffer(struct logo_config *config);
-void load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
+/* Failure clears all outputs; successful conversion returns an owned BLT. */
+bool load_and_convert_bmp_to_blt(uintptr_t *logo, size_t *logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
-void convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
+bool convert_bmp_to_blt(uintptr_t logo, size_t logo_size,
 	uintptr_t *blt, size_t *blt_size, uint32_t *pixel_height, uint32_t *pixel_width,
 	enum lb_fb_orientation orientation);
 void render_text_to_framebuffer(struct logo_config *config, const char *str,
