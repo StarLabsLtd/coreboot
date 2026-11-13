@@ -77,7 +77,10 @@ int smbios_string_table_len(u8 *start)
 
 int smbios_full_table_len(struct smbios_header *header, u8 *str_table_start)
 {
-	return header->length + smbios_string_table_len(str_table_start);
+	const int len = header->length + smbios_string_table_len(str_table_start);
+
+	printk(BIOS_DEBUG, "SMBIOS type %u: %d bytes\n", header->type, len);
+	return len;
 }
 
 void *smbios_carve_table(unsigned long start, u8 type, u8 length, u16 handle)
@@ -485,7 +488,7 @@ static int smbios_write_type0(unsigned long *current, int handle)
 		t->bios_characteristics_ext1 = BIOS_EXT1_CHARACTERISTICS_ACPI;
 
 	t->bios_characteristics_ext2 = BIOS_EXT2_CHARACTERISTICS_TARGET;
-	if (CONFIG(PAYLOAD_EDK2))
+	if (CONFIG(PAYLOAD_EDK2) || CONFIG(PAYLOAD_CDK2))
 		t->bios_characteristics_ext2 |= BIOS_EXT2_CHARACTERISTICS_UEFI_SUPPORT;
 
 	const int len = smbios_full_table_len(&t->header, t->eos);

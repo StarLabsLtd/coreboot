@@ -525,7 +525,7 @@ print:
 prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
-		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
+		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools Source/C Source/Python 2>&1; \
 
 ifeq ($(CONFIG_ASS),y)
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
