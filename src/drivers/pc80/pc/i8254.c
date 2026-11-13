@@ -5,6 +5,7 @@
 #include <cpu/x86/tsc.h>
 #include <delay.h>
 #include <pc80/i8254.h>
+#include <stdbool.h>
 
 /* Initialize i8254 timers */
 
@@ -95,20 +96,28 @@ bad_ctc:
 }
 
 #if CONFIG(UNKNOWN_TSC_RATE)
-static u32 timer_tsc;
+static unsigned long timer_tsc;
+static bool calibration_attempted;
+
+unsigned long tsc_freq_mhz_measured(void)
+{
+	if (!calibration_attempted) {
+		timer_tsc = calibrate_tsc_with_pit();
+		calibration_attempted = true;
+	}
+
+	return timer_tsc;
+}
 
 unsigned long tsc_freq_mhz(void)
 {
-	if (timer_tsc > 0)
-		return timer_tsc;
-
-	timer_tsc = calibrate_tsc_with_pit();
+	unsigned long frequency = tsc_freq_mhz_measured();
 
 	/* Set some semi-ridiculous rate if approximation fails. */
-	if (timer_tsc == 0)
-		timer_tsc = 5000;
+	if (!frequency)
+		frequency = 5000;
 
-	return timer_tsc;
+	return frequency;
 }
 #endif
 
