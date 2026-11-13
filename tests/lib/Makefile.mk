@@ -378,3 +378,16 @@ root_bridge_info-test-srcs += tests/stubs/console.c
 root_bridge_info-test-config += CONFIG_PCI=1
 
 tests-y += root_bridge_info-test
+
+tests-y += payload_resource_handoff-test
+payload_resource_handoff-test-stage := ramstage
+payload_resource_handoff-test-srcs += tests/lib/payload_resource_handoff-test.c
+payload_resource_handoff-test-srcs += src/lib/payload_resource_handoff.c
+payload_resource_handoff-test-srcs += src/lib/crc_byte.c
+payload_resource_handoff-test-srcs += src/commonlib/bsd/ipchksum.c
+payload_resource_handoff-test-srcs += src/device/device_util.c
+payload_resource_handoff-test-srcs += tests/stubs/console.c
+payload_resource_handoff-test-cflags += -I tests/include/tests/lib/fmap
+payload_resource_handoff-test-config += CONFIG_PAYLOAD_CDK2=1 CONFIG_PCI=1 \
+	CONFIG_COLLECT_TIMESTAMPS=0 \
+	CONFIG_ECAM_MMCONF_BASE_ADDRESS=0xe0000000 CONFIG_ECAM_MMCONF_BUS_NUMBER=256

@@ -688,15 +688,12 @@ static enum cb_err quiesce_assigned_devices(void)
 	return CB_SUCCESS;
 }
 
-static enum cb_err quiesce_topology_devices(struct topology_snapshot *snapshot)
+static enum cb_err snapshot_topology_commands(struct topology_snapshot *snapshot)
 {
 	const struct device *device;
 
-	/* Tables precede the final payload hook; snapshot the same quiesced state. */
-	pci_disable_bus_mastering();
-
 	/* Topology omits functions with no assigned resource.  They are still
-	 * potential DMA requesters, so quiesce and verify every enabled PCI
+	 * potential DMA requesters, so verify every enabled PCI
 	 * endpoint. Host bridges can have a hardwired bus-master bit and are
 	 * not independently controlled DMA endpoints. */
 	for (device = all_devices; device; device = device->next) {
@@ -705,14 +702,30 @@ static enum cb_err quiesce_topology_devices(struct topology_snapshot *snapshot)
 		    (device->class >> 8) == PCI_CLASS_BRIDGE_HOST)
 			continue;
 		if (payload_resource_read_command(device) & PCI_COMMAND_MASTER) {
-			printk(BIOS_ERR, "PRH: failed to quiesce bus mastering for %s\n",
+			printk(BIOS_ERR, "PRH: bus mastering active at handoff for %s\n",
 			       dev_path(device));
 			return CB_ERR;
 		}
 	}
-	for (size_t index = 0; index < snapshot->count; index++)
-		snapshot->commands[index] = payload_resource_read_command(snapshot->devices[index]);
+	for (size_t index = 0; index < snapshot->count; index++) {
+		device = snapshot->devices[index];
+		snapshot->commands[index] = payload_resource_read_command(device);
+		/* Validate the value we publish if the register changed since the scan. */
+		if ((device->class >> 8) != PCI_CLASS_BRIDGE_HOST &&
+		    (snapshot->commands[index] & PCI_COMMAND_MASTER)) {
+			printk(BIOS_ERR, "PRH: bus mastering active at handoff for %s\n",
+			       dev_path(device));
+			return CB_ERR;
+		}
+	}
 	return CB_SUCCESS;
+}
+
+static enum cb_err quiesce_topology_devices(struct topology_snapshot *snapshot)
+{
+	/* Tables precede the final payload hook; snapshot the same quiesced state. */
+	pci_disable_bus_mastering();
+	return snapshot_topology_commands(snapshot);
 }
 
 static bool framebuffer_mask_valid(uint8_t position, uint8_t size, uint8_t bpp,
@@ -863,16 +876,8 @@ static enum cb_err write_payload_resource_handoff(struct lb_header *header,
 	if (reserved) {
 		timestamp_add_now(TS_PAYLOAD_RESOURCE_TOPOLOGY_END);
 		timestamp_add_now(TS_PAYLOAD_RESOURCE_COMMAND_BEGIN);
-		for (size_t index = 0; index < snapshot->count; index++) {
-			device = snapshot->devices[index];
-			snapshot->commands[index] = payload_resource_read_command(device);
-			if ((device->class >> 8) != PCI_CLASS_BRIDGE_HOST &&
-			    (snapshot->commands[index] & PCI_COMMAND_MASTER)) {
-				printk(BIOS_ERR, "PRH: bus mastering active at handoff for %s\n",
-				       dev_path(device));
-				return CB_ERR;
-			}
-		}
+		if (snapshot_topology_commands(snapshot) != CB_SUCCESS)
+			return CB_ERR;
 		timestamp_add_now(TS_PAYLOAD_RESOURCE_COMMAND_END);
 	} else if ((revision4 ? quiesce_topology_devices(snapshot) :
 		    quiesce_assigned_devices()) != CB_SUCCESS) {
