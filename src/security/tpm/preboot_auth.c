@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <bootmode.h>
 #include <bootstate.h>
 #include <console/console.h>
 #include <security/tpm/tspi.h>
+#include <security/vboot/misc.h>
 #include <vb2_api.h>
 
 /* Public domain separator; the payload closes this static PCR before OS hand-off. */
@@ -13,8 +15,30 @@ static const uint8_t preboot_auth_open[VB2_SHA256_DIGEST_SIZE] = {
 	0xd6, 0x9e, 0xd5, 0x83, 0x8e, 0x42, 0xa3, 0x6e,
 };
 
+static bool dave_boot_allowed(void)
+{
+	/* The mode helpers alone also return false when vboot is compiled out. */
+	if (!CONFIG(VBOOT) || CONFIG(VBOOT_MOCK_SECDATA) ||
+	    !vboot_get_cbfs_boot_device() || platform_is_resuming() != 0)
+		return false;
+
+	/*
+	 * A selected RW CBFS is available only after vboot has run. The normal
+	 * path verifies the signed firmware before returning; recovery does not.
+	 * S3 retains the previous TPM lifecycle and must never reopen this phase.
+	 */
+	const struct vb2_context *ctx = vboot_get_context();
+
+	return ctx && !(ctx->flags & (VB2_CONTEXT_DEVELOPER_MODE |
+				     VB2_CONTEXT_RECOVERY_MODE |
+				     VB2_CONTEXT_NO_BOOT | VB2_CONTEXT_S3_RESUME));
+}
+
 static void open_preboot_auth_phase(void *unused)
 {
+	if (CONFIG(DAVE_MODE) && !dave_boot_allowed())
+		die("DAVE requires a verified normal boot\n");
+
 	if (tpm_extend_pcr_compact_hash(6, VB2_HASH_SHA256, preboot_auth_open,
 				      sizeof(preboot_auth_open),
 				      "Star Labs pre-OS authentication phase open v1") != TPM_SUCCESS)

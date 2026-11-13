@@ -24,11 +24,33 @@ $(foreach test,smmstore-srk-test smmstore-srk-customer-test,\
 		src/drivers/smmstore/smi.c src/commonlib/region.c tests/stubs/console.c)\
 	$(eval $(test)-stage := smm)\
 	$(eval $(test)-config += CONFIG_SMMSTORE_SRK_PIN=1 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000 \
-		CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1 CONFIG_ROM_SIZE=0x40000)\
+		CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1 CONFIG_ROM_SIZE=0x40000 CONFIG_ASS=0)\
 	$(eval $(test)-cflags += -I tests/drivers/smmstore-srk-include \
 		-I src/soc/intel/common/block/include))
 smmstore-srk-test-config += CONFIG_SMMSTORE_SRK_PROVISION=1
 smmstore-srk-customer-test-config += CONFIG_SMMSTORE_SRK_PROVISION=0
+tests-y += smmstore-srk-4k-test smmstore-srk-customer-4k-test
+$(call copy-test,smmstore-srk-test,smmstore-srk-4k-test)
+smmstore-srk-4k-test-config += CONFIG_SMMSTORE_BLOCK_SIZE=0x1000
+$(call copy-test,smmstore-srk-customer-test,smmstore-srk-customer-4k-test)
+smmstore-srk-customer-4k-test-config += CONFIG_SMMSTORE_BLOCK_SIZE=0x1000
+tests-y += smmstore-srk-ass-test smmstore-srk-customer-ass-test
+$(call copy-test,smmstore-srk-4k-test,smmstore-srk-ass-test)
+smmstore-srk-ass-test-config += CONFIG_ASS=1
+$(call copy-test,smmstore-srk-customer-4k-test,smmstore-srk-customer-ass-test)
+smmstore-srk-customer-ass-test-config += CONFIG_ASS=1
+
+tests-y += efi-capsule-srk-test
+efi-capsule-srk-test-srcs += tests/drivers/efi-capsule-srk.c \
+	src/drivers/efi_variable_service/capsule_store.c src/commonlib/region.c
+efi-capsule-srk-test-stage := smm
+efi-capsule-srk-test-config += CONFIG_ASS=1 CONFIG_SMMSTORE_SRK_PIN=1 \
+	CONFIG_SMMSTORE_BLOCK_SIZE=0x10000 CONFIG_ROM_SIZE=0x2000000 \
+	CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1 CONFIG_VBOOT_SLOTS_RW_AB=0
+efi-capsule-srk-test-cflags += -I tests/drivers/dave-fmap-include \
+	-I src/soc/intel/common/block/include -I src/soc/intel/alderlake/include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32
 
 tests-y += smmstore-fixed-mm-test
 smmstore-fixed-mm-test-srcs += tests/drivers/smmstore-fixed-mm.c src/drivers/smmstore/smi.c \

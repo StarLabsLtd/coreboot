@@ -143,7 +143,8 @@ static struct prog global_payload =
 
 void payload_preload(void)
 {
-	if (!CONFIG(CBFS_PRELOAD))
+	/* Generic preloads do not retain whether their bytes came from RO fallback. */
+	if (!CONFIG(CBFS_PRELOAD) || CONFIG(DAVE_MODE))
 		return;
 
 	cbfs_preload(global_payload.name);
@@ -156,11 +157,18 @@ void payload_load(void)
 
 	timestamp_add_now(TS_LOAD_PAYLOAD);
 
-	if (prog_locate_hook(payload))
+	if (CONFIG(DAVE_MODE))
+		prog_set_entry(payload, NULL, NULL);
+
+	/* DAVE must be loaded from the selected signed RW slot by the CBFS path below. */
+	if (!CONFIG(DAVE_MODE) && prog_locate_hook(payload))
 		goto out;
 
 	payload->cbfs_type = CBFS_TYPE_QUERY;
-	mapping = cbfs_type_map(prog_name(payload), NULL, &payload->cbfs_type);
+	if (CONFIG(DAVE_MODE))
+		mapping = cbfs_rw_type_map(prog_name(payload), NULL, &payload->cbfs_type);
+	else
+		mapping = cbfs_type_map(prog_name(payload), NULL, &payload->cbfs_type);
 
 	if (!mapping)
 		goto out;

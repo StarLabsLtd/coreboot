@@ -13,6 +13,26 @@ EDK2_PLATFORMS_REPOSITORY := $(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_REPOSIT
 EDK2_PATH_REPO_ROOT := $(word 3,$(subst /, ,$(EDK2_REPOSITORY)))
 export EDK2_PATH := $(WORKSPACE)/$(EDK2_PATH_REPO_ROOT)
 
+ifeq ($(CONFIG_DAVE_MODE),y)
+ifneq ($(CONFIG_ASS),y)
+$(error DAVE requires the fixed authenticated SMM variable and capsule owner)
+endif
+ifneq ($(words $(filter y,$(CONFIG_VBOOT) $(CONFIG_TPM_PREBOOT_AUTH_PHASE) \
+	$(CONFIG_SMMSTORE_SRK_PIN) $(CONFIG_BOOTMEDIA_SMM_BWP))),4)
+$(error DAVE requires verified boot, the TPM authentication phase and the protected SMM SRK pin)
+endif
+ifeq ($(CONFIG_VBOOT_MOCK_SECDATA),y)
+$(error DAVE requires real TPM-backed vboot secdata)
+endif
+ifeq ($(CONFIG_EDK2_DISABLE_TPM),y)
+$(error DAVE requires the payload TPM service)
+endif
+dave-source-revision := $(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))
+ifneq ($(shell printf '%s' '$(dave-source-revision)' | grep -Eq '^[0-9a-fA-F]{40}$$' && echo y),y)
+$(error DAVE requires an exact reviewed EDK2 commit)
+endif
+endif
+
 define edk2_abspath
 $(if $(filter /%,$(1)),$(1),$(EDK2_PATH)/$(1))
 endef
@@ -265,6 +285,7 @@ EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
 EDK2_PIN_CHECK = $(abspath check-pinned-source.sh)
+EDK2_DAVE_CHECK = $(abspath check-dave-source.sh)
 CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
 CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
@@ -353,6 +374,32 @@ BUILD_STR += -D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
 endif
 endif
 
+ifeq ($(CONFIG_DAVE_MODE),y)
+dave-required-defines := STARLABS_DAVE=TRUE COREBOOT_DAVE_VBOOT=TRUE \
+	COREBOOT_DAVE_SRK_PIN=TRUE PRE_OS_AUTH_PHASE_ENABLE=TRUE PRE_OS_AUTH_PHASE_PCR=6 \
+	SECURE_KEY_FACTORY_ENABLE=TRUE STATIC_SECURE_BOOT=TRUE SECURE_BOOT_ENABLE=TRUE \
+	OPAL_PASSWORD_ENABLE=TRUE TPM_ENABLE=TRUE TPM1_ENABLE=FALSE TPM2_ENABLE=TRUE \
+	SECURITY_STUB_ENABLE=TRUE BOOTLOADER=COREBOOT BUILD_ARCH=X64 ASS=TRUE VARIABLE_SUPPORT=SPI \
+	SECURE_KEY_FACTORY_PROVISION_ENABLE=$(if $(filter y,$(CONFIG_SMMSTORE_SRK_PROVISION)),TRUE,FALSE)
+dave-required-pcds := gUefiPayloadPkgTokenSpaceGuid.PcdDaveSecureBootPolicy=TRUE \
+	gUefiPayloadPkgTokenSpaceGuid.PcdSmmStoreSrkPinRequired=TRUE \
+	gUefiPayloadPkgTokenSpaceGuid.PcdStaticSecureBoot=TRUE
+dave-build-params := $(subst --define=, ,$(subst --pcd=, ,\
+	$(subst ',,$(call strip_quotes,$(BUILD_STR) $(CONFIG_EDK2_CUSTOM_BUILD_PARAMS) \
+		$(EDK2_EXTRA_BUILD_PARAMS)))))
+dave-policy-patterns := $(foreach setting,$(dave-required-defines) $(dave-required-pcds),\
+	$(firstword $(subst =, ,$(setting)))=%)
+dave-custom-policy := $(filter $(dave-policy-patterns),$(subst -D, ,$(dave-build-params)))
+ifneq ($(filter-out $(dave-required-defines) $(dave-required-pcds),$(dave-custom-policy)),)
+$(error DAVE payload parameters must preserve the verified-boot authentication contract)
+endif
+override BUILD_STR += $(addprefix -D ,$(dave-required-defines))
+override BUILD_STR += $(addprefix --pcd ,$(dave-required-pcds))
+override DAVE_FIXED_MM_ARGS := -D STARLABS_DAVE=TRUE -D STATIC_SECURE_BOOT=TRUE \
+	-D COREBOOT_DAVE_VBOOT=TRUE -D COREBOOT_DAVE_SRK_PIN=TRUE \
+	--pcd gUefiPayloadPkgTokenSpaceGuid.PcdStaticSecureBoot=TRUE
+endif
+
 all: UefiPayloadPkg
 
 $(WORKSPACE):
@@ -429,9 +476,10 @@ $(EDK2_PATH): $(WORKSPACE)
 		else \
 			git fetch --no-recurse-submodules origin || exit 1; \
 		fi; \
-		if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ]; then \
+		if [ "$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)" = "yy" ] || \
+		   [ "$(CONFIG_DAVE_MODE)" = "y" ]; then \
 			$(EDK2_PIN_CHECK) "$(EDK2_PATH)" "$(CONFIG_EDK2_TAG_OR_REV)" \
-				"$(if $(CONFIG_EDK2_BOOTSPLASH_FILE),MdeModulePkg/Logo/Logo.bmp)"; \
+				"$(if $(CONFIG_EDK2_BOOTSPLASH_FILE),MdeModulePkg/Logo/Logo.bmp)" || exit 1; \
 		else \
 		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
 		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
@@ -445,6 +493,9 @@ $(EDK2_PATH): $(WORKSPACE)
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
 		$(update_submodules); \
+		fi; \
+		if [ "$(CONFIG_DAVE_MODE)" = "y" ]; then \
+			$(EDK2_DAVE_CHECK) "$(EDK2_PATH)" "$(CONFIG_ASS)" || exit 1; \
 		fi
 
 logo: $(EDK2_PATH)
@@ -544,6 +595,7 @@ FixedMmService: prep print
 			$(FIXED_MM_CAPSULE_ARGS) \
 			$(CONFIG_EDK2_CUSTOM_BUILD_PARAMS) \
 			$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),$(FIXED_MM_CAPSULE_ARGS)) \
+			$(DAVE_FIXED_MM_ARGS) \
 			-y $(WORKSPACE)/Build/CorebootFixedMmService/FIXEDMMFV.txt || exit 1; \
 		cp $(WORKSPACE)/Build/CorebootFixedMmService/$(RELEASE_STR)_GCC/FV/FIXEDMMFV.Fv \
 			$(EDK2_FIXED_MM_OUT) || exit 1
@@ -556,7 +608,7 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 		source $(EDK2_PATH)/edksetup.sh; \
 		echo -n "EDK2: Building... "; \
 		build -a IA32 -a X64 -b $(RELEASE_STR) $(BUILD_STR) -D BUILD_ARCH=X64 \
-			-y $(WORKSPACE)/Build/UefiPayloadPkgX64/UEFIPAYLOAD.txt; \
+			-y $(WORKSPACE)/Build/UefiPayloadPkgX64/UEFIPAYLOAD.txt || exit 1; \
 		if [ ! -f $@ ]; then \
 			echo "Failed!"; \
 			exit 1; \

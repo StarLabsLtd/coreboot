@@ -44,10 +44,10 @@ static void switch_to_postram_cache(int unused)
 }
 CBMEM_CREATION_HOOK(switch_to_postram_cache);
 
-enum cb_err _cbfs_boot_lookup(const char *name, bool force_ro,
-			      union cbfs_mdata *mdata, struct region_device *rdev)
+static enum cb_err cbfs_boot_lookup(const char *name, const struct cbfs_boot_device *cbd,
+				    bool allow_fallback, union cbfs_mdata *mdata,
+				    struct region_device *rdev)
 {
-	const struct cbfs_boot_device *cbd = cbfs_get_boot_device(force_ro);
 	if (!cbd)
 		return CB_ERR;
 
@@ -75,7 +75,8 @@ enum cb_err _cbfs_boot_lookup(const char *name, bool force_ro,
 		err = cbfs_lookup(&cbd->rdev, name, mdata, &data_offset, metadata_hash);
 	}
 
-	if (CONFIG(VBOOT_ENABLE_CBFS_FALLBACK) && !force_ro && err == CB_CBFS_NOT_FOUND) {
+	if (CONFIG(VBOOT_ENABLE_CBFS_FALLBACK) && allow_fallback &&
+	    err == CB_CBFS_NOT_FOUND) {
 		printk(BIOS_INFO, "CBFS: Fall back to RO region for %s\n", name);
 		return _cbfs_boot_lookup(name, true, mdata, rdev);
 	}
@@ -94,6 +95,12 @@ enum cb_err _cbfs_boot_lookup(const char *name, bool force_ro,
 		return CB_ERR;
 
 	return CB_SUCCESS;
+}
+
+enum cb_err _cbfs_boot_lookup(const char *name, bool force_ro,
+			      union cbfs_mdata *mdata, struct region_device *rdev)
+{
+	return cbfs_boot_lookup(name, cbfs_get_boot_device(force_ro), !force_ro, mdata, rdev);
 }
 
 void cbfs_unmap(void *mapping)
@@ -545,6 +552,20 @@ static enum cb_err check_or_query_type(const union cbfs_mdata *mdata, enum cbfs_
 
 	ERROR("'%s' type mismatch (is %u, expected %u)\n", mdata->h.filename, real_type, *type);
 	return CB_ERR;
+}
+
+void *cbfs_rw_type_map(const char *name, size_t *size_out, enum cbfs_type *type)
+{
+	struct region_device rdev;
+	union cbfs_mdata mdata;
+
+	if (cbfs_boot_lookup(name, vboot_get_cbfs_boot_device(), false, &mdata, &rdev))
+		return NULL;
+	if (check_or_query_type(&mdata, type) != CB_SUCCESS)
+		return NULL;
+
+	/* Preloads may have used RO fallback; map the selected RW file directly. */
+	return do_alloc(&mdata, &rdev, NULL, NULL, size_out, false);
 }
 
 void *_cbfs_alloc(const char *name, cbfs_allocator_t allocator, void *arg,

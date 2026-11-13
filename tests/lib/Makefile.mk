@@ -41,9 +41,32 @@ tests-y += cbfs-measurement-test cbfs-measurement-permissive-test
 tests-y += cbfs-measurement-hash-failure-test cbfs-measurement-hash-failure-permissive-test
 tests-y += cbfs-lookup-no-mcache-test
 tests-y += cbfs-lookup-has-mcache-test
+tests-y += dave-payload-test dave-payload-generic-test dave-payload-body-verified-test
 tests-y += lzma-test
 tests-y += ux_locales-test
 tests-y += tpm-resume-test
+tests-y += tpm-preboot-auth-test tpm-preboot-auth-provision-test
+tests-y += tpm-preboot-auth-unverified-test tpm-preboot-auth-mock-test
+tests-y += tpm-preboot-auth-generic-test
+tests-y += tpm-preboot-auth-generic-vboot-test
+tests-y += vboot-dave-tpm-lock-test
+
+vboot-dave-tpm-lock-test-srcs += tests/lib/vboot-dave-tpm-lock-test.c
+vboot-dave-tpm-lock-test-config += CONFIG_TPM1=0 CONFIG_TPM2=1
+
+tpm-preboot-auth-test-srcs += tests/lib/tpm-preboot-auth-test.c
+tpm-preboot-auth-test-config += CONFIG_DAVE_MODE=1 CONFIG_VBOOT=1 \
+	CONFIG_VBOOT_MOCK_SECDATA=0 CONFIG_SMMSTORE_SRK_PROVISION=0
+$(call copy-test,tpm-preboot-auth-test,tpm-preboot-auth-provision-test)
+tpm-preboot-auth-provision-test-config += CONFIG_SMMSTORE_SRK_PROVISION=1
+$(call copy-test,tpm-preboot-auth-test,tpm-preboot-auth-unverified-test)
+tpm-preboot-auth-unverified-test-config += CONFIG_VBOOT=0
+$(call copy-test,tpm-preboot-auth-test,tpm-preboot-auth-mock-test)
+tpm-preboot-auth-mock-test-config += CONFIG_VBOOT_MOCK_SECDATA=1
+$(call copy-test,tpm-preboot-auth-unverified-test,tpm-preboot-auth-generic-test)
+tpm-preboot-auth-generic-test-config += CONFIG_DAVE_MODE=0
+$(call copy-test,tpm-preboot-auth-test,tpm-preboot-auth-generic-vboot-test)
+tpm-preboot-auth-generic-vboot-test-config += CONFIG_DAVE_MODE=0
 
 tpm-resume-test-srcs += tests/lib/tpm-resume-test.c tests/stubs/console.c tests/stubs/die.c
 tpm-resume-test-stage := romstage
@@ -295,6 +318,30 @@ cbfs-lookup-no-mcache-test-cflags += -I tests/include/tests/lib/fmap
 
 $(call copy-test,cbfs-lookup-no-mcache-test,cbfs-lookup-has-mcache-test)
 cbfs-lookup-has-mcache-test-config += CONFIG_NO_CBFS_MCACHE=0
+
+dave-payload-test-srcs := tests/lib/dave-payload-test.c tests/stubs/console.c \
+	tests/mock/cbfs_file_mock.c src/lib/cbfs.c src/lib/prog_loaders.c \
+	src/commonlib/bsd/cbfs_private.c src/commonlib/bsd/cbfs_mcache.c \
+	src/commonlib/mem_pool.c src/commonlib/region.c \
+	3rdparty/vboot/firmware/2lib/2sha256.c 3rdparty/vboot/firmware/2lib/2sha_utility.c
+dave-payload-test-config := CONFIG_DAVE_MODE=1 CONFIG_VBOOT=1 CONFIG_VBOOT_MOCK_SECDATA=0 \
+	CONFIG_VBOOT_STARTS_IN_BOOTBLOCK=1 CONFIG_VBOOT_STARTS_IN_ROMSTAGE=0 \
+	CONFIG_VBOOT_SEPARATE_VERSTAGE=0 CONFIG_VBOOT_CBFS_INTEGRATION=1 \
+	CONFIG_VBOOT_ENABLE_CBFS_FALLBACK=1 CONFIG_CBFS_VERIFICATION=1 CONFIG_TOCTOU_SAFETY=1 \
+	CONFIG_NO_CBFS_MCACHE=0 CONFIG_COLLECT_TIMESTAMPS=0 CONFIG_CBFS_PRELOAD=0 \
+	CONFIG_CBFS_PREFIX=\"test\" CONFIG_PAYLOAD_FIT_SUPPORT=0 CONFIG_TPM_MEASURED_BOOT=0 \
+	CONFIG_COMPRESSED_PAYLOAD_ZSTD=0 CONFIG_POSTRAM_CBFS_CACHE_IN_BSS=0 \
+	VB2_SUPPORT_SHA1=0 VB2_SUPPORT_SHA256=1 VB2_SUPPORT_SHA512=0
+dave-payload-test-mocks := cbfs_get_boot_device prog_locate_hook
+dave-payload-test-cflags := -I tests/include/tests/lib/fmap \
+	-I 3rdparty/vboot/firmware/2lib/include
+
+$(call copy-test,dave-payload-test,dave-payload-generic-test)
+dave-payload-generic-test-config += CONFIG_DAVE_MODE=0
+
+$(call copy-test,dave-payload-test,dave-payload-body-verified-test)
+dave-payload-body-verified-test-config += CONFIG_VBOOT_CBFS_INTEGRATION=0 \
+	CONFIG_CBFS_VERIFICATION=0 CONFIG_TOCTOU_SAFETY=0
 
 lzma-test-srcs += tests/lib/lzma-test.c
 lzma-test-srcs += tests/stubs/console.c

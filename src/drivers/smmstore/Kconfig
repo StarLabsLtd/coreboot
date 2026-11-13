@@ -1,5 +1,11 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config HAVE_SMMSTORE_SRK_PIN
+	bool
+	help
+	  The board provides a dedicated SRK_PIN_V1 flash erase block and an
+	  isolated FMAP erase block for the protected TPM SRK identity backend.
+
 config SMMSTORE
 	bool "Support for flash based, SMM mediated data store"
 	depends on BOOT_DEVICE_SUPPORTS_WRITES && HAVE_SMI_HANDLER
@@ -14,6 +20,7 @@ if SMMSTORE
 
 config SMMSTORE_SRK_PIN
 	bool "Protect the provisioned TPM SRK identity"
+	depends on HAVE_SMMSTORE_SRK_PIN
 	depends on BOOTMEDIA_SMM_BWP && SOC_INTEL_COMMON_BLOCK_SMM
 	help
 	  Keep the provisioned TPM SRK Name in the protected SRK_PIN_V1 FMAP
@@ -27,6 +34,8 @@ config SMMSTORE_SRK_PROVISION
 	  Permit one initial binding on a physically checked board. This image
 	  must remain in the trusted provisioning environment. Existing or
 	  partially written records cannot be replaced or erased through SMM.
+	  DAVE provisioning still requires verified normal boot; this option
+	  does not permit developer mode, recovery mode or unverified firmware.
 
 config SMMSTORE_SIZE
 	hex "size of the SMMSTORE FMAP region"

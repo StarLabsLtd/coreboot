@@ -113,6 +113,30 @@ static int setup(void **state)
 	return 0;
 }
 
+/* First call: SmmStoreLibInitialize probes RAW_READ before issuing SRK commands. */
+static void client_backend_probe(void **state)
+{
+	struct smmstore_params_raw_read read = { .bufsize = 1 };
+
+	bytes[store_offset] = 0x5a;
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_RAW_READ, &read), SMMSTORE_RET_SUCCESS);
+	assert_int_equal(communication_buffer[0], 0x5a);
+	assert_int_equal(writes + erases, 0);
+}
+
+#if CONFIG(ASS)
+static void raw_mutations_disabled(void **state)
+{
+	struct smmstore_params_raw_write write = { .bufsize = 1 };
+	struct smmstore_params_raw_clear clear = { .block_id = 0 };
+
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH, (void *)1),
+			 SMMSTORE_RET_UNSUPPORTED);
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_RAW_WRITE, &write), SMMSTORE_RET_FAILURE);
+	assert_int_equal(smmstore_exec(SMMSTORE_CMD_RAW_CLEAR, &clear), SMMSTORE_RET_FAILURE);
+	assert_int_equal(writes + erases, 0);
+}
+#else
 static void raw_ranges(void **state)
 {
 	struct smmstore_params_raw_write write = { .bufsize = 1 };
@@ -121,8 +145,12 @@ static void raw_ranges(void **state)
 	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH, (void *)1), 0);
 	for (unsigned int mode = 0; mode <= SMMSTORE_CMD_USE_FULL_FLASH;
 	     mode += SMMSTORE_CMD_USE_FULL_FLASH) {
-		for (unsigned int block = 0; block < 4; block++) {
-			bool protected = block == 1 || block == 2;
+		for (unsigned int block = 0; block < sizeof(bytes) / SMM_BLOCK_SIZE; block++) {
+			const size_t offset = block * SMM_BLOCK_SIZE;
+			bool protected = (offset >= FMAP_SECTION_FMAP_START &&
+					offset < FMAP_SECTION_FMAP_START + FMAP_SECTION_FMAP_SIZE) ||
+				(offset >= FMAP_SECTION_SRK_PIN_V1_START &&
+				 offset < FMAP_SECTION_SRK_PIN_V1_START + FMAP_SECTION_SRK_PIN_V1_SIZE);
 			write.block_id = clear.block_id = block;
 			unsigned int old_writes = writes, old_erases = erases;
 			assert_int_equal(smmstore_exec(mode | SMMSTORE_CMD_RAW_WRITE, &write),
@@ -162,6 +190,7 @@ static void short_io(void **state)
 	short_read = true;
 	assert_int_equal(smmstore_exec(SMMSTORE_CMD_RAW_READ, &read), SMMSTORE_RET_FAILURE);
 }
+#endif
 
 static void provisioning(void **state)
 {
@@ -197,6 +226,24 @@ static void provisioning(void **state)
 	communication_buffer[2] ^= 1;
 	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_DENIED);
 	assert_int_equal(writes, 2);
+}
+
+static void existing_pin(void **state)
+{
+	memcpy(bytes + FMAP_SECTION_SRK_PIN_V1_START, "SRK1", 4);
+	memcpy(bytes + FMAP_SECTION_SRK_PIN_V1_START + 4, name, sizeof(name));
+	memset(bytes + FMAP_SECTION_SRK_PIN_V1_START + 38, 0, 2);
+	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_READ), SMMSTORE_RET_SUCCESS);
+	const struct smmstore_srk_info *info = (void *)communication_buffer;
+
+	assert_int_equal(sizeof(*info), 54);
+	assert_int_equal(info->revision, 1);
+	assert_int_equal(info->offset, FMAP_SECTION_SRK_PIN_V1_START);
+	assert_int_equal(info->size, FMAP_SECTION_SRK_PIN_V1_SIZE);
+	assert_int_equal(info->fmap_offset, FMAP_SECTION_FMAP_START);
+	assert_int_equal(info->fmap_size, MAX(FMAP_SECTION_FMAP_SIZE, SMM_BLOCK_SIZE));
+	assert_memory_equal(info->name, name, sizeof(name));
+	assert_int_equal(writes + erases, 0);
 }
 
 #if CONFIG(SMMSTORE_SRK_PROVISION)
@@ -249,10 +296,16 @@ static void close_boundary(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
+		cmocka_unit_test_setup(client_backend_probe, setup),
+#if CONFIG(ASS)
+		cmocka_unit_test_setup(raw_mutations_disabled, setup),
+#else
 		cmocka_unit_test_setup(raw_ranges, setup),
 		cmocka_unit_test_setup(raw_physical_offset, setup),
 		cmocka_unit_test_setup(short_io, setup),
+#endif
 		cmocka_unit_test_setup(provisioning, setup),
+		cmocka_unit_test_setup(existing_pin, setup),
 #if CONFIG(SMMSTORE_SRK_PROVISION)
 		cmocka_unit_test_setup(torn_provisioning, setup),
 #endif

@@ -3,6 +3,10 @@
 Verified boot is opt-in for HZ, B8 and F2. Release configuration is maintained
 outside this repository because it contains board blobs and signing inputs.
 
+[DAVE integration](dave.md) additionally requires verified normal boot and the
+protected SRK pin layout on F2. It has a separate trusted provisioning and
+layout-migration contract.
+
 | System | Firmware GUID |
 | --- | --- |
 | StarBook Horizon (HZ) | `b96a6b09-dc2c-4e3a-86ee-47016c7b035a` |

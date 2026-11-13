@@ -42,6 +42,7 @@ endchoice
 
 config EDK2_REPOSITORY
 	string "URL to git repository for edk2"
+	default "https://github.com/StarLabsLtd/dave" if DAVE_MODE
 	default "https://github.com/mrchromebox/edk2" if EDK2_REPO_MRCHROMEBOX
 	default "https://github.com/tianocore/edk2" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM
@@ -51,6 +52,7 @@ config EDK2_REPOSITORY
 
 config EDK2_TAG_OR_REV
 	string "Insert a commit's SHA-1 or a branch name"
+	default "" if DAVE_MODE
 	default "origin/uefipayload_2608" if EDK2_REPO_MRCHROMEBOX
 	default "origin/master" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM
@@ -58,6 +60,8 @@ config EDK2_TAG_OR_REV
 	  The commit's SHA-1 or branch name of the revision to use. This must exist in
 	  EDK2_REPOSITORY, and in the case of a branch name, prefixed with origin i.e.
 	  "origin/uefipayload_202202"
+	  DAVE requires the exact reviewed 40-character commit from the private
+	  DAVE repository or an explicitly configured mirror of that source.
 
 config EDK2_USE_EDK2_PLATFORMS
 	bool "Use edk2-platforms repository"

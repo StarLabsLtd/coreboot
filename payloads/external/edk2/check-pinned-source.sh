@@ -13,36 +13,44 @@ fail()
 	exit 1
 }
 
+# git diff uses 1 for differences and other nonzero codes for errors. Exclude
+# exactly the one generated tracked asset, without parsing pathnames as words.
+clean_except_asset()
+{
+	if [ -n "$allowed_dirty" ]; then
+		git diff --quiet HEAD -- . ":(exclude,literal)$allowed_dirty" && return 0
+	else
+		git diff --quiet HEAD -- && return 0
+	fi
+	status=$?
+	[ "$status" -eq 1 ] && return 1
+	fail "unable to inspect tracked source (git diff status $status)"
+}
+
 cd "$source"
 requested=$(git rev-parse --verify -q "${revision}^{commit}") ||
 	fail "${revision} is not a commit"
-head=$(git rev-parse HEAD)
-dirty=$(git diff --name-only HEAD --)
+head=$(git rev-parse HEAD) || fail "unable to identify source revision"
 
-if [ -n "$dirty" ]; then
-	for path in $dirty; do
-		[ "$path" = "$allowed_dirty" ] ||
-			fail "tracked source is modified: $path"
-	done
-	[ "$head" = "$requested" ] ||
-		fail "a modified source tree is not at the requested revision"
-else
+clean_except_asset || fail "tracked source is modified"
+if git diff --quiet HEAD --; then
 	git checkout --detach "$requested"
 	git submodule update --init --checkout --recursive
-	fi
+else
+	status=$?
+	[ "$status" -eq 1 ] || fail "unable to inspect tracked source (git diff status $status)"
+	[ "$head" = "$requested" ] ||
+		fail "a modified source tree is not at the requested revision"
+fi
 
 [ "$(git rev-parse HEAD)" = "$requested" ] ||
 	fail "checked out revision does not match the requested commit"
+clean_except_asset || fail "tracked source is modified"
 
-dirty=$(git diff --name-only HEAD --)
-if [ -n "$dirty" ]; then
-	for path in $dirty; do
-		[ "$path" = "$allowed_dirty" ] ||
-			fail "tracked source is modified: $path"
-	done
-fi
-
-git submodule status --recursive | grep -Eq '^[+-U]' &&
+submodules=$(git submodule status --recursive) ||
+	fail "unable to inspect submodule revisions"
+if printf '%s\n' "$submodules" | grep -Eq '^[+-U]'; then
 	fail "submodule revision does not match the checked out source"
+fi
 git submodule foreach --recursive 'git diff --quiet HEAD -- || exit 1' >/dev/null ||
-	fail "tracked submodule source is modified"
+	fail "tracked submodule source is modified or unavailable"

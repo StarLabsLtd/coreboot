@@ -88,6 +88,11 @@ static inline void *cbfs_map(const char *name, size_t *size_out);
 static inline void *cbfs_ro_map(const char *name, size_t *size_out);
 static inline void *cbfs_type_map(const char *name, size_t *size_out, enum cbfs_type *type);
 static inline void *cbfs_ro_type_map(const char *name, size_t *size_out, enum cbfs_type *type);
+/*
+ * Map only from the vboot-selected RW CBFS, retaining metadata and file verification.
+ * Fail if no RW device is selected or the file is missing. No RO fallback or preloads.
+ */
+void *cbfs_rw_type_map(const char *name, size_t *size_out, enum cbfs_type *type);
 static inline void *cbfs_unverified_area_map(const char *area, const char *name,
 					      size_t *size_out);
 
