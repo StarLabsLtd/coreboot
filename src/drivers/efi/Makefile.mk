@@ -18,3 +18,4 @@ ramstage-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c
 smm-$(CONFIG_USE_UEFI_VARIABLE_STORE)	+= option.c
 
 ramstage-$(CONFIG_DRIVERS_EFI_FW_INFO)	+= info.c
+smm-$(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT)	+= info.c

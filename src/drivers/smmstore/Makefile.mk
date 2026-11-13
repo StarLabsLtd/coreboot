@@ -36,3 +36,13 @@ $(smm_crypto_objects): CFLAGS_smm += -Wno-redundant-decls $(smm_crypto_flags) \
 	-I$(src)/../3rdparty/mbedtls/include -I$(src)/../3rdparty/mbedtls/library \
 	-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"'
 endif
+
+ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_TYPED_TRANSPORT),y)
+smm-y += capsule.c capsule_image.c capsule_policy.c capsule_layout.c
+smm-srcs += src/lib/uuid.c src/lib/hexstrtobin.c
+ramstage-y += capsule_ramstage.c capsule_layout.c
+$(call src-to-obj,smm,src/drivers/smmstore/capsule_image.c): CFLAGS_smm += \
+	$(smm_crypto_flags) \
+	-I$(src)/../3rdparty/mbedtls/include -I$(src)/lib/payload_mm_crypto \
+	-DMBEDTLS_CONFIG_FILE='"payload_mm_mbedtls_config.h"'
+endif
