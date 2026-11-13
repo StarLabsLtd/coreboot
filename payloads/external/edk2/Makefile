@@ -459,7 +459,8 @@ checktools:
 	fi
 
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
-capsule_keys: $(EDK2_PATH)
+# Generate trust data after prep removes the previous workspace outputs.
+capsule_keys: $(EDK2_PATH) clean
 	type openssl > /dev/null 2>&1 || { echo "ERROR: Please install openssl."; exit 1; }; \
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"; \
 	binto_pcd="$(EDK2_PATH)/BaseTools/Scripts/BinToPcd.py"; \
