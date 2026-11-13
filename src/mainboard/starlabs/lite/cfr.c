@@ -30,6 +30,7 @@ static struct sm_obj_form battery_group = {
 };
 
 static struct sm_obj_form io_expansion_group = {
+	.category = LB_CFR_FORM_CATEGORY_IO,
 	.ui_name = "I/O / Expansion",
 	.obj_list = (const struct sm_object *[]) {
 		&card_reader,
@@ -59,6 +60,7 @@ static struct sm_obj_form security_group = {
 };
 
 static struct sm_obj_form pcie_power_management_group = {
+	.category = LB_CFR_FORM_CATEGORY_PCIE,
 	.ui_name = "PCIe Power Management",
 	.obj_list = (const struct sm_object *[]) {
 		#if CONFIG(SOC_INTEL_ALDERLAKE)
@@ -71,6 +73,7 @@ static struct sm_obj_form pcie_power_management_group = {
 };
 
 static struct sm_obj_form performance_group = {
+	.category = LB_CFR_FORM_CATEGORY_PERFORMANCE,
 	.ui_name = "Performance",
 	.obj_list = (const struct sm_object *[]) {
 		&power_profile,
@@ -82,6 +85,7 @@ static struct sm_obj_form performance_group = {
 };
 
 static struct sm_obj_form suspend_lid_group = {
+	.category = LB_CFR_FORM_CATEGORY_SUSPEND,
 	.ui_name = "Suspend & Lid",
 	.obj_list = (const struct sm_object *[]) {
 		&s0ix_enable,
@@ -90,6 +94,7 @@ static struct sm_obj_form suspend_lid_group = {
 };
 
 static struct sm_obj_form wireless_group = {
+	.category = LB_CFR_FORM_CATEGORY_WIRELESS,
 	.ui_name = "Wireless",
 	.obj_list = (const struct sm_object *[]) {
 		&bluetooth,
