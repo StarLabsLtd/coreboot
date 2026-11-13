@@ -52,7 +52,7 @@ config EDK2_REPOSITORY
 
 config EDK2_TAG_OR_REV
 	string "Insert a commit's SHA-1 or a branch name"
-	default "" if DAVE_MODE
+	default "6f8639b24584c2bc3df4dca1ec2bb4580ab03976" if DAVE_MODE
 	default "origin/uefipayload_2608" if EDK2_REPO_MRCHROMEBOX
 	default "origin/master" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM

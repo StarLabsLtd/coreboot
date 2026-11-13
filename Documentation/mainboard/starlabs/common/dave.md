@@ -11,8 +11,10 @@ coreboot SMMSTORE protocol and phase contract.
 ## Payload build contract
 
 DAVE requires the custom EDK2 repository selection through ASS and defaults its
-URL to the private `StarLabsLtd/dave` repository. Set
-`EDK2_TAG_OR_REV` to the exact reviewed 40-character commit used for the release.
+URL to the private `StarLabsLtd/dave` repository. The paired default revision is
+`6f8639b24584c2bc3df4dca1ec2bb4580ab03976`, based on EDK2 `starlabs` commit
+`d4ccf19d44a95a4cb12e9567811795a973ab7c31`. `EDK2_TAG_OR_REV` must identify the
+exact reviewed 40-character commit used for the release.
 An explicit `EDK2_REPOSITORY` override may name a mirror containing that same
 source. A branch name is insufficient. The existing pinned-checkout validation
 still rejects tracked source changes and mismatched submodules, apart from the
