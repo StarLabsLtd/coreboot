@@ -78,14 +78,28 @@ bool smm_capsule_regions(const void *data, size_t size,
 			if (offset < regions[i].flash_offset + regions[i].size &&
 			    regions[i].flash_offset < offset + length_bytes)
 				return false;
+		uint32_t flags = 0;
+
+		if (!strcmp(name, "COREBOOT"))
+			flags = LB_CAPSULE_REGION_BIOS;
+		else if (CONFIG(VBOOT_SLOTS_RW_AB) &&
+			 (!strcmp(name, "FW_MAIN_A") || !strcmp(name, "RW_FWID_A") ||
+			  !strcmp(name, "VBLOCK_A")))
+			flags = LB_CAPSULE_REGION_SLOT_A |
+				(!strcmp(name, "FW_MAIN_A") ? LB_CAPSULE_REGION_BIOS : 0);
+		else if (CONFIG(VBOOT_SLOTS_RW_AB) &&
+			 (!strcmp(name, "FW_MAIN_B") || !strcmp(name, "RW_FWID_B") ||
+			  !strcmp(name, "VBLOCK_B")))
+			flags = LB_CAPSULE_REGION_SLOT_B |
+				(!strcmp(name, "FW_MAIN_B") ? LB_CAPSULE_REGION_BIOS : 0);
 		regions[*count] = (struct lb_capsule_update_region) {
 			.image_offset = offset, .flash_offset = offset, .size = length_bytes,
-			.flags = !strcmp(name, "COREBOOT") ? LB_CAPSULE_REGION_BIOS : 0,
+			.flags = flags,
 		};
-		bios += regions[*count].flags != 0;
+		bios += !!(regions[*count].flags & LB_CAPSULE_REGION_BIOS);
 		(*count)++;
 	}
-	return *count && bios == 1;
+	return *count && bios == (CONFIG(VBOOT_SLOTS_RW_AB) ? 2 : 1);
 }
 
 void smm_capsule_endpoint(struct lb_capsule_broker_endpoint *endpoint,

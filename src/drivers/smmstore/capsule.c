@@ -14,6 +14,11 @@
 #include <intelblocks/fast_spi.h>
 #include <smmstore.h>
 #include <string.h>
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+#include <security/vboot/vbnv.h>
+#include <vb2_api.h>
+#include <2nvstorage.h>
+#endif
 
 extern const uint8_t cdk2_system_fmp_certificates[];
 extern const size_t cdk2_system_fmp_certificates_size;
@@ -33,6 +38,7 @@ static struct {
 	size_t staging_size;
 	uint64_t transaction;
 	uint32_t region_count;
+	uint32_t boot_slot, update_slot;
 	bool ready, closed, spent;
 } capsule __attribute__((section(".smm_authvar")));
 
@@ -55,12 +61,14 @@ static bool bind_flash(void)
 	return boot_device_rw_subregion(&whole, &capsule.flash) == 0;
 }
 
-bool smm_capsule_initialize(void)
+bool smm_capsule_initialize(uint32_t boot_slot)
 {
 	size_t communication_size;
 	uint32_t root_size;
 
-	if (capsule.ready || smm_is_s3_resume())
+	if (capsule.ready || smm_is_s3_resume() ||
+	    (CONFIG(VBOOT_SLOTS_RW_AB) && boot_slot > 2) ||
+	    (!CONFIG(VBOOT_SLOTS_RW_AB) && boot_slot != 0))
 		return false;
 	smm_get_smmstore_com_buffer(&capsule.communication, &communication_size);
 	smm_get_capsule_staging(&capsule.staging, &capsule.staging_size);
@@ -84,7 +92,43 @@ bool smm_capsule_initialize(void)
 	    ALIGN_UP(root_size, 4U) != cdk2_system_fmp_certificates_size - 4)
 		return false;
 	capsule.ready = true;
+	capsule.boot_slot = boot_slot;
+	capsule.update_slot = CONFIG(VBOOT_SLOTS_RW_AB) ?
+		(boot_slot == 1 ? 2 : 1) : 0;
 	return true;
+}
+
+static bool commit_slot(uint32_t slot)
+{
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+	struct vb2_context ctx = { 0 };
+
+	if (!fast_spi_wpd_status() || slot > 2 ||
+	    (!slot && !capsule.boot_slot) ||
+	    (slot && slot != capsule.update_slot))
+		return false;
+	read_vbnv_flash(ctx.nvdata);
+	if (vb2_nv_check_crc(&ctx))
+		return false;
+	if (slot) {
+		vb2_nv_set(&ctx, VB2_NV_TRY_NEXT, slot - 1);
+		vb2_nv_set(&ctx, VB2_NV_TRY_COUNT, 3);
+	} else {
+		if (vb2_nv_get(&ctx, VB2_NV_FW_TRIED) != capsule.boot_slot - 1)
+			return false;
+		vb2_nv_set(&ctx, VB2_NV_FW_RESULT, VB2_FW_RESULT_SUCCESS);
+		if (vb2_nv_get(&ctx, VB2_NV_TRY_NEXT) == capsule.boot_slot - 1)
+			vb2_nv_set(&ctx, VB2_NV_TRY_COUNT, 0);
+	}
+	return save_vbnv_flash(ctx.nvdata) == 0;
+#else
+	return slot == 0;
+#endif
+}
+
+bool smm_capsule_ack_boot(void)
+{
+	return !capsule.ready || !capsule.boot_slot || commit_slot(0);
 }
 
 static bool read_state(struct smm_authvar_dispatch *service, uint8_t state[20])
@@ -198,7 +242,8 @@ static void execute(struct smm_authvar_dispatch *service,
 	}
 	policy = smm_capsule_policy(&capsule.image, capsule.firmware.guid,
 		capsule.firmware.version, floor, intent->attempted_version,
-		capsule.fmap, sizeof(capsule.fmap), capsule.region_count, &raw, &selected);
+		capsule.fmap, sizeof(capsule.fmap), capsule.region_count,
+		capsule.update_slot, &raw, &selected);
 	if (policy != CAPSULE_BROKER_AUTHENTICATED) {
 		if (policy == CAPSULE_BROKER_VERSION_REFUSED) {
 			result->result = CAPSULE_BROKER_RESULT_VERSION_REFUSED;
@@ -222,6 +267,8 @@ static void execute(struct smm_authvar_dispatch *service,
 		goto out;
 	recorded = true;
 	if (!apply_image(&raw, selected))
+		goto out;
+	if (capsule.update_slot && !commit_slot(capsule.update_slot))
 		goto out;
 	state[0] = state[1] = 1;
 	le32enc(state + 4, intent->attempted_version);
@@ -328,7 +375,9 @@ uint32_t smm_capsule_exec(struct smm_authvar_dispatch *service)
 			info->current_version = capsule.firmware.version;
 			info->lowest_supported_version = state_floor(state);
 			info->image_size = CONFIG_ROM_SIZE;
-			info->capabilities = LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES;
+			info->capabilities = LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES |
+				(CONFIG(VBOOT_SLOTS_RW_AB) ?
+				 LB_CAPSULE_BROKER_INACTIVE_SLOT_TRIAL : 0);
 			info->state_flags = (state[2] ? 1U : 0U) | (state[3] ? 2U : 0U);
 			info->last_attempt_status = state[2] ? le32dec(state + 12) : 0;
 			info->last_attempt_version = state[3] ? le32dec(state + 16) : 0;

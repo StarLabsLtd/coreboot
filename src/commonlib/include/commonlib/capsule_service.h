@@ -8,6 +8,7 @@
 #define LB_TAG_CAPSULE_HANDOFF 0x0052U
 #define LB_TAG_CAPSULE_BROKER_ENDPOINT 0x0054U
 #define LB_CAPSULE_HANDOFF_REVISION 2U
+#define LB_CAPSULE_HANDOFF_VBOOT_REVISION 3U
 
 #define LB_CAPSULE_HANDOFF_AUTHENTICATED (1U << 0)
 #define LB_CAPSULE_HANDOFF_RESET_REQUIRED (1U << 1)
@@ -19,6 +20,7 @@
 #define LB_CAPSULE_BROKER_APPLY_REGIONS     (1U << 0)
 #define LB_CAPSULE_BROKER_PRESERVE_UNLISTED (1U << 1)
 #define LB_CAPSULE_BROKER_VERIFY_READBACK   (1U << 2)
+#define LB_CAPSULE_BROKER_INACTIVE_SLOT_TRIAL (1U << 3)
 #define LB_CAPSULE_BROKER_REQUIRED_CAPABILITIES \
 	(LB_CAPSULE_BROKER_APPLY_REGIONS | \
 	 LB_CAPSULE_BROKER_PRESERVE_UNLISTED | \
@@ -31,7 +33,10 @@
 #define LB_CAPSULE_FLAGS_PERSIST_RESET 0x00050000U
 
 #define LB_CAPSULE_REGION_BIOS (1U << 0)
-#define LB_CAPSULE_REGION_VALID_FLAGS LB_CAPSULE_REGION_BIOS
+#define LB_CAPSULE_REGION_SLOT_A (1U << 1)
+#define LB_CAPSULE_REGION_SLOT_B (1U << 2)
+#define LB_CAPSULE_REGION_VALID_FLAGS \
+	(LB_CAPSULE_REGION_BIOS | LB_CAPSULE_REGION_SLOT_A | LB_CAPSULE_REGION_SLOT_B)
 
 struct lb_capsule_update_region {
 	uint64_t image_offset;
@@ -65,7 +70,8 @@ struct lb_capsule_handoff {
 	uint64_t boot_media_size;
 	uint64_t smmstore_offset;
 	uint64_t smmstore_size;
-	uint32_t reserved32[2];
+	uint32_t boot_slot;
+	uint32_t update_slot;
 	struct lb_capsule_update_region regions[];
 } __attribute__((packed));
 

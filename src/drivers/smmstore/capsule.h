@@ -13,8 +13,9 @@ struct smm_authvar_dispatch;
 struct lb_header;
 
 /* Serialized with the variable owner; none of these are payload entry points. */
-bool smm_capsule_initialize(void);
+bool smm_capsule_initialize(uint32_t boot_slot);
 uint32_t smm_capsule_exec(struct smm_authvar_dispatch *service);
+bool smm_capsule_ack_boot(void);
 void smm_capsule_close(void);
 bool smm_capsule_state_name(const uint16_t *name, const void *guid);
 void smm_capsule_endpoint(struct lb_capsule_broker_endpoint *endpoint,
