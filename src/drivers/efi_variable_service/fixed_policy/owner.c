@@ -8,9 +8,9 @@
 #include <Guid/SmmVariableCommon.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/AuthVariableLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/MmServicesTableLib.h>
-#include <Library/StandaloneMmMemLib.h>
 #include <Library/VarCheckLib.h>
 #include <Library/VariablePolicyLib.h>
 #include <Library/VariablePolicyHelperLib.h>
@@ -38,6 +38,8 @@ static EFI_SMM_VARIABLE_PROTOCOL *variables;
 static EFI_STATUS initialization = EFI_NOT_READY;
 static BOOLEAN checks_active, restart_required;
 static UINT8 *scratch;
+extern AUTH_VAR_LIB_CONTEXT_IN mAuthContextIn;
+static AUTH_VAR_LIB_FIND_VARIABLE find_auth_variable;
 
 struct fixed_key {
 	CHAR16 *name;
@@ -55,6 +57,27 @@ static const struct fixed_key keys[] = {
 	{ L"SecureBootEnable", &gEfiSecureBootEnableDisableGuid, &enabled, 1, CONTROL_ATTRIBUTES },
 	{ L"CustomMode", &gEfiCustomModeEnableGuid, &standard, 1, CONTROL_ATTRIBUTES },
 };
+
+static EFI_STATUS EFIAPI find_fixed_auth_variable(CHAR16 *name, EFI_GUID *guid,
+	AUTH_VARIABLE_INFO *info)
+{
+	EFI_STATUS status = find_auth_variable(name, guid, info);
+
+	if (status != EFI_NOT_FOUND || !checks_active || !mAuthContextIn.AtRuntime() ||
+	    !CompareGuid(guid, &gEfiGlobalVariableGuid))
+		return status;
+	/* Public GetVariable still hides BS-only keys. Authentication may use the
+	 * immutable keys checked against the store before this callback is installed. */
+	for (UINTN i = 0; i < ARRAY_SIZE(keys); i++) {
+		if (!CompareGuid(guid, keys[i].guid) || StrCmp(name, keys[i].name))
+			continue;
+		info->Data = (VOID *)keys[i].data;
+		info->DataSize = keys[i].size;
+		info->Attributes = keys[i].attributes;
+		return EFI_SUCCESS;
+	}
+	return status;
+}
 
 static EFI_STATUS read_variable(CHAR16 *name, EFI_GUID *guid, UINT32 attributes,
 	UINTN *size)
@@ -155,8 +178,8 @@ static EFI_STATUS EFIAPI query_policy(EFI_HANDLE handle, CONST VOID *context,
 
 	(void)handle;
 	(void)context;
-	if (!buffer || !size || *size != sizeof(query) ||
-	    !MmIsBufferOutsideMmValid((UINTN)buffer, sizeof(query)))
+	/* StandaloneMmCore validates and copies the primary message into SMRAM. */
+	if (!buffer || !size || *size != sizeof(query))
 		return EFI_INVALID_PARAMETER;
 	CopyMem(&query, buffer, sizeof(query));
 	status = initialization;
@@ -181,6 +204,10 @@ static EFI_STATUS EFIAPI query_policy(EFI_HANDLE handle, CONST VOID *context,
 			VarCheckLibInitializeAtEndOfDxe(NULL);
 			checks_active = TRUE;
 			status = prepare_policy();
+		}
+		if (status == EFI_SUCCESS && !find_auth_variable) {
+			find_auth_variable = mAuthContextIn.FindVariable;
+			mAuthContextIn.FindVariable = find_fixed_auth_variable;
 		}
 	}
 	query.status = (UINT32)status;

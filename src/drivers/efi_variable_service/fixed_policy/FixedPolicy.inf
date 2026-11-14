@@ -19,7 +19,6 @@
   BaseLib
   BaseMemoryLib
   MemoryAllocationLib
-  MemLib
   MmServicesTableLib
   VarCheckLib
   VariablePolicyLib

@@ -18,7 +18,8 @@ $(obj)/FIXEDMMFV.Fv: $(obj)/UEFIPAYLOAD.fd
 else
 ifeq ($(CONFIG_CDK2_SECURE_BOOT_FIXED_KEYS),y)
 ass_fixed_header := $(obj)/ass/fixed_policy.h
-$(ass_fixed_header): $(CDK2_PAYLOAD) src/drivers/efi_variable_service/Makefile.mk
+.PHONY: ass-fixed-policy
+$(ass_fixed_header): ass-fixed-policy $(CDK2_PAYLOAD) src/drivers/efi_variable_service/Makefile.mk
 	mkdir -p $(dir $@)
 	$(MAKE) -C $(CDK2_SOURCE) fixed-policy-header \
 		COREBOOT_SOURCE="$(abspath .)" \
