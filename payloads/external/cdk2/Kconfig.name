@@ -11,4 +11,5 @@ config PAYLOAD_CDK2
 	help
 	  Build CDK2 from the recorded submodule revision and add its native ELF as
 	  the primary payload. CDK2 consumes coreboot tables through the standard
-	  protected-mode payload entry ABI.
+	  protected-mode payload entry ABI. Its native variable and capsule paths
+	  require ASS; platforms without that service cannot build this payload.

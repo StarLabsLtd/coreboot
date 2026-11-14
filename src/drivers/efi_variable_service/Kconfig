@@ -2,6 +2,7 @@
 
 config ASS
 	bool "Authorised SMM Service (ASS)"
+	default y if PAYLOAD_CDK2
 	depends on HAVE_SMI_HANDLER
 	depends on SMM_TSEG
 	depends on SMMSTORE

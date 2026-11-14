@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CorebootFixedPolicy
+  FILE_GUID = 55c98674-24c4-4ee8-a914-6e384a7e6dd9
+  MODULE_TYPE = BASE
+  LIBRARY_CLASS = NULL|MM_STANDALONE
+  CONSTRUCTOR = fixed_policy_init
+[Sources]
+  owner.c
+  database.c
+  database.h
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  StandaloneMmPkg/StandaloneMmPkg.dec
+  SecurityPkg/SecurityPkg.dec
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  MemLib
+  MmServicesTableLib
+  VarCheckLib
+  VariablePolicyLib
+  VariablePolicyHelperLib
+[Protocols]
+  gEfiSmmVariableProtocolGuid
+[Guids]
+  gEfiGlobalVariableGuid
+  gEfiImageSecurityDatabaseGuid
+  gEfiSecureBootEnableDisableGuid
+  gEfiCustomModeEnableGuid
+  gSmmVariableWriteGuid
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DFIXED_POLICY_ASSETS=\"$(ASS_FIXED_POLICY_HEADER)\"

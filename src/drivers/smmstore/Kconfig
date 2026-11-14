@@ -30,6 +30,7 @@ config SMMSTORE_SRK_PROVISION
 
 config SMM_AUTHVAR
 	bool "SMM-owned authenticated UEFI variables"
+	depends on !ASS
 	default y if VBOOT_SLOTS_RW_AB && PAYLOAD_CDK2
 	default n
 	depends on SOC_INTEL_COMMON_BLOCK_SMM && SOC_INTEL_COMMON_BLOCK_FAST_SPI

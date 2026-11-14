@@ -34,6 +34,16 @@ else
 export PACKAGES_PATH := $(EDK2_PATH)
 endif
 
+FIXED_MM_DSC := UefiPayloadPkg/CorebootFixedMmService.dsc
+ifneq ($(ASS_FIXED_POLICY_HEADER),)
+ifeq ($(ASS_FIXED_POLICY_ROOT),)
+$(error ASS fixed policy requires its coreboot source root)
+endif
+export PACKAGES_PATH := $(PACKAGES_PATH):$(ASS_FIXED_POLICY_ROOT)
+FIXED_MM_DSC := src/drivers/efi_variable_service/fixed_policy/FixedPolicy.dsc
+FIXED_MM_POLICY_ARGS := -D ASS_FIXED_POLICY_HEADER=$(ASS_FIXED_POLICY_HEADER)
+endif
+
 # edk2 runs $(NASM_PREFIX)nasm, use coreboot toolchain-provided NASM if available
 ifneq ($(findstring /,$(NASM)),)
 export NASM_PREFIX := $(dir $(NASM))
@@ -571,7 +581,7 @@ FixedMmService: prep print
 			exit 1; \
 		fi; \
 		build -a IA32 -b $(RELEASE_STR) -t GCC \
-			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
+			-p $(FIXED_MM_DSC) $(FIXED_MM_POLICY_ARGS) \
 			$(FIXED_MM_CAPSULE_ARGS) \
 			$(CONFIG_EDK2_CUSTOM_BUILD_PARAMS) \
 			$(if $(filter yy,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT)),$(FIXED_MM_CAPSULE_ARGS)) \
