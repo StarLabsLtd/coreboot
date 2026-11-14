@@ -461,7 +461,7 @@ $(EDK2_PATH): $(WORKSPACE)
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		$(if $(filter FixedMmService,$(strip $(MAKECMDGOALS))),$(update_fixed_mm_submodules),$(update_submodules)); \
+		$(if $(update_fixed_mm_submodules),$(update_fixed_mm_submodules),$(update_submodules)); \
 		fi
 
 logo: $(EDK2_PATH)
