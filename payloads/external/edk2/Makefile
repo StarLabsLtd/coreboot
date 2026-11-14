@@ -358,6 +358,17 @@ all: UefiPayloadPkg
 $(WORKSPACE):
 	mkdir $(WORKSPACE)
 
+# The fixed service needs OpenSSL and the build/decompression tools, not the
+# test projects nested below the payload's other third-party libraries.
+ifeq ($(strip $(MAKECMDGOALS)),FixedMmService)
+define update_submodules
+git submodule sync && \
+git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout -- \
+	BaseTools/Source/C/BrotliCompress/brotli \
+	MdeModulePkg/Library/BrotliCustomDecompressLib/brotli \
+	CryptoPkg/Library/OpensslLib/openssl
+endef
+else
 # Read each parent's new .gitmodules before updating its children.
 define update_submodules
 git submodule sync && \
@@ -365,6 +376,8 @@ git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update
 git submodule foreach --recursive \
 	'git submodule sync && git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout'
 endef
+edk2_clone_options := --recurse-submodules
+endif
 
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
@@ -406,7 +419,7 @@ $(EDK2_PATH): $(WORKSPACE)
 	test -n "$(EDK2_PATH_REPO_ROOT)" || \
 		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
 	if [ ! -d "$(EDK2_PATH)" ]; then \
-		git clone --recurse-submodules "$(EDK2_REPOSITORY)" "$(EDK2_PATH)" -j5 || exit 1; \
+		git clone $(edk2_clone_options) "$(EDK2_REPOSITORY)" "$(EDK2_PATH)" -j5 || exit 1; \
 	fi
 	cd "$(EDK2_PATH)" || exit 1; \
 		test "$$(git rev-parse --show-toplevel)" = "$$(pwd -P)" || exit 1; \
@@ -522,7 +535,11 @@ print:
 		-e 's/s /Build:          Silent/' \
 		-e 's/t /Toolchain:      /'
 
-prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
+ifneq ($(strip $(MAKECMDGOALS)),FixedMmService)
+prep: logo ipxe_rom
+endif
+
+prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools Source/C Source/Python 2>&1; \
