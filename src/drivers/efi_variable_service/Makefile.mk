@@ -16,13 +16,15 @@ $(obj)/FIXEDMMFV.Fv: $(obj)/UEFIPAYLOAD.fd
 	fi
 	@test -f $@
 else
-$(obj)/FIXEDMMFV.Fv: $(DOTCONFIG) payloads/external/edk2/Makefile \
+.PHONY: ass-service
+$(obj)/FIXEDMMFV.Fv: ass-service $(DOTCONFIG) payloads/external/edk2/Makefile \
 		src/drivers/efi_variable_service/Makefile.mk \
 		$(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
 	mkdir -p $(obj)/ass
 	$(MAKE) -C payloads/external/edk2 FixedMmService \
 		WORKSPACE="$(abspath $(obj)/ass/workspace)" \
-		EDK2_FIXED_MM_OUT="$(abspath $@)" $(EDK2_PAYLOAD_ARGS)
+		EDK2_FIXED_MM_OUT="$(abspath $@)" $(EDK2_PAYLOAD_ARGS) \
+		CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT="$(if $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT)),$(abspath $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))))"
 	@test -f $@
 endif
 

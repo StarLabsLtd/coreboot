@@ -366,7 +366,10 @@ git submodule sync && \
 git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout -- \
 	BaseTools/Source/C/BrotliCompress/brotli \
 	MdeModulePkg/Library/BrotliCustomDecompressLib/brotli \
-	CryptoPkg/Library/OpensslLib/openssl
+	CryptoPkg/Library/OpensslLib/openssl \
+	MdePkg/Library/MipiSysTLib/mipisyst \
+	CryptoPkg/Library/MbedTlsLib/mbedtls \
+	SecurityPkg/DeviceSecurity/SpdmLib/libspdm
 endef
 else
 # Read each parent's new .gitmodules before updating its children.
@@ -548,6 +551,16 @@ ifeq ($(CONFIG_ASS),y)
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
 FIXED_MM_CAPSULE_ARGS := -D CAPSULE_SUPPORT=TRUE \
 	-D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
+else
+# BaseTools resolves include macros even inside a disabled DSC conditional.
+# This file supplies no trust data; the capsule owner remains unselected.
+FIXED_MM_CAPSULE_ARGS := -D CAPSULE_SUPPORT=FALSE \
+	-D FMP_DEVICE_PKCS7_PCD_INC=Conf/FixedMmNoCapsule.inc
+.PHONY: fixed_mm_no_capsule
+fixed_mm_no_capsule: $(EDK2_PATH) clean
+	mkdir -p "$(WORKSPACE)/Conf"
+	printf '%s\n' '# Capsule support is disabled.' > "$(WORKSPACE)/Conf/FixedMmNoCapsule.inc"
+prep: fixed_mm_no_capsule
 endif
 FixedMmService: prep print
 	cd $(WORKSPACE); \
