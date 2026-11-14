@@ -8,23 +8,29 @@ config PAYLOAD_FILE
 	help
 	  The result of a UefiPayloadPkg build
 
+endif
+
+# ASS uses the same fixed MM owner regardless of the selected UEFI payload.
+if PAYLOAD_EDK2 || ASS
+
 choice
-	prompt "Tianocore's EDK II payload"
+	prompt "EDK II source"
+	default EDK2_REPO_CUSTOM if ASS
 	default EDK2_REPO_MRCHROMEBOX
 	help
-	  Select which type of payload edk2 will build (default is UefiPayload)
-	  UefiPayload: MrChromebox's customized fork of edk2 which works on most
-	  x86_64 devices
-	  Upstream: Use upstream edk2 payload from https://github.com/tianocore/edk2
+	  Select the source for the EDK2 payload or the fixed ASS service.
+	  ASS requires a custom source providing CorebootFixedMmService.
 
 config EDK2_REPO_MRCHROMEBOX
 	bool "MrChromebox' edk2 fork"
+	depends on !ASS
 	help
 	  Select this option to build using MrChromebox's custom edk2 fork,
 	  which incorporates fixes/improvements from System 76's and 9elements' trees.
 
 config EDK2_REPO_OFFICIAL
 	bool "Official edk2 repository"
+	depends on !ASS
 	help
 	  Select this option if you want to use the official edk2 repository to build
 	  edk2.
@@ -42,6 +48,7 @@ endchoice
 
 config EDK2_REPOSITORY
 	string "URL to git repository for edk2"
+	default "https://github.com/StarLabsLtd/edk2" if ASS && !PAYLOAD_EDK2
 	default "https://github.com/mrchromebox/edk2" if EDK2_REPO_MRCHROMEBOX
 	default "https://github.com/tianocore/edk2" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM
@@ -51,6 +58,7 @@ config EDK2_REPOSITORY
 
 config EDK2_TAG_OR_REV
 	string "Insert a commit's SHA-1 or a branch name"
+	default "9a4335481a8e1162ae8b9a0c295c110fcc337f82" if ASS && !PAYLOAD_EDK2
 	default "origin/uefipayload_2608" if EDK2_REPO_MRCHROMEBOX
 	default "origin/master" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM
@@ -58,6 +66,10 @@ config EDK2_TAG_OR_REV
 	  The commit's SHA-1 or branch name of the revision to use. This must exist in
 	  EDK2_REPOSITORY, and in the case of a branch name, prefixed with origin i.e.
 	  "origin/uefipayload_202202"
+
+endif
+
+if PAYLOAD_EDK2
 
 config EDK2_USE_EDK2_PLATFORMS
 	bool "Use edk2-platforms repository"

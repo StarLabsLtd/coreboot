@@ -6,8 +6,7 @@ config ASS
 	depends on SMM_TSEG
 	depends on SMMSTORE
 	depends on ARCH_SMM_X86_32
-	depends on PAYLOAD_EDK2
-	depends on EDK2_REPO_CUSTOM
+	depends on PAYLOAD_EDK2 || PAYLOAD_CDK2
 	depends on SOC_INTEL_COMMON_BLOCK_SMM
 	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
 	depends on !CONSOLE_SPI_FLASH
@@ -17,8 +16,8 @@ config ASS
 	  variable and capsule service in a fixed SMRAM region. The payload can
 	  submit requests through a bounded shared buffer, but cannot supply
 	  executable code or choose the service address.
-	  The selected EDK2 repository must provide the fixed Standalone MM
-	  service description.
+	  The selected EDK2 source must provide the fixed Standalone MM service.
+	  Building that service does not require using EDK2 as the payload.
 
 # Keep the decompressed FV out of the S3-cached ramstage image.
 config HEAP_SIZE
