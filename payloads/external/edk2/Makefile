@@ -361,7 +361,7 @@ $(WORKSPACE):
 # The fixed service needs OpenSSL and the build/decompression tools, not the
 # test projects nested below the payload's other third-party libraries.
 ifeq ($(strip $(MAKECMDGOALS)),FixedMmService)
-define update_submodules
+define update_fixed_mm_submodules
 git submodule sync && \
 git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout -- \
 	BaseTools/Source/C/BrotliCompress/brotli \
@@ -372,6 +372,9 @@ git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update
 	SecurityPkg/DeviceSecurity/SpdmLib/libspdm
 endef
 else
+edk2_clone_options := --recurse-submodules
+endif
+
 # Read each parent's new .gitmodules before updating its children.
 define update_submodules
 git submodule sync && \
@@ -379,8 +382,6 @@ git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update
 git submodule foreach --recursive \
 	'git submodule sync && git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout'
 endef
-edk2_clone_options := --recurse-submodules
-endif
 
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
@@ -460,7 +461,7 @@ $(EDK2_PATH): $(WORKSPACE)
 		else \
 			echo "    Working directory not clean; will not overwrite"; \
 		fi; \
-		$(update_submodules); \
+		$(if $(filter FixedMmService,$(strip $(MAKECMDGOALS))),$(update_fixed_mm_submodules),$(update_submodules)); \
 		fi
 
 logo: $(EDK2_PATH)
