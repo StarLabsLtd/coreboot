@@ -275,7 +275,9 @@ static uint64_t authenticated_command(struct tpm_reader *reader,
 	if (dave_tpm_error(status))
 		goto out;
 	if ((pcr && (pcr != 6U && pcr != 7U)) ||
-	    ((encrypted || nv == NULL || pcr) && count != 32U) ||
+	    ((nv == NULL || pcr) && count != 32U) ||
+	    (!write && nv != NULL && !pcr && (count == 0U || count > 1024U ||
+	     offset > nv->size || count > nv->size - offset)) ||
 	    (write && (nv == NULL || pcr || encrypted || output || count == 0U ||
 	     count > DAVE_TPM_NV_WRITE_MAX || offset > nv->size || count > nv->size - offset)) ||
 	    (!write && output == NULL)) {
