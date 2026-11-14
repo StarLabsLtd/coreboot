@@ -38,6 +38,8 @@ static EFI_SMM_VARIABLE_PROTOCOL *variables;
 static EFI_STATUS initialization = EFI_NOT_READY;
 static BOOLEAN checks_active, restart_required;
 static UINT8 *scratch;
+static EFI_HANDLE query_handle;
+static VOID *variable_registration;
 extern AUTH_VAR_LIB_CONTEXT_IN mAuthContextIn;
 static AUTH_VAR_LIB_FIND_VARIABLE find_auth_variable;
 
@@ -140,14 +142,14 @@ static EFI_STATUS prepare_policy(void)
 	status = validate_dbx(fixed_dbx_baseline, sizeof(fixed_dbx_baseline));
 	if (EFI_ERROR(status))
 		return status;
+	/* Flash may commit before a later write fails. Never admit this boot after
+	 * attempting maintenance, even when the owner reports an error. */
+	restart_required = TRUE;
 	status = variables->SmmSetVariable(L"dbx", &gEfiImageSecurityDatabaseGuid,
 		DBX_ATTRIBUTES | EFI_VARIABLE_APPEND_WRITE, sizeof(fixed_dbx_update),
 		(VOID *)fixed_dbx_update);
 	if (EFI_ERROR(status))
 		return status;
-	/* A committed update must never be followed by same-boot admission, even
-	 * if its readback fails and a later query succeeds. */
-	restart_required = TRUE;
 	status = validate_dbx(fixed_dbx, sizeof(fixed_dbx));
 	return EFI_ERROR(status) ? status : EFI_WARN_RESET_REQUIRED;
 }
@@ -246,8 +248,6 @@ static EFI_STATUS EFIAPI variable_ready(CONST EFI_GUID *guid, VOID *interface,
 EFI_STATUS EFIAPI fixed_policy_init(VOID)
 {
 	EFI_STATUS status;
-	EFI_HANDLE handle;
-	VOID *registration;
 
 	scratch = AllocatePool(VARIABLE_CAPACITY);
 	if (!scratch)
@@ -255,8 +255,34 @@ EFI_STATUS EFIAPI fixed_policy_init(VOID)
 	status = VarCheckLibRegisterSetVariableCheckHandler(check_update);
 	if (!EFI_ERROR(status))
 		status = gMmst->MmRegisterProtocolNotify(&gEfiSmmVariableProtocolGuid,
-			variable_ready, &registration);
+			variable_ready, &variable_registration);
 	if (!EFI_ERROR(status))
-		status = gMmst->MmiHandlerRegister(query_policy, &fixed_guid, &handle);
+		status = gMmst->MmiHandlerRegister(query_policy, &fixed_guid, &query_handle);
 	return status;
+}
+
+EFI_STATUS EFIAPI fixed_policy_cleanup(VOID)
+{
+	EFI_STATUS status;
+
+	if (query_handle) {
+		status = gMmst->MmiHandlerUnRegister(query_handle);
+		if (EFI_ERROR(status))
+			return status;
+		query_handle = NULL;
+	}
+	if (variable_registration) {
+		status = gMmst->MmRegisterProtocolNotify(&gEfiSmmVariableProtocolGuid,
+			NULL, &variable_registration);
+		if (EFI_ERROR(status))
+			return status;
+		variable_registration = NULL;
+	}
+	if (find_auth_variable)
+		mAuthContextIn.FindVariable = find_auth_variable;
+	if (scratch) {
+		FreePool(scratch);
+		scratch = NULL;
+	}
+	return EFI_SUCCESS;
 }

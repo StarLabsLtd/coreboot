@@ -6,6 +6,7 @@
   MODULE_TYPE = BASE
   LIBRARY_CLASS = NULL|MM_STANDALONE
   CONSTRUCTOR = fixed_policy_init
+  DESTRUCTOR = fixed_policy_cleanup
 [Sources]
   owner.c
   database.c
