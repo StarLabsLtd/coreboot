@@ -18,6 +18,11 @@ static const struct pad_config early_pads[] = {
 	PAD_CFG_GPO(GPP_D16, 1, PLTRST),
 };
 
+static const struct pad_config unlocked_early_pads[] = {
+	PAD_CFG_NF(GPP_H10, NONE, DEEP, NF2),
+	PAD_CFG_GPO(GPP_H0, 0, PLTRST),
+};
+
 static const struct pad_config full_pads[] = {
 	PAD_CFG_GPO(GPP_H0, 1, PLTRST),
 	PAD_CFG_GPO(GPP_D16, 1, PLTRST),
@@ -83,10 +88,23 @@ static void test_lock_marked_pads_before_full_table(void **state)
 	run_gpio_init();
 }
 
+static void test_unlocked_early_pads_are_not_replayed(void **state)
+{
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS)) {
+		expect_function_call(variant_early_gpio_table);
+		will_return(variant_early_gpio_table, ARRAY_SIZE(unlocked_early_pads));
+		will_return(variant_early_gpio_table, unlocked_early_pads);
+	}
+	expect_function_call(variant_gpio_table);
+	expect_configure(full_pads, ARRAY_SIZE(full_pads));
+	run_gpio_init();
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_lock_marked_pads_before_full_table),
+		cmocka_unit_test(test_unlocked_early_pads_are_not_replayed),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);

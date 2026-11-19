@@ -32,12 +32,9 @@ void udelay(unsigned int usecs)
 {
 }
 
-static void test_strap_values(void **state)
+static void test_all_strap_values(void **state)
 {
-	const unsigned int values[] = { 0x3, 0x5, 0x8 };
-
-	for (size_t sample = 0; sample < ARRAY_SIZE(values); sample++) {
-		const unsigned int value = values[sample];
+	for (unsigned int value = 0; value < 16; value++) {
 		for (size_t i = 0; i < ARRAY_SIZE(strap_pads); i++) {
 			expect_value(gpio_get, gpio, strap_pads[i]);
 			will_return(gpio_get, (value >> i) & 1);
@@ -49,7 +46,7 @@ static void test_strap_values(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_strap_values),
+		cmocka_unit_test(test_all_strap_values),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
