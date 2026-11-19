@@ -4,6 +4,7 @@
 
 #include <commonlib/helpers.h>
 #include <console/console.h>
+#include <cpu/x86/smm.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <intelblocks/cse.h>
@@ -21,10 +22,42 @@
 #define PMC_IPC_MEI_DISABLE_SUBID_ENABLE	0
 #define PMC_IPC_MEI_DISABLE_SUBID_DISABLE	1
 
+static void record_hidden_mei_devices(void)
+{
+#if ENV_RAMSTAGE
+	if (!CONFIG(PAYLOAD_RESOURCE_HANDOFF))
+		return;
+
+	/* The completed platform operation may have hidden several MEI functions. */
+	for (unsigned int fn = 0; fn < 8; fn++) {
+		struct device *dev = pcidev_path_on_root(PCH_DEVFN_CSE | fn);
+
+		if (dev && pci_read_config16(PCI_DEV(0, PCI_SLOT(PCH_DEVFN_CSE), fn),
+					    PCI_VENDOR_ID) == 0xffff)
+			dev->hidden = 1;
+	}
+#endif
+}
+
+#if ENV_RAMSTAGE
+void cse_finalize_in_smm(void)
+{
+	if (apm_control(APM_CNT_FINALIZE) == CB_SUCCESS &&
+	    CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
+	    CONFIG(SOC_INTEL_COMMON_BLOCK_HECI1_DISABLE_USING_SBI) &&
+	    soc_disable_heci1_at_pre_boot())
+		record_hidden_mei_devices();
+}
+#endif
+
 /* Disable HECI using PCR */
 static int heci1_disable_using_pcr(void)
 {
-	return soc_disable_heci1_using_pcr();
+	int ret = soc_disable_heci1_using_pcr();
+
+	if (!ret)
+		record_hidden_mei_devices();
+	return ret;
 }
 
 bool cse_disable_mei_devices(void)
@@ -39,6 +72,7 @@ bool cse_disable_mei_devices(void)
 		return false;
 	}
 
+	record_hidden_mei_devices();
 	return true;
 }
 
