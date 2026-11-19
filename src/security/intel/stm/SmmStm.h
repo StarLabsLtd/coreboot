@@ -17,7 +17,7 @@ int load_stm_image(uintptr_t mseg);
 
 void stm_setup(
 	uintptr_t mseg, int cpu, uintptr_t smbase,
-	uintptr_t smbase_base, uint32_t offset32);
+	uint32_t offset32, uintptr_t gdt_base, size_t gdt_size);
 
 /*
  *  Add resources in list to database. Allocate new memory areas as needed.
@@ -74,9 +74,6 @@ void notify_stm_resource_change(void *stm_resource);
  *  @return BIOS STM resource
  */
 void *get_stm_resource(void);
-
-void setup_smm_descriptor(void *smbase, int32_t apic_id,
-				int32_t entry32_off);
 
 /*
  *  Check STM image size.

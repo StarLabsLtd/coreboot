@@ -724,6 +724,9 @@ struct mp_state {
 	bool do_smm;
 } mp_state;
 
+static uintptr_t permanent_gdt_base;
+static size_t permanent_gdt_size;
+
 static bool is_smm_enabled(void)
 {
 	return CONFIG(HAVE_SMI_HANDLER) && mp_state.do_smm;
@@ -814,8 +817,7 @@ static asmlinkage void smm_do_relocation(void *arg)
 
 		stm_setup(mseg, p->cpu,
 				perm_smbase,
-				mp_state.perm_smbase,
-				SMM_START32_OFFSET);
+				SMM_START32_OFFSET, permanent_gdt_base, permanent_gdt_size);
 	}
 }
 
@@ -860,6 +862,11 @@ static enum cb_err install_permanent_handler(int num_cpus, uintptr_t smbase,
 
 	if (smm_load_module(smbase, smsize, &smm_params))
 		return CB_ERR;
+
+	if (CONFIG(STM)) {
+		permanent_gdt_base = smm_params.gdt_base;
+		permanent_gdt_size = smm_params.gdt_limit + 1;
+	}
 
 	return CB_SUCCESS;
 }
