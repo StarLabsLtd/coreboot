@@ -157,10 +157,11 @@ config EDK2_BOOT_MANAGER_ESCAPE
 
 config EDK2_DISABLE_BOOT_MANAGER_WAIT
 	bool "Disable boot-selection prompt and timeout"
-	default n
+	depends on EDK2_REPO_CUSTOM
 	help
 	  Skip the boot-selection wait and do not use a persistent Timeout
 	  variable. Hotkeys and OS-requested firmware setup remain available.
+	  The custom payload must consume DISABLE_BOOT_MANAGER_WAIT.
 
 config EDK2_BOOT_TIMEOUT
 	int "Set the timeout for boot menu prompt"

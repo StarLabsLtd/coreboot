@@ -63,6 +63,11 @@ class ConversionTest(unittest.TestCase):
         self.validate()
         self.validate(embedded=b'embedded driver')
 
+    def test_legacy_generator_is_rejected(self):
+        image = struct.pack('<4sIII', b'MSS1', 16, 0, 0) + self.firmware
+        with self.assertRaisesRegex(validator.ValidationError, '32-byte target-bound MSS1'):
+            validator.unwrap_update_image(image, 0, OLD_GUID)
+
     def test_new_resident_is_required_even_with_embedded_driver(self):
         for guids in ((), (OLD_GUID,), (NEW_GUID, NEW_GUID)):
             with self.subTest(guids=guids), self.assertRaises(validator.ValidationError):

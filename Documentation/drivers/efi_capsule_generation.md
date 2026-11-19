@@ -5,12 +5,11 @@ ESRT/FMP capsule mechanism.
 
 This document covers generating a *signed* capsule during the coreboot build.
 
-At present, capsule generation requires a compatible EDK2 tree with the
-corresponding payload-side changes. Upstream support is being tracked in:
-
-https://github.com/tianocore/edk2/pull/12053
-
-Older EDK2 trees may be missing pieces required by this integration.
+Capsule generation requires an EDK2 payload with coreboot FMP support and
+a `GenerateCapsule` that emits the 32-byte target-bound MSS1 header.
+[EDK2 PR 12053](https://github.com/tianocore/edk2/pull/12053) documents the
+payload-side FMP and RMAP work. Its generator and upstream EDK2 emit the
+legacy 16-byte MSS1 header, which is insufficient for this build.
 
 ## Build-time capsule generation
 
@@ -58,16 +57,16 @@ running firmware, otherwise capsule processing may fail when loading the embedde
 
 ## Authenticated target identity
 
-The generator includes `CONFIG_DRIVERS_EFI_MAIN_FW_GUID` in the signed MSS1
-payload header. Its existing HeaderSize extends from 16 to 32 bytes to include
+A compatible generator includes the configured capsule target GUID in the
+signed MSS1 payload header. Its existing HeaderSize extends from 16 to 32 bytes to include
 the EFI GUID in little-endian wire form; the image starts after that header.
 The protected MM owner requires this exact target-bound header and compares it
 with the private coreboot HOB identity. A missing, malformed or different target
 is rejected even when its signature is valid or the public outer GUID matches.
 
-Existing MSS1 readers that honor HeaderSize can install the extended-header
-upgrade. After installing the protected owner, legacy unbound capsules are
-rejected; regenerate signed capsules with this generator. The outer FMP GUID
+Existing MSS1 readers that honor HeaderSize can parse the extended header.
+After installing the protected owner, regenerate older capsules with a
+compatible generator. The outer FMP GUID
 still routes updates but does not authorize a target. The existing version floor
 is unchanged: the monotonic-count field is not a persistent replay counter, and
 block-wise programming does not promise an atomic update.

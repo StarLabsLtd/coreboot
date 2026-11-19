@@ -116,6 +116,9 @@ ifeq ($(CONFIG_EDK2_PS2_SUPPORT),y)
 BUILD_STR += -D PS2_KEYBOARD_ENABLE=TRUE
 endif
 ifeq ($(CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT),y)
+ifneq ($(CONFIG_EDK2_REPO_CUSTOM),y)
+$(error Disabling the boot manager wait requires a compatible custom EDK2 repository)
+endif
 BUILD_STR += -D DISABLE_BOOT_MANAGER_WAIT=TRUE
 endif
 
@@ -313,6 +316,18 @@ $(EDK2_PATH): | $(WORKSPACE)
 		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
 		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)"
 
+check-payload-contract: $(EDK2_PATH)
+ifeq ($(CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT),y)
+	grep -F '$$(DISABLE_BOOT_MANAGER_WAIT)' "$(EDK2_PATH)/UefiPayloadPkg/UefiPayloadPkg.dsc" | \
+		grep -q '^[[:blank:]]*[^[:blank:]#]' || \
+		{ echo "EDK2: UefiPayloadPkg.dsc does not consume DISABLE_BOOT_MANAGER_WAIT" >&2; exit 1; }
+endif
+ifeq ($(CONFIG_ASS),y)
+	test -f "$(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.dsc" && \
+		test -f "$(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.fdf" || \
+		{ echo "EDK2: ASS requires CorebootFixedMmService.dsc and .fdf" >&2; exit 1; }
+endif
+
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
 		"") ;; \
@@ -392,7 +407,7 @@ print:
 		-e 's/s /Build:          Silent/' \
 		-e 's/t /Toolchain:      /'
 
-prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
+prep: check-payload-contract $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
@@ -405,10 +420,6 @@ endif
 FixedMmService: prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
-		if [ ! -f $(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.dsc ]; then \
-			echo "EDK2: The selected repository does not support the fixed MM service"; \
-			exit 1; \
-		fi; \
 		build -a IA32 -b $(RELEASE_STR) -t GCC \
 			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
 			$(FIXED_MM_CAPSULE_ARGS) \
@@ -457,7 +468,7 @@ distclean:
 	done
 
 .PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo FixedMmService \
-	UefiPayloadPkg clean distclean
+	UefiPayloadPkg clean distclean check-payload-contract
 
 .PHONY: coreboot_capsule capsule_keys
 

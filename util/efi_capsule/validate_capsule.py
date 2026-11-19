@@ -23,6 +23,7 @@ FMP_CAPSULE_SUPPORT_AUTHENTICATION = 1
 FMP_CAPSULE_SUPPORT_DEPENDENCY = 2
 FMP_PAYLOAD_HEADER_SIGNATURE = b"MSS1"
 FMP_PAYLOAD_HEADER_SIZE = 16
+FMP_TARGET_BOUND_HEADER_SIZE = FMP_PAYLOAD_HEADER_SIZE + 16
 WIN_CERTIFICATE_UEFI_GUID_SIZE = 24
 WIN_CERTIFICATE_REVISION = 0x0200
 WIN_CERT_TYPE_EFI_GUID = 0x0EF1
@@ -136,8 +137,13 @@ def unwrap_update_image(image, support, expected_guid=None):
             header_size < FMP_PAYLOAD_HEADER_SIZE or header_size > len(image)):
         raise ValidationError("invalid FMP payload header")
     if expected_guid is not None:
-        if header_size != FMP_PAYLOAD_HEADER_SIZE + 16:
-            raise ValidationError("missing authenticated capsule target GUID")
+        if header_size == FMP_PAYLOAD_HEADER_SIZE:
+            raise ValidationError(
+                "EDK2 GenerateCapsule emitted a legacy MSS1 header; "
+                "use a producer with 32-byte target-bound MSS1 support"
+            )
+        if header_size != FMP_TARGET_BOUND_HEADER_SIZE:
+            raise ValidationError("invalid target-bound MSS1 header size")
         if _guid(image, FMP_PAYLOAD_HEADER_SIZE) != expected_guid:
             raise ValidationError("authenticated capsule target GUID mismatch")
     return image[header_size:]
@@ -356,6 +362,8 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
             f"expected {expected_embedded_count}"
         )
 
+    firmware = unwrap_update_image(image, image_support, expected_guid)
+
     if embedded:
         if embedded_count != 1:
             raise ValidationError("expected at most one embedded FMP driver")
@@ -377,7 +385,6 @@ def validate(capsule, firmware_volume, expected_guid, expected_embedded_count,
             f"firmware volume has {matching_drivers} resident FMP drivers "
             f"with GUID {resident_guid}, expected {'1' if require_resident else '0 or 1'}"
         )
-    firmware = unwrap_update_image(image, image_support, expected_guid)
     if firmware_guid is not None and expected_rmap_regions is None:
         if expected_firmware is None or firmware != expected_firmware:
             raise ValidationError("transition payload does not match the new firmware image")

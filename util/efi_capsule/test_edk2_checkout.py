@@ -43,6 +43,7 @@ class CachedCheckoutTest(unittest.TestCase):
         repo = self.repository('source')
         self.git(repo, 'submodule', 'add', '-q', dependency.as_uri(), 'dependency')
 
+        self.repo = repo
         (repo / 'edksetup.sh').write_text(':\n')
         (repo / 'BaseTools').mkdir()
         (repo / 'BaseTools/Makefile').write_text('all:\n\ttest -f ../dependency/file\n')
@@ -97,6 +98,40 @@ class CachedCheckoutTest(unittest.TestCase):
         packaged = self.make('coreboot_capsule', self.offline)
         self.assertEqual(packaged.returncode, 0, packaged.stdout + packaged.stderr)
         self.assertEqual((self.directory / 'coreboot.cap').read_bytes(), self.fixture.read_bytes())
+
+    def test_boot_wait_requires_a_compatible_custom_source(self):
+        official = self.make('print', self.offline, CONFIG_EDK2_REPO_OFFICIAL='y',
+                             CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT='y')
+        self.assertNotEqual(official.returncode, 0, official.stdout + official.stderr)
+        self.assertIn('compatible custom EDK2', official.stderr)
+        timeout = self.make('print', self.offline, CONFIG_EDK2_REPO_OFFICIAL='y',
+                            CONFIG_EDK2_BOOT_TIMEOUT='2')
+        self.assertEqual(timeout.returncode, 0, timeout.stdout + timeout.stderr)
+        self.assertIn('PLATFORM_BOOT_TIMEOUT=2', timeout.stdout)
+
+        config = dict(CONFIG_EDK2_REPO_CUSTOM='y', CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT='y')
+        package = self.repo / 'UefiPayloadPkg'
+        package.mkdir()
+        dsc = package / 'UefiPayloadPkg.dsc'
+        dsc.write_text('  # $(DISABLE_BOOT_MANAGER_WAIT) is unsupported\n')
+        self.git(self.repo, 'add', '.')
+        self.commit(self.repo)
+        self.pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        unsupported = self.make('prep', self.online, **config)
+        self.assertNotEqual(unsupported.returncode, 0, unsupported.stdout + unsupported.stderr)
+        self.assertIn('does not consume DISABLE_BOOT_MANAGER_WAIT', unsupported.stderr)
+
+        dsc.write_text('  Test.PcdBootManagerDisableTimeout|$(DISABLE_BOOT_MANAGER_WAIT)\n')
+        self.git(self.repo, 'add', '.')
+        self.commit(self.repo)
+        self.pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        supported = self.make('prep', self.online, **config)
+        self.assertEqual(supported.returncode, 0, supported.stdout + supported.stderr)
+
+    def test_ass_requires_a_fixed_mm_description(self):
+        result = self.make('prep', self.online, CONFIG_ASS='y')
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('ASS requires CorebootFixedMmService.dsc and .fdf', result.stderr)
 
     def test_missing_submodule_fails_offline(self):
         self.workspace.mkdir()
