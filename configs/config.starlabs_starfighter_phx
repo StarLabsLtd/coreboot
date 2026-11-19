@@ -12,9 +12,6 @@ CONFIG_SMMSTORE=y
 
 # GRAPHICS #
 CONFIG_NO_GFX_INIT=y
-CONFIG_VGA_BIOS=y
-CONFIG_VGA_BIOS_FILE="payloads/external/edk2/workspace/StarLabsLtd/UefiPayloadPkg/amd_vbios.rom"
-CONFIG_VGA_BIOS_ID="1002,1900"
 
 ### PAYLOAD ###
 # STARLABS #
