@@ -42,6 +42,7 @@ static size_t source_size;
 static unsigned int media_loads;
 static bool inject_remove_failure, inject_allocation_failure, wakeup_s3;
 static struct lb_framebuffer framebuffer;
+static bool have_framebuffer;
 uintptr_t cbmem_top_chipset(void)
 {
 	return _cbmem_top_ptr;
@@ -58,7 +59,7 @@ bool romstage_handoff_is_resume(void)
 
 const struct lb_framebuffer *get_lb_framebuffer(void)
 {
-	return &framebuffer;
+	return have_framebuffer ? &framebuffer : NULL;
 }
 
 /* Only the CBFS media edge is modeled; its allocator and both owners are real. */
@@ -118,6 +119,7 @@ static void make_source(unsigned int width, unsigned int height)
 
 static int setup(void **state)
 {
+	have_framebuffer = true;
 	memset(cbmem_storage, 0, sizeof(cbmem_storage));
 	_cbmem_top_ptr = (uintptr_t)(cbmem_storage + sizeof(cbmem_storage));
 	imd_handle_init(&imd, (void *)_cbmem_top_ptr);
@@ -664,9 +666,53 @@ static void test_double_density_requires_complete_pixel_blocks(void **state)
 	assert_null(cbmem_entry_find(CBMEM_ID_BOOT_SPLASH));
 }
 
+static void test_retains_source_without_framebuffer(void **state)
+{
+	struct lb_boot_splash splash;
+
+	have_framebuffer = false;
+	make_source(4, 2);
+	bootsplash_render_primary();
+	assert_true(bootsplash_get_handoff(&splash));
+	assert_int_equal(splash.flags, LB_BOOT_SPLASH_FLAG_BMP);
+	assert_int_equal(splash.framebuffer_address, 0);
+	assert_int_equal(splash.image_width, 4);
+	assert_memory_equal((void *)(uintptr_t)splash.bmp_address, source_bitmap, source_size);
+	assert_int_equal(blt_allocations, 0);
+	bmp_release_logo();
+	assert_non_null(cbmem_entry_find(CBMEM_ID_BOOT_SPLASH));
+	bootsplash_render_primary();
+	assert_int_equal(media_loads, 1);
+}
+
+static void test_rejects_invalid_source_without_framebuffer(void **state)
+{
+	struct lb_boot_splash splash;
+
+	have_framebuffer = false;
+	for (unsigned int i = 0; i < 3; i++) {
+		make_source(4, 2);
+		struct bmp_image_header *bmp = (void *)source_bitmap;
+
+		if (i == 0)
+			bmp->ImageOffset = source_size;
+		else if (i == 1)
+			bmp->Planes = 2;
+		else {
+			source_bitmap[source_size++] = 0;
+			bmp->Size = source_size;
+		}
+		bootsplash_render_primary();
+		assert_false(bootsplash_get_handoff(&splash));
+		assert_null(cbmem_entry_find(CBMEM_ID_BOOT_SPLASH));
+	}
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
+		cmocka_unit_test_setup(test_retains_source_without_framebuffer, setup),
+		cmocka_unit_test_setup(test_rejects_invalid_source_without_framebuffer, setup),
 		cmocka_unit_test_setup(test_retained_size_rejection_preserves_previous_image, setup),
 		cmocka_unit_test_setup(test_32_bit_source_is_exported_as_24_bit, setup),
 		cmocka_unit_test_setup(test_retained_bitmap_uses_plymouth_format, setup),
@@ -685,6 +731,8 @@ int main(void)
 	};
 
 	const struct CMUnitTest hidpi_tests[] = {
+		cmocka_unit_test_setup(test_retains_source_without_framebuffer, setup),
+		cmocka_unit_test_setup(test_rejects_invalid_source_without_framebuffer, setup),
 		cmocka_unit_test_setup(test_double_density_averages_all_color_channels, setup),
 		cmocka_unit_test_setup(test_double_density_display_sizes, setup),
 		cmocka_unit_test_setup(test_double_density_rotation_and_averaging, setup),

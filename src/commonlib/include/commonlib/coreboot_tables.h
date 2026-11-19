@@ -329,6 +329,7 @@ struct lb_framebuffer {
 };
 
 #define LB_BOOT_SPLASH_REVISION		2
+/* Without DISPLAYED, BMP describes a retained source image for the payload. */
 #define LB_BOOT_SPLASH_FLAG_DISPLAYED	(1U << 0)
 #define LB_BOOT_SPLASH_FLAG_BMP		(1U << 1)
 

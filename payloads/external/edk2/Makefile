@@ -65,12 +65,18 @@ BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
 endif
 endif
 CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE ?= 1
-ifneq ($(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE),1)
-ifneq ($(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE),2)
+# A handed-off bitmap uses the density of the actual coreboot logo.
+ifeq ($(CONFIG_BOOT_SPLASH_HANDOFF),y)
+logo-source-scale := $(CONFIG_BMP_LOGO_SOURCE_SCALE)
+else
+logo-source-scale := $(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE)
+endif
+ifneq ($(logo-source-scale),1)
+ifneq ($(logo-source-scale),2)
 $(error Boot logo source scale must be 1 or 2)
 endif
 endif
-BUILD_STR += -D BOOT_LOGO_SOURCE_SCALE=$(CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE)
+BUILD_STR += -D BOOT_LOGO_SOURCE_SCALE=$(logo-source-scale)
 
 # BOOT_MANAGER_ESCAPE		= FALSE
 ifeq ($(CONFIG_EDK2_BOOT_MANAGER_ESCAPE),y)

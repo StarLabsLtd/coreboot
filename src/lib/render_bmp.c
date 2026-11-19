@@ -1007,6 +1007,38 @@ void bootsplash_render_primary(void)
 	    bootsplash_get_handoff(&splash))
 		return;
 	platform_get_logo_config(&logo);
+	/* EDK2 may initialize graphics after the coreboot tables are built. */
+	if (!logo.framebuffer_base && !get_lb_framebuffer()) {
+		size_t size;
+		struct bmp_image_header *bmp = bmp_load_logo_by_type(BOOTSPLASH_CENTER, &size);
+
+		if (bmp && size >= sizeof(*bmp) && bmp->Size == size && bmp->Planes == 1 &&
+		    do_bmp_image_authentication(bmp) &&
+		    (bmp->BitPerPixel == 24 || bmp->BitPerPixel == 32) &&
+		    bmp_pixel_data_fits(bmp, size)) {
+			const uint64_t row_size = DIV_ROUND_UP(
+				(uint64_t)bmp->PixelWidth * bmp->BitPerPixel, 32) * 4;
+			const size_t pixels_size = size - bmp->ImageOffset;
+
+			if (row_size && pixels_size / row_size == bmp->PixelHeight &&
+			    pixels_size % row_size == 0) {
+				boot_splash_handoff = (struct lb_boot_splash) {
+					.tag = LB_TAG_BOOT_SPLASH,
+					.size = sizeof(boot_splash_handoff),
+					.revision = LB_BOOT_SPLASH_REVISION,
+					.flags = LB_BOOT_SPLASH_FLAG_BMP,
+					.image_width = bmp->PixelWidth,
+					.image_height = bmp->PixelHeight,
+					.bmp_address = (uintptr_t)bmp, .bmp_size = size,
+				};
+				boot_splash_handoff_valid = true;
+				bmp_retain_logo();
+			}
+		}
+		bmp_release_logo();
+		return;
+	}
+
 	render_logo_to_framebuffer(&logo);
 	if (bootsplash_get_handoff(&splash))
 		timestamp_add_now(TS_FIRMWARE_SPLASH_RENDERED);

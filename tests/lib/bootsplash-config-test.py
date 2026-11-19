@@ -49,6 +49,20 @@ class SplashConfigTest(unittest.TestCase):
                     self.assertEqual(values["CONFIG_BOOT_SPLASH_HANDOFF"], "y")
 
 
+    def test_payload_uses_density_of_the_handed_off_bitmap(self):
+        for handoff, bitmap, embedded, expected in (
+                ("y", 1, 2, 1), ("y", 2, 1, 2), ("n", 1, 2, 2)):
+            with self.subTest(handoff=handoff, bitmap=bitmap, embedded=embedded):
+                result = subprocess.run(
+                    ["make", "--no-print-directory", "-s", "-C",
+                     str(ROOT / "payloads/external/edk2"), "print",
+                     f"CONFIG_BOOT_SPLASH_HANDOFF={handoff}",
+                     f"CONFIG_BMP_LOGO_SOURCE_SCALE={bitmap}",
+                     f"CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE={embedded}"],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertIn(f"BOOT_LOGO_SOURCE_SCALE={expected}", result.stdout)
+
     @unittest.skipUnless(shutil.which("convert"), "ImageMagick is required")
     def test_fsp_conversion_requires_complete_double_density_pixels(self):
         with tempfile.TemporaryDirectory(prefix="bootsplash-fsp-") as directory:

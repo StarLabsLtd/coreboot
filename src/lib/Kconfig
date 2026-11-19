@@ -185,14 +185,16 @@ config BMP_LOGO_SOURCE_SCALE
 	  the image only; it does not change the payload's UI scaling.
 
 config BOOT_SPLASH_HANDOFF
-	bool "Retain the displayed BMP for the payload"
-	depends on BMP_LOGO && LINEAR_FRAMEBUFFER
+	bool "Retain the boot BMP for the payload"
+	depends on BMP_LOGO && (LINEAR_FRAMEBUFFER || PAYLOAD_EDK2)
 	depends on !USE_COREBOOT_FOR_BMP_RENDERING
 	default n
 	help
 	  Render the configured BMP after device resource assignment using the
 	  framebuffer published by coreboot. Payloads receive the displayed
 	  rectangle and retained bitmap without another drawing owner.
+	  If graphics is initialized by EDK2, retain the bitmap for the payload
+	  to draw after its GOP starts.
 
 config HAVE_CUSTOM_BMP_LOGO
 	def_bool n
