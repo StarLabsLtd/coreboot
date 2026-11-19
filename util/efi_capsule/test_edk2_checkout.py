@@ -12,7 +12,8 @@ import unittest
 from test_validate_capsule import OLD_GUID, capsule, volume
 
 
-EDK2 = Path(__file__).resolve().parents[2] / 'payloads/external/edk2'
+ROOT = Path(__file__).resolve().parents[2]
+EDK2 = ROOT / 'payloads/external/edk2'
 
 
 class CachedCheckoutTest(unittest.TestCase):
@@ -50,7 +51,16 @@ class CachedCheckoutTest(unittest.TestCase):
         tools = repo / 'BaseTools/BinWrappers/PosixLike'
         tools.mkdir(parents=True)
         generator = tools / 'GenerateCapsule'
-        generator.write_text('#!/bin/sh\n[ "$1" = -e ] && [ "$2" = -o ] && cp "$TEST_CAPSULE" "$3"\n')
+        generator.write_text('''#!/bin/sh
+set -e
+[ "$1" = -e ] && [ "$2" = -o ] || exit 1
+output=$3
+for input; do :; done
+if [ -n "${TEST_CAPSULE_INPUT:-}" ]; then
+    cp "$input" "$TEST_CAPSULE_INPUT"
+fi
+cp "$TEST_CAPSULE" "$output"
+''')
         generator.chmod(0o755)
         self.git(repo, 'add', '.')
         self.commit(repo)
@@ -98,6 +108,78 @@ class CachedCheckoutTest(unittest.TestCase):
         packaged = self.make('coreboot_capsule', self.offline)
         self.assertEqual(packaged.returncode, 0, packaged.stdout + packaged.stderr)
         self.assertEqual((self.directory / 'coreboot.cap').read_bytes(), self.fixture.read_bytes())
+
+    def test_outer_capsule_requires_manifest_for_vboot(self):
+        fv = self.workspace / 'Build/UefiPayloadPkgX64/RELEASE_GCC/FV/DXEFV.Fv'
+        fv.parent.mkdir(parents=True)
+        fv.write_bytes(volume([OLD_GUID]))
+        config = self.directory / 'config'
+        makefile = self.directory / 'Makefile'
+        config.write_text('')
+        generator_input = self.directory / 'generator-input'
+        output = self.directory / 'coreboot.cap'
+        env = dict(self.online, TEST_CAPSULE=str(self.fixture),
+                   TEST_CAPSULE_INPUT=str(generator_input))
+        env.pop('CONFIG_VBOOT', None)
+
+        for vboot, manifest in (('y', False), ('', False), ('y', True)):
+            with self.subTest(vboot=vboot, manifest=manifest):
+                if manifest:
+                    helper = self.repo / 'BaseTools/Scripts/AppendRmapManifest.py'
+                    helper.parent.mkdir()
+                    helper.write_text('''import sys
+from pathlib import Path
+
+assert sys.argv[1] == '-o'
+assert sys.argv[3:5] == ['-r', 'COREBOOT']
+Path(sys.argv[2]).write_bytes(Path(sys.argv[5]).read_bytes() + b'manifest')
+''')
+                    self.git(self.repo, 'add', str(helper))
+                    self.commit(self.repo)
+                    self.pin = self.git(self.repo, 'rev-parse', 'HEAD')
+
+                output.unlink(missing_ok=True)
+                generator_input.unlink(missing_ok=True)
+                # Keep CONFIG_VBOOT in the parent so MAKEFLAGS cannot forward it.
+                makefile.write_text(f'''top := {ROOT}
+obj := {self.directory}
+DOTCONFIG := {config}
+NOCOMPILE := 1
+KERNELVERSION := fixture
+strip_quotes = $(subst ",,$(1))
+CONFIG_PAYLOAD_EDK2 := y
+CONFIG_DRIVERS_EFI_UPDATE_CAPSULES := y
+CONFIG_DRIVERS_EFI_GENERATE_CAPSULE := y
+CONFIG_STARLABS_VBOOT_RELEASE_POLICY := n
+CONFIG_VBOOT := {vboot}
+CONFIG_EDK2_REPOSITORY := {self.repository_url}
+CONFIG_EDK2_TAG_OR_REV := {self.pin}
+CONFIG_DRIVERS_EFI_MAIN_FW_GUID := {OLD_GUID}
+CONFIG_DRIVERS_EFI_MAIN_FW_VERSION := 0x10000
+CONFIG_DRIVERS_EFI_MAIN_FW_LSV := 0
+CONFIG_DRIVERS_EFI_CAPSULE_REGIONS := COREBOOT
+CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT := edksetup.sh
+CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT := edksetup.sh
+CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT := edksetup.sh
+include {ROOT}/Makefile.mk
+include {ROOT}/payloads/external/Makefile.mk
+''')
+                result = subprocess.run([
+                    'make', '--no-print-directory', '-f', str(makefile),
+                    '-o', str(self.rom), '-o', 'coreboot', '-o', 'build_complete',
+                    '-o', 'files_added', 'capsule', f'WORKSPACE={self.workspace}',
+                    f'EDK2_PATH={self.checkout}',
+                ], cwd=ROOT, env=env, capture_output=True, text=True)
+                diagnostic = result.stdout + result.stderr
+                if vboot and not manifest:
+                    self.assertNotEqual(result.returncode, 0, diagnostic)
+                    self.assertFalse(output.exists())
+                    self.assertFalse(generator_input.exists())
+                else:
+                    self.assertEqual(result.returncode, 0, diagnostic)
+                    self.assertEqual(output.read_bytes(), self.fixture.read_bytes())
+                    expected = self.rom.read_bytes() + (b'manifest' if manifest else b'')
+                    self.assertEqual(generator_input.read_bytes(), expected)
 
     def test_boot_wait_requires_a_compatible_custom_source(self):
         official = self.make('print', self.offline, CONFIG_EDK2_REPO_OFFICIAL='y',
