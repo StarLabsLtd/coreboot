@@ -1,0 +1,17 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config PAYLOAD_EDIIE
+	bool "edIIe"
+	depends on ARCH_X86 && PCI && ECAM_MMCONF_SUPPORT
+	depends on HAVE_SMI_HANDLER && SMM_TSEG && ARCH_SMM_X86_32
+	depends on !ENABLE_EARLY_DMA_PROTECTION
+	depends on !HAVE_ACPI_TABLES || DISABLE_ACPI_HIBERNATE || ACPI_COMMON_SLEEP_STATES
+	select WANT_LINEAR_FRAMEBUFFER
+	select PAYLOAD_OWNS_PCI_DEVICES
+	select PAYLOAD_RESOURCE_HANDOFF
+	select DRIVERS_EFI_CAPSULE_DISK_ONLY if DRIVERS_EFI_UPDATE_CAPSULES
+	help
+	  Build the native edIIe ELF as the primary payload. The payload
+	  consumes coreboot's assigned resources and uses ASS for EFI variables.
+	  Early DMA protection requires a handoff that is not implemented here.
+	  Platforms exposing S4 must describe the common sleep-state capability.
