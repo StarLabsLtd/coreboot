@@ -808,7 +808,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	/* Override settings per board if required. */
 	mainboard_update_soc_chip_config(config);
 	if (config->s0ix_enable &&
-	    get_uint_option("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER))) {
+	    get_uint_option_checked("legacy_8254_timer", CONFIG(USE_LEGACY_8254_TIMER),
+				OPTION_BOOL)) {
 		printk(BIOS_WARNING, "S0ix disabled: the enabled legacy 8254 timer "
 		       "disables clock gating necessary for S0ix.\n");
 		config->s0ix_enable = false;
