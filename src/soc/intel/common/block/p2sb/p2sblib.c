@@ -32,7 +32,7 @@ bool p2sb_dev_is_hidden(pci_devfn_t dev)
 	return true;
 }
 
-static bool p2sb_dev_set_hide_bit(pci_devfn_t dev, bool hide)
+static uint16_t p2sb_dev_set_hide_bit(pci_devfn_t dev, bool hide)
 {
 	const uint16_t reg = P2SBC + 1;
 	const uint8_t mask = P2SBC_HIDE_BIT;
@@ -44,12 +44,12 @@ static bool p2sb_dev_set_hide_bit(pci_devfn_t dev, bool hide)
 		val |= mask;
 	pci_write_config8(dev, reg, val);
 
-	return pci_read_config16(dev, PCI_VENDOR_ID) == (hide ? 0xffff : PCI_VID_INTEL);
+	return pci_read_config16(dev, PCI_VENDOR_ID);
 }
 
 bool p2sb_dev_unhide(pci_devfn_t dev)
 {
-	if (!p2sb_dev_set_hide_bit(dev, false)) {
+	if (p2sb_dev_set_hide_bit(dev, false) != PCI_VID_INTEL) {
 		printk(BIOS_ERR, "Unable to unhide the P2SB device!\n");
 		return false;
 	}
@@ -57,14 +57,24 @@ bool p2sb_dev_unhide(pci_devfn_t dev)
 	return true;
 }
 
+enum cb_err p2sb_dev_hide_checked(pci_devfn_t dev)
+{
+	const uint16_t vid = p2sb_dev_set_hide_bit(dev, true);
+
+	if (vid == 0xffff)
+		return CB_SUCCESS;
+	if (vid == PCI_VID_INTEL) {
+		printk(BIOS_ERR, "Unable to hide the P2SB device!\n");
+		return CB_ERR;
+	}
+	printk(BIOS_ERR, "P2SB PCI_VENDOR_ID is invalid, unknown if hidden\n");
+	return CB_ERR_ARG;
+}
+
 bool p2sb_dev_hide(pci_devfn_t dev)
 {
-	if (!p2sb_dev_set_hide_bit(dev, true)) {
-		printk(BIOS_ERR, "Unable to hide the P2SB device!\n");
-		return false;
-	}
-
-	return true;
+	/* Legacy callers treat an unreadable or invalid ID as hidden. */
+	return p2sb_dev_hide_checked(dev) != CB_ERR;
 }
 
 static void p2sb_send_sideband_msg(pci_devfn_t dev, uint8_t cmd, uint8_t pid,

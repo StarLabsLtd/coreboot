@@ -776,7 +776,8 @@ int gpio_lock_pads(const struct gpio_lock_config *pad_list, const size_t count)
 			ret = -1;
 	}
 
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI) && !p2sb_hide()) {
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_GPIO_LOCK_USING_SBI) &&
+	    p2sb_hide_checked() != CB_SUCCESS) {
 		printk(BIOS_ERR, "Cannot hide P2SB after GPIO locking\n");
 		ret = -1;
 	}
