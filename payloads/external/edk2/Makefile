@@ -3,6 +3,7 @@
 # force the shell to bash - the edksetup.sh script doesn't work with dash
 export SHELL := env bash
 
+EDK2_MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 project_name = edk2
 export WORKSPACE := $(CURDIR)/workspace
 
@@ -218,7 +219,7 @@ EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
 EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
-EDK2_PIN_CHECK = $(abspath check-pinned-source.sh)
+EDK2_PREPARE_SOURCE = $(EDK2_MAKEFILE_DIR)check-pinned-source.sh
 CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
 CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
@@ -299,94 +300,18 @@ all: UefiPayloadPkg
 $(WORKSPACE):
 	mkdir $(WORKSPACE)
 
-# Read each parent's new .gitmodules before updating its children.
-define update_submodules
-git submodule sync && \
-git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout && \
-git submodule foreach --recursive \
-	'git submodule sync && git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout'
-endef
+ifneq ($(EDK2_PLATFORMS_PATH),)
+$(EDK2_PLATFORMS_PATH): | $(WORKSPACE)
+	"$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_PLATFORMS_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))"
+endif
 
-# Ignore build output, but refuse to switch a checkout with tracked changes.
-define checkout_clean_revision
-status=$$(git status --porcelain --untracked-files=no --ignore-submodules=untracked) || exit 1; \
-if [ -n "$$status" ]; then \
-	printf '%s\n' "$$status"; \
-	echo "    Working directory not clean; will not overwrite"; \
-	exit 1; \
-fi; \
-git -c submodule.recurse=false checkout --detach "$(1)" || exit 1; \
-$(update_submodules)
-endef
-
-$(EDK2_PLATFORMS_PATH): $(WORKSPACE)
-	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
-		git clone --recurse-submodules "$(EDK2_PLATFORMS_REPOSITORY)" "$(EDK2_PLATFORMS_PATH)" -j5 || exit 1; \
-	fi
-	cd "$(EDK2_PLATFORMS_PATH)" || exit 1; \
-		test "$$(git rev-parse --show-toplevel)" = "$$(pwd -P)" || exit 1; \
-		origin_url=$$(git config --get remote.origin.url); \
-		if [ "$$origin_url" != "$(EDK2_PLATFORMS_REPOSITORY)" ]; then \
-			if [ -n "$$origin_url" ]; then \
-				git remote set-url origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
-			else \
-				git remote add origin "$(EDK2_PLATFORMS_REPOSITORY)" || exit 1; \
-			fi; \
-			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
-				if [ -n "$$origin_url" ]; then \
-					git remote set-url origin "$$origin_url"; \
-				else \
-					git remote remove origin; \
-				fi; \
-				exit 1; \
-			fi; \
-		else \
-			git fetch --no-recurse-submodules origin || exit 1; \
-		fi; \
-		if ! git rev-parse --verify -q $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)^{object} >/dev/null; then \
-			echo "    $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) is not a valid git reference"; \
-			exit 1; \
-		fi; \
-		$(call checkout_clean_revision,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))
-
-$(EDK2_PATH): $(WORKSPACE)
+$(EDK2_PATH): | $(WORKSPACE)
 	test -n "$(EDK2_PATH_REPO_ROOT)" || \
 		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
-	if [ ! -d "$(EDK2_PATH)" ]; then \
-		git clone --recurse-submodules "$(EDK2_REPOSITORY)" "$(EDK2_PATH)" -j5 || exit 1; \
-	fi
-	cd "$(EDK2_PATH)" || exit 1; \
-		test "$$(git rev-parse --show-toplevel)" = "$$(pwd -P)" || exit 1; \
-		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
-		origin_url=$$(git config --get remote.origin.url); \
-		if [ "$$origin_url" != "$(EDK2_REPOSITORY)" ]; then \
-			if [ -n "$$origin_url" ]; then \
-				git remote set-url origin "$(EDK2_REPOSITORY)" || exit 1; \
-			else \
-				git remote add origin "$(EDK2_REPOSITORY)" || exit 1; \
-			fi; \
-			if ! git fetch --atomic --no-recurse-submodules --prune --prune-tags --force origin; then \
-				if [ -n "$$origin_url" ]; then \
-					git remote set-url origin "$$origin_url"; \
-				else \
-					git remote remove origin; \
-				fi; \
-				exit 1; \
-			fi; \
-		else \
-			git fetch --no-recurse-submodules origin || exit 1; \
-		fi; \
-		if [ "$(EDK2_CAPSULE_PAYLOAD_REGION)" != "" ]; then \
-			$(EDK2_PIN_CHECK) "$(EDK2_PATH)" "$(CONFIG_EDK2_TAG_OR_REV)" \
-				"$(if $(CONFIG_EDK2_BOOTSPLASH_FILE),MdeModulePkg/Logo/Logo.bmp)"; \
-		else \
-		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
-		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
-			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
-			exit 1; \
-		fi; \
-		$(call checkout_clean_revision,$(CONFIG_EDK2_TAG_OR_REV)); \
-		fi
+	"$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
+		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)"
 
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
@@ -536,7 +461,7 @@ distclean:
 
 .PHONY: coreboot_capsule capsule_keys
 
-coreboot_capsule: $(EDK2_PATH)
+coreboot_capsule: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH)
 	test -n "$(COREBOOT_ROM)"
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
