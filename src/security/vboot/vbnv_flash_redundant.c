@@ -20,7 +20,8 @@ struct vbnv_record {
 };
 
 _Static_assert(sizeof(struct vbnv_record) == 32, "Unexpected VBNV record size");
-_Static_assert(FMAP_SECTION_RW_NVRAM_SIZE >= 0x2000 && BANK_SIZE % 0x1000 == 0,
+_Static_assert(IS_ALIGNED(FMAP_SECTION_RW_NVRAM_START, 0x1000) &&
+	       FMAP_SECTION_RW_NVRAM_SIZE >= 0x2000 && IS_ALIGNED(BANK_SIZE, 0x1000),
 	       "Redundant VBNV needs two erase-aligned banks");
 
 static struct {
