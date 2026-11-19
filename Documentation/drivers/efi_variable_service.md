@@ -9,12 +9,13 @@ SMM code or choose an executable address.
 
 ## Service image
 
-ASS requires a custom EDK2 revision providing
-`UefiPayloadPkg/CorebootFixedMmService.dsc` and
-`UefiPayloadPkg/CorebootFixedMmService.fdf` for the IA32 Standalone MM
-volume. The same source revision must build the payload with `ASS=TRUE`
-and the coreboot MM communication bridge. Capsule support also requires
-the protected MM owner and the matching target-bound capsule format.
+Coreboot builds the IA32 Standalone MM service from
+`CONFIG_ASS_SERVICE_REPOSITORY` at `CONFIG_ASS_SERVICE_REVISION`, independently
+of the selected payload. The service source must supply the Fixed MM platform
+description and BaseTools. An EDK2 payload still needs `ASS=TRUE` and the
+coreboot MM communication bridge; it need not build the service itself.
+Capsule support requires the matching target-bound capsule format and an
+absolute public trust certificate path so both builds use the same certificate.
 
 
 The coreboot build places the IA32 `FIXEDMMFV.Fv` firmware volume in CBFS as
