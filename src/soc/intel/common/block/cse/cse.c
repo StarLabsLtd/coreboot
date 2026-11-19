@@ -1351,7 +1351,7 @@ void cse_enable_ptt(bool state)
 static bool me_state_change_prepare(void)
 {
 	unsigned int cmos_me_state_counter =
-		get_uint_option_checked("me_state_counter", UINT_MAX, OPTION_RANGE(0, UINT_MAX));
+		get_uint_option("me_state_counter", UINT_MAX);
 
 	if (cmos_me_state_counter == UINT_MAX)
 		return true;
@@ -1468,8 +1468,8 @@ static void cse_set_state(struct device *dev)
 		disable_me = false;
 	} else {
 		printk(BIOS_DEBUG, "ME is %s.\n", cmos_me_state ? "disabled" : "enabled");
-		unsigned int cmos_me_state_counter = get_uint_option_checked(
-			"me_state_counter", UINT_MAX, OPTION_RANGE(0, UINT_MAX));
+		unsigned int cmos_me_state_counter = get_uint_option("me_state_counter",
+								    UINT_MAX);
 		/* set me_state_counter to 0 */
 		if ((cmos_me_state_counter != UINT_MAX && cmos_me_state_counter != 0))
 			set_uint_option("me_state_counter", 0);

@@ -114,7 +114,7 @@ void configure_pch_rp_power_management(FSP_S_CONFIG *s_cfg,
 	s_cfg->PcieRpPcieSpeed[index] =
 		pcie_speed_control_to_upd(
 			get_pcie_pm_option(options.speed, rp_cfg->pcie_rp_pcie_speed,
-				OPTION_RANGE(SPEED_AUTO, SPEED_GEN4)));
+				OPTION_RANGE(SPEED_DEFAULT, SPEED_GEN4)));
 }
 
 #if CONFIG(HAS_INTEL_CPU_ROOT_PORTS)

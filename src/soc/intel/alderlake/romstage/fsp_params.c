@@ -66,7 +66,7 @@ static void configure_cpu_rp_speed(FSP_M_CONFIG *m_cfg,
 	static const char *const speeds[] = {"AUTO", "GEN1", "GEN2", "GEN3", "GEN4"};
 
 	m_cfg->CpuPcieRpPcieSpeed[index] = pcie_speed_control_to_upd(get_uint_option_checked(
-		"pciexp_speed", cfg->pcie_rp_pcie_speed, OPTION_RANGE(SPEED_AUTO, SPEED_GEN4)));
+		"pciexp_speed", cfg->pcie_rp_pcie_speed, OPTION_RANGE(SPEED_DEFAULT, SPEED_GEN4)));
 	printk(BIOS_DEBUG, "CPU PCIe RP%zu: speed set to %s\n",
 		index + 1, speeds[m_cfg->CpuPcieRpPcieSpeed[index]]);
 }
