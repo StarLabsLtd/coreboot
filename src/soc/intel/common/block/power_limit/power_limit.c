@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
+#include <cpu/intel/rapl_options.h>
 #include <cpu/x86/msr.h>
 #include <device/pci_ops.h>
 #include <drivers/intel/dptf/chip.h>
@@ -81,7 +82,8 @@ void set_power_limits(u8 power_limit_1_time,
 	msr_t msr;
 	msr_t limit;
 	unsigned int power_unit;
-	unsigned int tdp, min_power, max_power, max_time, tdp_pl2, tdp_pl1;
+	unsigned int tdp, min_power, max_power, max_time, tdp_pl2;
+	uint64_t tdp_pl1;
 	u8 power_limit_1_val;
 	uint32_t value;
 
@@ -135,22 +137,28 @@ void set_power_limits(u8 power_limit_1_time,
 
 	/* Set long term power limit to TDP */
 	limit.lo = 0;
-	const unsigned int tdp_pl1_override = get_uint_option_checked(
-		"tdp_pl1_override", conf->tdp_pl1_override, OPTION_RANGE(0, 400));
-	tdp_pl1 = tdp_pl1_override ? (tdp_pl1_override * power_unit) : tdp;
+	const unsigned int tdp_pl1_override = get_rapl_pl1_override(conf->tdp_pl1_override);
+	const unsigned int requested_pl1 = tdp_pl1_override ? tdp_pl1_override : tdp / power_unit;
+	tdp_pl1 = tdp_pl1_override ? (uint64_t)tdp_pl1_override * power_unit : tdp;
+
+	/* With no hardware maximum, use the fallback if the override won't fit. */
+	if (!max_power && tdp_pl1 > PKG_POWER_LIMIT_MASK)
+		tdp_pl1 = rapl_encode_watts(conf->tdp_pl1_override, power_unit,
+					     PKG_POWER_LIMIT_MASK, tdp);
+
 	/* Validate against hardware limits */
 	if (min_power > 0 && tdp_pl1 < min_power) {
 		printk(BIOS_ERR, "PL1 %uW below hardware minimum %uW, clamping\n",
-				tdp_pl1 / power_unit, min_power / power_unit);
+				requested_pl1, min_power / power_unit);
 		tdp_pl1 = min_power;
 	} else if (max_power > 0 && tdp_pl1 > max_power) {
 		printk(BIOS_ERR, "PL1 %uW exceeds hardware maximum %uW, clamping\n",
-				tdp_pl1 / power_unit, max_power / power_unit);
+				requested_pl1, max_power / power_unit);
 		tdp_pl1 = max_power;
 	}
 
-	printk(BIOS_INFO, "CPU PL1 = %u Watts\n", tdp_pl1 / power_unit);
-	limit.lo |= (tdp_pl1 & PKG_POWER_LIMIT_MASK);
+	printk(BIOS_INFO, "CPU PL1 = %u Watts\n", (unsigned int)tdp_pl1 / power_unit);
+	limit.lo |= tdp_pl1;
 
 	/* Set PL1 Pkg Power clamp bit */
 	limit.lo |= PKG_POWER_LIMIT_CLAMP;
@@ -161,9 +169,13 @@ void set_power_limits(u8 power_limit_1_time,
 
 	/* Set short term power limit to 1.25 * TDP if no config given */
 	limit.hi = 0;
-	const unsigned int tdp_pl2_override = get_uint_option_checked(
-		"tdp_pl2_override", conf->tdp_pl2_override, OPTION_RANGE(0, 500));
-	tdp_pl2 = tdp_pl2_override ? (tdp_pl2_override * power_unit) : ((tdp * 125) / 100);
+	const unsigned int tdp_pl2_override = get_rapl_pl2_override(conf->tdp_pl2_override);
+	const unsigned int auto_pl2 = MIN((tdp * 125) / 100, PKG_POWER_LIMIT_MASK);
+	tdp_pl2 = rapl_encode_watts(tdp_pl2_override, power_unit, PKG_POWER_LIMIT_MASK,
+				    auto_pl2);
+	if (tdp_pl2_override > PKG_POWER_LIMIT_MASK / power_unit)
+		tdp_pl2 = rapl_encode_watts(conf->tdp_pl2_override, power_unit,
+					     PKG_POWER_LIMIT_MASK, auto_pl2);
 	/* Ensure PL2 isn't less than PL1 */
 	if (tdp_pl2 < tdp_pl1)
 		tdp_pl2 = tdp_pl1;

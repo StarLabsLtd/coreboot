@@ -8,6 +8,7 @@
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mp.h>
 #include <cpu/intel/microcode.h>
+#include <cpu/intel/rapl_options.h>
 #include <cpu/intel/smm_reloc.h>
 #include <cpu/intel/speedstep.h>
 #include <cpu/intel/turbo.h>
@@ -253,7 +254,7 @@ void set_power_limits(u8 power_limit_1_time)
 
 	/* Get units */
 	msr = rdmsr(MSR_PKG_POWER_SKU_UNIT);
-	power_unit = 2 << ((msr.lo & 0xf) - 1);
+	power_unit = 1U << (msr.lo & 0xf);
 
 	/* Get power defaults for this SKU */
 	msr = rdmsr(MSR_PKG_POWER_SKU);
@@ -275,14 +276,12 @@ void set_power_limits(u8 power_limit_1_time)
 
 	power_limit_1_val = power_limit_time_sec_to_msr[power_limit_1_time];
 
-	const unsigned int pl1_override_w =
-		get_uint_option_checked("tdp_pl1_override", 0, OPTION_RANGE(15, 25));
-	const unsigned int pl2_override_w =
-		get_uint_option_checked("tdp_pl2_override", 0, OPTION_RANGE(15, 30));
+	const unsigned int pl1_override_w = get_rapl_pl1_override(0);
+	const unsigned int pl2_override_w = get_rapl_pl2_override(0);
 
 	/* Set long term power limit to TDP if not overridden */
 	limit.lo = 0;
-	pl1 = pl1_override_w ? (pl1_override_w * power_unit) : tdp;
+	pl1 = rapl_encode_watts(pl1_override_w, power_unit, PKG_POWER_LIMIT_MASK, tdp);
 	printk(BIOS_DEBUG, "CPU PL1 = %u Watts\n", pl1 / power_unit);
 	limit.lo |= pl1 & PKG_POWER_LIMIT_MASK;
 	limit.lo |= PKG_POWER_LIMIT_EN;
@@ -291,12 +290,15 @@ void set_power_limits(u8 power_limit_1_time)
 
 	/* Set short term power limit to 1.25 * TDP if not overridden */
 	limit.hi = 0;
-	pl2 = pl2_override_w ? (pl2_override_w * power_unit) : ((tdp * 125) / 100);
-	if (pl2 < pl1)
-		pl2 = pl1;
-	printk(BIOS_DEBUG, "CPU PL2 = %u Watts\n", pl2 / power_unit);
-	limit.hi |= pl2 & PKG_POWER_LIMIT_MASK;
-	limit.hi |= PKG_POWER_LIMIT_EN;
+	if (rapl_pl2_disabled(pl2_override_w)) {
+		printk(BIOS_DEBUG, "CPU PL2 disabled\n");
+	} else {
+		pl2 = rapl_encode_watts(pl2_override_w, power_unit, PKG_POWER_LIMIT_MASK,
+					MIN((tdp * 125) / 100, PKG_POWER_LIMIT_MASK));
+		pl2 = MAX(pl2, pl1);
+		printk(BIOS_DEBUG, "CPU PL2 = %u Watts\n", pl2 / power_unit);
+		limit.hi = pl2 | PKG_POWER_LIMIT_EN;
+	}
 	if (get_uint_option_checked("cpu_power_limit_lock", 0, OPTION_BOOL)) {
 		limit.hi |= PKG_POWER_LIMIT_LOCK;
 		printk(BIOS_DEBUG, "Locking package power limits\n");

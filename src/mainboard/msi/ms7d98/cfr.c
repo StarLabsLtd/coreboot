@@ -3,15 +3,16 @@
 #include <boot/coreboot_tables.h>
 #include <drivers/option/cfr_frontend.h>
 #include <intelblocks/cfr.h>
+#include <mainboard/rapl_options.h>
 #include <soc/cfr.h>
 
 static const struct sm_object tdp_pl1_override = SM_DECLARE_NUMBER({
 	.opt_name       = "tdp_pl1_override",
 	.ui_name        = "CPU Power Limit 1",
 	.ui_helptext    = "Long-duration CPU package power limit (in Watts)",
-	.min            = 35,
-	.max            = 400,
-	.step           = 1,
+	.min            = RAPL_PL1_MIN,
+	.max            = RAPL_PL1_MAX,
+	.step           = RAPL_PL1_STEP,
 	.display_flags  = 0,
 });
 
@@ -19,9 +20,9 @@ static const struct sm_object tdp_pl2_override = SM_DECLARE_NUMBER({
 	.opt_name       = "tdp_pl2_override",
 	.ui_name        = "CPU Power Limit 2",
 	.ui_helptext    = "Short-duration CPU package power limit (in Watts)",
-	.min            = 35,
-	.max            = 500,
-	.step           = 1,
+	.min            = RAPL_PL2_MIN,
+	.max            = RAPL_PL2_MAX,
+	.step           = RAPL_PL2_STEP,
 	.display_flags  = 0,
 });
 

@@ -44,6 +44,21 @@ tests-y += cbfs-lookup-has-mcache-test
 tests-y += lzma-test
 tests-y += ux_locales-test
 tests-y += tpm-resume-test
+tests-y += rapl-options-test rapl-dell-options-test rapl-beltino-options-test
+
+rapl-options-test-srcs += tests/lib/rapl-options-test.c
+rapl-options-test-config += CONFIG_OPTION_BACKEND_NONE=0
+
+$(call copy-test,rapl-options-test,rapl-dell-options-test)
+rapl-dell-options-test-cflags += -I src/mainboard/dell/haswell_mxm_precision/include
+rapl-dell-options-test-config += CONFIG_CPU_INTEL_RAPL_BOARD_OPTIONS=1 \
+	CONFIG_BOARD_DELL_PRECISION_M4800=1 CONFIG_DRIVERS_OPTION_CFR=1
+
+$(call copy-test,rapl-options-test,rapl-beltino-options-test)
+rapl-beltino-options-test-cflags += -I src/mainboard/google/beltino/include
+rapl-beltino-options-test-config += CONFIG_CPU_INTEL_RAPL_BOARD_OPTIONS=1 \
+	CONFIG_BOARD_GOOGLE_PANTHER=1 CONFIG_DRIVERS_OPTION_CFR=0
+
 
 tpm-resume-test-srcs += tests/lib/tpm-resume-test.c tests/stubs/console.c tests/stubs/die.c
 tpm-resume-test-stage := romstage
