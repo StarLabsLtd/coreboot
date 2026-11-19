@@ -135,21 +135,12 @@ int oc_mailbox_write(const union oc_mailbox_interface command, u32 data)
 	return 0;
 }
 
-/*
- * Convert a signed voltage tweak in mV into OC_MAILBOX fixed-point units for
- * voltage_offset (S11.0.10V). Negative mV is undervolt, positive is overvolt,
- * matching common tools (intel-undervolt / ThrottleStop).
- *
- * The hardware allows roughly +/-500 mV; we cap the absolute adjustment at
- * 125 mV for policy reasons. The return value is round(|in_mv| * 1024 / 1000)
- * in those units, with the original sign (after clamping magnitude).
- */
-static int encode_voltage(const int in_mv)
+/* Convert the clamped undervolt magnitude to signed S11.0.10V units. */
+static int encode_undervolt(unsigned int mv)
 {
-	const int sign = in_mv < 0 ? -1 : 1;
-	const int abs_mv = MIN(in_mv * sign, OC_MBOX_MAX_VOLTAGE_OFFSET_MV);
+	const unsigned int magnitude = MIN(mv, OC_MBOX_MAX_VOLTAGE_OFFSET_MV);
 
-	return DIV_ROUND_CLOSEST(abs_mv * 1024, 1000) * sign;
+	return -(int)DIV_ROUND_CLOSEST(magnitude * 1024, 1000);
 }
 
 static bool set_plane_undervolt(enum oc_mailbox_plane plane, unsigned int undervolt_mv)
@@ -162,7 +153,7 @@ static bool set_plane_undervolt(enum oc_mailbox_plane plane, unsigned int underv
 
 	/* Program voltage offset; leave target/ratio fields at 0. */
 	const union voltage_freq_override_data data = {
-		.voltage_offset = encode_voltage(-(int)undervolt_mv),
+		.voltage_offset = encode_undervolt(undervolt_mv),
 	};
 	const union oc_mailbox_interface command_wr = {
 		.cmd_code = OC_MBOX_CMD_VOLTAGE_FREQ_OVR_WRITE,
@@ -206,7 +197,7 @@ static void oc_mailbox_undervolt(void)
 	 */
 	for (enum oc_mailbox_plane i = 0; i <= last_plane; i++) {
 		const unsigned int undervolt_mv = get_uint_option_checked(
-			plane_opt_names[i], 0, OPTION_RANGE(0, OC_MBOX_MAX_VOLTAGE_OFFSET_MV));
+			plane_opt_names[i], 0, OPTION_RANGE(0, INT_MAX));
 		if (set_plane_undervolt(i, undervolt_mv))
 			status |= 1 << i;
 	}
