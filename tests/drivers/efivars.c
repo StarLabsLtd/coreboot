@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <drivers/efi/efivars.h>
+#include <Guid/GlobalVariable.h>
 #include <vendorcode/intel/edk2/UDK2017/MdePkg/Include/Uefi/UefiMultiPhase.h>
 #include <vendorcode/intel/edk2/UDK2017/MdePkg/Include/Pi/PiFirmwareVolume.h>
 #include <vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include/Guid/VariableFormat.h>
@@ -867,10 +868,28 @@ static void efi_test_new_write_uses_default_attributes(void **state)
 	assert_int_equal(flash_buffer[offset + 4], 0x07);
 }
 
+static void efi_test_read_os_indications(void **state)
+{
+	const EFI_GUID global = EFI_GLOBAL_VARIABLE;
+	uint64_t marker = 4, actual;
+	uint32_t size = sizeof(actual), attributes;
+
+	mock_rdev(true);
+	assert_int_equal(efi_fv_set_option(&flash_rdev_rw, &global, "OsIndications",
+		&marker, sizeof(marker)), CB_SUCCESS);
+	assert_int_equal(efi_fv_get_option_with_attributes(&flash_rdev_rw, &global,
+		"OsIndications", &actual, &size, &attributes), CB_SUCCESS);
+	assert_int_equal(actual, marker);
+	assert_int_equal(size, sizeof(marker));
+	assert_int_equal(attributes, EFI_VARIABLE_NON_VOLATILE |
+		EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(efi_test_header),
+		cmocka_unit_test(efi_test_read_os_indications),
 		cmocka_unit_test(efi_test_validate_existing_store),
 		cmocka_unit_test(efi_test_noop_existing_write),
 		cmocka_unit_test(efi_test_initialize_erased_store),
