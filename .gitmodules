@@ -84,3 +84,6 @@
 	url = https://github.com/StarLabsLtd/edIIe.git
 	update = none
 
+[submodule "3rdparty/mbedtls"]
+	path = 3rdparty/mbedtls
+	url = https://github.com/Mbed-TLS/mbedtls.git
