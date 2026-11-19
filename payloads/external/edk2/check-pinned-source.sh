@@ -39,9 +39,10 @@ requested=$(git rev-parse --verify -q --end-of-options "${revision}^{commit}") |
 
 # Ignore untracked build outputs. The configured splash may be regenerated
 # at the same revision, but must never hide unrelated edits.
+previous=$(git rev-parse HEAD)
 dirty=$(git status --porcelain --untracked-files=no --ignore-submodules=untracked)
 if [ -n "$dirty" ]; then
-	[ -n "$allowed_dirty" ] && [ "$(git rev-parse HEAD)" = "$requested" ] ||
+	[ -n "$allowed_dirty" ] && [ "$previous" = "$requested" ] ||
 		fail "tracked changes in $source"
 	dirty=$(git status --porcelain --untracked-files=no --ignore-submodules=untracked -- \
 		. ":(exclude,literal)$allowed_dirty")
@@ -51,12 +52,27 @@ else
 fi
 
 # Synchronize each parent after it reaches its requested revision.
-git submodule sync
-git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout
-git submodule foreach --recursive '
+update_submodules()
+{
 	git submodule sync &&
-	git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout
-'
+	git -c submodule.recurse=false -c fetch.recurseSubmodules=false \
+		submodule update --init --checkout &&
+	git submodule foreach --recursive '
+		git submodule sync &&
+		git -c submodule.recurse=false -c fetch.recurseSubmodules=false \
+			submodule update --init --checkout
+	'
+}
+
+if ! update_submodules; then
+	if [ "$previous" != "$requested" ]; then
+		if ! git -c submodule.recurse=false checkout --detach "$previous" ||
+		   ! update_submodules; then
+			fail "could not restore $previous after updating submodules"
+		fi
+	fi
+	fail "could not prepare submodules for $requested"
+fi
 
 [ "$(git rev-parse HEAD)" = "$requested" ] ||
 	fail "checked out revision does not match $revision"

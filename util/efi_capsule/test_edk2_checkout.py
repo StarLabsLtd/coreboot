@@ -140,6 +140,27 @@ class CachedCheckoutTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('transport', result.stderr)
 
+    def test_failed_offline_switch_can_be_retried_online(self):
+        initial = self.make(str(self.checkout), self.online)
+        self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
+        dependency = self.directory / 'dependency'
+        (dependency / 'file').write_text('new dependency revision\n')
+        self.git(dependency, 'add', 'file')
+        self.commit(dependency)
+        self.git(self.repo, 'submodule', 'update', '--remote', 'dependency')
+        self.git(self.repo, 'add', 'dependency')
+        self.commit(self.repo)
+        next_pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        self.git(self.checkout, 'fetch', '--no-recurse-submodules', 'origin')
+
+        overrides = dict(CONFIG_EDK2_TAG_OR_REV=next_pin)
+        attempt = self.make('prep', self.offline, **overrides)
+        self.assertNotEqual(attempt.returncode, 0, attempt.stdout + attempt.stderr)
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), self.pin)
+        retry = self.make('prep', self.online, **overrides)
+        self.assertEqual(retry.returncode, 0, retry.stdout + retry.stderr)
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), next_pin)
+
     def test_wrong_origin_unavailable_pin_and_dirty_source_fail(self):
         initial = self.make(str(self.checkout), self.online)
         self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
