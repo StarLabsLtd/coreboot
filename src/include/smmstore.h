@@ -120,6 +120,9 @@ int smmstore_rawwrite_region(uint32_t block_id, uint32_t offset, uint32_t bufsiz
 int smmstore_rawclear_region(uint32_t block_id);
 #if ENV_RAMSTAGE
 int smmstore_get_info(struct smmstore_params_info *info);
+int smmstore_init_com_buffer(uintptr_t *base, size_t *size);
+int smmstore_get_com_buffer(uintptr_t *base, size_t *size);
+void smmstore_add_bootmem(void);
 #endif
 struct region_device;
 int smmstore_lookup_region(struct region_device *rstore);

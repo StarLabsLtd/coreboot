@@ -1,5 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config ACPI_COMMON_SLEEP_STATES
+	def_bool n
+	help
+	  The platform DSDT uses the common ACPI sleep-state definitions.
+	  Payloads can combine this with DISABLE_ACPI_HIBERNATE to reserve
+	  a stable memory layout for hibernation.
+
 config ACPI_AMD_HARDWARE_SLEEP_VALUES
 	def_bool n
 	help

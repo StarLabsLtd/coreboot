@@ -104,6 +104,7 @@ void cbmem_run_init_hooks(int is_recovery);
 void cbmem_add_bootmem(void);
 /* Return the cbmem memory used */
 int cbmem_get_region(void **baseptr, size_t *size);
+int cbmem_set_lower_bound(uintptr_t lower_bound);
 void cbmem_list(void);
 void cbmem_add_records_to_cbtable(struct lb_header *header);
 

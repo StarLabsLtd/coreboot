@@ -445,19 +445,11 @@ static void setup_smihandler_params(struct smm_runtime *mod_params,
 		smm_pci_resource_store_init(mod_params);
 
 	if (CONFIG(SMMSTORE)) {
-		struct smmstore_params_info info;
-		if (smmstore_get_info(&info) < 0) {
-			printk(BIOS_INFO, "SMMSTORE: Failed to get meta data\n");
+		if (smmstore_init_com_buffer(&mod_params->smmstore_com_buffer_base,
+					    &mod_params->smmstore_com_buffer_size)) {
+			printk(BIOS_ERR, "SMMSTORE: Failed to reserve communication buffer\n");
 			return;
 		}
-
-		void *ptr = cbmem_add(CBMEM_ID_SMM_COMBUFFER, info.block_size);
-		if (!ptr) {
-			printk(BIOS_ERR, "SMMSTORE: Failed to add com buffer\n");
-			return;
-		}
-		mod_params->smmstore_com_buffer_base = (uintptr_t)ptr;
-		mod_params->smmstore_com_buffer_size = info.block_size;
 	}
 
 	if (CONFIG(ASS))
