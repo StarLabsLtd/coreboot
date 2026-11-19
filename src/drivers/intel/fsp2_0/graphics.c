@@ -96,7 +96,8 @@ void fsp_report_framebuffer_info(const uint64_t framebuffer_bar,
 	}
 
 	/* Bound every consumer of the reported framebuffer to the FSP allocation. */
-	if (ginfo->pixels_per_scanline > UINT32_MAX / 4 ||
+	if (ginfo->horizontal_resolution > ginfo->pixels_per_scanline ||
+	    ginfo->pixels_per_scanline > UINT32_MAX / 4 ||
 	    (uint64_t)ginfo->pixels_per_scanline * 4 * ginfo->vertical_resolution >
 		ginfo->framebuffer_size) {
 		printk(BIOS_ERR, "FSP framebuffer geometry exceeds its allocation\n");
