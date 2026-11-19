@@ -27,13 +27,16 @@ CONFIG_APCB_SOURCES_PATH="/path/to/PHX/APCB"
 binaries must be available under their applicable distribution terms; the
 board support patch does not grant permission to redistribute them.
 
-The release configuration requires the Phoenix external-GOP and selectable
-CF9 reset support in the StarLabs EDK2 payload. Apply those payload changes
-before using the configuration until they are included in its selected
-branch. The external GOP path also requires the separately supplied
+The release configuration pins a Star Labs EDK2 payload with Phoenix
+external-GOP and selectable CF9 reset support. The external GOP path requires
+separately supplied
 `UefiPayloadPkg/AmdX64GenericGop.efi` and `UefiPayloadPkg/amd_vbios.rom` files
 in the payload source directory.
+The configuration also includes that same VBIOS in CBFS as `pci1002,1900.rom`
+for the ACPI VFCT table and `_ROM` method. Supply it at the configured
+`VGA_BIOS_FILE` path before building. Graphics initialization remains in the
+EDK2 GOP; coreboot does not execute the legacy VGA ROM.
 
-Capsule generation requires locally supplied signing certificates. The
-configuration enables capsule updates but does not include private signing
-paths or generate a signed capsule by default.
+The configuration enables capsule updates and signed capsule generation.
+Supply signing certificates at the configured paths before building; private
+key material is not included in the repository.
