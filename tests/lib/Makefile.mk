@@ -354,22 +354,25 @@ vboot-floor-write-test-config += CONFIG_VBOOT=1 CONFIG_SECURITY_FAIL_CLOSED=1 \
 $(call copy-test,vboot-floor-write-test,vboot-floor-write-permissive-test)
 vboot-floor-write-permissive-test-config += CONFIG_SECURITY_FAIL_CLOSED=0
 
-tests-y += vboot-fallback-floor-test
+tests-y += vboot-fallback-floor-test vboot-fallback-floor-default-test
 vboot-fallback-floor-test-srcs += tests/lib/vboot-fallback-floor-test.c \
 	3rdparty/vboot/firmware/2lib/2common.c \
 	3rdparty/vboot/firmware/2lib/2secdata_firmware.c \
-	3rdparty/vboot/firmware/2lib/2crc8.c
+	3rdparty/vboot/firmware/2lib/2crc8.c \
+	3rdparty/vboot/firmware/2lib/2sha256.c \
+	3rdparty/vboot/firmware/2lib/2sha_utility.c \
+	3rdparty/vboot/firmware/2lib/2stub_hwcrypto.c
 vboot-fallback-floor-test-stage := romstage
 vboot-fallback-floor-test-config += CONFIG_VBOOT_SLOTS_RW_AB=1 \
-	CONFIG_VBOOT_CBFS_INTEGRATION=0
+	CONFIG_VBOOT_CBFS_INTEGRATION=0 CONFIG_VBOOT_HASH_BLOCK_SIZE=1024 \
+	CONFIG_VBOOT_PRESERVE_FALLBACK_ROLLBACK_FLOOR=1
 vboot-fallback-floor-test-cflags += -DCHROMEOS_ENVIRONMENT \
+	-DVB2_SUPPORT_SHA1=0 -DVB2_SUPPORT_SHA512=0 \
 	-I3rdparty/vboot/firmware/2lib/include \
 	-Itests/include/tests/lib/fmap
-tests-y += vboot-fallback-floor-metadata-test vboot-fallback-floor-single-test
-$(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-metadata-test)
-vboot-fallback-floor-metadata-test-config += CONFIG_VBOOT_CBFS_INTEGRATION=1
-$(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-single-test)
-vboot-fallback-floor-single-test-config += CONFIG_VBOOT_SLOTS_RW_AB=0
+$(call copy-test,vboot-fallback-floor-test,vboot-fallback-floor-default-test)
+vboot-fallback-floor-default-test-config += CONFIG_VBOOT_PRESERVE_FALLBACK_ROLLBACK_FLOOR=0
+
 root_bridge_info-test-stage := ramstage
 root_bridge_info-test-srcs += tests/lib/root_bridge_info-test.c
 root_bridge_info-test-srcs += src/device/device_util.c

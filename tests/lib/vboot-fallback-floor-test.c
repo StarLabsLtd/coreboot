@@ -5,13 +5,15 @@
 
 static uint8_t workbuf[VB2_FIRMWARE_WORKBUF_RECOMMENDED_SIZE]
 	__aligned(VB2_WORKBUF_ALIGN);
-static uint8_t vblock_data[512], body_data[64];
+static uint8_t vblock_data[512], body_data[8 * KiB + 19];
 static struct vb2_context *ctx;
 static struct vb2_shared_data *sd;
 static struct vb2_gbb_header gbb;
-static bool missing, short_read, bad_keyblock, bad_preamble, bad_body;
+static bool missing, short_read, bad_keyblock, bad_preamble, short_body;
 static unsigned int body_checks;
+static size_t body_read;
 static uint32_t signed_size;
+static struct vb2_hash expected_hash;
 
 void vb2ex_printf(const char *func, const char *fmt, ...)
 {
@@ -61,16 +63,27 @@ int fmap_locate_area_as_rdev(const char *name, struct region_device *rdev)
 ssize_t rdev_readat(const struct region_device *rdev, void *buf, size_t offset,
 		   size_t size)
 {
-	assert_true(offset + size <= sizeof(vblock_data));
-	memcpy(buf, vblock_data + offset, size);
-	return short_read ? size - 1 : size;
+	if (region_device_offset(rdev)) {
+		assert_true(offset + size <= sizeof(vblock_data));
+		memcpy(buf, vblock_data + offset, size);
+		return short_read ? size - 1 : size;
+	}
+
+	assert_int_equal(offset, body_read);
+	assert_true(size <= CONFIG_VBOOT_HASH_BLOCK_SIZE);
+	assert_true(offset + size <= signed_size);
+	memcpy(buf, body_data + offset, size);
+	if (short_body && offset + size == signed_size)
+		return size - 1;
+	body_read += size;
+
+	return size;
 }
 
+/* Model a boot device where an entire signed body cannot be mapped. */
 void *rdev_mmap(const struct region_device *rdev, size_t offset, size_t size)
 {
-	assert_int_equal(offset, 0);
-	assert_int_equal(size, signed_size);
-	return body_data;
+	return size <= 256 ? body_data + offset : NULL;
 }
 
 int rdev_munmap(const struct region_device *rdev, void *mapping)
@@ -98,20 +111,14 @@ vb2_error_t vb2_verify_fw_preamble(struct vb2_fw_preamble *pre, uint32_t size,
 	return bad_preamble ? VB2_ERROR_UNKNOWN : VB2_SUCCESS;
 }
 
-vb2_error_t vb2_hash_calculate(bool hwcrypto, const void *buf, uint32_t size,
-		enum vb2_hash_algorithm algo, struct vb2_hash *hash)
-{
-	assert_ptr_equal(buf, body_data);
-	assert_int_equal(size, signed_size);
-	return VB2_SUCCESS;
-}
-
 vb2_error_t vb2_verify_digest(const struct vb2_public_key *key,
 		struct vb2_signature *sig, const uint8_t *digest,
 		const struct vb2_workbuf *wb)
 {
 	body_checks++;
-	return bad_body ? VB2_ERROR_UNKNOWN : VB2_SUCCESS;
+	assert_int_equal(body_read, signed_size);
+	return memcmp(digest, expected_hash.raw, VB2_SHA256_DIGEST_SIZE) ?
+	       VB2_ERROR_SHA_MISMATCH : VB2_SUCCESS;
 }
 
 /* Model the existing library's single-slot raise, not the new policy. */
@@ -154,16 +161,29 @@ static int setup(void **state)
 	sd->last_fw_result = VB2_FW_RESULT_SUCCESS;
 	ctx->flags = 0;
 	gbb.rootkey_size = 64;
-	missing = short_read = bad_keyblock = bad_preamble = bad_body = false;
+	missing = short_read = bad_keyblock = bad_preamble = short_body = false;
 	body_checks = 0;
+	body_read = 0;
 	signed_size = sizeof(body_data);
+	for (size_t i = 0; i < sizeof(body_data); i++)
+		body_data[i] = i;
+	assert_int_equal(vb2_hash_calculate(false, body_data, signed_size, VB2_HASH_SHA256,
+					   &expected_hash), VB2_SUCCESS);
 	set_other_version(0x10007);
 	return 0;
 }
 
 static void expect_floor(uint32_t expected)
 {
+	struct vb2_shared_data selected = *sd;
+
 	vboot_update_firmware_floor(ctx);
+	assert_int_equal(sd->fw_slot, selected.fw_slot);
+	assert_int_equal(sd->fw_version, selected.fw_version);
+	assert_int_equal(sd->workbuf_used, selected.workbuf_used);
+	assert_int_equal(sd->preamble_offset, selected.preamble_offset);
+	assert_int_equal(sd->hash_offset, selected.hash_offset);
+	assert_memory_equal(ctx->nvdata, selected.ctx.nvdata, sizeof(ctx->nvdata));
 	assert_int_equal(sd->fw_version_secdata, expected);
 	assert_int_equal(vb2_secdata_firmware_get(ctx, VB2_SECDATA_FIRMWARE_VERSIONS),
 			 expected);
@@ -215,8 +235,15 @@ static void unusable_fallback(void **state)
 	bad_preamble = true;
 	expect_floor(0x10007);
 	bad_preamble = false;
-	bad_body = true;
+	short_body = true;
 	expect_floor(0x10007);
+	short_body = false;
+	body_read = 0;
+
+	/* A complete but corrupt body must also retain the existing floor. */
+	body_data[signed_size - 1] ^= 1;
+	expect_floor(0x10007);
+	assert_int_equal(body_checks, 1);
 }
 
 static void no_lowering(void **state)
@@ -265,7 +292,10 @@ static void signed_prefix(void **state)
 
 	set_other_version(0x10008);
 	memcpy(&pre, vblock_data + 256, sizeof(pre));
-	signed_size = pre.body_signature.data_size = 32;
+	signed_size = pre.body_signature.data_size = sizeof(body_data) - 7;
+	assert_int_equal(vb2_hash_calculate(false, body_data, signed_size, VB2_HASH_SHA256,
+					   &expected_hash), VB2_SUCCESS);
+	body_data[sizeof(body_data) - 1] ^= 1;
 	memcpy(vblock_data + 256, &pre, sizeof(pre));
 	expect_floor(0x10008);
 	assert_int_equal(body_checks, 1);
@@ -313,7 +343,7 @@ int main(void)
 	const struct CMUnitTest compatibility[] = {
 		cmocka_unit_test_setup(unchanged_policy, setup),
 	};
-	if (!CONFIG(VBOOT_SLOTS_RW_AB) || CONFIG(VBOOT_CBFS_INTEGRATION))
+	if (!CONFIG(VBOOT_PRESERVE_FALLBACK_ROLLBACK_FLOOR))
 		return cb_run_group_tests(compatibility, NULL, NULL);
 	return cb_run_group_tests(tests, NULL, NULL);
 }
