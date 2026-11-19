@@ -243,6 +243,9 @@ static int lookup_store(struct region_device *rstore, size_t *physical_offset)
 	if (lookup_store_region(&region) != CB_SUCCESS)
 		return -1;
 
+	if (physical_offset)
+		*physical_offset = region.offset;
+
 	/* The mapped read device may cover only part of the physical flash. */
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES) && smmstore_use_full_flash)
 		return boot_device_rw_subregion(&region, rstore);
@@ -257,9 +260,6 @@ static int lookup_store(struct region_device *rstore, size_t *physical_offset)
 
 	if (rdev == NULL)
 		return -1;
-
-	if (physical_offset)
-		*physical_offset = region.offset;
 
 	return rdev_chain(rstore, rdev, 0, region_device_sz(rdev));
 }
