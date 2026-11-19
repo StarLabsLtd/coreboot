@@ -206,8 +206,6 @@ EDK2_CAPSULE_ARGS = \
 	CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT=$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT)
 
 EDK2_RELEASE_POLICY_ARGS = \
-	CONFIG_STARLABS_VBOOT_RELEASE_POLICY=$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY) \
-	CONFIG_VBOOT=$(CONFIG_VBOOT) \
 	CONFIG_VBOOT_SLOTS_RW_AB=$(CONFIG_VBOOT_SLOTS_RW_AB) \
 	CONFIG_DRIVERS_EFI_CAPSULE_REGIONS=$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS) \
 	CONFIG_LOCALVERSION=$(CONFIG_LOCALVERSION) \
@@ -222,6 +220,8 @@ EDK2_CAPSULE_ARGS += $(EDK2_RELEASE_POLICY_ARGS)
 capsule-firmware-guid := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 
 ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT),yy)
+edk2-release-policy-file := $(abspath $(top)/src/mainboard/starlabs/common/edk2-release.mk)
+override EDK2_RELEASE_POLICY_ARGS += EDK2_RELEASE_POLICY_FILE="$(edk2-release-policy-file)"
 ifneq ($(strip $(CAPSULE_GUID)),)
 ifneq ($(shell printf '%s' '$(CAPSULE_GUID)' | tr A-F a-f),$(shell printf '%s' '$(capsule-firmware-guid)' | tr A-F a-f))
 ifneq ($(CAPSULE_LAYOUT_TRANSITION),1)
@@ -299,7 +299,7 @@ EDK2_PAYLOAD_ARGS = \
 EDK2_PAYLOAD_ARGS += $(EDK2_RELEASE_POLICY_ARGS)
 
 $(obj)/UEFIPAYLOAD.fd: $(DOTCONFIG) $(IPXE_EFI) payloads/external/Makefile.mk \
-	payloads/external/edk2/Makefile
+	payloads/external/edk2/Makefile $(edk2-release-policy-file)
 	$(MAKE) -C payloads/external/edk2 UefiPayloadPkg \
 		EDK2_UEFIPAYLOAD_OUT="$(abspath $@)" \
 		EDK2_FIXED_MM_OUT="$(abspath $(obj)/FIXEDMMFV.Fv)" \

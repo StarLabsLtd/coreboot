@@ -76,9 +76,8 @@ range before launching the payload.
 
 The F2 release configuration must provide its established firmware GUID,
 matching release `CONFIG_LOCALVERSION` and keyblock version, and the following
-provisioned signing inputs. The current keyblock input is version 6665 for
-release 26.09; this branch intentionally rejects a later local version until
-the matching signing input is supplied.
+provisioned signing inputs. Update the keyblock version together with
+`CONFIG_LOCALVERSION` when preparing a new release.
 
 - `root_key.vbpubk`
 - `recovery_key.vbpubk`

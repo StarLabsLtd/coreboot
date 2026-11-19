@@ -82,13 +82,14 @@ class ConversionTest(unittest.TestCase):
                 self.validate(**changes)
 
 ROOT = Path(__file__).resolve().parents[2]
+STARLABS_RELEASE = ROOT / "src/mainboard/starlabs/common/edk2-release.mk"
 
 
 class BuildPolicyTest(unittest.TestCase):
     def test_payload_cannot_disable_the_required_profile(self):
         command = [
             'make', '--no-print-directory', 'print',
-            'CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y', 'CONFIG_VBOOT=y',
+            'EDK2_RELEASE_POLICY_FILE=' + str(STARLABS_RELEASE),
             'CONFIG_ASS=y', 'CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=y',
             'CONFIG_EDK2_SECURE_BOOT_SUPPORT=y',
             'CONFIG_DRIVERS_EFI_MAIN_FW_GUID=' + str(NEW_GUID),
@@ -132,8 +133,8 @@ class BuildPolicyTest(unittest.TestCase):
     def test_fixed_mm_required_options_follow_custom_options(self):
         result = subprocess.run([
             'make', '--no-print-directory', '-n', '-o', 'prep', '-o', 'print',
-            'FixedMmService', 'CONFIG_STARLABS_VBOOT_RELEASE_POLICY=y',
-            'CONFIG_VBOOT=y', 'CONFIG_ASS=y',
+            'FixedMmService', 'EDK2_RELEASE_POLICY_FILE=' + str(STARLABS_RELEASE),
+            'CONFIG_ASS=y',
             'CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=y',
             'CONFIG_EDK2_SECURE_BOOT_SUPPORT=y',
             'CONFIG_DRIVERS_EFI_MAIN_FW_GUID=' + str(NEW_GUID),
