@@ -19,6 +19,7 @@
 #include <intelbasecode/debug_feature.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
+#include <intelblocks/igd_options.h>
 #include <intelblocks/pcie_rp.h>
 #include <option.h>
 #include <soc/intel/common/reset.h>
@@ -170,10 +171,7 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 	if (igd_enabled) {
 		/* IGD is enabled, set IGD stolen size to 60MB. */
 		m_cfg->InternalGfx = 1;
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option_checked(
-			"igd_dvmt_prealloc", IGD_SM_60MB,
-			OPTION_ENUM(IGD_SM_32MB, IGD_SM_60MB, IGD_SM_64MB, IGD_SM_96MB,
-				    IGD_SM_128MB, IGD_SM_160MB));
+		m_cfg->IgdDvmt50PreAlloc = get_igd_dvmt_option(IGD_SM_60MB, IGD_SM_160MB);
 		m_cfg->ApertureSize = get_uint_option_checked(
 			"igd_aperture_size", IGD_AP_SZ_256MB,
 			CONFIG(ALWAYS_ALLOW_ABOVE_4G_ALLOCATION) ?

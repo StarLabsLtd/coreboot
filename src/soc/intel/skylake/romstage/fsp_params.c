@@ -132,7 +132,7 @@ static void soc_primary_gfx_config_params(FSP_M_CONFIG *m_cfg,
 		m_cfg->InternalGfx = 1;
 		m_cfg->IgdDvmt50PreAlloc =
 			get_uint_option_checked("igd_dvmt_prealloc", IGD_SM_64MB,
-						OPTION_RANGE(IGD_SM_32MB, IGD_SM_128MB));
+						OPTION_RANGE(0, IGD_SM_128MB));
 		m_cfg->ApertureSize =
 			get_uint_option_checked("igd_aperture_size", IGD_AP_SZ_256MB,
 						OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));

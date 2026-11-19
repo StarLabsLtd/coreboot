@@ -45,6 +45,13 @@ tests-y += lzma-test
 tests-y += ux_locales-test
 tests-y += tpm-resume-test
 tests-y += rapl-options-test rapl-dell-options-test rapl-beltino-options-test
+tests-y += igd-options-test
+
+igd-options-test-srcs += tests/lib/igd-options-test.c
+igd-options-test-config += CONFIG_OPTION_BACKEND_NONE=0
+igd-options-test-stage := romstage
+igd-options-test-cflags += -I src/soc/intel/common/block/include
+
 
 rapl-options-test-srcs += tests/lib/rapl-options-test.c
 rapl-options-test-config += CONFIG_OPTION_BACKEND_NONE=0
