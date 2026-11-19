@@ -10,6 +10,7 @@
 #include <string.h>
 #include <types.h>
 
+#include "option_values.h"
 #include "vpd.h"
 
 static void update_rt_perf(struct sm_object *new)
@@ -71,10 +72,10 @@ static const struct sm_object power_on_after_fail = SM_DECLARE_ENUM({
 });
 
 static const struct sm_enum_value primary_display_values[] = {
-	{ "Intel iGPU",    0 },
-	{ "CPU PEG dGPU",  1 },
-	{ "PCH PCIe dGPU", 2 },
-	{ "Auto",          3 },
+	{ "Intel iGPU",    ATLAS_DISPLAY_IGD },
+	{ "CPU PEG dGPU",  ATLAS_DISPLAY_PEG },
+	{ "PCH PCIe dGPU", ATLAS_DISPLAY_PCH },
+	{ "Auto",          ATLAS_DISPLAY_AUTO },
 	SM_ENUM_VALUE_END,
 };
 
@@ -82,24 +83,14 @@ static const struct sm_object primary_display = SM_DECLARE_ENUM({
 	.opt_name	= "primary_display",
 	.ui_name	= "Primary display device",
 	.ui_helptext	= "Specify which display device to use as primary.",
-	.default_value	= CONFIG(ONBOARD_VGA_IS_PRIMARY) ? 0 : 3,
+	.default_value	= CONFIG(ONBOARD_VGA_IS_PRIMARY) ? ATLAS_DISPLAY_IGD : ATLAS_DISPLAY_AUTO,
 	.values		= primary_display_values,
 });
 
-static const struct sm_enum_value pkg_c_state_limit_values[] = {
-	{ "C0/C1",     0 },
-	{ "C2",        1 },
-	{ "C3",        2 },
-	{ "C6",        3 },
-	{ "C7",        4 },
-	{ "C7S",       5 },
-	{ "C8",        6 },
-	{ "C9",        7 },
-	{ "C10",       8 },
-	{ "Default", 254 },
-	{ "Auto",    255 },
-	SM_ENUM_VALUE_END,
-};
+#define C_STATE_MENU_ENTRY(label, value) { label, value },
+static const struct sm_enum_value pkg_c_state_limit_values[] =
+	ATLAS_C_STATE_VALUES(C_STATE_MENU_ENTRY, SM_ENUM_VALUE_END);
+#undef C_STATE_MENU_ENTRY
 
 static const struct sm_object turbo_mode = SM_DECLARE_BOOL({
 	.opt_name	= "turbo_mode",
@@ -170,19 +161,18 @@ static const struct sm_object pkg_c_state_limit = SM_DECLARE_ENUM({
 	.opt_name	= "pkg_c_state_limit",
 	.ui_name	= "Package C-state limit",
 	.ui_helptext	= "", /* TODO: write something */
-	.default_value	= 255,
+	.default_value	= ATLAS_C_STATE_AUTO,
 	.values		= pkg_c_state_limit_values,
 }, WITH_CALLBACK(update_rt_perf));
 
-#define NUM_PCIE_SSC_SETTINGS	21
 static struct sm_enum_value pch_pm_pcie_pll_ssc_values[] = {
-	[NUM_PCIE_SSC_SETTINGS] = { "Auto", 0xff },
+	[ATLAS_NUM_PCIE_SSC_SETTINGS] = { "Auto", ATLAS_PCIE_SSC_AUTO },
 	SM_ENUM_VALUE_END,
 };
 
 static void update_pll_ssc_values(struct sm_object *new)
 {
-	for (size_t i = 0; i < NUM_PCIE_SSC_SETTINGS; i++) {
+	for (size_t i = 0; i < ATLAS_NUM_PCIE_SSC_SETTINGS; i++) {
 		char buffer[16];
 		snprintf(buffer, sizeof(buffer), "%zu.%zu%%", i / 10, i % 10);
 		pch_pm_pcie_pll_ssc_values[i].ui_name = strdup(buffer);
@@ -194,7 +184,7 @@ static const struct sm_object pch_pcie_pll_ssc = SM_DECLARE_ENUM({
 	.opt_name	= "pch_pcie_pll_ssc",
 	.ui_name	= "PCH PCIe PLL Spread Spectrum Clocking",
 	/* No help text */
-	.default_value	= 0xff,
+	.default_value	= ATLAS_PCIE_SSC_AUTO,
 	.values		= pch_pm_pcie_pll_ssc_values,
 }, WITH_CALLBACK(update_pll_ssc_values));
 
