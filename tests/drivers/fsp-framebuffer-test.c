@@ -58,6 +58,13 @@ static void test_footprint_exceeds_allocation(void **state)
 	assert_int_equal(reports, 0);
 }
 
+static void test_width_exceeds_stride(void **state)
+{
+	graphics.horizontal_resolution++;
+	fsp_report_framebuffer_info(0x90000000, LB_FB_ORIENTATION_NORMAL);
+	assert_int_equal(reports, 0);
+}
+
 static void test_stride_overflow(void **state)
 {
 	graphics.pixels_per_scanline = UINT32_MAX;
@@ -80,6 +87,7 @@ int main(void)
 		cmocka_unit_test_setup(test_exact_allocation, setup),
 		cmocka_unit_test_setup(test_footprint_exceeds_allocation, setup),
 		cmocka_unit_test_setup(test_stride_overflow, setup),
+		cmocka_unit_test_setup(test_width_exceeds_stride, setup),
 		cmocka_unit_test_setup(test_truncated_hob, setup),
 	};
 

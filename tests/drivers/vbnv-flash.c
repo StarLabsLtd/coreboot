@@ -101,22 +101,6 @@ static int setup(void **state)
 	return 0;
 }
 
-static void test_torn_append(void **state)
-{
-	uint8_t old[VB2_NVDATA_SIZE], next[VB2_NVDATA_SIZE], actual[VB2_NVDATA_SIZE];
-
-	data_for(0, old);
-	data_for(200, next);
-	assert_int_equal(save_vbnv_flash(old), 0);
-	operations = 0;
-	fail_at = 1;
-	partial = 1;
-	assert_int_equal(save_vbnv_flash(next), -1);
-	reboot();
-	read_vbnv_flash(actual);
-	assert_memory_equal(actual, old, sizeof(old));
-}
-
 static void test_append_and_reboot(void **state)
 {
 	uint8_t data[VB2_NVDATA_SIZE], actual[VB2_NVDATA_SIZE];
@@ -157,8 +141,8 @@ static void test_power_cuts(void **state)
 				assert_int_equal(save_vbnv_flash(next), -1);
 				reboot();
 				read_vbnv_flash(actual);
-				assert_true(!memcmp(actual, old, sizeof(old)) ||
-					    !memcmp(actual, next, sizeof(next)));
+				const bool committed = operation == 2 + erase && prefix == length;
+				assert_memory_equal(actual, committed ? next : old, sizeof(actual));
 				assert_int_equal(save_vbnv_flash(next), 0);
 				reboot();
 				read_vbnv_flash(actual);
@@ -171,7 +155,6 @@ static void test_power_cuts(void **state)
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test_setup(test_torn_append, setup),
 		cmocka_unit_test_setup(test_append_and_reboot, setup),
 		cmocka_unit_test_setup(test_power_cuts, setup),
 	};
