@@ -66,6 +66,11 @@ static enum cb_err smm_smram_carve_top(struct region *smram_free,
 				       const char *name,
 				       struct region *out)
 {
+	if (size > region_sz(smram_free)) {
+		printk(BIOS_ERR, "SMM region %s does not fit in SMRAM\n", name);
+		return CB_ERR;
+	}
+
 	const size_t smram_region_end = region_last(smram_free) + 1 - size;
 	const size_t new_region_end = ALIGN_DOWN(smram_region_end, alignment);
 	const size_t size_with_padding = region_last(smram_free) + 1 - new_region_end;
@@ -161,9 +166,9 @@ static int smm_create_map(struct region *smram_free, const unsigned int num_cpus
 	for (size_t segment = 0; segment < DIV_ROUND_UP(num_cpus, cpus_per_segment); segment++) {
 		for (size_t i = 0; i < cpus_per_segment; i++) {
 			const size_t cpu_index = segment * cpus_per_segment + i;
-			struct cpu_smm_info *cpu_info = &cpus[cpu_index];
 			if (cpu_index >= num_cpus)
 				break;
+			struct cpu_smm_info *cpu_info = &cpus[cpu_index];
 
 			snprintf(segment_name, sizeof(segment_name), "SAVE_STATE_SEGMENT_%zu", cpu_index);
 			if (smm_smram_carve_top(smram_free, needed_ss_size, 1, segment_name, &cpu_info->ss) != CB_SUCCESS)
@@ -178,9 +183,9 @@ static int smm_create_map(struct region *smram_free, const unsigned int num_cpus
 		for (size_t i = 0; i < cpus_per_segment; i++) {
 			struct region stub_code;
 			const size_t cpu_index = segment * cpus_per_segment + i;
-			struct cpu_smm_info *cpu_info = &cpus[cpu_index];
 			if (cpu_index >= num_cpus)
 				break;
+			struct cpu_smm_info *cpu_info = &cpus[cpu_index];
 
 			const size_t len = region_last(smram_free) + 1 - region_offset(&cpu_info->stub_code);
 			/* Reserve space for the stub code in SMRAM. Might be larger than the actual stub size
@@ -615,7 +620,7 @@ static enum cb_err smm_install_permanent_gdt(const struct region *region,
 	memcpy((void *)(uintptr_t)region_offset(region), permanent_gdt, sizeof(permanent_gdt));
 
 	params->gdt_base = region_offset(region);
-	params->gdt_limit = region_sz(region) - 1;
+	params->gdt_limit = sizeof(permanent_gdt) - 1;
 	return CB_SUCCESS;
 }
 
