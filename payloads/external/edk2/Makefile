@@ -366,6 +366,18 @@ git submodule foreach --recursive \
 	'git submodule sync && git -c submodule.recurse=false -c fetch.recurseSubmodules=false submodule update --init --checkout'
 endef
 
+# Ignore build output, but refuse to switch a checkout with tracked changes.
+define checkout_clean_revision
+status=$$(git status --porcelain --untracked-files=no --ignore-submodules=untracked) || exit 1; \
+if [ -n "$$status" ]; then \
+	printf '%s\n' "$$status"; \
+	echo "    Working directory not clean; will not overwrite"; \
+	exit 1; \
+fi; \
+git -c submodule.recurse=false checkout --detach "$(1)" || exit 1; \
+$(update_submodules)
+endef
+
 $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
 		git clone --recurse-submodules "$(EDK2_PLATFORMS_REPOSITORY)" "$(EDK2_PLATFORMS_PATH)" -j5 || exit 1; \
@@ -394,13 +406,7 @@ $(EDK2_PLATFORMS_PATH): $(WORKSPACE)
 			echo "    $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=all | grep -q "nothing to commit, working tree clean"; then \
-			echo "    Checking out edk2-platforms revision $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)"; \
-			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f || exit 1; \
-		else \
-			echo "    Working directory not clean; will not overwrite"; \
-		fi; \
-		$(update_submodules)
+		$(call checkout_clean_revision,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))
 
 $(EDK2_PATH): $(WORKSPACE)
 	test -n "$(EDK2_PATH_REPO_ROOT)" || \
@@ -438,13 +444,7 @@ $(EDK2_PATH): $(WORKSPACE)
 			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
 			exit 1; \
 		fi; \
-		if git status --ignore-submodules=all | grep -q -e clean -e "nothing added"; then \
-			echo "    Checking out $(project_name) revision $(CONFIG_EDK2_TAG_OR_REV)"; \
-			git -c submodule.recurse=false checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f || exit 1; \
-		else \
-			echo "    Working directory not clean; will not overwrite"; \
-		fi; \
-		$(update_submodules); \
+		$(call checkout_clean_revision,$(CONFIG_EDK2_TAG_OR_REV)); \
 		fi
 
 logo: $(EDK2_PATH)
