@@ -211,4 +211,12 @@ config PAYLOAD_FIT_SUPPORT
 	  In case the Payload is added afterwards (e.g. using cbfstool), one
 	  can enable this option in combination with PAYLOAD_NONE=y.
 
+config PAYLOAD_RESOURCE_HANDOFF
+	bool "Publish assigned PCI resources to the payload"
+	depends on PCI && ECAM_MMCONF_SUPPORT
+	help
+	  Serialize coreboot-assigned PCI resources and initialized framebuffer
+	  ownership for a payload that consumes the resource handoff. Bus mastering
+	  is disabled and verified before publishing delegated device resources.
+
 endmenu
