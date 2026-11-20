@@ -247,6 +247,7 @@ static void configure_smu(SIL_CONTEXT *SilContext)
 	if (!smu)
 		die("OpenSIL SMU configuration missing\n");
 	smu->S0i3Enable = cfg->s0ix_enable;
+	smu->CfgSystemConfiguration = cfg->system_configuration;
 }
 
 static void configure_ccx(SIL_CONTEXT *SilContext)
