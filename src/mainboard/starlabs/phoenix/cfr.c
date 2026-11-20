@@ -139,9 +139,23 @@ static struct sm_obj_form lid_group = {
 	},
 };
 
+static const struct sm_object power_profile = SM_DECLARE_ENUM({
+	.opt_name	= "power_profile",
+	.ui_name	= "Power Profile",
+	.ui_helptext	= "Select the sustained power profile. Requires a reboot.",
+	.default_value	= PHX_POWER_PERFORMANCE,
+	.values		= (const struct sm_enum_value[]) {
+		{ "Power Saver", PHX_POWER_SAVER },
+		{ "Balanced", PHX_POWER_BALANCED },
+		{ "Performance", PHX_POWER_PERFORMANCE },
+		SM_ENUM_VALUE_END,
+	},
+});
+
 static struct sm_obj_form performance_group = {
 	.ui_name = "Performance",
 	.obj_list = (const struct sm_object *[]) {
+		&power_profile,
 		#if CONFIG(EC_STARLABS_FAN)
 		&fan_mode,
 		#endif

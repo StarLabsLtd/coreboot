@@ -13,6 +13,7 @@
 #include <drivers/amd/opensil/mpio/chip.h>
 #include <drivers/usb/pci_xhci/pci_xhci.h>
 #include <option.h>
+#include <soc/amd/phoenix/chip.h>
 #include <static.h>
 #include <variants.h>
 #include <ec/starlabs/merlin/ec.h>
@@ -103,6 +104,12 @@ static void mainboard_init(void *chip_info)
 {
 	mainboard_configure_gpios();
 	if (CONFIG(BOARD_STARLABS_STARFIGHTER_AMD)) {
+		struct soc_amd_phoenix_config *soc = config_of_soc();
+		/* FP7 presets: 28 W, 45 W, or the existing fused performance policy. */
+		static const uint8_t system_config[] = { 2, 5, 0 };
+		const unsigned int profile = get_uint_option_checked("power_profile",
+			PHX_POWER_PERFORMANCE, OPTION_RANGE(PHX_POWER_SAVER, PHX_POWER_PERFORMANCE));
+		soc->system_configuration = system_config[profile];
 		const bool wifi_clock_pm = get_uint_option_checked("pciexp_wifi_clk_pm",
 								  1, OPTION_BOOL);
 		const bool ssd_clock_pm = get_uint_option_checked("pciexp_ssd_clk_pm",

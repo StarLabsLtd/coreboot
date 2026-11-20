@@ -7,6 +7,12 @@
 #include <soc/pci_devs.h>
 
 enum {
+	PHX_POWER_SAVER,
+	PHX_POWER_BALANCED,
+	PHX_POWER_PERFORMANCE,
+};
+
+enum {
 	PHX_ASPM_DISABLED = 1,
 	PHX_ASPM_L0S,
 	PHX_ASPM_L1,
