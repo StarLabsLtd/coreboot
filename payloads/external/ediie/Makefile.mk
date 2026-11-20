@@ -27,6 +27,10 @@ ediie-source-check:
 
 $(EDIIE_PAYLOAD): ediie-source-check $(DOTCONFIG) $(obj)/config.h $(objutil)/kconfig/conf \
 	$(ediie-capsule-policy)
+# A dry run does not generate the configuration needed by coreboot-stage.
+ifneq ($(findstring n,$(filter-out --%,$(firstword $(MAKEFLAGS)))),)
+	@echo "Build edIIe payload $(EDIIE_PAYLOAD)"
+else
 	+$(MAKE) -C $(EDIIE_SOURCE) coreboot-stage \
 		COREBOOT_SOURCE="$(abspath .)" \
 		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
@@ -37,3 +41,4 @@ $(EDIIE_PAYLOAD): ediie-source-check $(DOTCONFIG) $(obj)/config.h $(objutil)/kco
 		EDIIE_NATIVE_LD="$(EDIIE_NATIVE_LD)" \
 		OBJCOPY="$(OBJCOPY_x86_64)" NM="$(NM_x86_64)" \
 		READELF="$(READELF_x86_64)"
+endif
