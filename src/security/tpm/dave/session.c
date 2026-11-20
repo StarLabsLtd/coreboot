@@ -141,19 +141,28 @@ uint64_t dave_tpm_random32(struct tpm_reader *reader, uint8_t random[32])
 {
 	uint8_t command[12], response[44];
 	size_t size;
-	uint64_t status;
+	uint64_t status = DAVE_TPM_SUCCESS;
+	size_t received = 0;
 
 	header(command, TPM_NO_SESSIONS, sizeof(command), TPM_CC_GET_RANDOM);
-	put16(command + 10U, 32U);
-	status = dave_tpm_submit(reader, command, sizeof(command), response, sizeof(response),
-		TPM_NO_SESSIONS, &size);
-	if (!dave_tpm_error(status)) {
-		if (size != sizeof(response) || get16(response + 10U) != 32U ||
-		    all_zero(response + 12U, 32U))
+	while (received < 32U) {
+		size_t count;
+
+		put16(command + 10U, 32U - received);
+		status = dave_tpm_submit(reader, command, sizeof(command), response,
+			sizeof(response), TPM_NO_SESSIONS, &size);
+		if (dave_tpm_error(status))
+			break;
+		count = size >= 12U ? get16(response + 10U) : 0U;
+		if (!count || count > 32U - received || size != 12U + count) {
 			status = DAVE_TPM_PROTOCOL_ERROR;
-		else
-			memcpy(random, response + 12U, 32U);
+			break;
+		}
+		memcpy(random + received, response + 12U, count);
+		received += count;
 	}
+	if (!dave_tpm_error(status) && all_zero(random, 32U))
+		status = DAVE_TPM_PROTOCOL_ERROR;
 	mbedtls_platform_zeroize(response, sizeof(response));
 	if (dave_tpm_error(status))
 		mbedtls_platform_zeroize(random, 32U);
@@ -252,21 +261,25 @@ int dave_tpm_session_hmac(const uint8_t *key, size_t key_size, const uint8_t dig
 	return result;
 }
 
+enum { NO_PCR = -1, PCR_COUNT = 24 };
+
 /* Reads and bounded NV writes share authenticated response and cleanup
  * handling. All consume their session except the GetRandom confirmation.
  */
 static uint64_t authenticated_command(struct tpm_reader *reader,
 	struct tpm_session *session, const struct nv_profile *nv, uint16_t count,
-	uint16_t offset, uint8_t *output, bool encrypted, uint8_t pcr, const uint8_t *write)
+	uint16_t offset, uint8_t *output, bool encrypted, int pcr, const uint8_t *write)
 {
 	uint8_t selection[] = { 0, 0, 0, 1, 0, 0x0b, 3, 0, 0, 0 };
 	uint8_t command[99U + DAVE_TPM_NV_WRITE_MAX], response[TPM_WIRE_MAX];
 	uint8_t cp_input[76U + DAVE_TPM_NV_WRITE_MAX], rp_input[1040];
 	uint8_t caller[32], cp_hash[32], rp_hash[32], hmac[32], material[32];
-	uint8_t attributes = pcr ? 0x80U : nv == NULL ? 0x41U : encrypted ? 0x40U : 0U;
-	uint8_t response_attributes = pcr ? 0x82U : attributes;
+	const bool read_pcr = pcr != NO_PCR;
+	uint8_t attributes = read_pcr ? 0x80U : nv == NULL ? 0x41U : encrypted ? 0x40U : 0U;
+	uint8_t response_attributes = read_pcr ? 0x82U : attributes;
 	uint32_t code = write ? TPM_CC_NV_WRITE :
-		pcr ? 0x0000017eU : nv == NULL ? TPM_CC_GET_RANDOM : TPM_CC_NV_READ;
+		read_pcr ? 0x0000017eU : nv == NULL ? TPM_CC_GET_RANDOM : TPM_CC_NV_READ;
+	size_t returned = count;
 	size_t pos = 10U, cp_size = 4U, size, parameter_size, auth;
 	mbedtls_aes_context aes;
 	uint64_t status = dave_tpm_random32(reader, caller);
@@ -274,9 +287,9 @@ static uint64_t authenticated_command(struct tpm_reader *reader,
 	mbedtls_aes_init(&aes);
 	if (dave_tpm_error(status))
 		goto out;
-	if ((pcr && (pcr != 6U && pcr != 7U)) ||
-	    ((encrypted || nv == NULL || pcr) && count != 32U) ||
-	    (write && (nv == NULL || pcr || encrypted || output || count == 0U ||
+	if ((read_pcr && (pcr < 0 || pcr >= PCR_COUNT)) ||
+	    ((encrypted || nv == NULL || read_pcr) && count != 32U) ||
+	    (write && (nv == NULL || read_pcr || encrypted || output || count == 0U ||
 	     count > DAVE_TPM_NV_WRITE_MAX || offset > nv->size || count > nv->size - offset)) ||
 	    (!write && output == NULL)) {
 		status = DAVE_TPM_INVALID_PARAMETER;
@@ -291,8 +304,8 @@ static uint64_t authenticated_command(struct tpm_reader *reader,
 		memcpy(cp_input + cp_size + 34U, nv->name, 34U);
 		cp_size += 68U;
 	}
-	if (pcr) {
-		selection[7] = (uint8_t)(1U << pcr);
+	if (read_pcr) {
+		selection[7 + pcr / 8] = 1U << (pcr % 8);
 		memcpy(cp_input + cp_size, selection, sizeof(selection));
 		cp_size += sizeof(selection);
 	} else {
@@ -322,7 +335,7 @@ static uint64_t authenticated_command(struct tpm_reader *reader,
 	put16(command + pos + 39U, 32U);
 	memcpy(command + pos + 41U, hmac, 32U);
 	pos += 73U;
-	if (pcr) {
+	if (read_pcr) {
 		memcpy(command + pos, selection, sizeof(selection));
 		pos += sizeof(selection);
 	} else {
@@ -345,15 +358,21 @@ static uint64_t authenticated_command(struct tpm_reader *reader,
 	if (size < 14U)
 		goto out;
 	parameter_size = get32(response + 10U);
-	if (parameter_size != (write ? 0U : pcr ? 52U : (size_t)count + 2U) ||
-	    parameter_size > 1026U ||
+	if (parameter_size > 1026U ||
 	    parameter_size > size - 14U || size - 14U - parameter_size != 69U)
 		goto out;
-	if (pcr) {
+	if (code == TPM_CC_GET_RANDOM) {
+		if (parameter_size <= 2U || parameter_size > (size_t)count + 2U)
+			goto out;
+		returned = parameter_size - 2U;
+	} else if (parameter_size != (write ? 0U : read_pcr ? 52U : (size_t)count + 2U)) {
+		goto out;
+	}
+	if (read_pcr) {
 		if (memcmp(response + 18U, selection, sizeof(selection)) != 0 ||
 		    get32(response + 28U) != 1U || get16(response + 32U) != 32U)
 			goto out;
-	} else if (!write && get16(response + 14U) != count) {
+	} else if (!write && get16(response + 14U) != returned) {
 		goto out;
 	}
 	auth = 14U + parameter_size;
@@ -373,12 +392,12 @@ static uint64_t authenticated_command(struct tpm_reader *reader,
 	status = DAVE_TPM_SECURITY_VIOLATION;
 	if (mbedtls_ct_memcmp(hmac, response + auth + 37U, 32U) != 0)
 		goto out;
-	if (encrypted || (nv == NULL && !pcr)) {
+	if (encrypted || (nv == NULL && !read_pcr)) {
 		size_t iv_offset = 0U;
 
 		if (dave_tpm_kdfa(session->key, sizeof(session->key), "CFB", response + auth + 2U, caller, material) != 0 ||
 		    mbedtls_aes_setkey_enc(&aes, material, 128U) != 0 ||
-		    mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_DECRYPT, count,
+		    mbedtls_aes_crypt_cfb128(&aes, MBEDTLS_AES_DECRYPT, returned,
 			&iv_offset, material + 16U, response + 16U, response + 16U) != 0) {
 			status = DAVE_TPM_DEVICE_ERROR;
 			goto out;
@@ -391,7 +410,7 @@ static uint64_t authenticated_command(struct tpm_reader *reader,
 		mbedtls_platform_zeroize(session, sizeof(*session));
 	}
 	if (!write)
-		memcpy(output, response + (pcr ? 34U : 16U), count);
+		memcpy(output, response + (read_pcr ? 34U : 16U), returned);
 	status = DAVE_TPM_SUCCESS;
 out:
 	mbedtls_aes_free(&aes);
@@ -419,14 +438,16 @@ uint64_t dave_tpm_authenticated_read(struct tpm_reader *reader,
 	struct tpm_session *session, const struct nv_profile *nv, uint16_t count,
 	uint16_t offset, uint8_t *output, bool encrypted)
 {
-	return authenticated_command(reader, session, nv, count, offset, output, encrypted, 0U, NULL);
+	return authenticated_command(reader, session, nv, count, offset, output, encrypted,
+				     NO_PCR, NULL);
 }
 
 uint64_t dave_tpm_authenticated_write(struct tpm_reader *reader,
 	struct tpm_session *session, const struct nv_profile *profile, uint16_t count,
 	uint16_t offset, const uint8_t *data)
 {
-	return authenticated_command(reader, session, profile, count, offset, NULL, false, 0U, data);
+	return authenticated_command(reader, session, profile, count, offset, NULL, false,
+				     NO_PCR, data);
 }
 
 uint64_t dave_tpm_read_pcr(struct tpm_reader *reader, uint8_t pcr, uint8_t value[32])
@@ -438,7 +459,7 @@ uint64_t dave_tpm_read_pcr(struct tpm_reader *reader, uint8_t pcr, uint8_t value
 		return DAVE_TPM_INVALID_PARAMETER;
 	memset(value, 0, 32U);
 	if (!reader || !reader->exchange ||
-	    !reader->random || (pcr != 6U && pcr != 7U))
+	    !reader->random || pcr >= PCR_COUNT)
 		return DAVE_TPM_INVALID_PARAMETER;
 	if (reader->cleanup_failed)
 		return DAVE_TPM_ABORTED;
@@ -447,6 +468,162 @@ uint64_t dave_tpm_read_pcr(struct tpm_reader *reader, uint8_t pcr, uint8_t value
 		status = authenticated_command(reader, &session, NULL, 32U, 0U,
 			value, false, pcr, NULL);
 	return status;
+}
+
+static void pcr_selection(uint8_t selection[10], uint32_t mask)
+{
+	put32(selection, 1U);
+	put16(selection + 4, 0x0bU);
+	selection[6] = 3;
+	for (size_t i = 0; i < 3; i++)
+		selection[7 + i] = (uint8_t)(mask >> (8 * i));
+}
+
+int dave_tpm_pcr_policy_digest(uint32_t mask, const uint8_t pcr_digest[32], uint8_t policy[32])
+{
+	uint8_t input[78];
+
+	if (!pcr_digest || !policy || !mask || mask >= (1U << PCR_COUNT))
+		return -1;
+	memcpy(input, policy, 32);
+	put32(input + 32, 0x0000017fU);
+	pcr_selection(input + 36, mask);
+	memcpy(input + 46, pcr_digest, 32);
+	return mbedtls_sha256(input, sizeof(input), policy, 0);
+}
+
+/* digest is SHA-256 of the selected SHA-256 PCR values in index order. */
+uint64_t dave_tpm_policy_pcr(struct tpm_reader *reader, const struct tpm_session *session,
+	uint32_t mask, const uint8_t digest[32])
+{
+	uint8_t command[58], response[10];
+	size_t size;
+	uint64_t status;
+
+	if (!reader || !reader->exchange || !session || session->handle >> 24 != 3U || !digest ||
+	    !mask || mask >= (1U << PCR_COUNT))
+		return DAVE_TPM_INVALID_PARAMETER;
+	if (reader->cleanup_failed)
+		return DAVE_TPM_ABORTED;
+	header(command, TPM_NO_SESSIONS, sizeof(command), 0x0000017fU);
+	put32(command + 10U, session->handle);
+	put16(command + 14U, 32U);
+	memcpy(command + 16U, digest, 32U);
+	pcr_selection(command + 48, mask);
+	status = dave_tpm_submit(reader, command, sizeof(command), response, sizeof(response),
+				 TPM_NO_SESSIONS, &size);
+	return !dave_tpm_error(status) && size != sizeof(response) ?
+		DAVE_TPM_PROTOCOL_ERROR : status;
+}
+
+static int authority_public(const uint8_t authority[65], uint8_t public[88], uint8_t name[34])
+{
+	static const uint8_t public_header[] = {
+		0, 0x23, 0, 0x0b, 0, 4, 0, 0, 0, 0,
+		0, 0x10, 0, 0x18, 0, 0x0b, 0, 3, 0, 0x10,
+	};
+
+	if (!authority || authority[0] != 4U)
+		return -1;
+	memcpy(public, public_header, sizeof(public_header));
+	put16(public + 20, 32);
+	memcpy(public + 22, authority + 1, 32);
+	put16(public + 54, 32);
+	memcpy(public + 56, authority + 33, 32);
+	put16(name, 0x0b);
+	return mbedtls_sha256(public, 88, name + 2, 0);
+}
+
+int dave_tpm_authority_policy(const uint8_t authority[65], const uint8_t ref[32],
+	uint8_t policy[32])
+{
+	uint8_t public[88], input[70] = {0}, digest[64];
+
+	if (!ref || !policy || authority_public(authority, public, input + 36))
+		return -1;
+	put32(input + 32, 0x0000016aU);
+	if (mbedtls_sha256(input, sizeof(input), digest, 0))
+		return -1;
+	memcpy(digest + 32, ref, 32);
+	return mbedtls_sha256(digest, sizeof(digest), policy, 0);
+}
+
+uint64_t dave_tpm_policy_authorize(struct tpm_reader *reader, const struct tpm_session *session,
+	const uint8_t authority[65], const uint8_t approved[32], const uint8_t ref[32],
+	const uint8_t signature[64])
+{
+	uint8_t response[82], command[118 + sizeof(response) - 10];
+	uint8_t name[34], approval[64], digest[32];
+	uint32_t key = 0;
+	size_t size, ticket_size;
+	uint64_t status, cleanup;
+
+	if (!reader || !reader->exchange || !session || session->handle >> 24 != 3U ||
+	    !authority || authority[0] != 4U || !approved || !ref || !signature)
+		return DAVE_TPM_INVALID_PARAMETER;
+	if (reader->cleanup_failed)
+		return DAVE_TPM_ABORTED;
+	memcpy(approval, approved, 32);
+	memcpy(approval + 32, ref, 32);
+	if (mbedtls_sha256(approval, sizeof(approval), digest, 0))
+		return DAVE_TPM_DEVICE_ERROR;
+
+	/* A public key loaded under the owner hierarchy can issue a verified ticket. */
+	header(command, TPM_NO_SESSIONS, 106, 0x00000167U);
+	put16(command + 10, 0);
+	put16(command + 12, 88);
+	if (authority_public(authority, command + 14, name))
+		return DAVE_TPM_DEVICE_ERROR;
+	put32(command + 102, 0x40000001U);
+	status = dave_tpm_submit(reader, command, 106, response, sizeof(response),
+				 TPM_NO_SESSIONS, &size);
+	if (size >= 14 && get32(response + 6) == 0 && (response[10] == 0x80))
+		key = get32(response + 10);
+	if (dave_tpm_error(status))
+		goto out;
+	status = DAVE_TPM_PROTOCOL_ERROR;
+	if (!key || size != 50 || get16(response + 14) != sizeof(name) ||
+	    mbedtls_ct_memcmp(response + 16, name, sizeof(name)))
+		goto out;
+
+	header(command, TPM_NO_SESSIONS, 120, 0x00000177U);
+	put32(command + 10, key);
+	put16(command + 14, 32);
+	memcpy(command + 16, digest, 32);
+	put16(command + 48, 0x18);
+	put16(command + 50, 0x0b);
+	put16(command + 52, 32);
+	memcpy(command + 54, signature, 32);
+	put16(command + 86, 32);
+	memcpy(command + 88, signature + 32, 32);
+	status = dave_tpm_submit(reader, command, 120, response, sizeof(response),
+				 TPM_NO_SESSIONS, &size);
+	if (dave_tpm_error(status))
+		goto out;
+	status = DAVE_TPM_PROTOCOL_ERROR;
+	if (size < 18 || get16(response + 10) != 0x8022 ||
+	    get32(response + 12) != 0x40000001U)
+		goto out;
+	ticket_size = get16(response + 16);
+	if (!ticket_size || size != 18 + ticket_size)
+		goto out;
+
+	header(command, TPM_NO_SESSIONS, 118 + size - 10, 0x0000016aU);
+	put32(command + 10, session->handle);
+	put16(command + 14, 32);
+	memcpy(command + 16, approval, 32);
+	put16(command + 48, 32);
+	memcpy(command + 50, approval + 32, 32);
+	put16(command + 82, sizeof(name));
+	memcpy(command + 84, name, sizeof(name));
+	memcpy(command + 118, response + 10, size - 10);
+	status = dave_tpm_submit(reader, command, 118 + size - 10, response, sizeof(response),
+				 TPM_NO_SESSIONS, &size);
+	if (!dave_tpm_error(status) && size != 10)
+		status = DAVE_TPM_PROTOCOL_ERROR;
+out:
+	cleanup = dave_tpm_flush_handle(reader, key);
+	return dave_tpm_error(cleanup) ? cleanup : status;
 }
 
 /* Capability data controls admission as well as provisioning. Authenticate it

@@ -269,6 +269,56 @@ bool selfload_mapped(struct prog *payload, void *mapping,
 	return true;
 }
 
+bool selfload_measured(struct prog *payload, void *mapping, size_t size)
+{
+	const struct cbfs_payload_segment *segments = mapping;
+	size_t count = size / sizeof(*segments);
+	uintptr_t snapshot = (uintptr_t)mapping;
+
+	if (size > UINTPTR_MAX - snapshot)
+		return false;
+
+	/* Validate the complete descriptor array before the loader reads it twice. */
+	for (size_t i = 0; i < count; i++) {
+		struct cbfs_payload_segment segment;
+
+		cbfs_decode_payload_segment(&segment, &segments[i]);
+		if (segment.load_addr > UINTPTR_MAX)
+			return false;
+		if (segment.type == PAYLOAD_SEGMENT_ENTRY) {
+			for (size_t j = 0; j < i; j++) {
+				struct cbfs_payload_segment code;
+
+				cbfs_decode_payload_segment(&code, &segments[j]);
+				if (code.type == PAYLOAD_SEGMENT_CODE &&
+				    segment.load_addr >= code.load_addr &&
+				    segment.load_addr - code.load_addr < code.mem_len)
+					return selfload_mapped(payload, mapping, BM_MEM_RAM);
+			}
+			return false;
+		}
+		if ((segment.type != PAYLOAD_SEGMENT_CODE &&
+		     segment.type != PAYLOAD_SEGMENT_DATA && segment.type != PAYLOAD_SEGMENT_BSS) ||
+		    segment.mem_len > UINTPTR_MAX - segment.load_addr ||
+		    (segment.load_addr < snapshot + size &&
+		     snapshot < segment.load_addr + segment.mem_len) ||
+		    segment.offset > size || segment.len > size - segment.offset)
+			return false;
+
+		/* A later segment must not replace bytes installed by an earlier one. */
+		for (size_t j = 0; j < i && segment.mem_len; j++) {
+			struct cbfs_payload_segment previous;
+
+			cbfs_decode_payload_segment(&previous, &segments[j]);
+			if (previous.mem_len &&
+			    segment.load_addr < previous.load_addr + previous.mem_len &&
+			    previous.load_addr < segment.load_addr + segment.mem_len)
+				return false;
+		}
+	}
+	return false;
+}
+
 bool selfload_check(struct prog *payload, enum bootmem_type dest_type)
 {
 	if (prog_locate_hook(payload))

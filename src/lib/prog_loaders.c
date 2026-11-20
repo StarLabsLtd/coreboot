@@ -143,7 +143,7 @@ static struct prog global_payload =
 
 void payload_preload(void)
 {
-	if (!CONFIG(CBFS_PRELOAD))
+	if (!CONFIG(CBFS_PRELOAD) || (CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE)))
 		return;
 
 	cbfs_preload(global_payload.name);
@@ -153,6 +153,7 @@ void payload_load(void)
 {
 	struct prog *payload = &global_payload;
 	void *mapping;
+	size_t measured_size;
 
 	timestamp_add_now(TS_LOAD_PAYLOAD);
 
@@ -160,14 +161,17 @@ void payload_load(void)
 		goto out;
 
 	payload->cbfs_type = CBFS_TYPE_QUERY;
-	mapping = cbfs_type_map(prog_name(payload), NULL, &payload->cbfs_type);
+	mapping = cbfs_map_boot_payload(prog_name(payload), &payload->cbfs_type, &measured_size);
 
 	if (!mapping)
 		goto out;
 
 	switch (prog_cbfs_type(payload)) {
 	case CBFS_TYPE_SELF: /* Simple ELF */
-		selfload_mapped(payload, mapping, BM_MEM_RAM);
+		if (measured_size)
+			selfload_measured(payload, mapping, measured_size);
+		else
+			selfload_mapped(payload, mapping, BM_MEM_RAM);
 		break;
 	case CBFS_TYPE_FIT_PAYLOAD: /* Flattened image tree */
 		if (CONFIG(PAYLOAD_FIT_SUPPORT)) {

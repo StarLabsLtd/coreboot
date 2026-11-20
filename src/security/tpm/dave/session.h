@@ -84,6 +84,14 @@ uint64_t dave_tpm_authenticated_write(struct tpm_reader *reader,
 	struct tpm_session *session, const struct nv_profile *profile, uint16_t count,
 	uint16_t offset, const uint8_t *data);
 uint64_t dave_tpm_read_pcr(struct tpm_reader *reader, uint8_t pcr, uint8_t value[32]);
+uint64_t dave_tpm_policy_pcr(struct tpm_reader *reader, const struct tpm_session *session,
+	uint32_t mask, const uint8_t digest[32]);
+int dave_tpm_pcr_policy_digest(uint32_t mask, const uint8_t pcr_digest[32], uint8_t policy[32]);
+uint64_t dave_tpm_policy_authorize(struct tpm_reader *reader, const struct tpm_session *session,
+	const uint8_t authority[65], const uint8_t approved[32], const uint8_t ref[32],
+	const uint8_t signature[64]);
+int dave_tpm_authority_policy(const uint8_t authority[65], const uint8_t ref[32],
+	uint8_t policy[32]);
 uint64_t dave_tpm_audited_capability(struct tpm_reader *reader, uint32_t capability,
 	uint32_t first, uint32_t requested, uint8_t output[73], size_t *output_size);
 uint64_t dave_tpm_permanent_attributes(struct tpm_reader *reader, uint32_t *attributes);

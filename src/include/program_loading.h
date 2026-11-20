@@ -187,6 +187,7 @@ bool selfload(struct prog *payload);
 /* Like selfload_check() but with the payload data already mapped to memory. */
 bool selfload_mapped(struct prog *payload, void *mapping,
 		     enum bootmem_type dest_type);
+bool selfload_measured(struct prog *payload, void *mapping, size_t size);
 
 /* Load a FIT payload. The payload data must already be mapped to memory. */
 void fit_payload(struct prog *payload, void *data);

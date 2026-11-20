@@ -228,10 +228,12 @@ tpm_result_t tpm_clear_and_reenable(void)
 	return TPM_SUCCESS;
 }
 
-tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
-			const uint8_t *digest, size_t digest_len, const char *name)
+static tpm_result_t extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
+			      const uint8_t *digest, size_t digest_len, const char *name,
+			      bool required)
 {
 	tpm_result_t rc;
+	bool ready;
 
 	if (!digest)
 		return TPM_IOERROR;
@@ -239,7 +241,7 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 	/* Resume retains the original PCRs and event log; verification still runs. */
 	if (CONFIG(VBOOT) && vboot_logic_executed() &&
 	    (vboot_get_context()->flags & VB2_CONTEXT_S3_RESUME))
-		return TPM_SUCCESS;
+		return required ? TPM_IOERROR : TPM_SUCCESS;
 
 	if (CONFIG(TPM_MEASURED_BOOT)) {
 		rc = tspi_ensure_event_log_initialized();
@@ -247,7 +249,10 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 			return rc;
 	}
 
-	if (tspi_tpm_is_setup()) {
+	ready = tspi_tpm_is_setup();
+	if (required && !ready)
+		return TPM_IOERROR;
+	if (ready) {
 		rc = tlcl_lib_init();
 		if (rc != TPM_SUCCESS) {
 			printk(BIOS_ERR, "TPM Error (%#x): Can't initialize library.\n", rc);
@@ -267,9 +272,21 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 		tpm_log_add_table_entry(name, pcr, digest_algo, digest, digest_len);
 
 	printk(BIOS_DEBUG, "TPM: Digest of `%s` to PCR %d %s\n",
-	       name, pcr, tspi_tpm_is_setup() ? "measured" : "logged");
+	       name, pcr, ready ? "measured" : "logged");
 
 	return TPM_SUCCESS;
+}
+
+tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
+			    const uint8_t *digest, size_t digest_len, const char *name)
+{
+	return extend_pcr(pcr, digest_algo, digest, digest_len, name, false);
+}
+
+tpm_result_t tpm_extend_pcr_required(int pcr, enum vb2_hash_algorithm digest_algo,
+				    const uint8_t *digest, size_t digest_len, const char *name)
+{
+	return extend_pcr(pcr, digest_algo, digest, digest_len, name, true);
 }
 
 #if CONFIG(TPM_PREBOOT_AUTH_PHASE) && ENV_RAMSTAGE

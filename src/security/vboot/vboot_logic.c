@@ -127,6 +127,9 @@ static vb2_error_t hash_body(struct vb2_context *ctx,
 	uint8_t block[CONFIG_VBOOT_HASH_BLOCK_SIZE];
 	uint8_t hash_digest[VBOOT_MAX_HASH_SIZE];
 	const size_t hash_digest_sz = sizeof(hash_digest);
+	const bool measure_body = CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE) &&
+		!(ctx->flags & VB2_CONTEXT_S3_RESUME);
+	struct vb2_digest_context body_measurement;
 	size_t block_size = sizeof(block);
 	size_t offset;
 	vb2_error_t rc;
@@ -151,6 +154,13 @@ static vb2_error_t hash_body(struct vb2_context *ctx,
 	rc = vb2api_init_hash(ctx, VB2_HASH_TAG_FW_BODY);
 	if (rc)
 		return rc;
+	if (measure_body) {
+		/* The vboot hash may already own the hardware hash engine. */
+		rc = vb2_digest_init(&body_measurement, false, VB2_HASH_SHA256,
+				     region_device_sz(fw_body));
+		if (rc)
+			return rc;
+	}
 
 	/* Extend over the body */
 	while (remaining) {
@@ -159,13 +169,18 @@ static vb2_error_t hash_body(struct vb2_context *ctx,
 			block_size = remaining;
 
 		temp_ts = timestamp_get();
-		if (rdev_readat(fw_body, block, offset, block_size) < 0)
+		if (rdev_readat(fw_body, block, offset, block_size) != (ssize_t)block_size)
 			return VB2_ERROR_UNKNOWN;
 		load_ts += timestamp_get() - temp_ts;
 
 		rc = vb2api_extend_hash(ctx, block, block_size);
 		if (rc)
 			return rc;
+		if (measure_body) {
+			rc = vb2_digest_extend(&body_measurement, block, block_size);
+			if (rc)
+				return rc;
+		}
 
 		remaining -= block_size;
 		offset += block_size;
@@ -180,6 +195,17 @@ static vb2_error_t hash_body(struct vb2_context *ctx,
 		return rc;
 
 	timestamp_add_now(TS_HASH_BODY_END);
+
+	if (measure_body) {
+		uint8_t digest[VB2_SHA256_DIGEST_SIZE];
+
+		rc = vb2_digest_finalize(&body_measurement, digest, sizeof(digest));
+		if (rc)
+			return rc;
+		if (tpm_extend_pcr_required(CONFIG_PCR_SRTM, VB2_HASH_SHA256, digest,
+				   sizeof(digest), "VBOOT: verified RW body") != TPM_SUCCESS)
+			return VB2_ERROR_UNKNOWN;
+	}
 
 	return handle_digest_result(hash_digest, hash_digest_sz);
 }

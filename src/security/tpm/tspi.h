@@ -141,6 +141,11 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 			    const uint8_t *digest, size_t digest_len,
 			    const char *name);
 
+/* For fresh boot evidence that cannot be satisfied by a log-only event. */
+tpm_result_t tpm_extend_pcr_required(int pcr, enum vb2_hash_algorithm digest_algo,
+				    const uint8_t *digest, size_t digest_len,
+				    const char *name);
+
 /* Extend an initialized TPM and record the exact digest in the packed TPM2 log. */
 tpm_result_t tpm_extend_pcr_compact_hash(int pcr, enum vb2_hash_algorithm digest_algo,
 				      const uint8_t *digest, size_t digest_len, const char *name);
