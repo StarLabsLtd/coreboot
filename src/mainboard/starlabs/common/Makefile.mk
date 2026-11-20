@@ -23,9 +23,6 @@ ifneq ($(CONFIG_DRIVERS_EFI_MAIN_FW_LSV),0x00000000)
 $(error Star Labs VBOOT derives the EFI LSV from CONFIG_LOCALVERSION; explicit override forbidden)
 endif
 endif
-ifneq ($(CONFIG_VBOOT_KEYBLOCK_VERSION),$(starlabs-vboot-release-version))
-$(error Star Labs VBOOT version $(CONFIG_VBOOT_KEYBLOCK_VERSION) does not match CONFIG_LOCALVERSION $(CONFIG_LOCALVERSION))
-endif
 ifneq ($(words $(filter y,$(CONFIG_BOOTMEDIA_LOCK_CONTROLLER) \
 	$(CONFIG_BOOTMEDIA_LOCK_WPRO_VBOOT_RO) \
 	$(CONFIG_BOOTMEDIA_LOCK_FAILURE_FATAL) \

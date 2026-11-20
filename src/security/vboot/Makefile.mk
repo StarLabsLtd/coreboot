@@ -409,7 +409,7 @@ files_added:: $(obj)/coreboot.rom $(FUTILITY) $(CBFSTOOL)
 		--signprivate "$(CONFIG_VBOOT_FIRMWARE_PRIVKEY)" \
 		--keyblock "$(CONFIG_VBOOT_KEYBLOCK)" \
 		--kernelkey "$(CONFIG_VBOOT_KERNEL_KEY)" \
-		--version $(CONFIG_VBOOT_KEYBLOCK_VERSION) \
+		--version $(if $(filter y,$(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)),$(starlabs-vboot-release-version),$(CONFIG_VBOOT_KEYBLOCK_VERSION)) \
 		--flags $(CONFIG_VBOOT_KEYBLOCK_PREAMBLE_FLAGS) \
 		$(obj)/coreboot.rom
 	if [ "$(CONFIG_VBOOT_SLOTS_RW_AB)" = 'y' ]; then \

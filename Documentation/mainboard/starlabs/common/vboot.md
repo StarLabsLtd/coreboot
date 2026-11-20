@@ -18,10 +18,9 @@ EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A
 ```
 
 Before a release build, supply the approved 40-character EDK2 commit through
-`CONFIG_EDK2_TAG_OR_REV`, the matching release `CONFIG_LOCALVERSION` and
-signing/keyblock version, the board's FSP, descriptor, ME and EC blobs, and
-the signing-key directory below. This tree contains no approved EDK2 commit
-or matching signing-version input, so it cannot itself produce a release
+`CONFIG_EDK2_TAG_OR_REV`, the release `CONFIG_LOCALVERSION`, the board's
+FSP, descriptor, ME and EC blobs, and the signing-key directory below.
+This tree contains no approved EDK2 commit, so it cannot itself produce a release
 image. The release policy rejects a moving EDK2 reference,
 mocked secdata, disabled rollback protection and unsafe developer GBB flags.
 
@@ -74,10 +73,11 @@ range before launching the payload.
 
 ## Signing keys
 
-The F2 release configuration must provide its established firmware GUID,
-matching release `CONFIG_LOCALVERSION` and keyblock version, and the following
-provisioned signing inputs. Update the keyblock version together with
-`CONFIG_LOCALVERSION` when preparing a new release.
+The F2 release configuration requires its established firmware GUID,
+release `CONFIG_LOCALVERSION`, and the following provisioned signing inputs.
+The build derives the signed vboot firmware preamble version as
+`major * 256 + minor` from `CONFIG_LOCALVERSION`. This does not change
+the data-key version in the supplied keyblock.
 
 - `root_key.vbpubk`
 - `recovery_key.vbpubk`

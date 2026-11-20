@@ -557,7 +557,7 @@ config VBOOT_KEYBLOCK
 	default "\$(VBOOT_SOURCE)/tests/devkeys/firmware.keyblock"
 
 config VBOOT_KEYBLOCK_VERSION
-	int "Keyblock version number"
+	int "Firmware preamble version" if !STARLABS_VBOOT_RELEASE_POLICY
 	default 1
 
 config VBOOT_KEYBLOCK_PREAMBLE_FLAGS
