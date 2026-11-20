@@ -582,6 +582,7 @@ static void *cbfs_alloc_file(const char *name, cbfs_allocator_t allocator, void 
 	if (preload_successful)
 		cbfs_unmap(rdev_mmap_full(&rdev));
 
+#if ENV_RAMSTAGE && CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE)
 	if (measure_payload && ret) {
 		const struct cbfs_boot_device *rw = vboot_get_cbfs_boot_device();
 		const bool from_rw = rw && region_is_subregion(region_device_region(&rw->rdev),
@@ -600,6 +601,7 @@ static void *cbfs_alloc_file(const char *name, cbfs_allocator_t allocator, void 
 		    != TPM_SUCCESS)
 			die("Required boot payload measurement failed\n");
 	}
+#endif
 
 	return ret;
 }
@@ -610,7 +612,7 @@ void *_cbfs_alloc(const char *name, cbfs_allocator_t allocator, void *arg,
 	return cbfs_alloc_file(name, allocator, arg, size_out, force_ro, type, false);
 }
 
-#if ENV_RAMSTAGE
+#if ENV_RAMSTAGE && CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE)
 static void *boot_payload_buffer(void *arg, size_t size, const union cbfs_mdata *mdata)
 {
 	if (!size || size > SIZE_MAX - 4095)
@@ -622,9 +624,8 @@ static void *boot_payload_buffer(void *arg, size_t size, const union cbfs_mdata 
 void *cbfs_map_boot_payload(const char *name, enum cbfs_type *type, size_t *measured_size)
 {
 	*measured_size = 0;
-#if ENV_RAMSTAGE
-	if (CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE) &&
-	    !(vboot_get_context()->flags & VB2_CONTEXT_S3_RESUME)) {
+#if ENV_RAMSTAGE && CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE)
+	if (!(vboot_get_context()->flags & VB2_CONTEXT_S3_RESUME)) {
 		/* Measure and load the same RAM snapshot, not a live flash mapping. */
 		*type = CBFS_TYPE_SELF;
 		return cbfs_alloc_file(name, boot_payload_buffer, NULL, measured_size,
