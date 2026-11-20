@@ -32,7 +32,8 @@ ati_rom_acpi_fill_vfct(struct device *device, acpi_vfct_image_hdr_t *header)
 	if (!rom)
 		rom = pci_rom_probe(device);
 	if (!rom) {
-		printk(BIOS_ERR, "%s failed\n", __func__);
+		printk(BIOS_DEBUG, "No Option ROM for %s; omitting VFCT image\n",
+		       dev_path(device));
 		return 0;
 	}
 	if (device->upstream->segment_group) {
