@@ -178,6 +178,29 @@ cp "$TEST_CAPSULE" "$output"
         self.assertEqual(unchanged.returncode, 0, unchanged.stdout + unchanged.stderr)
         self.assertEqual(state.stat().st_mtime_ns, refreshed_mtime)
 
+    def test_release_tag_prepares_and_verifies_offline(self):
+        initial = self.make('prepare-source', self.online)
+        self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
+        self.git(self.repo, 'checkout', '--detach')
+        (self.repo / 'edksetup.sh').write_text('# release source\n')
+        self.git(self.repo, 'add', 'edksetup.sh')
+        self.commit(self.repo)
+        release = self.git(self.repo, 'rev-parse', 'HEAD')
+        self.git(self.repo, '-c', 'user.email=test@example.com', '-c', 'user.name=Test',
+                 'tag', '-a', 'release-test', '-m', 'Test release')
+        self.git(self.repo, 'checkout', '-')
+        (self.repo / 'edksetup.sh').write_text('# newer development source\n')
+        self.git(self.repo, 'add', 'edksetup.sh')
+        self.commit(self.repo)
+
+        config = dict(CONFIG_EDK2_TAG_OR_REV='refs/tags/release-test')
+        prepared = self.make('prepare-source', self.online, **config)
+        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+        verified = self.make('verify-source', self.offline, **config)
+        self.assertEqual(verified.returncode, 0, verified.stdout + verified.stderr)
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), release)
+        self.assertEqual((self.workspace / '.coreboot-source').read_text().strip(), release)
+
     def test_outer_capsule_requires_manifest_for_vboot(self):
         fv = self.workspace / 'Build/UefiPayloadPkgX64/RELEASE_GCC/FV/DXEFV.Fv'
         fv.parent.mkdir(parents=True)

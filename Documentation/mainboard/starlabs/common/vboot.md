@@ -17,12 +17,13 @@ VBNV completion callbacks and the routine capsule region set:
 EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A
 ```
 
-Before a release build, supply the approved 40-character EDK2 commit through
-`CONFIG_EDK2_TAG_OR_REV`, the release `CONFIG_LOCALVERSION`, the board's
-FSP, descriptor, ME and EC blobs, and the signing-key directory below.
-This tree contains no approved EDK2 commit, so it cannot itself produce a release
-image. The release policy rejects a moving EDK2 reference,
-mocked secdata, disabled rollback protection and unsafe developer GBB flags.
+For an EDK2 release build, select the approved release tag in
+`CONFIG_EDK2_TAG_OR_REV` and run `make prepare-edk2-source` after configuration.
+Record the resolved commit with the build artifacts. The build verifies the
+prepared source rather than advancing it. Also supply the release
+`CONFIG_LOCALVERSION`, the board's FSP, descriptor, ME and EC blobs, and
+the signing-key directory below. The release policy rejects mocked secdata,
+disabled rollback protection and unsafe developer GBB flags.
 
 The release checkout check accepts a dirty EDK2 tree only when its sole tracked
 change is the configured generated `MdeModulePkg/Logo/Logo.bmp`; every other

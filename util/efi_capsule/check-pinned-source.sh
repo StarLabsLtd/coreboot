@@ -53,10 +53,20 @@ case "$revision" in
 	*[!0-9a-fA-F]*) pinned=no ;;
 	*) if [ "${#revision}" -eq 40 ]; then pinned=yes; else pinned=no; fi ;;
 esac
-if [ "$pinned" = no ] || ! git cat-file -e "${revision}^{commit}" 2>/dev/null; then
-	git fetch --no-recurse-submodules origin
-fi
-requested=$(git rev-parse --verify -q --end-of-options "${revision}^{commit}") ||
+resolve=$revision
+case "$revision" in
+refs/tags/*)
+	git check-ref-format "$revision" || fail "invalid tag ref: $revision"
+	git fetch --no-tags --no-recurse-submodules origin "$revision"
+	resolve=FETCH_HEAD
+	;;
+*)
+	if [ "$pinned" = no ] || ! git cat-file -e "${revision}^{commit}" 2>/dev/null; then
+		git fetch --no-recurse-submodules origin
+	fi
+	;;
+esac
+requested=$(git rev-parse --verify -q --end-of-options "${resolve}^{commit}") ||
 	fail "$revision is not a commit"
 
 # Ignore untracked build outputs. The configured splash may be regenerated
