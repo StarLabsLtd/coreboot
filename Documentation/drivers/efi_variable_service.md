@@ -30,9 +30,9 @@ neither a new caller nor an S3 resume reopens it. Fixed-key rules still reject
 setup writes to the firmware-owned policy.
 
 Both key modes allow BDS to publish volatile factory-default variables
-before ReadyToBoot. These variables describe the defaults; they are not the
+before EndOfDxe. These variables describe the defaults; they are not the
 active PK, KEK or signature databases. The native owner denies changes to
-the defaults after handoff, including deletion.
+the defaults after EndOfDxe, including deletion.
 
 EDK2's legacy RequestToLock command uses the native variable-policy registry.
 EndOfDxe closes registration; it does not close the built-in setup window.

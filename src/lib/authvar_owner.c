@@ -240,6 +240,35 @@ uint64_t authvar_owner_view(struct authvar_owner *local,
 		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 }
 
+uint64_t authvar_owner_reconcile_secure_boot(struct authvar_owner *local, uint8_t value)
+{
+	struct payload_mm_authvar_view view;
+	const uint32_t attributes = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS;
+	bool preference;
+
+	if (local->end_of_dxe || local->ready || local->runtime ||
+	    local->fixed_keys || !local->secure_boot)
+		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+	uint64_t status = authvar_owner_view(local, &view);
+	if (status_error(status))
+		return status;
+	if (!payload_mm_authvar_mode_enabled(view.persistent,
+	    PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, attributes, &preference) ||
+	    value != (preference && !(local->modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP)))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (!!(local->modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT) == value)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	if (local->generation == UINT64_MAX)
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	if (value)
+		local->modes |= PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+	else
+		local->modes &= ~PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
+	local->generation++;
+	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
 static uint64_t init_mode_preference(struct authvar_owner *local,
 	enum payload_mm_authvar_mode_key key, const uint16_t *name, uint8_t value)
 {
@@ -681,7 +710,7 @@ static uint64_t ordinary_volatile_set(struct authvar_owner *local,
 	struct payload_mm_authvar_set_snapshot snapshot = {
 		.request = request, .index = &local->volatile_index,
 		.at_runtime = local->runtime, .volatile_store = true,
-		.allow_factory_defaults = !local->ready,
+		.allow_factory_defaults = !local->end_of_dxe && !local->ready,
 	};
 	struct payload_mm_authvar_set_plan plan;
 	struct payload_mm_authvar_store_index next = {0};

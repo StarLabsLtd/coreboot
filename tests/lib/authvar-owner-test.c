@@ -90,6 +90,40 @@ static void restore_deleted_secure_boot_preference(void **unused)
 	value = 0;
 	assert_int_equal(authvar_owner_set(&service.owner, enable, enable_guid, 3, 1,
 		&value, true, NULL, NULL), 0);
+	assert_true(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	const uint16_t state_name[] = u"SecureBoot";
+	_Alignas(8) uint8_t request[sizeof(struct smm_variable_header32) +
+		sizeof(struct smm_variable_access32) + sizeof(state_name) + 1] = { 0 };
+	struct smm_variable_header32 *message = (void *)request;
+	struct smm_variable_access32 *access = (void *)message->data;
+	uint8_t *state = (uint8_t *)access->name + sizeof(state_name);
+	struct authvar_policy policy = { 0 };
+
+	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	memcpy(&access->guid, platform_key.vendor_guid, sizeof(access->guid));
+	access->attributes = 6;
+	access->name_size = sizeof(state_name);
+	access->data_size = 1;
+	memcpy(access->name, state_name, sizeof(state_name));
+	*state = 1;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000002U);
+	*state = 0;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	assert_false(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	enum ass_mm_phase phase = ASS_MM_WAIT_END_OF_DXE;
+	_Alignas(8) uint8_t packet[sizeof(struct mm_communication_header32) + 1] = { 0 };
+	struct mm_communication_header32 *wire = (void *)packet;
+	wire->guid = (EFI_GUID)ASS_END_OF_DXE_GUID;
+	wire->message_length = 1;
+	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase,
+		NULL, packet, sizeof(packet)), 0);
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000008U);
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
 	assert_false(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
@@ -221,7 +255,14 @@ static void factory_defaults_are_sealed_at_handoff(void **unused)
 	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
 		request, sizeof(request)));
 	assert_int_equal(message->return_status, 0);
-	assert_int_equal(authvar_owner_ready(&service.owner, NULL), 0);
+	enum ass_mm_phase phase = ASS_MM_WAIT_END_OF_DXE;
+	_Alignas(8) uint8_t packet[sizeof(struct mm_communication_header32) + 1] = { 0 };
+	struct mm_communication_header32 *wire = (void *)packet;
+	wire->guid = (EFI_GUID)ASS_END_OF_DXE_GUID;
+	wire->message_length = 1;
+	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase,
+		NULL, packet, sizeof(packet)), 0);
+	assert_false(service.owner.ready);
 	*value = 2;
 	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
 		request, sizeof(request)));

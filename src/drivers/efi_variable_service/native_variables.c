@@ -49,7 +49,12 @@ enum variable_format {
 	VAR_PATH,
 	VAR_LOAD_OPTION,
 	VAR_FACTORY_DEFAULT,
+	VAR_SECURE_BOOT_INIT,
 	VAR_READ_ONLY,
+};
+
+static const EFI_GUID global_variable_guid = {
+	0x8be4df61, 0x93ca, 0x11d2, { 0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c },
 };
 
 /* The standard global-variable formats checked by Fixed MM. */
@@ -84,7 +89,7 @@ static const struct {
 	{ u"PlatformRecovery####", 6, 6, 0, VAR_LOAD_OPTION },
 	{ u"Key####", 7, 10, 22, VAR_KEY_OPTION },
 	{ u"SetupMode", 6, 1, 1, VAR_READ_ONLY },
-	{ u"SecureBoot", 6, 1, 1, VAR_READ_ONLY },
+	{ u"SecureBoot", 6, 1, 1, VAR_SECURE_BOOT_INIT },
 	{ u"VendorKeys", 6, 1, 1, VAR_READ_ONLY },
 	{ u"SignatureSupport", 6, 16, 0, VAR_READ_ONLY },
 	{ u"PKDefault", 6, 1, 0, VAR_FACTORY_DEFAULT },
@@ -142,9 +147,6 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 	const uint16_t *name, const struct smm_variable_access32 *access, const void *data,
 	bool setup_open)
 {
-	static const EFI_GUID global = {
-		0x8be4df61, 0x93ca, 0x11d2, { 0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c },
-	};
 	static const EFI_GUID image_security = {
 		0xd719b2cb, 0x3d3a, 0x4596, { 0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f },
 	};
@@ -178,7 +180,7 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 				authenticated_database ? 0 : invalid;
 		goto registered;
 	}
-	if (memcmp(guid, &global, sizeof(global)))
+	if (memcmp(guid, &global_variable_guid, sizeof(global_variable_guid)))
 		return 0;
 	if (matches_variable(u"PK", name) || matches_variable(u"KEK", name))
 		return deletion || (attributes & ~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND) ==
@@ -189,7 +191,10 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 
 		if (!matches_variable(rule->name, name))
 			continue;
-		/* BDS publishes volatile factory defaults before the owner seals boot policy. */
+		if (rule->format == VAR_SECURE_BOOT_INIT)
+			return setup_open && !append && attributes == rule->attributes &&
+				size == 1 ? 0 : PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		/* BDS publishes volatile factory defaults before EndOfDxe. */
 		if (rule->format == VAR_READ_ONLY ||
 		    (rule->format == VAR_FACTORY_DEFAULT && !setup_open))
 			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
@@ -242,7 +247,8 @@ static uint64_t set_variable(struct authvar_owner *owner,
 
 	/* The SMM owner's retained state closes trusted setup at handoff. */
 	const bool setup_open = !owner->ready && !owner->runtime;
-	uint64_t status = check_uefi_variable(policy, name, access, data, setup_open);
+	uint64_t status = check_uefi_variable(policy, name, access, data,
+		setup_open && !owner->end_of_dxe);
 	if (status)
 		return status;
 	if (access->attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
@@ -257,6 +263,9 @@ static uint64_t set_variable(struct authvar_owner *owner,
 		access->attributes, payload_size, policy_get, owner, NULL);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return status;
+	if (!memcmp(&access->guid, &global_variable_guid, sizeof(global_variable_guid)) &&
+	    matches_variable(u"SecureBoot", name))
+		return authvar_owner_reconcile_secure_boot(owner, *(const uint8_t *)data);
 	return authvar_owner_set(owner, name, &access->guid, access->attributes,
 		size, data, setup_open, fixed, NULL);
 }
@@ -555,6 +564,7 @@ static uint64_t dispatch_event(struct authvar_owner *owner, struct authvar_polic
 		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
 	switch (*phase) {
 	case ASS_MM_WAIT_END_OF_DXE:
+		owner->end_of_dxe = true;
 		policy->locked = true;
 		break;
 	case ASS_MM_WAIT_READY_TO_LOCK:

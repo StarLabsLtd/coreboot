@@ -25,7 +25,7 @@ struct authvar_owner {
 	void *commit_context;
 	uint64_t generation;
 	uint8_t active, volatile_active, modes;
-	bool ready, runtime, failed, restart_required;
+	bool end_of_dxe, ready, runtime, failed, restart_required;
 	bool secure_boot, fixed_keys;
 	bool fixed_policy_prepared;
 };
@@ -76,6 +76,7 @@ void authvar_owner_enter_runtime(struct authvar_owner *owner);
 /* Borrowed view expires on mutation; consume or copy it under the owner's lock. */
 uint64_t authvar_owner_view(struct authvar_owner *owner,
 	struct payload_mm_authvar_view *view);
+uint64_t authvar_owner_reconcile_secure_boot(struct authvar_owner *owner, uint8_t value);
 uint64_t authvar_owner_image_snapshot(struct authvar_owner *owner,
 	void *output, size_t capacity, uint32_t *size);
 
