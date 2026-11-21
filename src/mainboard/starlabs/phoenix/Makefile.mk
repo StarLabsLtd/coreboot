@@ -8,6 +8,7 @@ bootblock-y += bootblock.c
 romstage-y += romstage.c
 
 ramstage-y += mainboard.c
+ramstage-y += apcb.c
 ramstage-$(CONFIG_DRIVERS_OPTION_CFR) += cfr.c
 
 smm-y += smihandler.c
@@ -18,4 +19,18 @@ APCB_SOURCES_RECOVERY = $(call strip_quotes, $(CONFIG_APCB_SOURCES_PATH))/APCB_F
 APCB_SOURCES_68 = $(call strip_quotes, $(CONFIG_APCB_SOURCES_PATH))/APCB_FP7_Updatable.bin
 endif
 
+cbfs-files-y += apcb-factory
+apcb-factory-file := $(APCB_SOURCES)
+apcb-factory-type := raw
+
 regions-for-file-apu/amdfw := AMDFW
+
+# Authenticate writable primary APCBs using the existing directory parser.
+OPT_PSP_APCB_WRITABLE = --apcb-writable
+ramstage-y += ../../../vendorcode/amd/psp/psp_fw_parser.c
+ramstage-y += ../../../vendorcode/amd/psp/psp_fw_bhd.c
+ramstage-y += ../../../vendorcode/amd/psp/psp_fw_psp.c
+ramstage-y += ../../../vendorcode/amd/psp/psp_fw_efs.c
+ramstage-y += ../../../vendorcode/amd/psp/psp_fw_cmb.c
+ramstage-y += ../../../vendorcode/amd/psp/psp_fw_ish.c
+ramstage-y += ../../../vendorcode/amd/psp/psp_fw_util.c
