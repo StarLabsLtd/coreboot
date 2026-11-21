@@ -1691,6 +1691,15 @@ static void reopen_orphan_certdb(void **unused)
 		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
 		store + offset, store_size - offset, &encoded));
 	store[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	uint8_t before[4096];
+	memcpy(before, store, store_size);
+	media.reject = true;
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL),
+		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR);
+	assert_true(service.owner.failed);
+	assert_memory_equal(store, before, store_size);
+	media.reject = false;
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
 	assert_int_equal(authvar_owner_get(&service.owner, dbname, dbguid, NULL,
@@ -1699,7 +1708,7 @@ static void reopen_orphan_certdb(void **unused)
 	assert_memory_equal(result, retained, retained_size);
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
-	assert_int_equal(media.writes, 1);
+	assert_int_equal(media.writes, 2);
 }
 
 static void setup_replacement_preserves_timestamp(void **unused)
@@ -1728,8 +1737,10 @@ static void setup_replacement_preserves_timestamp(void **unused)
 		0xac, 0xa9, 0x41, 0xf9, 0x36, 0x93, 0x43, 0x28,
 	};
 	memset(erased, 0xff, sizeof(erased));
-	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume, sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
-	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048, commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
+		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
 	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
 	access->guid = (EFI_GUID) {
 		0xd719b2cb, 0x3d3a, 0x4596, { 0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f },
