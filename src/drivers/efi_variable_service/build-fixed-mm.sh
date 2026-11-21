@@ -22,7 +22,11 @@ if [[ $capsules == y && $trust != /* ]]; then
 fi
 
 mkdir -p "$WORKSPACE"
-sh util/efi_capsule/check-pinned-source.sh "$source_dir" "$repository" "$revision" "" fixed-mm
+# The producer's alternate Git index does not describe this checkout.
+(
+	unset GIT_INDEX_FILE
+	sh util/efi_capsule/check-pinned-source.sh "$source_dir" "$repository" "$revision" "" fixed-mm
+)
 
 platform=UefiPayloadPkg/CorebootFixedMmService
 if [[ ! -f $source_dir/$platform.dsc || ! -f $source_dir/$platform.fdf ]]; then
