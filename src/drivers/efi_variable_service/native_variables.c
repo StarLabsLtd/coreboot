@@ -245,9 +245,10 @@ static uint64_t dispatch_policy(struct authvar_policy *policy, void *data, size_
 	    message->revision != ASS_VARIABLE_POLICY_REVISION)
 		return status;
 	size -= sizeof(*message);
+	/* EDK2 sends its buffer capacity, not just the initialized command bytes. */
 	switch (message->command) {
 	case ASS_POLICY_ENABLED:
-		if (size == 1) {
+		if (size >= 1) {
 			message->data[0] = 1;
 			status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 		}
@@ -255,21 +256,18 @@ static uint64_t dispatch_policy(struct authvar_policy *policy, void *data, size_
 	case ASS_POLICY_REGISTER: {
 		const struct authvar_policy_entry *entry = (const void *)message->data;
 
-		if (size >= sizeof(*entry) && entry->size == size)
+		if (size >= sizeof(*entry) && entry->size <= size)
 			status = authvar_policy_register(policy, entry);
 		break;
 	}
 	case ASS_POLICY_LOCK:
-		if (!size) {
-			status = policy->locked ? PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED :
-				PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
-			policy->locked = true;
-		}
+		status = policy->locked ? PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED :
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		policy->locked = true;
 		break;
 	case ASS_POLICY_DISABLE:
-		if (!size)
-			status = policy->locked ? PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED :
-				PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+		status = policy->locked ? PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED :
+			PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 		break;
 	default:
 		status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;

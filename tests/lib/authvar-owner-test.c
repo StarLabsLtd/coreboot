@@ -179,11 +179,11 @@ static void admit_existing_store(void **unused)
 	};
 	memcpy(lock.entry.name_space, guid, sizeof(guid));
 	memcpy(lock.name, name, sizeof(name));
-	_Alignas(8) uint8_t policy_packet[128] = { 0 };
+	static _Alignas(8) uint8_t policy_packet[16 * 1024];
 	struct mm_communication_header32 *policy_wire = (void *)policy_packet;
 	struct smm_variable_policy32 *policy_message = (void *)policy_wire->data;
 	policy_wire->guid = (EFI_GUID)ASS_VARIABLE_POLICY_GUID;
-	policy_wire->message_length = sizeof(*policy_message) + 1;
+	policy_wire->message_length = sizeof(policy_packet) - sizeof(*policy_wire);
 	policy_message->signature = ASS_VARIABLE_POLICY_SIGNATURE;
 	policy_message->revision = ASS_VARIABLE_POLICY_REVISION;
 	policy_message->command = ASS_POLICY_ENABLED;
@@ -198,7 +198,7 @@ static void admit_existing_store(void **unused)
 		policy_packet, sizeof(*policy_wire) + policy_wire->message_length), 0);
 	assert_int_equal(policy_message->result, 0x80000002U);
 	assert_int_equal(policy.count, 0);
-	policy_wire->message_length++;
+	policy_wire->message_length = sizeof(policy_packet) - sizeof(*policy_wire);
 	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
 		policy_packet, sizeof(*policy_wire) + policy_wire->message_length), 0);
 	assert_int_equal(policy_message->result, 0);
@@ -309,6 +309,12 @@ static void admit_existing_store(void **unused)
 	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
 		setup_request, sizeof(setup_request)));
 	assert_int_equal(setup->return_status, 0);
+	policy_message->command = ASS_POLICY_LOCK;
+	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
+		policy_packet, sizeof(policy_packet)), 0);
+	assert_int_equal(policy_message->result, 0);
+	assert_true(policy.locked);
+	policy_message->command = ASS_POLICY_REGISTER;
 	for (size_t i = 0; i < ARRAY_SIZE(events) - 1; i++) {
 		wire->guid = events[i];
 		assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
