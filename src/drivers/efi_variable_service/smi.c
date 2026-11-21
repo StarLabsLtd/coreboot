@@ -383,6 +383,8 @@ static int initialize_service(void)
 	    info->size != sizeof(*info) || info->register_mm_entry)
 		return -1;
 
+	if (CONFIG(ARCH_SMM_X86_64) && !efi_variable_service_entry_allowed())
+		return -1;
 	registration_open = true;
 	info->register_mm_entry = (uintptr_t)register_mm_entry;
 	entry = (void *)(uintptr_t)service->core_entry;
@@ -453,6 +455,8 @@ static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t me
 	typedef void (*mm_entry)(const struct mm_entry_context *context);
 	mm_entry entry;
 
+	if (CONFIG(ARCH_SMM_X86_64) && !efi_variable_service_entry_allowed())
+		return -1;
 	if (message_size > buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE)
 		return -1;
 
@@ -534,6 +538,9 @@ static int service_ready(void)
 	if (current_state != SERVICE_NOT_INITIALIZED)
 		return current_state == SERVICE_READY && write_access_allowed() ? 0 : -1;
 	current_state = SERVICE_FAILED;
+	/* Refuse unsupported native entry before initialization can modify the store. */
+	if (CONFIG(ARCH_SMM_X86_64) && !efi_variable_service_entry_allowed())
+		return -1;
 	if (get_service())
 		return -1;
 	if (update_spi_bar())
@@ -630,9 +637,12 @@ static UINTN manage_mm(const EFI_GUID *guid, const void *context, void *buffer, 
 	typedef UINTN (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
 							 void *, UINTN *);
 
-	if (CONFIG(ARCH_SMM_X86_64))
+	if (CONFIG(ARCH_SMM_X86_64)) {
+		if (!efi_variable_service_entry_allowed())
+			return EFI_UNSUPPORTED;
 		return efi_variable_service_call(service->manage_entry, (uintptr_t)guid,
 			(uintptr_t)context, (uintptr_t)buffer, (uintptr_t)size);
+	}
 	mm_manage manage = (void *)(uintptr_t)service->manage_entry;
 	return manage(guid, context, buffer, size);
 }

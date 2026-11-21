@@ -91,6 +91,8 @@ enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value);
 #define EFI_VARIABLE_SERVICE_REBOOT_REQUIRED 1
 int efi_variable_service_finalize(void);
 bool efi_variable_service_boot_access_allowed(void);
+/* Recheck on the executing CPU before each native X64 MM entry. */
+bool efi_variable_service_entry_allowed(void);
 /* Return only the protected SMM writer admitted for the current call. */
 const struct region_device *efi_variable_service_write_device(void);
 bool efi_variable_service_spi_bar_valid(uintptr_t bar);

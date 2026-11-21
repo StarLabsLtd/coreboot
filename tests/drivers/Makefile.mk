@@ -149,3 +149,11 @@ opal-s3-resources-test-stage := ramstage
 opal-s3-resources-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_HAVE_ACPI_RESUME=1 \
 	CONFIG_SMM_PCI_RESOURCE_STORE=1 CONFIG_SMM_PCI_RESOURCE_STORE_NUM_SLOTS=2
 opal-s3-resources-test-cflags += -Wno-address-of-packed-member
+
+tests-y += efi-variable-service-entry-amd-test efi-variable-service-entry-intel-test
+$(foreach test,efi-variable-service-entry-amd-test efi-variable-service-entry-intel-test,\
+	$(eval $(test)-srcs += tests/drivers/efi-variable-service-entry.c)\
+	$(eval $(test)-stage := smm)\
+	$(eval $(test)-config += CONFIG_ARCH_SMM_X86_64=1))
+efi-variable-service-entry-amd-test-config += CONFIG_SOC_AMD_COMMON=1
+efi-variable-service-entry-intel-test-config += CONFIG_SOC_AMD_COMMON=0

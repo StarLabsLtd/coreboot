@@ -44,6 +44,7 @@ static struct {
 } hobs;
 static bool resume;
 static bool write_device_available;
+static bool native_entry_allowed;
 static bool revoke_writer_after_probe;
 static bool read_error, write_error, readback_error;
 static unsigned int writes, erases, starts, dispatches, writer_lookups;
@@ -99,6 +100,11 @@ static const struct region_device_ops flash_ops = {
 	.writeat = flash_write,
 	.eraseat = flash_erase,
 };
+
+bool efi_variable_service_entry_allowed(void)
+{
+	return native_entry_allowed;
+}
 
 const struct region_device *efi_variable_service_write_device(void)
 {
@@ -273,6 +279,7 @@ uintptr_t efi_variable_service_call(uintptr_t entry, uintptr_t arg1, uintptr_t a
 static int setup(void **unused)
 {
 	write_device_available = true;
+	native_entry_allowed = true;
 	revoke_writer_after_probe = false;
 	spi_bar = 0xfe010000;
 	writer_lookups = 0;
@@ -671,6 +678,34 @@ static void volatile_option_does_not_shadow_flash(void **unused)
 	}
 }
 
+#if CONFIG(ARCH_SMM_X86_64)
+static void native_entry_denied(void **unused)
+{
+	native_entry_allowed = false;
+	assert_int_equal(efi_variable_service_finalize(), -1);
+	assert_int_equal(starts, 0);
+	assert_int_equal(writer_lookups, 0);
+	assert_int_equal(writes, 0);
+	assert_int_equal(erases, 0);
+
+	setup(NULL);
+	assert_int_equal(efi_variable_service_finalize(), 0);
+	unsigned int before_starts = starts, before_dispatches = dispatches, before_gets = gets;
+
+	native_entry_allowed = false;
+	assert_int_equal(initialize_service(), -1);
+	assert_int_equal(dispatch_message((uintptr_t)transport, sizeof(transport), 1), -1);
+	UINTN size = 1;
+	uint8_t query = 1;
+
+	assert_int_equal(manage_mm(&efi_variable_service_ready_guid, NULL, &query, &size),
+			 EFI_UNSUPPORTED);
+	assert_int_equal(starts, before_starts);
+	assert_int_equal(dispatches, before_dispatches);
+	assert_int_equal(gets, before_gets);
+}
+#endif
+
 static void resume_bar_checked_before_writer(void **unused)
 {
 	assert_int_equal(efi_variable_service_finalize(), 0);
@@ -772,6 +807,9 @@ int main(void)
 		cmocka_unit_test_setup(volatile_option_does_not_shadow_flash, setup),
 		cmocka_unit_test_setup(reject_mismatched_mm_revision, setup),
 		cmocka_unit_test_setup(protected_writer_required, setup),
+#if CONFIG(ARCH_SMM_X86_64)
+		cmocka_unit_test_setup(native_entry_denied, setup),
+#endif
 		cmocka_unit_test_setup(resume_bar_checked_before_writer, setup),
 #if CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000
 		cmocka_unit_test_setup(legacy_store_migrates, setup),

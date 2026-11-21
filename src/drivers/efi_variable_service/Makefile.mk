@@ -2,7 +2,7 @@
 
 ifeq ($(CONFIG_ASS),y)
 
-smm-$(CONFIG_ARCH_SMM_X86_64) += call_64.S
+smm-$(CONFIG_ARCH_SMM_X86_64) += call_64.S entry_64.c
 smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM) += platform_intel.c
 
 cbfs-files-y += efi_variable_service_fv
