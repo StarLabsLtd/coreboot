@@ -80,6 +80,11 @@ static struct opal_s3_smm_ctx request(void)
 		.password_len = 1, .password = {0x5a},
 	};
 }
+
+static u32 submit_secret(const struct opal_s3_smm_ctx *ctx)
+{
+	return opal_s3_update_secret((uintptr_t)ctx, false);
+}
 static int setup(void **unused)
 {
 	memset(&retained, 0, sizeof(retained));
@@ -102,44 +107,67 @@ static void trusted_enrollment(void **unused)
 {
 	struct opal_s3_smm_ctx ctx = request();
 
-	assert_int_equal(opal_s3_set_secret(&ctx), 0);
+	assert_int_equal(submit_secret(&ctx), 0);
 	assert_true(retained.secret[0].valid);
 	assert_int_equal(retained.secret[0].nvme_id, 0x56781234);
 	assert_int_equal(retained.secret[0].nvme_mmio_size, 0x4000);
 	resume = true;
-	assert_int_equal(opal_s3_set_secret(&ctx), 10);
+	assert_int_equal(submit_secret(&ctx), 10);
 	resume = false;
 	boot_access = false;
 	ctx.dev = 1;
-	assert_int_equal(opal_s3_set_secret(&ctx), 9);
+	assert_int_equal(submit_secret(&ctx), 9);
 	ctx.dev = 0;
-	assert_int_equal(opal_s3_set_secret(&ctx), 10);
+	assert_int_equal(submit_secret(&ctx), 10);
 	opal_s3_clear_secret();
-	assert_int_equal(opal_s3_set_secret(&ctx), 10);
+	assert_int_equal(submit_secret(&ctx), 10);
 	assert_false(retained.secret[0].valid);
 }
+static void clear_only_matching_device(void **unused)
+{
+	const struct opal_s3_secret empty = {0};
+	struct opal_s3_smm_ctx ctx = request();
+	struct opal_s3_secret other;
+
+	ctx.base_comid = 1;
+	assert_int_equal(submit_secret(&ctx), 0);
+	other = retained.secret[0];
+	other.dev = 1;
+	retained.secret[1] = other;
+
+	assert_int_equal(opal_s3_update_secret((uintptr_t)&ctx, true), 9);
+	assert_true(retained.secret[0].valid);
+	ctx.password_len = 0;
+	memset(ctx.password, 0, sizeof(ctx.password));
+	assert_int_equal(opal_s3_update_secret((uintptr_t)&ctx, true), 0);
+	assert_memory_equal(&retained.secret[0], &empty, sizeof(empty));
+	assert_memory_equal(&retained.secret[1], &other, sizeof(other));
+	assert_int_equal(opal_s3_update_secret((uintptr_t)&ctx, true), 0);
+	assert_memory_equal(&retained.secret[1], &other, sizeof(other));
+}
+
 static void reject_unowned_resources(void **unused)
 {
 	struct opal_s3_smm_ctx ctx = request();
 
 	trusted[0].vendor_id ^= 1;
-	assert_int_equal(opal_s3_set_secret(&ctx), 9);
+	assert_int_equal(submit_secret(&ctx), 9);
 	trusted[0].vendor_id ^= 1;
 	trusted[0].class_prog = 1;
-	assert_int_equal(opal_s3_set_secret(&ctx), 9);
+	assert_int_equal(submit_secret(&ctx), 9);
 	trusted[0].class_prog = 2;
 	config_space[PCI_BASE_ADDRESS_0 / 4] = 0x100000;
-	assert_int_equal(opal_s3_set_secret(&ctx), 9);
+	assert_int_equal(submit_secret(&ctx), 9);
 	config_space[PCI_BASE_ADDRESS_0 / 4] = 0xe0000000;
 	trusted[0].resources[0].size = 0x1000;
-	assert_int_equal(opal_s3_set_secret(&ctx), 9);
+	assert_int_equal(submit_secret(&ctx), 9);
 	assert_false(retained.secret[0].valid);
 }
 static void restore_owned_resume_resources(void **unused)
 {
 	struct opal_s3_smm_ctx ctx = request();
 
-	assert_int_equal(opal_s3_set_secret(&ctx), 0);
+	assert_int_equal(submit_secret(&ctx), 0);
 	opal_s3_arm_for_s3();
 	/* A different live BAR must not redirect the privileged transport. */
 	config_space[PCI_BASE_ADDRESS_0 / 4] = 0x100000;
@@ -175,6 +203,7 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(trusted_enrollment, setup),
+		cmocka_unit_test_setup(clear_only_matching_device, setup),
 		cmocka_unit_test_setup(reject_unowned_resources, setup),
 		cmocka_unit_test_setup(restore_owned_resume_resources, setup),
 		cmocka_unit_test_setup(reject_changed_base_before_mmio, setup),
