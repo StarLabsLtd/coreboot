@@ -41,7 +41,6 @@ export NASM_PREFIX := $(dir $(NASM))
 endif
 
 EDK2_UEFIPAYLOAD_OUT ?= ../../../build/UEFIPAYLOAD.fd
-EDK2_FIXED_MM_OUT ?= $(abspath ../../../build/FIXEDMMFV.Fv)
 
 BUILD_STR += -p UefiPayloadPkg/UefiPayloadPkg.dsc
 BUILD_STR += -t GCC
@@ -228,7 +227,8 @@ EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
 EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
-EDK2_PREPARE_SOURCE = $(EDK2_MAKEFILE_DIR)check-pinned-source.sh
+EDK2_PREPARE_SOURCE = sh "$(EDK2_MAKEFILE_DIR)../../../util/efi_capsule/check-pinned-source.sh"
+edk2_allowed_dirty_logo := $(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)
 CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
 CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
@@ -311,27 +311,22 @@ $(WORKSPACE):
 
 ifneq ($(EDK2_PLATFORMS_PATH),)
 $(EDK2_PLATFORMS_PATH): | $(WORKSPACE)
-	"$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_PLATFORMS_REPOSITORY)" \
+	$(EDK2_PREPARE_SOURCE) "$@" "$(EDK2_PLATFORMS_REPOSITORY)" \
 		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))"
 endif
 
 $(EDK2_PATH): | $(WORKSPACE)
 	test -n "$(EDK2_PATH_REPO_ROOT)" || \
 		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
-	"$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_REPOSITORY)" \
+	$(EDK2_PREPARE_SOURCE) "$@" "$(EDK2_REPOSITORY)" \
 		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
-		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)"
+		"$(edk2_allowed_dirty_logo)"
 
 check-payload-contract: $(EDK2_PATH)
 ifeq ($(CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT),y)
 	grep -F '$$(DISABLE_BOOT_MANAGER_WAIT)' "$(EDK2_PATH)/UefiPayloadPkg/UefiPayloadPkg.dsc" | \
 		grep -q '^[[:blank:]]*[^[:blank:]#]' || \
 		{ echo "EDK2: UefiPayloadPkg.dsc does not consume DISABLE_BOOT_MANAGER_WAIT" >&2; exit 1; }
-endif
-ifeq ($(CONFIG_ASS),y)
-	test -f "$(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.dsc" && \
-		test -f "$(EDK2_PATH)/UefiPayloadPkg/CorebootFixedMmService.fdf" || \
-		{ echo "EDK2: ASS requires CorebootFixedMmService.dsc and .fdf" >&2; exit 1; }
 endif
 
 logo: $(EDK2_PATH)
@@ -418,27 +413,8 @@ prep: check-payload-contract $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_r
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
 
-ifeq ($(CONFIG_ASS),y)
-ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
-FIXED_MM_CAPSULE_ARGS := -D CAPSULE_SUPPORT=TRUE \
-	-D FMP_DEVICE_PKCS7_PCD_INC=$(CAPSULE_FMP_PCD_INC_REL)
-endif
-FixedMmService: prep print
-	cd $(WORKSPACE); \
-		source $(EDK2_PATH)/edksetup.sh; \
-		build -a IA32 -b $(RELEASE_STR) -t GCC \
-			-p UefiPayloadPkg/CorebootFixedMmService.dsc \
-			$(FIXED_MM_CAPSULE_ARGS) \
-			$(CONFIG_EDK2_CUSTOM_BUILD_PARAMS) \
-			$(if $(EDK2_CAPSULE_PAYLOAD_REGION),$(FIXED_MM_CAPSULE_ARGS)) \
-			-y $(WORKSPACE)/Build/CorebootFixedMmService/FIXEDMMFV.txt || exit 1; \
-		cp $(WORKSPACE)/Build/CorebootFixedMmService/$(RELEASE_STR)_GCC/FV/FIXEDMMFV.Fv \
-			$(EDK2_FIXED_MM_OUT) || exit 1
-fixed_mm_service := FixedMmService
-endif
-
 $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
-	prep print $(fixed_mm_service)
+	prep print
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		echo -n "EDK2: Building... "; \
@@ -473,7 +449,7 @@ distclean:
 		git -C "$$path" clean -xffd || exit 1; \
 	done
 
-.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo FixedMmService \
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo \
 	UefiPayloadPkg clean distclean check-payload-contract
 
 .PHONY: coreboot_capsule capsule_keys

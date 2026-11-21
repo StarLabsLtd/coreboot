@@ -302,10 +302,9 @@ EDK2_PAYLOAD_ARGS = \
 EDK2_PAYLOAD_ARGS += $(EDK2_RELEASE_POLICY_ARGS)
 
 $(obj)/UEFIPAYLOAD.fd: $(DOTCONFIG) $(IPXE_EFI) payloads/external/Makefile.mk \
-	payloads/external/edk2/Makefile $(edk2-release-policy-file)
+	payloads/external/edk2/Makefile $(edk2-release-policy-file) $(ass-trust-dep)
 	$(MAKE) -C payloads/external/edk2 UefiPayloadPkg \
 		EDK2_UEFIPAYLOAD_OUT="$(abspath $@)" \
-		EDK2_FIXED_MM_OUT="$(abspath $(obj)/FIXEDMMFV.Fv)" \
 		$(EDK2_PAYLOAD_ARGS)
 
 # FILO

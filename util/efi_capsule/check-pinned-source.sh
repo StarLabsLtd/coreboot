@@ -7,10 +7,11 @@ source=$1
 repository=$2
 revision=$3
 allowed_dirty=${4:-}
+scope=${5:-}
 
 fail()
 {
-	echo "EDK2 source check: $*" >&2
+	echo "Firmware source check: $*" >&2
 	exit 1
 }
 
@@ -54,6 +55,13 @@ fi
 # Synchronize each parent after it reaches its requested revision.
 update_submodules()
 {
+	if [ "$scope" = fixed-mm ]; then
+		git submodule sync -- "$@" &&
+		git -c submodule.recurse=false -c fetch.recurseSubmodules=false \
+			submodule update --init --checkout -- "$@"
+		return
+	fi
+
 	git submodule sync &&
 	git -c submodule.recurse=false -c fetch.recurseSubmodules=false \
 		submodule update --init --checkout &&
@@ -64,10 +72,22 @@ update_submodules()
 	'
 }
 
-if ! update_submodules; then
+if [ "$scope" = fixed-mm ]; then
+	# BaseTools checks package include paths even for unselected libraries.
+	set -- BaseTools/Source/C/BrotliCompress/brotli \
+		MdeModulePkg/Library/BrotliCustomDecompressLib/brotli \
+		MdePkg/Library/MipiSysTLib/mipisyst \
+		CryptoPkg/Library/MbedTlsLib/mbedtls \
+		SecurityPkg/DeviceSecurity/SpdmLib/libspdm \
+		CryptoPkg/Library/OpensslLib/openssl
+else
+	set --
+fi
+
+if ! update_submodules "$@"; then
 	if [ "$previous" != "$requested" ]; then
 		if ! git -c submodule.recurse=false checkout --detach "$previous" ||
-		   ! update_submodules; then
+		   ! update_submodules "$@"; then
 			fail "could not restore $previous after updating submodules"
 		fi
 	fi
@@ -76,7 +96,11 @@ fi
 
 [ "$(git rev-parse HEAD)" = "$requested" ] ||
 	fail "checked out revision does not match $revision"
-submodules=$(git submodule status --recursive)
+if [ "$scope" = fixed-mm ]; then
+	submodules=$(git submodule status -- "$@")
+else
+	submodules=$(git submodule status --recursive)
+fi
 if printf '%s\n' "$submodules" | grep -Eq '^[+-U]'; then
 	fail "submodule revision does not match the checked out source"
 fi

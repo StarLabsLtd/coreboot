@@ -135,26 +135,14 @@ class BuildPolicyTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn('Star Labs VBOOT', result.stderr)
 
-    def test_fixed_mm_required_options_follow_custom_options(self):
+    def test_fixed_mm_rejects_payload_relative_capsule_trust(self):
         result = subprocess.run([
-            'make', '--no-print-directory', '-n', '-o', 'prep', '-o', 'print',
-            'FixedMmService', 'EDK2_RELEASE_POLICY_FILE=' + str(STARLABS_RELEASE),
-            'CONFIG_ASS=y',
-            'CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=y',
-            'CONFIG_EDK2_SECURE_BOOT_SUPPORT=y',
-            'CONFIG_DRIVERS_EFI_MAIN_FW_GUID=' + str(NEW_GUID),
-            'CONFIG_DRIVERS_EFI_CAPSULE_REGIONS=EC RW_NVRAM FW_MAIN_A RW_FWID_A VBLOCK_A',
-            'CONFIG_LOCALVERSION=26.12',
-            'CONFIG_DRIVERS_EFI_MAIN_FW_VERSION=0x00000000',
-            'CONFIG_DRIVERS_EFI_MAIN_FW_LSV=0x00000000',
-            'CONFIG_EDK2_CUSTOM_BUILD_PARAMS=--def=CAPSULE_SUPPORT=FALSE',
-        ], cwd=ROOT / 'payloads/external/edk2', capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        command = result.stdout.split('build -a IA32', 1)[1]
-        self.assertGreater(command.rindex('-D CAPSULE_SUPPORT=TRUE'),
-                           command.index('--def=CAPSULE_SUPPORT=FALSE'))
-        self.assertGreater(command.rindex('-D FMP_DEVICE_PKCS7_PCD_INC='),
-                           command.index('--def=CAPSULE_SUPPORT=FALSE'))
+            'bash', 'src/drivers/efi_variable_service/build-fixed-mm.sh',
+            '/unused', '/unused/fixed-mm.fv', 'unused', 'a' * 40,
+            'y', 'keys/root.pem',
+        ], cwd=ROOT, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('requires an absolute public trust certificate path', result.stderr)
 
     def test_repository_preparation_cannot_modify_its_parent_repository(self):
         environment = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull,

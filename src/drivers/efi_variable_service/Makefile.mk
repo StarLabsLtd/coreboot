@@ -7,13 +7,18 @@ efi_variable_service_fv-file := $(obj)/FIXEDMMFV.Fv
 efi_variable_service_fv-type := raw
 efi_variable_service_fv-compression := $(if $(filter y,$(CONFIG_VBOOT)),lzma,lz4)
 
-$(obj)/FIXEDMMFV.Fv: $(obj)/UEFIPAYLOAD.fd
-	@if ! test -f $@; then \
-		$(MAKE) -C payloads/external/edk2 FixedMmService \
-			EDK2_FIXED_MM_OUT="$(abspath $@)" \
-			$(EDK2_PAYLOAD_ARGS); \
-	fi
-	@test -f $@
+ass-capsule-trust := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
+ass-workspace := $(abspath $(obj)/ass/workspace)
+ass-trust-dep := $(if $(filter y,$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)),$(filter /%,$(ass-capsule-trust)))
+$(obj)/FIXEDMMFV.Fv: $(DOTCONFIG) util/efi_capsule/check-pinned-source.sh \
+		src/drivers/efi_variable_service/Makefile.mk src/drivers/efi_variable_service/build-fixed-mm.sh \
+		$(ass-trust-dep)
+	MAKEFLAGS= MFLAGS= NASM_PREFIX="$(if $(findstring /,$(NASM)),$(dir $(NASM)))" \
+		bash src/drivers/efi_variable_service/build-fixed-mm.sh \
+		"$(ass-workspace)" "$(abspath $@)" \
+		"$(call strip_quotes,$(CONFIG_ASS_SERVICE_REPOSITORY))" \
+		"$(call strip_quotes,$(CONFIG_ASS_SERVICE_REVISION))" \
+		"$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" "$(ass-capsule-trust)"
 
 endif
 

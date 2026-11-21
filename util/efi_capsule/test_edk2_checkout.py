@@ -211,9 +211,24 @@ include {ROOT}/payloads/external/Makefile.mk
         self.assertEqual(supported.returncode, 0, supported.stdout + supported.stderr)
 
     def test_ass_requires_a_fixed_mm_description(self):
-        result = self.make('prep', self.online, CONFIG_ASS='y')
+        dependency = (self.directory / 'dependency').as_uri()
+        for path in ('BaseTools/Source/C/BrotliCompress/brotli',
+                     'MdeModulePkg/Library/BrotliCustomDecompressLib/brotli',
+                     'MdePkg/Library/MipiSysTLib/mipisyst',
+                     'CryptoPkg/Library/MbedTlsLib/mbedtls',
+                     'SecurityPkg/DeviceSecurity/SpdmLib/libspdm',
+                     'CryptoPkg/Library/OpensslLib/openssl'):
+            self.git(self.repo, 'submodule', 'add', '-q', dependency, path)
+        self.commit(self.repo)
+        pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        output = self.directory / 'fixed-mm.fv'
+        result = subprocess.run(
+            ['bash', 'src/drivers/efi_variable_service/build-fixed-mm.sh',
+             str(self.workspace), str(output), self.repository_url, pin, 'n', ''],
+            cwd=ROOT, env=self.online, text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('ASS requires CorebootFixedMmService.dsc and .fdf', result.stderr)
+        self.assertIn('Fixed MM source is missing its DSC or FDF', result.stderr)
+        self.assertFalse(output.exists())
 
     def test_missing_submodule_fails_offline(self):
         self.workspace.mkdir()
