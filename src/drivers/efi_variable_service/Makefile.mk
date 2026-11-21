@@ -79,6 +79,9 @@ smm-c-ccopts += -I$(top)/src/lib -I$(top)/src/lib/payload_mm_crypto \
 	-DPAYLOAD_MM_AUTHVAR_CRYPTO -DMBEDTLS_CONFIG_FILE=\"payload_mm_mbedtls_config.h\"
 
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+ifeq ($(ass-trust-dep),)
+$(error Native ASS capsule verification requires an absolute public trust certificate path)
+endif
 smm-y += capsule_trust.S native_capsule_platform.c
 smm-S-ccopts += -DASS_CAPSULE_TRUST_DER=\"$(absobj)/ass/capsule-trust.der\"
 $(obj)/smm/drivers/efi_variable_service/capsule_trust.o: $(obj)/ass/capsule-trust.der
