@@ -75,6 +75,13 @@ $(foreach test,efi-variable-service-init-test efi-variable-service-4k-test,\
 efi-variable-service-init-test-config += CONFIG_SMMSTORE_BLOCK_SIZE=0x10000
 efi-variable-service-4k-test-config += CONFIG_SMMSTORE_BLOCK_SIZE=0x1000
 
+tests-y += efi-variable-service-ipl-test efi-variable-service-ipl64-test
+$(foreach test,efi-variable-service-ipl-test efi-variable-service-ipl64-test,\
+	$(eval $(test)-srcs += tests/drivers/efi-variable-service-ipl.c)\
+	$(eval $(test)-stage := ramstage))
+efi-variable-service-ipl-test-config += CONFIG_ARCH_SMM_X86_64=0
+efi-variable-service-ipl64-test-config += CONFIG_ARCH_SMM_X86_64=1
+
 tests-y += efi-variable-service-resume-test
 efi-variable-service-resume-test-srcs += tests/drivers/efi-variable-service-resume.c \
 	tests/stubs/console.c

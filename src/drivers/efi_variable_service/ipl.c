@@ -14,10 +14,19 @@
 #define DOS_SIGNATURE			0x5a4d
 #define PE_SIGNATURE			0x00004550
 #define PE_MACHINE_IA32			0x014c
+#define PE_MACHINE_X64			0x8664
 #define PE_OPTIONAL_MAGIC_32		0x010b
+#define PE_OPTIONAL_MAGIC_64		0x020b
 #define PE_DIRECTORY_BASERELOC		5
 #define PE_RELOC_ABSOLUTE		0
 #define PE_RELOC_HIGHLOW		3
+#define PE_RELOC_DIR64			10
+
+#if CONFIG(ARCH_SMM_X86_64)
+typedef uint64_t pe_word_t;
+#else
+typedef uint32_t pe_word_t;
+#endif
 
 struct fv_header {
 	uint8_t zero_vector[16];
@@ -67,7 +76,7 @@ struct pe_data_directory {
 	uint32_t size;
 } __packed;
 
-struct pe_optional_header32 {
+struct pe_optional_header {
 	uint16_t magic;
 	uint8_t linker_major;
 	uint8_t linker_minor;
@@ -76,8 +85,10 @@ struct pe_optional_header32 {
 	uint32_t uninitialized_data_size;
 	uint32_t entrypoint;
 	uint32_t code_base;
+#if !CONFIG(ARCH_SMM_X86_64)
 	uint32_t data_base;
-	uint32_t image_base;
+#endif
+	pe_word_t image_base;
 	uint32_t section_alignment;
 	uint32_t file_alignment;
 	uint16_t os_major;
@@ -92,14 +103,17 @@ struct pe_optional_header32 {
 	uint32_t checksum;
 	uint16_t subsystem;
 	uint16_t dll_characteristics;
-	uint32_t stack_reserve;
-	uint32_t stack_commit;
-	uint32_t heap_reserve;
-	uint32_t heap_commit;
+	pe_word_t stack_reserve;
+	pe_word_t stack_commit;
+	pe_word_t heap_reserve;
+	pe_word_t heap_commit;
 	uint32_t loader_flags;
 	uint32_t directory_count;
 	struct pe_data_directory directory[16];
 } __packed;
+
+_Static_assert(sizeof(struct pe_optional_header) ==
+	       (CONFIG(ARCH_SMM_X86_64) ? 240 : 224), "PE optional header layout");
 
 struct pe_section_header {
 	uint8_t name[8];
@@ -186,12 +200,12 @@ static int find_mm_core(const void *fv, size_t fv_size, const void **pe, size_t 
 }
 
 static int apply_relocations(uint8_t *image, size_t image_size,
-			     const struct pe_optional_header32 *optional)
+			     const struct pe_optional_header *optional)
 {
 	const struct pe_data_directory *directory;
-	uint32_t image_base = read_le32(&optional->image_base);
-	uint32_t loaded_base = (uintptr_t)image;
-	uint32_t delta = loaded_base - image_base;
+	uint64_t image_base = CONFIG(ARCH_SMM_X86_64) ?
+		read_le64(&optional->image_base) : read_le32(&optional->image_base);
+	uint64_t delta = (uintptr_t)image - image_base;
 	size_t offset;
 	size_t end;
 
@@ -213,7 +227,8 @@ static int apply_relocations(uint8_t *image, size_t image_size,
 			return -1;
 		block = (const void *)(image + offset);
 		if (read_le32(&block->size) < sizeof(*block) ||
-		    !range_fits(offset, read_le32(&block->size), end))
+		    !range_fits(offset, read_le32(&block->size), end) ||
+		    (read_le32(&block->size) - sizeof(*block)) % sizeof(uint16_t))
 			return -1;
 		entries = (read_le32(&block->size) - sizeof(*block)) / sizeof(uint16_t);
 		const uint16_t *entry = (const void *)(block + 1);
@@ -221,14 +236,21 @@ static int apply_relocations(uint8_t *image, size_t image_size,
 		for (size_t i = 0; i < entries; i++) {
 			uint16_t relocation = read_le16(&entry[i]);
 			unsigned int type = relocation >> 12;
-			size_t target = read_le32(&block->page) + (relocation & 0xfff);
+			size_t page = read_le32(&block->page);
+			size_t displacement = relocation & 0xfff;
 
 			if (type == PE_RELOC_ABSOLUTE)
 				continue;
-			if (type != PE_RELOC_HIGHLOW ||
-			    !range_fits(target, sizeof(uint32_t), image_size))
+			if (type != (CONFIG(ARCH_SMM_X86_64) ? PE_RELOC_DIR64 : PE_RELOC_HIGHLOW) ||
+			    !range_fits(page, displacement, image_size))
 				return -1;
-			write_le32(image + target, read_le32(image + target) + delta);
+			size_t target = page + displacement;
+			if (!range_fits(target, sizeof(pe_word_t), image_size))
+				return -1;
+			if (CONFIG(ARCH_SMM_X86_64))
+				write_le64(image + target, read_le64(image + target) + delta);
+			else
+				write_le32(image + target, read_le32(image + target) + delta);
 		}
 		offset += read_le32(&block->size);
 	}
@@ -243,13 +265,14 @@ int efi_variable_service_load_mm_core(const void *fv, size_t fv_size,
 	const uint8_t *pe;
 	const struct dos_header *dos;
 	const struct pe_file_header *file;
-	const struct pe_optional_header32 *optional;
+	const struct pe_optional_header *optional;
 	const struct pe_section_header *section;
 	size_t pe_size;
 	size_t headers_end;
 	size_t image_size;
 
 	if (!fv || !destination || !image || (uintptr_t)destination > UINT32_MAX ||
+	    destination_size > (uint64_t)UINT32_MAX + 1 - (uintptr_t)destination ||
 	    find_mm_core(fv, fv_size, (const void **)&pe, &pe_size, image->file_guid) ||
 	    pe_size < sizeof(*dos))
 		return -1;
@@ -261,13 +284,15 @@ int efi_variable_service_load_mm_core(const void *fv, size_t fv_size,
 	if (read_le32(pe + read_le32(&dos->pe_offset)) != PE_SIGNATURE)
 		return -1;
 	file = (const void *)(pe + read_le32(&dos->pe_offset) + sizeof(uint32_t));
-	if (read_le16(&file->machine) != PE_MACHINE_IA32 ||
+	if (read_le16(&file->machine) !=
+	    (CONFIG(ARCH_SMM_X86_64) ? PE_MACHINE_X64 : PE_MACHINE_IA32) ||
 	    read_le16(&file->optional_header_size) < sizeof(*optional))
 		return -1;
 	optional = (const void *)(file + 1);
 	if (!range_fits((const uint8_t *)optional - pe,
 			read_le16(&file->optional_header_size), pe_size) ||
-	    read_le16(&optional->magic) != PE_OPTIONAL_MAGIC_32)
+	    read_le16(&optional->magic) !=
+	    (CONFIG(ARCH_SMM_X86_64) ? PE_OPTIONAL_MAGIC_64 : PE_OPTIONAL_MAGIC_32))
 		return -1;
 	section = (const void *)((const uint8_t *)optional +
 				 read_le16(&file->optional_header_size));
