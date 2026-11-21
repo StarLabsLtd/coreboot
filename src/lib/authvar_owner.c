@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include <commonlib/helpers.h>
 #include <boot/authvar_owner.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <boot/payload_mm_authvar_writer.h>
@@ -1119,6 +1120,7 @@ uint64_t authvar_owner_query(struct authvar_owner *local,
 		*remaining_storage = local->volatile_index.store_size - local->volatile_index.used_size;
 		*maximum_variable = *remaining_storage > PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE ?
 			*remaining_storage - PAYLOAD_MM_AUTHVAR_RECORD_HEADER_SIZE : 0;
+		*maximum_variable = MIN(*maximum_variable, local->policy.maximum_data_size);
 		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 	}
 	policy = (struct payload_mm_authvar_store_policy) {
@@ -1129,7 +1131,7 @@ uint64_t authvar_owner_query(struct authvar_owner *local,
 	if (!status_error(status)) {
 		*maximum_storage = result.maximum_storage;
 		*remaining_storage = result.remaining_storage;
-		*maximum_variable = result.maximum_variable;
+		*maximum_variable = MIN(result.maximum_variable, local->policy.maximum_data_size);
 	}
 	return status;
 }
