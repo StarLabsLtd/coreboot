@@ -1,0 +1,268 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <boot/payload_mm_authvar_default_store.h>
+#include <boot/payload_mm_authvar_record.h>
+#include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_store.h>
+#include <commonlib/payload_mm_authvar_fv.h>
+#include <commonlib/helpers.h>
+#include <stdint.h>
+#include <string.h>
+
+#define DEFAULT_STORE_FIRST_RECORD \
+	(PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE + PAYLOAD_MM_AUTHVAR_STORE_HEADER_SIZE)
+#if CONFIG(VBOOT) && CONFIG(EDIIE_SECURE_BOOT_VARIABLE_KEYS)
+#define DEFAULT_STORE_RECORD_BYTES 352U
+#else
+#define DEFAULT_STORE_RECORD_BYTES 252U
+#endif
+#define DEFAULT_STORE_PREFIX_BYTES (DEFAULT_STORE_FIRST_RECORD + DEFAULT_STORE_RECORD_BYTES)
+
+size_t payload_mm_authvar_default_store_records_end(void)
+{
+	return DEFAULT_STORE_PREFIX_BYTES - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+}
+
+_Static_assert(DEFAULT_STORE_FIRST_RECORD == PAYLOAD_MM_AUTHVAR_FV_PREFIX_SIZE,
+	"Default records follow the complete FV/store header");
+
+static const uint8_t custom_mode_guid[16] = {
+	0x0c, 0xec, 0x76, 0xc0, 0x28, 0x70, 0x99, 0x43,
+	0xa0, 0x72, 0x71, 0xee, 0x5c, 0x44, 0x8b, 0x9f,
+};
+static const uint8_t certdb_guid[16] = {
+	0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+	0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+};
+static const uint8_t vendor_keys_nv_guid[16] = {
+	0xe0, 0xe4, 0x73, 0x90, 0xec, 0x60, 0x6e, 0x4b,
+	0x99, 0x03, 0x4c, 0x22, 0x3c, 0x26, 0x0f, 0x3c,
+};
+#if CONFIG(VBOOT) && CONFIG(EDIIE_SECURE_BOOT_VARIABLE_KEYS)
+static const uint8_t enroll_default_keys_guid[16] = {
+	0xd4, 0x3a, 0x99, 0x2b, 0x44, 0x77, 0x5d, 0x4d,
+	0x96, 0x04, 0x8c, 0x2c, 0xa7, 0xc7, 0x46, 0x30,
+};
+#endif
+static const uint8_t custom_mode_name[] = {
+	'C', 0, 'u', 0, 's', 0, 't', 0, 'o', 0, 'm', 0, 'M', 0, 'o', 0,
+	'd', 0, 'e', 0, 0, 0,
+};
+static const uint8_t certdb_name[] = {
+	'c', 0, 'e', 0, 'r', 0, 't', 0, 'd', 0, 'b', 0, 0, 0,
+};
+static const uint8_t vendor_keys_nv_name[] = {
+	'V', 0, 'e', 0, 'n', 0, 'd', 0, 'o', 0, 'r', 0, 'K', 0, 'e', 0,
+	'y', 0, 's', 0, 'N', 0, 'v', 0, 0, 0,
+};
+#if CONFIG(VBOOT) && CONFIG(EDIIE_SECURE_BOOT_VARIABLE_KEYS)
+static const uint8_t enroll_default_keys_name[] = {
+	'E', 0, 'n', 0, 'r', 0, 'o', 0, 'l', 0, 'l', 0,
+	'D', 0, 'e', 0, 'f', 0, 'a', 0, 'u', 0, 'l', 0, 't', 0,
+	'K', 0, 'e', 0, 'y', 0, 's', 0, 0, 0,
+};
+#endif
+static const uint8_t standard_mode = 0U;
+static const uint8_t empty_certdb[] = { 4, 0, 0, 0 };
+static const uint8_t vendor_keys_valid = 1U;
+#if CONFIG(VBOOT) && CONFIG(EDIIE_SECURE_BOOT_VARIABLE_KEYS)
+/* Only erased media changes this baseline to a one-shot enrollment request. */
+static const uint8_t enroll_default_keys = 0U;
+#endif
+
+struct default_record {
+	const uint8_t *vendor_guid;
+	const uint8_t *name;
+	size_t name_size;
+	uint32_t attributes;
+	const void *data;
+	size_t data_size;
+	enum payload_mm_authvar_record_timestamp timestamp_mode;
+};
+
+static const struct default_record defaults[] = {
+#if CONFIG(VBOOT) && CONFIG(EDIIE_SECURE_BOOT_VARIABLE_KEYS)
+	{
+		enroll_default_keys_guid, enroll_default_keys_name,
+		sizeof(enroll_default_keys_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		&enroll_default_keys, sizeof(enroll_default_keys),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+	},
+#endif
+	{
+		custom_mode_guid, custom_mode_name, sizeof(custom_mode_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		&standard_mode, sizeof(standard_mode),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+	},
+	{
+		certdb_guid, certdb_name, sizeof(certdb_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		empty_certdb, sizeof(empty_certdb),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+	},
+	{
+		vendor_keys_nv_guid, vendor_keys_nv_name,
+		sizeof(vendor_keys_nv_name),
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+			PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+			PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED,
+		&vendor_keys_valid, sizeof(vendor_keys_valid),
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+	},
+};
+
+static bool span_valid(const void *data, size_t size)
+{
+	return data && (uintptr_t)data <= UINTPTR_MAX - size;
+}
+
+static bool default_store_prefix(uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
+				 size_t region_size, size_t block_size,
+				 size_t *enrollment_request_offset)
+{
+	struct payload_mm_authvar_fv_geometry geometry;
+	size_t candidate_used = DEFAULT_STORE_FIRST_RECORD;
+	size_t records_used = 0U;
+	uint8_t *records = prefix + DEFAULT_STORE_FIRST_RECORD;
+
+	if (enrollment_request_offset)
+		*enrollment_request_offset = SIZE_MAX;
+
+	if (!payload_mm_authvar_fv_geometry(&geometry, region_size, block_size))
+		return false;
+	for (size_t i = 0; i < ARRAY_SIZE(defaults); i++) {
+		size_t record_size;
+		size_t data_offset;
+
+		if (!payload_mm_authvar_record_layout(defaults[i].name_size,
+			defaults[i].data_size, &record_size, &data_offset) ||
+		    __builtin_add_overflow(candidate_used, record_size,
+			&candidate_used))
+			return false;
+	}
+	if (candidate_used > geometry.variable_size)
+		return false;
+
+	for (size_t i = 0; i < ARRAY_SIZE(defaults); i++) {
+		struct payload_mm_authvar_record_descriptor descriptor = {
+			.name = defaults[i].name,
+			.name_size = defaults[i].name_size,
+			.attributes = defaults[i].attributes,
+		};
+		const struct payload_mm_authvar_record_span span = {
+			.data = defaults[i].data,
+			.size = defaults[i].data_size,
+		};
+		size_t encoded_size;
+		size_t data_offset;
+		uint32_t record_size;
+
+		if (!payload_mm_authvar_record_layout(defaults[i].name_size,
+			defaults[i].data_size, &encoded_size, &data_offset))
+			return false;
+		memcpy(descriptor.vendor_guid, defaults[i].vendor_guid,
+			sizeof(descriptor.vendor_guid));
+		if (!payload_mm_authvar_record_encode(&descriptor, &span, 1U,
+			defaults[i].timestamp_mode, records + records_used,
+			DEFAULT_STORE_RECORD_BYTES - records_used, &record_size) ||
+		    record_size != encoded_size)
+			return false;
+#if CONFIG(VBOOT) && CONFIG(EDIIE_SECURE_BOOT_VARIABLE_KEYS)
+		if (defaults[i].data == &enroll_default_keys &&
+		    enrollment_request_offset)
+			*enrollment_request_offset = DEFAULT_STORE_FIRST_RECORD +
+				records_used + data_offset;
+#endif
+		records[records_used + 2U] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+		records_used += record_size;
+	}
+	return records_used == DEFAULT_STORE_RECORD_BYTES &&
+		payload_mm_authvar_fv_format_header(prefix, DEFAULT_STORE_FIRST_RECORD,
+			region_size, block_size);
+}
+
+static enum payload_mm_authvar_default_store_source classify_source(
+	const uint8_t *source, const uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES],
+	size_t region_size, size_t enrollment_request_offset)
+{
+	bool erased = true;
+	bool complete = true;
+	bool subset = true;
+
+	for (size_t i = 0; i < region_size; i++) {
+		uint8_t expected = i < DEFAULT_STORE_PREFIX_BYTES ? prefix[i] : 0xffU;
+		erased &= source[i] == 0xffU;
+		complete &= source[i] == expected ||
+			(i == enrollment_request_offset && source[i] == 1U);
+		subset &= (source[i] & expected) == expected;
+	}
+	if (erased)
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED;
+	if (complete)
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_COMPLETE;
+	if (subset)
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_NOR_SUBSET;
+	return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_FOREIGN;
+}
+
+enum payload_mm_authvar_default_store_source
+payload_mm_authvar_default_store_classify(const void *source,
+					 size_t region_size, size_t block_size)
+{
+	uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES];
+	size_t enrollment_request_offset;
+
+	if (!span_valid(source, region_size) ||
+	    !default_store_prefix(prefix, region_size, block_size,
+		&enrollment_request_offset))
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	return classify_source(source, prefix, region_size,
+		enrollment_request_offset);
+}
+
+enum payload_mm_authvar_default_store_source
+payload_mm_authvar_default_store_compose(const void *source, void *candidate,
+					 size_t region_size, size_t block_size)
+{
+	uint8_t prefix[DEFAULT_STORE_PREFIX_BYTES];
+	size_t enrollment_request_offset;
+	enum payload_mm_authvar_default_store_source source_kind;
+	const uintptr_t source_address = (uintptr_t)source;
+	const uintptr_t candidate_address = (uintptr_t)candidate;
+
+	if (!span_valid(source, region_size) || !span_valid(candidate, region_size))
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	if ((source_address <= candidate_address ?
+	     candidate_address - source_address :
+	     source_address - candidate_address) < region_size ||
+	    !default_store_prefix(prefix, region_size, block_size,
+		&enrollment_request_offset))
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	source_kind = classify_source(source, prefix, region_size,
+		enrollment_request_offset);
+#if CONFIG(VBOOT) && CONFIG(EDIIE_SECURE_BOOT_VARIABLE_KEYS)
+	if (source_kind == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED ||
+	    (source_kind == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_NOR_SUBSET &&
+	     enrollment_request_offset < region_size &&
+	     ((const uint8_t *)source)[enrollment_request_offset] == 1U)) {
+		if (enrollment_request_offset >= sizeof(prefix))
+			return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+		prefix[enrollment_request_offset] = 1U;
+	} else if (source_kind == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_NOR_SUBSET &&
+		   (enrollment_request_offset >= region_size ||
+		    ((const uint8_t *)source)[enrollment_request_offset] != 0U)) {
+		/* Do not turn an interrupted bootstrap into an unprotected store. */
+		return PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID;
+	}
+#endif
+	memset(candidate, 0xff, region_size);
+	memcpy(candidate, prefix, sizeof(prefix));
+	return source_kind;
+}
