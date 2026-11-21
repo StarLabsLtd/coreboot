@@ -15,6 +15,7 @@
 #include "hob.h"
 #include "private_store.h"
 #include "capsule_store.h"
+#include "wire.h"
 #if CONFIG(VBOOT_SLOTS_RW_AB)
 #include <security/vboot/vbnv.h>
 #include <vb2_api.h>
@@ -374,29 +375,6 @@ static int initialize_service(void)
 		0 : -1;
 }
 
-struct mm_communication_header32 {
-	EFI_GUID guid;
-	uint32_t message_length;
-	uint8_t data[];
-} __packed;
-
-struct smm_variable_header32 {
-	uint32_t function;
-	uint32_t return_status;
-	uint8_t data[];
-} __packed;
-
-struct smm_variable_access32 {
-	EFI_GUID guid;
-	uint32_t data_size;
-	uint32_t name_size;
-	uint32_t attributes;
-	CHAR16 name[];
-} __packed;
-
-#define SMM_VARIABLE_FUNCTION_GET_VARIABLE 1
-#define SMM_VARIABLE_FUNCTION_SET_VARIABLE 3
-
 static const EFI_GUID efi_smm_variable_protocol_guid = {
 	0xed32d533, 0x99e6, 0x4209, { 0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7 }
 };
@@ -408,15 +386,6 @@ static const EFI_GUID efi_coreboot_nv_data_guid = {
 static const EFI_GUID efi_variable_service_ready_guid = {
 	0xf4fc98d5, 0xf719, 0x4e49, { 0x88, 0xf4, 0x77, 0xcd, 0xcd, 0xb9, 0xfb, 0x55 }
 };
-
-_Static_assert(sizeof(struct mm_communication_header32) == 20,
-	       "Unexpected MM communication header size");
-
-_Static_assert(sizeof(struct smm_variable_header32) == 8,
-	       "Unexpected MM variable header size");
-
-_Static_assert(sizeof(struct smm_variable_access32) == 28,
-	       "Unexpected MM variable access size");
 
 static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t message_size)
 {
