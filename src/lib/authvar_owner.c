@@ -174,6 +174,10 @@ static const uint8_t certdb_guid[16] = {
 	0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
 };
 static const uint16_t certdbv_name[] = { 'c', 'e', 'r', 't', 'd', 'b', 'v', 0 };
+static const uint16_t certdb_name[] = u"certdb";
+
+static uint64_t recover_certdb(struct authvar_owner *local,
+	const struct authvar_fixed_policy *fixed);
 
 static bool is_certdbv(const void *guid, const void *name, size_t size)
 {
@@ -369,6 +373,11 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 		size, &local->limits) != CB_SUCCESS)
 		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
 	local->failed = false;
+	uint64_t repair = recover_certdb(local, fixed);
+	if (status_error(repair)) {
+		local->failed = true;
+		return repair;
+	}
 	if (restore_enable) {
 		uint64_t status = init_mode_preference(local,
 			PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, u"SecureBootEnable", 1);
@@ -956,6 +965,46 @@ static uint64_t publish_candidate(struct authvar_owner *local, uint8_t bank, uin
 	local->modes = modes;
 	local->generation++;
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+static uint64_t recover_certdb(struct authvar_owner *local,
+	const struct authvar_fixed_policy *fixed)
+{
+	const struct payload_mm_authvar_store_index *index = &local->index;
+	const struct payload_mm_authvar_store_entry *entry =
+		payload_mm_authvar_store_find(index, certdb_guid, certdb_name, sizeof(certdb_name));
+	struct payload_mm_authvar_reclaim_plan reclaim = {
+		.copies = (void *)((uint8_t *)local + local->copies_offset),
+		.copy_capacity = local->limits.maximum_records,
+	};
+	const uint8_t zero_timestamp[16] = { 0 };
+	uint8_t *filtered = local_buffer(local, LOCAL_RECORD);
+	uint8_t bank = local->active ^ 1U;
+	uint8_t *candidate = local_buffer(local, LOCAL_NV_FIRST + bank);
+	size_t size;
+
+	if (!entry)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	if (entry->attributes != (PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+	    PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS | PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+	    PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) ||
+	    memcmp(index->store + entry->record_offset + 16, zero_timestamp,
+		   sizeof(zero_timestamp)) ||
+	    payload_mm_authvar_certdb_prune(index, payload_mm_authvar_store_data(index, entry),
+		entry->data_size, filtered, index->store_size, &size) !=
+	    PAYLOAD_MM_AUTHVAR_CERTDB_OK)
+		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
+	if (size == entry->data_size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	if (payload_mm_authvar_store_reclaim_plan_forced(index, entry, NULL, false, true,
+	    &reclaim) != CB_SUCCESS || reclaim.action != PAYLOAD_MM_AUTHVAR_SPACE_RECLAIM)
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	copy_reclaimed_records(local, candidate, &reclaim);
+	size_t offset = reclaim.compacted_used_size;
+	if (!append_record(candidate, index->store_size, &offset, certdb_guid, certdb_name,
+		sizeof(certdb_name), entry->attributes, zero_timestamp, filtered, size))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	return publish_candidate(local, bank, local->modes, NULL, false, fixed);
 }
 
 uint64_t authvar_owner_set(struct authvar_owner *local,

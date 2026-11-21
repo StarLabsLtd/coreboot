@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/payload_mm_authvar_certdb.h>
+#include <boot/payload_mm_authvar_service.h>
+#include <boot/payload_mm_authvar_store.h>
 
 #include <commonlib/helpers.h>
 
@@ -81,6 +83,67 @@ static bool name_valid(const void *name, size_t size)
 	return true;
 }
 
+static bool certdb_node_valid(const uint8_t *node, size_t remaining,
+	size_t *node_size, size_t *name_size, size_t *binding_size)
+{
+	size_t expected_size;
+
+	if (remaining < CERTDB_NODE_HEADER_SIZE)
+		return false;
+	*node_size = read_le32(node + 16U);
+	*binding_size = read_le32(node + 24U);
+	if (__builtin_mul_overflow((size_t)read_le32(node + 20U),
+	    sizeof(uint16_t), name_size) || !*binding_size ||
+	    __builtin_add_overflow(CERTDB_NODE_HEADER_SIZE, *name_size, &expected_size) ||
+	    __builtin_add_overflow(expected_size, *binding_size, &expected_size) ||
+	    *node_size != expected_size || *node_size > remaining)
+		return false;
+	return name_valid(node + CERTDB_NODE_HEADER_SIZE, *name_size);
+}
+
+enum payload_mm_authvar_certdb_result payload_mm_authvar_certdb_prune(
+	const struct payload_mm_authvar_store_index *index, const void *source,
+	size_t source_size, void *output, size_t output_capacity, size_t *output_size)
+{
+	const uint8_t *bytes = source;
+	uint8_t *result = output;
+	size_t used = CERTDB_LIST_HEADER_SIZE;
+
+	if (!source || !output || !output_size ||
+	    ranges_overlap(source, source_size, output, output_capacity) ||
+	    !payload_mm_authvar_store_index_valid(index))
+		return PAYLOAD_MM_AUTHVAR_CERTDB_INVALID;
+	if (source_size < CERTDB_LIST_HEADER_SIZE || read_le32(bytes) != source_size)
+		return PAYLOAD_MM_AUTHVAR_CERTDB_MALFORMED;
+	if (output_capacity < source_size)
+		return PAYLOAD_MM_AUTHVAR_CERTDB_NO_SPACE;
+	for (size_t offset = CERTDB_LIST_HEADER_SIZE; offset < source_size;) {
+		size_t node_size, name_size, binding_size;
+		const uint8_t *node = bytes + offset;
+
+		if (!certdb_node_valid(node, source_size - offset, &node_size,
+		    &name_size, &binding_size))
+			return PAYLOAD_MM_AUTHVAR_CERTDB_MALFORMED;
+		for (size_t i = 0; i < index->entry_count; i++) {
+			const struct payload_mm_authvar_store_entry *entry = &index->entries[i];
+
+			if (!(entry->attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) ||
+			    entry->name_size != name_size + sizeof(uint16_t) ||
+			    memcmp(entry->vendor_guid, node, sizeof(entry->vendor_guid)) ||
+			    memcmp(index->store + entry->name_offset,
+				   node + CERTDB_NODE_HEADER_SIZE, name_size))
+				continue;
+			memcpy(result + used, node, node_size);
+			used += node_size;
+			break;
+		}
+		offset += node_size;
+	}
+	write_le32(result, used);
+	*output_size = used;
+	return PAYLOAD_MM_AUTHVAR_CERTDB_OK;
+}
+
 static enum payload_mm_authvar_certdb_result scan_certdb(
 	const uint8_t *source, size_t source_size, const uint8_t vendor_guid[16],
 	const void *name, size_t name_size, struct certdb_match *match)
@@ -96,27 +159,13 @@ static enum payload_mm_authvar_certdb_result scan_certdb(
 		size_t node_size;
 		size_t packed_name_size;
 		size_t binding_size;
-		size_t expected_size;
-		const uint8_t *node;
+		const uint8_t *node = source + offset;
 		const uint8_t *packed_name;
 
-		if (source_size - offset < CERTDB_NODE_HEADER_SIZE)
-			return PAYLOAD_MM_AUTHVAR_CERTDB_MALFORMED;
-		node = source + offset;
-		node_size = read_le32(node + 16U);
-		if (__builtin_mul_overflow((size_t)read_le32(node + 20U),
-			sizeof(uint16_t), &packed_name_size))
-			return PAYLOAD_MM_AUTHVAR_CERTDB_MALFORMED;
-		binding_size = read_le32(node + 24U);
-		if (!binding_size ||
-		    __builtin_add_overflow(CERTDB_NODE_HEADER_SIZE,
-			packed_name_size, &expected_size) ||
-		    __builtin_add_overflow(expected_size, binding_size, &expected_size) ||
-		    node_size != expected_size || node_size > source_size - offset)
+		if (!certdb_node_valid(node, source_size - offset, &node_size,
+		    &packed_name_size, &binding_size))
 			return PAYLOAD_MM_AUTHVAR_CERTDB_MALFORMED;
 		packed_name = node + CERTDB_NODE_HEADER_SIZE;
-		if (!name_valid(packed_name, packed_name_size))
-			return PAYLOAD_MM_AUTHVAR_CERTDB_MALFORMED;
 		if (!memcmp(node, vendor_guid, 16U) && name_size == packed_name_size &&
 		    !memcmp(packed_name, key_name, name_size)) {
 			if (found.count == UINT8_MAX)

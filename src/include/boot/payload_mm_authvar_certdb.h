@@ -25,6 +25,13 @@ struct payload_mm_authvar_certdb_binding {
 	size_t size;
 };
 
+struct payload_mm_authvar_store_index;
+
+/* Rebuild a validated certdb, retaining only bindings with live time-auth variables. */
+enum payload_mm_authvar_certdb_result payload_mm_authvar_certdb_prune(
+	const struct payload_mm_authvar_store_index *index, const void *source,
+	size_t source_size, void *output, size_t output_capacity, size_t *output_size);
+
 /*
  * Validate the complete EDK2 26.09 certdb serialization before returning one
  * borrowed binding.  name is canonical non-empty UTF-16LE without a trailing

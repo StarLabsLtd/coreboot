@@ -4,6 +4,7 @@
 #include <boot/authvar_fixed_policy.h>
 #include <boot/authvar_media.h>
 #include <boot/authvar_policy.h>
+#include <boot/payload_mm_authvar_certdb.h>
 #include <boot/payload_mm_authvar_default_store.h>
 #include <boot/payload_mm_authvar_service.h>
 #include <commonlib/bsd/fmap_serialized.h>
@@ -1575,11 +1576,82 @@ static void fixed_dbx_update_requires_restart(void **unused)
 }
 #endif
 
+static void reopen_orphan_certdb(void **unused)
+{
+	static struct {
+		struct authvar_owner owner;
+		_Alignas(16) uint8_t workspace[128 * 1024];
+	} service;
+	static uint8_t erased[3 * 4096], volume[sizeof(erased)];
+	uint8_t *store = volume + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	const size_t store_size = 4096 - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	struct test_media media = { .store = store, .size = store_size };
+	const uint16_t dbname[] = u"certdb", orphan[] = u"TestOrphan", live[] = u"TestLive";
+	const uint8_t dbguid[16] = {
+		0x6e, 0xe5, 0xbe, 0xd9, 0xdc, 0x75, 0xd9, 0x49,
+		0xb4, 0xd7, 0xb5, 0x34, 0x21, 0x0f, 0x63, 0x7a,
+	};
+	const uint8_t guid[16] = { 0x11, 0x23, 0x45 };
+	const uint8_t empty[4] = { 4, 0, 0, 0 }, signer[32] = { 1 };
+	uint8_t db[256], retained[256], mixed[256], result[256];
+	size_t dbsize, retained_size, mixed_size, result_size = sizeof(result);
+	uint32_t encoded;
+	memset(erased, 0xff, sizeof(erased));
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
+		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_int_equal(payload_mm_authvar_certdb_compose(empty, sizeof(empty),
+		PAYLOAD_MM_AUTHVAR_CERTDB_ADD, guid, orphan, sizeof(orphan) - 2,
+		signer, sizeof(signer), db, sizeof(db), &dbsize), PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	assert_int_equal(payload_mm_authvar_certdb_compose(empty, sizeof(empty),
+		PAYLOAD_MM_AUTHVAR_CERTDB_ADD, guid, live, sizeof(live) - 2,
+		signer, sizeof(signer), retained, sizeof(retained), &retained_size),
+		PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	assert_int_equal(payload_mm_authvar_certdb_compose(db, dbsize,
+		PAYLOAD_MM_AUTHVAR_CERTDB_ADD, guid, live, sizeof(live) - 2,
+		signer, sizeof(signer), mixed, sizeof(mixed), &mixed_size),
+		PAYLOAD_MM_AUTHVAR_CERTDB_OK);
+	const struct payload_mm_authvar_store_entry *old = payload_mm_authvar_store_find(
+		&service.owner.index, dbguid, dbname, sizeof(dbname));
+	assert_non_null(old);
+	store[old->record_offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED_DELETED;
+	struct payload_mm_authvar_record_descriptor record = {
+		.name = dbname, .name_size = sizeof(dbname), .attributes = 0x27,
+	};
+	memcpy(record.vendor_guid, dbguid, sizeof(dbguid));
+	const struct payload_mm_authvar_record_span span = { mixed, mixed_size };
+	size_t offset = payload_mm_authvar_default_store_records_end();
+	assert_true(payload_mm_authvar_record_encode(&record, &span, 1,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+		store + offset, store_size - offset, &encoded));
+	store[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	offset += encoded;
+	record.name = live;
+	record.name_size = sizeof(live);
+	memcpy(record.vendor_guid, guid, sizeof(guid));
+	const struct payload_mm_authvar_record_span data = { signer, sizeof(signer) };
+	assert_true(payload_mm_authvar_record_encode(&record, &data, 1,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+		store + offset, store_size - offset, &encoded));
+	store[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_int_equal(authvar_owner_get(&service.owner, dbname, dbguid, NULL,
+		&result_size, result), 0);
+	assert_int_equal(result_size, retained_size);
+	assert_memory_equal(result, retained, retained_size);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_int_equal(media.writes, 1);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(admit_existing_store),
 		cmocka_unit_test(restore_deleted_secure_boot_preference),
+		cmocka_unit_test(reopen_orphan_certdb),
 		cmocka_unit_test(check_boot_next_at_runtime),
 		cmocka_unit_test(factory_defaults_are_sealed_at_handoff),
 		cmocka_unit_test(owner_on_nor),
