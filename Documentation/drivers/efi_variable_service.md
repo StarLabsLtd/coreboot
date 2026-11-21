@@ -9,6 +9,36 @@ SMM code or choose an executable address.
 
 ## Service image
 
+Prepare the payload separately from the service. For Star Labs EDK2,
+select `origin/starlabs` or an explicit release tag in `EDK2_TAG_OR_REV`
+and run `make prepare-edk2-source` after configuration. For edIIe, run
+`sh payloads/external/ediie/prepare-source.sh` for private `main`, or
+pass a full `refs/tags/<tag>` release ref. Preparation resolves the ref
+and records the selected commit; normal builds verify that checkout.
+
+The legacy Fixed MM backend described below is the default. The
+`ASS_NATIVE_LINK_CHECK=1` build override selects the native integration
+checkpoint instead. In that build, coreboot links the variable owner into
+its SMM handler, opens the existing SMMSTORE media through private callbacks,
+and serves the same payload mailbox without packaging a separate service FV.
+This checkpoint does not enable vboot A/B ROM packaging.
+
+For variable-managed Secure Boot, the native owner trusts built-in setup
+under the same boot-phase policy as Fixed MM. This is not a separate physical
+presence sensor. The owner's ReadyToBoot or runtime state closes that window;
+neither a new caller nor an S3 resume reopens it. Fixed-key rules still reject
+setup writes to the firmware-owned policy.
+
+Both key modes allow BDS to publish volatile factory-default variables
+before ReadyToBoot. These variables describe the defaults; they are not the
+active PK, KEK or signature databases. The native owner denies changes to
+the defaults after handoff, including deletion.
+
+EDK2's legacy RequestToLock command uses the native variable-policy registry.
+EndOfDxe closes registration; it does not close the built-in setup window.
+An existing registry entry satisfies a duplicate lock request only if it
+already prevents writing the named variable.
+
 The coreboot build takes the IA32 Standalone MM service from
 `CONFIG_ASS_SERVICE_REPOSITORY` at `CONFIG_ASS_SERVICE_REVISION`, independently
 of the selected payload. The service source must supply the Fixed MM platform
