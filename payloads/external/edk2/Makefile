@@ -62,6 +62,12 @@ endif
 ifneq ($(CONFIG_BOOT_SPLASH_HANDOFF),y)
 ifneq ($(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
+EDK2_FALLBACK_LOGO := $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE))
+ifneq ($(filter /%,$(EDK2_FALLBACK_LOGO)),)
+EDK2_FALLBACK_LOGO := $(abspath $(EDK2_FALLBACK_LOGO))
+else
+EDK2_FALLBACK_LOGO := $(abspath $(top)/$(EDK2_FALLBACK_LOGO))
+endif
 endif
 endif
 CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE ?= 1
@@ -355,15 +361,6 @@ ifeq ($(CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT),y)
 		grep -q '^[[:blank:]]*[^[:blank:]#]' || \
 		{ echo "EDK2: UefiPayloadPkg.dsc does not consume DISABLE_BOOT_MANAGER_WAIT" >&2; exit 1; }
 endif
-logo: $(EDK2_PATH)
-	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
-		"") ;; \
-		/*) convert -background None $(CONFIG_EDK2_BOOTSPLASH_FILE) \
-			BMP3:$(EDK2_PATH)/MdeModulePkg/Logo/Logo.bmp;; \
-		*) convert -background None $(top)/$(CONFIG_EDK2_BOOTSPLASH_FILE) \
-			BMP3:$(EDK2_PATH)/MdeModulePkg/Logo/Logo.bmp;; \
-	esac \
-
 ipxe_rom: $(EDK2_PATH)
 	if [ "$(CONFIG_EDK2_IPXE)" == "y" ]; then \
 		echo "    Including externally built iPXE"; \
@@ -385,7 +382,7 @@ checktools:
 		( echo "        Not found!"; echo "ERROR: Please install nasm."; exit 1 )
 
 	# Only check imagemagick when needed to convert bootsplash
-	if [ -n "$(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE))" ]; then \
+	if [ -n "$(EDK2_FALLBACK_LOGO)" ]; then \
 		echo -n "EDK2: Checking imagemagick:"; \
 		convert -size 1x1 xc: test.png &> /dev/null 2>&1 || true; \
 		if [ -f test.png ]; then \
@@ -434,13 +431,21 @@ print:
 		-e 's/s /Build:          Silent/' \
 		-e 's/t /Toolchain:      /'
 
-prep: check-payload-contract $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
+prep: check-payload-contract $(EDK2_PLATFORMS_PATH) clean checktools ipxe_rom
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
 
 $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 	prep print
+	set -e; \
+	if [ -n "$(EDK2_FALLBACK_LOGO)" ]; then \
+		logo="$(abspath $(EDK2_PATH))/MdeModulePkg/Logo/Logo.bmp"; \
+		saved=$$(mktemp "$$logo.XXXXXX"); \
+		cp -p "$$logo" "$$saved" || { rm -f "$$saved"; exit 1; }; \
+		trap 'mv -f "$$saved" "$$logo"' EXIT; \
+		convert -background None "$(EDK2_FALLBACK_LOGO)" "BMP3:$$logo"; \
+	fi; \
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		echo -n "EDK2: Building... "; \
@@ -475,7 +480,7 @@ distclean:
 		git -C "$$path" clean -xffd || exit 1; \
 	done
 
-.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools logo \
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools \
 	UefiPayloadPkg clean distclean check-payload-contract
 
 .PHONY: coreboot_capsule capsule_keys
