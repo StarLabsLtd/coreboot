@@ -16,3 +16,14 @@ Select `PAYLOAD_EDIIE` on a supported x86 board and enable ASS. For firmware
 updates, enable the EFI capsule driver and configure the trusted public
 certificate and update regions. edIIe accepts capsules on disk only. Normal
 builds verify the payload revision without updating its checkout.
+
+To build a local edIIe commit, first initialize its submodules and commit
+your changes. From the coreboot checkout, run:
+
+```sh
+sh payloads/external/ediie/prepare-source.sh --local /path/to/ediie
+make EDIIE_SOURCE=/path/to/ediie
+```
+
+The local checkout must be clean and its submodules must match the recorded
+revisions. Repeat preparation after changing the selected local commit.
