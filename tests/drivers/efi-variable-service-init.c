@@ -12,10 +12,12 @@
 #include <Guid/VariableFormat.h>
 #include <Pi/PiFirmwareVolume.h>
 
+static uint32_t spi_bar;
+
 static uint32_t read_spi_bar(pci_devfn_t dev, uint16_t reg)
 {
 	assert_int_equal(reg, PCI_BASE_ADDRESS_0);
-	return 0xfe010000;
+	return spi_bar;
 }
 
 #undef pci_read_config32
@@ -30,6 +32,8 @@ static uint32_t read_spi_bar(pci_devfn_t dev, uint16_t reg)
 static uint8_t flash[0x80000];
 static uint8_t transport[EFI_VARIABLE_SERVICE_BUFFER_SIZE];
 static struct region_device flash_device;
+static struct region_device other_flash_device;
+static const struct region_device *selected_flash;
 static struct efi_variable_service_state state;
 static struct {
 	struct service_info_hob info;
@@ -39,8 +43,11 @@ static struct {
 #endif
 } hobs;
 static bool resume;
+static bool write_device_available;
+static bool revoke_writer_after_probe;
 static bool read_error, write_error, readback_error;
-static unsigned int writes, starts, dispatches;
+static unsigned int writes, erases, starts, dispatches, writer_lookups;
+static unsigned int writes_at_revoke, erases_at_revoke;
 static unsigned int reads, gets;
 static uint32_t validation_at_start;
 static bool boot_access;
@@ -80,6 +87,7 @@ static ssize_t flash_write(const struct region_device *rdev, const void *buf, si
 
 static ssize_t flash_erase(const struct region_device *rdev, size_t offset, size_t size)
 {
+	erases++;
 	if (write_error)
 		return -1;
 	memset(flash + offset, 0xff, size);
@@ -92,9 +100,12 @@ static const struct region_device_ops flash_ops = {
 	.eraseat = flash_erase,
 };
 
-int boot_device_rw_subregion(const struct region *region, struct region_device *out)
+const struct region_device *efi_variable_service_write_device(void)
 {
-	return rdev_chain(out, &flash_device, region_offset(region), region_sz(region));
+	/* A first lookup can probe SPI and must follow trusted BAR binding. */
+	assert_int_equal(sealed_spi_bar, spi_bar & ~0xfff);
+	writer_lookups++;
+	return write_device_available ? selected_flash : NULL;
 }
 
 #if CONFIG(VBOOT_SLOTS_RW_AB)
@@ -113,10 +124,6 @@ int save_vbnv_flash(const uint8_t *data)
 void vb2ex_printf(const char *function, const char *format, ...) { }
 #endif
 
-bool fast_spi_wpd_status(void)
-{
-	return true;
-}
 
 void smm_region(uintptr_t *base, size_t *size)
 {
@@ -230,6 +237,11 @@ static void MM_ABI mm_dispatch(const struct mm_entry_context *context)
 	}
 #endif
 	status->valid = 0;
+	if (revoke_writer_after_probe) {
+		writes_at_revoke = writes;
+		erases_at_revoke = erases;
+		write_device_available = false;
+	}
 }
 
 static void MM_ABI mm_start(const void *hob_base)
@@ -260,6 +272,13 @@ uintptr_t efi_variable_service_call(uintptr_t entry, uintptr_t arg1, uintptr_t a
 
 static int setup(void **unused)
 {
+	write_device_available = true;
+	revoke_writer_after_probe = false;
+	spi_bar = 0xfe010000;
+	writer_lookups = 0;
+	selected_flash = &flash_device;
+	service_flash = NULL;
+	erases = 0;
 	memset(flash, 0xff, sizeof(flash));
 	memset(&hobs, 0, sizeof(hobs));
 	memset(&state, 0, sizeof(state));
@@ -431,6 +450,20 @@ static void legacy_store_migrates(void **unused)
 	assert_int_equal(starts, 2);
 }
 
+static void revoked_writer_before_migration(void **unused)
+{
+	assert_int_equal(efi_fv_initialize(&flash_device, 0x10000), CB_SUCCESS);
+	state.store_block_size = 0x10000;
+	writes = erases = 0;
+	revoke_writer_after_probe = true;
+	writes_at_revoke = erases_at_revoke = UINT_MAX;
+	assert_int_equal(efi_variable_service_finalize(), -1);
+	assert_int_equal(starts, 1);
+	assert_int_not_equal(writes_at_revoke, UINT_MAX);
+	assert_int_equal(writes, writes_at_revoke);
+	assert_int_equal(erases, erases_at_revoke);
+}
+
 static void legacy_geometry_on_s3_is_refused(void **unused)
 {
 	assert_int_equal(efi_fv_initialize(&flash_device, 0x10000), CB_SUCCESS);
@@ -447,6 +480,8 @@ static void legacy_geometry_on_s3_is_refused(void **unused)
 static void acknowledge_boot(void **unused)
 {
 	struct vb2_context ctx = { 0 };
+
+	assert_int_equal(efi_variable_service_finalize(), 0);
 
 	ctx.nvdata[0] = VB2_NV_HEADER_SIGNATURE_V1;
 	vb2_nv_set(&ctx, VB2_NV_FIRMWARE_SETTINGS_RESET, 1);
@@ -636,6 +671,56 @@ static void volatile_option_does_not_shadow_flash(void **unused)
 	}
 }
 
+static void resume_bar_checked_before_writer(void **unused)
+{
+	assert_int_equal(efi_variable_service_finalize(), 0);
+	/* Retain the MM HOBs but reset native SMM state, as on resume. */
+	current_state = SERVICE_NOT_INITIALIZED;
+	service = NULL;
+	service_flash = NULL;
+	sealed_spi_bar = 0;
+	resume = true;
+	spi_bar += 0x1000;
+	writer_lookups = 0;
+	writes = erases = 0;
+	assert_int_equal(efi_variable_service_finalize(), -1);
+	assert_int_equal(writer_lookups, 0);
+	assert_int_equal(writes, 0);
+	assert_int_equal(erases, 0);
+}
+
+static void protected_writer_required(void **unused)
+{
+	write_device_available = false;
+	assert_int_equal(efi_variable_service_finalize(), -1);
+	assert_int_equal(starts, 0);
+	assert_int_equal(writes, 0);
+	assert_int_equal(erases, 0);
+
+	setup(NULL);
+	assert_int_equal(efi_variable_service_finalize(), 0);
+	unsigned int before_writes = writes, before_erases = erases;
+
+	write_device_available = false;
+	assert_int_equal(private_write(0, 1), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	assert_int_equal(private_erase(0, state.store_block_size),
+			 EFI_VARIABLE_SERVICE_RET_FAILURE);
+	assert_int_equal(efi_variable_service_finalize(), -1);
+	assert_int_equal(writes, before_writes);
+	assert_int_equal(erases, before_erases);
+	assert_int_equal(starts, 1);
+
+	/* A different approved device must not replace a live store's parent. */
+	write_device_available = true;
+	selected_flash = &other_flash_device;
+	assert_int_equal(private_write(0, 1), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	assert_int_equal(private_erase(0, state.store_block_size),
+			 EFI_VARIABLE_SERVICE_RET_FAILURE);
+	assert_int_equal(efi_variable_service_finalize(), -1);
+	assert_int_equal(writes, before_writes);
+	assert_int_equal(erases, before_erases);
+}
+
 static void reject_mismatched_mm_revision(void **unused)
 {
 	struct efi_variable_service_buffer *buffer = (void *)transport;
@@ -686,9 +771,12 @@ int main(void)
 		cmocka_unit_test_setup(long_option_name, setup),
 		cmocka_unit_test_setup(volatile_option_does_not_shadow_flash, setup),
 		cmocka_unit_test_setup(reject_mismatched_mm_revision, setup),
+		cmocka_unit_test_setup(protected_writer_required, setup),
+		cmocka_unit_test_setup(resume_bar_checked_before_writer, setup),
 #if CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000
 		cmocka_unit_test_setup(legacy_store_migrates, setup),
 		cmocka_unit_test_setup(legacy_geometry_on_s3_is_refused, setup),
+		cmocka_unit_test_setup(revoked_writer_before_migration, setup),
 #endif
 	};
 	return cb_run_group_tests(tests, NULL, NULL);

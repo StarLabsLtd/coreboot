@@ -48,10 +48,16 @@ static struct efi_variable_service_state *service;
 static bool registration_open;
 static uintptr_t sealed_spi_bar;
 static struct region_device variable_store_device;
+static const struct region_device *service_flash;
 static struct efi_private_store variable_store;
 static uint8_t variable_store_buffer[MAX_UNSAFE(CONFIG_SMMSTORE_BLOCK_SIZE,
 					      EFI_CAPSULE_BLOCK_SIZE)];
 static uint8_t capsule_readback[EFI_CAPSULE_BLOCK_SIZE];
+
+static bool write_access_allowed(void)
+{
+	return service_flash && efi_variable_service_write_device() == service_flash;
+}
 
 static uint32_t MM_ABI capsule_read(uint32_t offset, uint32_t size)
 {
@@ -93,7 +99,7 @@ static uint32_t MM_ABI capsule_program(uint32_t offset, const struct efi_capsule
 {
 	bool allow_erase = true;
 
-	if (!fast_spi_wpd_status())
+	if (!write_access_allowed())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	_Static_assert(FMAP_SECTION_SMMSTORE_START % EFI_CAPSULE_BLOCK_SIZE == 0 &&
 		       FMAP_SECTION_SMMSTORE_SIZE % EFI_CAPSULE_BLOCK_SIZE == 0,
@@ -116,7 +122,7 @@ static uint32_t MM_ABI capsule_program(uint32_t offset, const struct efi_capsule
 	/* Preflight immutable blocks before the first destructive operation. */
 	if (check_only && allow_erase)
 		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
-	return efi_capsule_program_block(boot_device_rw(), offset, EFI_CAPSULE_BLOCK_SIZE,
+	return efi_capsule_program_block(service_flash, offset, EFI_CAPSULE_BLOCK_SIZE,
 					ranges, count, image, capsule_readback, allow_erase) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
@@ -128,7 +134,7 @@ static uint32_t MM_ABI capsule_commit(uint32_t slot)
 {
 	struct vb2_context ctx = { 0 };
 
-	if (!fast_spi_wpd_status() || slot > 2 || (!slot && !capsule_boot_slot) ||
+	if (!write_access_allowed() || slot > 2 || (!slot && !capsule_boot_slot) ||
 	    (slot && slot != (capsule_boot_slot == 1 ? 2 : 1)))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	read_vbnv_flash(ctx.nvdata);
@@ -205,7 +211,7 @@ static uint32_t MM_ABI private_read(uint32_t offset, uint32_t size)
 
 static uint32_t MM_ABI private_write(uint32_t offset, uint32_t size)
 {
-	if (!fast_spi_wpd_status())
+	if (!write_access_allowed())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	return efi_private_store_write(&variable_store, offset, variable_store_buffer, size) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
@@ -213,7 +219,7 @@ static uint32_t MM_ABI private_write(uint32_t offset, uint32_t size)
 
 static uint32_t MM_ABI private_erase(uint32_t offset, uint32_t size)
 {
-	if (!fast_spi_wpd_status())
+	if (!write_access_allowed())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	return efi_private_store_erase(&variable_store, offset, size) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
@@ -236,6 +242,7 @@ static uint32_t MM_ABI private_validate(void)
 
 static int prepare_private_store(void)
 {
+	const struct region_device *parent = efi_variable_service_write_device();
 	struct service_info_hob *info;
 	struct region region;
 	uintptr_t buffer_base;
@@ -254,9 +261,12 @@ static int prepare_private_store(void)
 	     !(CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000 &&
 	       !smm_efi_variable_service_is_s3_resume() && service->store_block_size == 0x10000)) ||
 	    region_create_untrusted(&region, service->store_offset, service->store_size) ||
-	    boot_device_rw_subregion(&region, &variable_store_device))
+	    !parent || (service_flash && service_flash != parent) ||
+	    rdev_chain(&variable_store_device, parent, region_offset(&region),
+			  region_sz(&region)))
 		return -1;
 
+	service_flash = parent;
 	if (efi_private_store_init(&variable_store, &variable_store_device,
 				   service->store_block_size, (uintptr_t)variable_store_buffer,
 				   service->store_block_size))
@@ -522,7 +532,7 @@ static int variable_service_probe(void)
 static int service_ready(void)
 {
 	if (current_state != SERVICE_NOT_INITIALIZED)
-		return current_state == SERVICE_READY ? 0 : -1;
+		return current_state == SERVICE_READY && write_access_allowed() ? 0 : -1;
 	current_state = SERVICE_FAILED;
 	if (get_service())
 		return -1;
@@ -574,6 +584,8 @@ int efi_variable_service_finalize(void)
 		return ret;
 	/* FTW and the variable driver have now recovered and validated the old store. */
 	current_state = SERVICE_FAILED;
+	if (!write_access_allowed())
+		return -1;
 	printk(BIOS_INFO, "Converting EFI variable store from 64 KiB to 4 KiB\n");
 	ret = efi_fv_migrate_4k(&variable_store_device, variable_store_buffer,
 			       sizeof(variable_store_buffer));
