@@ -267,25 +267,8 @@ static int lookup_store(struct region_device *rstore, size_t *physical_offset)
  /* this function is non reentrant */
 int smmstore_lookup_region(struct region_device *rstore)
 {
-	static int done;
-	static int ret;
-	static struct region_device rdev;
-
-	if (!done) {
-		done = 1;
-
-		if (lookup_store(&rdev, NULL)) {
-			printk(BIOS_WARNING,
-			       "smm store: Unable to find SMM store FMAP region '%s'\n",
-				SMMSTORE_REGION);
-			ret = -1;
-		} else {
-			ret = 0;
-		}
-	}
-
-	*rstore = rdev;
-	return ret;
+	/* Protection may change the writable backend after an early option read. */
+	return lookup_store(rstore, NULL);
 }
 static struct region_device mdev_com_buf;
 
