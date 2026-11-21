@@ -9,10 +9,13 @@
 #include <soc/pci_devs.h>
 #include <soc/smu.h>
 #include <starlabs/smi.h>
+#include <power_budget.h>
 
-/* Board-private APMC commands, paired with acpi/usb4.asl. */
+/* Board-private APMC commands, serialized by acpi/power_budget.asl. */
 #define USB4_NHI0_PS3 0xe5
 #define USB4_NHI1_PS3 0xe6
+static_assert(PHX_POWER_BUDGET_APMC != APM_CNT_EFI_VARIABLE_SERVICE);
+static_assert(PHX_POWER_BUDGET_APMC != APM_CNT_CFR_RUNTIME_APPLY);
 #define SMN_INDEX_ADDR 0xb8
 #define USB4_PM_CAP 0x50
 
@@ -65,6 +68,12 @@ out:
 int variant_smi_apmc(u8 command)
 {
 	bool success;
+
+	if (command == PHX_POWER_BUDGET_APMC) {
+		success = phx_power_budget(inb(APM_STS));
+		outb(success ? PHX_POWER_BUDGET_READY : PHX_POWER_BUDGET_ERROR, APM_STS);
+		return 1;
+	}
 
 	if (command != USB4_NHI0_PS3 && command != USB4_NHI1_PS3)
 		return 0;

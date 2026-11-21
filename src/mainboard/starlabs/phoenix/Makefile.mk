@@ -12,6 +12,7 @@ ramstage-y += apcb.c
 ramstage-$(CONFIG_DRIVERS_OPTION_CFR) += cfr.c
 
 smm-y += smihandler.c
+smm-y += power_budget_smm.c
 
 ifeq ($(CONFIG_ADD_APCB_SOURCES),y)
 APCB_SOURCES = $(call strip_quotes, $(CONFIG_APCB_SOURCES_PATH))/APCB_FP7.bin
