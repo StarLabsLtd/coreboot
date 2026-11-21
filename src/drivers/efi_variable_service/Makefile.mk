@@ -59,12 +59,20 @@ ass-ediie := $(abspath $(or $(EDIIE_SOURCE),payloads/external/ediie/ediie))
 ass-dbx-baseline := $(ass-ediie)/src/modules/bds/keys/dbx_microsoft_update.bin
 ass-dbx-append := $(ass-ediie)/src/modules/bds/keys/dbx_microsoft_append.esl
 ass-dbx-update := $(ass-ediie)/src/modules/variable_runtime/keys/fixed_policy_dbx_update.bin
+ass-dbx-inputs := $(ass-dbx-baseline) $(ass-dbx-append) $(ass-dbx-update)
+ass-dbx-state := $(obj)/ass/dbx-inputs
 smm-y += native_fixed.c native_fixed_assets.S
 smm-S-ccopts += -DASS_DBX_BASELINE=\"$(ass-dbx-baseline)\" \
 	-DASS_DBX_APPEND=\"$(ass-dbx-append)\" -DASS_DBX_UPDATE=\"$(ass-dbx-update)\"
 $(obj)/smm/drivers/efi_variable_service/native_fixed.o: $(ass-fixed-header)
-$(obj)/smm/drivers/efi_variable_service/native_fixed_assets.o: \
-	$(ass-dbx-baseline) $(ass-dbx-append) $(ass-dbx-update)
+$(obj)/smm/drivers/efi_variable_service/native_fixed_assets.o: $(ass-dbx-state)
+
+# A different prepared checkout may have older timestamps than the old assets.
+$(ass-dbx-state): ass-owner-check $(ass-dbx-inputs) | $(ass-fixed-header)
+	@mkdir -p $(dir $@)
+	@sha256sum $(ass-dbx-inputs) > $@.tmp
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
+	@rm -f $@.tmp
 endif
 smm-c-ccopts += -I$(top)/src/lib -I$(top)/src/lib/payload_mm_crypto \
 	-isystem $(top)/3rdparty/mbedtls/include -isystem $(top)/3rdparty/mbedtls/library \
