@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LicenseRef-LICENSE-TBC */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef COMMONLIB_AUTHVAR_BOOT_AUTHORITY_H
 #define COMMONLIB_AUTHVAR_BOOT_AUTHORITY_H

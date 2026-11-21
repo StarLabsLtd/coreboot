@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-2-Clause-Patent AND LicenseRef-LICENSE-TBC */
+/* SPDX-License-Identifier: BSD-2-Clause-Patent AND GPL-2.0-only */
 /* Copyright (c) 2026 Star Labs Systems. All rights reserved. */
 /* Adapted from DAVE SecureKeyTpmAuthLib, SecureKeyTpmProtectedCommandLib,
  * SecureKeyTpmFactoryLib, SecureKeyEnrollmentLib and SecureKeyStorageTpmLib

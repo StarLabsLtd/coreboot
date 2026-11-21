@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LicenseRef-LICENSE-TBC */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2026 Star Labs Systems. All rights reserved. */
 
 #ifndef SECURITY_TPM_DAVE_SESSION_H
