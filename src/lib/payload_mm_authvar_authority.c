@@ -319,7 +319,13 @@ enum payload_mm_verify_status payload_mm_authvar_authority_decide(
 		return PAYLOAD_MM_VERIFY_REJECTED;
 	if (append && route.target == PAYLOAD_MM_AUTHVAR_TARGET_PK)
 		return PAYLOAD_MM_VERIFY_REJECTED;
-	if (old_timestamp && !append && !confirmed &&
+	/* Factory enrollment can reuse its timestamp, but cannot lower a
+	 * timestamp already stored for subsequent signed writes.
+	 */
+	const bool setup_replacement = auth2.payload.size && snapshot->facts.setup_mode &&
+		snapshot->facts.trusted_physical_presence &&
+		route.authorities[0] == PAYLOAD_MM_AUTHVAR_AUTHORITY_BYPASS;
+	if (old_timestamp && !append && !confirmed && !setup_replacement &&
 	    timestamp_compare(auth2.timestamp, old_timestamp) <= 0)
 		return PAYLOAD_MM_VERIFY_REJECTED;
 	deleting = existing && !append && !auth2.payload.size;
@@ -442,7 +448,7 @@ authority_verified:
 		~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
 	memcpy(draft.mutation.timestamp, auth2.timestamp,
 		sizeof(draft.mutation.timestamp));
-	if (append && old_timestamp &&
+	if ((append || setup_replacement) && old_timestamp &&
 	    timestamp_compare(draft.mutation.timestamp, old_timestamp) < 0)
 		memcpy(draft.mutation.timestamp, old_timestamp,
 			sizeof(draft.mutation.timestamp));

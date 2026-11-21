@@ -1702,12 +1702,82 @@ static void reopen_orphan_certdb(void **unused)
 	assert_int_equal(media.writes, 1);
 }
 
+static void setup_replacement_preserves_timestamp(void **unused)
+{
+	static struct {
+		struct authvar_owner owner;
+		_Alignas(16) uint8_t workspace[128 * 1024];
+	} service;
+	static uint8_t erased[3 * 4096], volume[sizeof(erased)];
+	uint8_t *store = volume + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	const size_t store_size = 4096 - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	struct test_media media = { .store = store, .size = store_size };
+	static struct authvar_policy policy;
+	const uint16_t name[] = u"db";
+	_Alignas(8) uint8_t request[sizeof(struct smm_variable_header32) +
+		sizeof(struct smm_variable_access32) + sizeof(name) + 116] = { 0 };
+	struct smm_variable_header32 *message = (void *)request;
+	struct smm_variable_access32 *access = (void *)message->data;
+	uint8_t *auth = (uint8_t *)access->name + sizeof(name);
+	const uint8_t pkcs7[] = {
+		0x9d, 0xd2, 0xaf, 0x4a, 0xdf, 0x68, 0xee, 0x49,
+		0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7,
+	};
+	const uint8_t sha256[] = {
+		0x26, 0x16, 0xc4, 0xc1, 0x4c, 0x50, 0x92, 0x40,
+		0xac, 0xa9, 0x41, 0xf9, 0x36, 0x93, 0x43, 0x28,
+	};
+	memset(erased, 0xff, sizeof(erased));
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume, sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048, commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	access->guid = (EFI_GUID) {
+		0xd719b2cb, 0x3d3a, 0x4596, { 0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f },
+	};
+	access->attributes = 0x27;
+	access->name_size = sizeof(name);
+	access->data_size = 116;
+	memcpy(access->name, name, sizeof(name));
+	write_le16(auth, 2026);
+	auth[2] = 11;
+	auth[3] = 21;
+	write_le32(auth + 16, 24);
+	write_le16(auth + 20, 0x200);
+	write_le16(auth + 22, 0xef1);
+	memcpy(auth + 24, pkcs7, sizeof(pkcs7));
+	memcpy(auth + 40, sha256, sizeof(sha256));
+	write_le32(auth + 56, 76);
+	write_le32(auth + 64, 48);
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	auth[115] = 1;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	write_le16(auth, 1970);
+	auth[115] = 2;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	const struct payload_mm_authvar_store_entry *entry = payload_mm_authvar_store_find(
+		&service.owner.index, (const void *)&access->guid, name, sizeof(name));
+	assert_non_null(entry);
+	assert_int_equal(read_le16(service.owner.index.store + entry->record_offset + 16),
+		2026);
+	assert_int_equal(authvar_owner_ready(&service.owner, NULL), 0);
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x8000001aU);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(admit_existing_store),
 		cmocka_unit_test(restore_deleted_secure_boot_preference),
 		cmocka_unit_test(reopen_orphan_certdb),
+		cmocka_unit_test(setup_replacement_preserves_timestamp),
 		cmocka_unit_test(check_uefi_properties_at_runtime),
 		cmocka_unit_test(factory_defaults_are_sealed_at_handoff),
 		cmocka_unit_test(owner_on_nor),
