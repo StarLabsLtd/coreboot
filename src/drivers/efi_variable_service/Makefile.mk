@@ -2,6 +2,8 @@
 
 ifeq ($(CONFIG_ASS),y)
 
+smm-$(CONFIG_ARCH_SMM_X86_64) += call_64.S
+
 cbfs-files-y += efi_variable_service_fv
 efi_variable_service_fv-file := $(obj)/FIXEDMMFV.Fv
 efi_variable_service_fv-type := raw

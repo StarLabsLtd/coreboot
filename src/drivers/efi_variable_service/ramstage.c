@@ -48,7 +48,8 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 
 	service_prepared = false;
 	if (smm_subregion(SMM_SUBREGION_EFI_VARIABLE_SERVICE, &base, &region_size) ||
-	    !base || base > UINT32_MAX || region_size < SERVICE_STATE_AREA_SIZE)
+	    !base || base > UINT32_MAX || region_size < SERVICE_STATE_AREA_SIZE ||
+	    region_size > (uint64_t)UINT32_MAX + 1 - base)
 		return;
 	state = (void *)base;
 	if (acpi_is_wakeup_s3()) {

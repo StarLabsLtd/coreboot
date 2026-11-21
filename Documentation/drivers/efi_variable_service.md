@@ -105,6 +105,19 @@ status. The standard page-aligned MM communication message begins at offset
 command and reads the response from the same allocation. coreboot rejects an
 unsupported revision, invalid state or message larger than the fixed capacity.
 
+The revision selects the inner MM message ABI, independently of the payload's
+architecture. Revision 1 uses the IA32 MM envelope and variable records;
+revision 2 uses their native X64 layouts. The mailbox fields and capsule
+command packets retain their fixed widths. A payload must reject unsupported
+revisions before sending requests.
+
+X64 MM calls use the Microsoft calling convention and preserve the caller's
+x87 and SSE state. The service and its callbacks must not use AVX or other
+extended state. AMD X64 platforms must provide `XSaveErPtr` so the x87 error
+pointers are restored as well. Calls must precede any per-entry SMM page
+configuration lock, since the guard temporarily changes CR0, CR4 and, when
+necessary, EFER.
+
 ## OPAL S3 ownership
 
 Only coreboot-enumerated NVMe devices with assigned memory resources are eligible

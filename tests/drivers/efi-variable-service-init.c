@@ -40,11 +40,12 @@ static struct {
 } hobs;
 static bool resume;
 static bool read_error, write_error, readback_error;
-static unsigned int writes, starts;
+static unsigned int writes, starts, dispatches;
 static unsigned int reads, gets;
 static uint32_t validation_at_start;
 static bool boot_access;
-static uint32_t cached_value, cached_size, cached_status, cached_attributes, native_result;
+static uint32_t cached_value, cached_size, cached_attributes;
+static UINTN cached_status, native_result;
 static enum {
 	REPLY_VALID, REPLY_SHORT, REPLY_LONG, REPLY_FUNCTION,
 	REPLY_NAME_SIZE, REPLY_DATA_SIZE, REPLY_GUID, REPLY_NAME,
@@ -145,11 +146,11 @@ int smmstore_lookup_region(struct region_device *rdev)
 	return rdev_chain(rdev, &flash_device, 0, sizeof(flash));
 }
 
-static uint32_t mm_manage(const EFI_GUID *guid, const void *context,
-			 void *buffer, size_t *size)
+static UINTN MM_ABI mm_manage(const EFI_GUID *guid, const void *context,
+			 void *buffer, UINTN *size)
 {
-	struct smm_variable_header32 *variable = buffer;
-	struct smm_variable_access32 *access = (void *)variable->data;
+	struct smm_variable_header *variable = buffer;
+	struct smm_variable_access *access = (void *)variable->data;
 	const char *name = "bios_lock";
 	size_t name_size = (strlen(name) + 1) * sizeof(CHAR16);
 
@@ -184,7 +185,7 @@ static uint32_t mm_manage(const EFI_GUID *guid, const void *context,
 		*size = sizeof(*variable) - 1;
 		break;
 	case REPLY_LONG:
-		*size = SIZE_MAX;
+		*size = (UINTN)-1;
 		break;
 	case REPLY_FUNCTION:
 		variable->function = 0;
@@ -208,13 +209,14 @@ static uint32_t mm_manage(const EFI_GUID *guid, const void *context,
 }
 
 /* The external MM implementation is a dependency boundary, not a second parser. */
-static void mm_dispatch(const struct mm_entry_context *context)
+static void MM_ABI mm_dispatch(const struct mm_entry_context *context)
 {
+	dispatches++;
 	struct efi_mm_communication_status *status =
 		(void *)(transport + sizeof(struct efi_variable_service_buffer));
 
 #if CONFIG(VBOOT_SLOTS_RW_AB)
-	struct mm_communication_header32 *message =
+	struct mm_communication_header *message =
 		(void *)(transport + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
 
 	if (message->message_length == 28) {
@@ -230,13 +232,30 @@ static void mm_dispatch(const struct mm_entry_context *context)
 	status->valid = 0;
 }
 
-static void mm_start(const void *hob_base)
+static void MM_ABI mm_start(const void *hob_base)
 {
 	starts++;
 	validation_at_start = private_validate();
 	if (validation_at_start == EFI_VARIABLE_SERVICE_RET_SUCCESS)
 		assert_int_equal(register_mm_entry((uintptr_t)mm_dispatch,
 						  (uintptr_t)mm_manage), 0);
+}
+
+/* Host tests replace the privileged thunk, retaining the native MM call ABI. */
+uintptr_t efi_variable_service_call(uintptr_t entry, uintptr_t arg1, uintptr_t arg2,
+				  uintptr_t arg3, uintptr_t arg4)
+{
+	if (entry == (uintptr_t)mm_start) {
+		mm_start((const void *)arg1);
+		return 0;
+	}
+	if (entry == (uintptr_t)mm_dispatch) {
+		mm_dispatch((const void *)arg1);
+		return 0;
+	}
+	assert_int_equal(entry, (uintptr_t)mm_manage);
+	return mm_manage((const EFI_GUID *)arg1, (const void *)arg2,
+			 (void *)arg3, (UINTN *)arg4);
 }
 
 static int setup(void **unused)
@@ -251,7 +270,7 @@ static int setup(void **unused)
 	sealed_spi_bar = 0;
 	resume = false;
 	read_error = write_error = readback_error = false;
-	writes = starts = 0;
+	writes = starts = dispatches = 0;
 	reads = gets = 0;
 	boot_access = true;
 	cached_value = 0x12345678;
@@ -594,7 +613,10 @@ static void long_option_name(void **unused)
 
 static void volatile_option_does_not_shadow_flash(void **unused)
 {
-	const struct { uint32_t size, status; } cases[] = {
+	const struct {
+		uint32_t size;
+		UINTN status;
+	} cases[] = {
 		{ 1, EFI_SUCCESS }, { 4, EFI_SUCCESS }, { 8, EFI_BUFFER_TOO_SMALL },
 	};
 	uint32_t value = 0;
@@ -612,6 +634,35 @@ static void volatile_option_does_not_shadow_flash(void **unused)
 		assert_int_equal(gets, i + 1);
 		assert_true(reads > before);
 	}
+}
+
+static void reject_mismatched_mm_revision(void **unused)
+{
+	struct efi_variable_service_buffer *buffer = (void *)transport;
+	struct mm_communication_header *message =
+		(void *)(transport + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
+
+	assert_int_equal(service_ready(), 0);
+	*buffer = (struct efi_variable_service_buffer) {
+		.signature = EFI_VARIABLE_SERVICE_BUFFER_SIGNATURE,
+		.revision = EFI_VARIABLE_SERVICE_REVISION,
+		.header_size = EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE,
+		.state = EFI_VARIABLE_SERVICE_BUFFER_REQUEST,
+		.message_size = sizeof(*message) + 1,
+	};
+	message->guid = efi_variable_service_ready_guid;
+	message->message_length = 1;
+	assert_int_equal(efi_variable_service_communicate(), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	assert_int_equal(buffer->state, EFI_VARIABLE_SERVICE_BUFFER_RESPONSE);
+	unsigned int before = dispatches;
+	buffer->state = EFI_VARIABLE_SERVICE_BUFFER_REQUEST;
+	buffer->revision = CONFIG(ARCH_SMM_X86_64) ? 1 : 2;
+	assert_int_equal(efi_variable_service_communicate(), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	assert_int_equal(dispatches, before);
+	buffer->revision = EFI_VARIABLE_SERVICE_REVISION;
+	message->message_length = (UINTN)-1;
+	assert_int_equal(efi_variable_service_communicate(), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	assert_int_equal(dispatches, before);
 }
 
 int main(void)
@@ -634,6 +685,7 @@ int main(void)
 		cmocka_unit_test_setup(legacy_option_after_boot, setup),
 		cmocka_unit_test_setup(long_option_name, setup),
 		cmocka_unit_test_setup(volatile_option_does_not_shadow_flash, setup),
+		cmocka_unit_test_setup(reject_mismatched_mm_revision, setup),
 #if CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000
 		cmocka_unit_test_setup(legacy_store_migrates, setup),
 		cmocka_unit_test_setup(legacy_geometry_on_s3_is_refused, setup),

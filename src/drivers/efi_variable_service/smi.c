@@ -24,15 +24,24 @@
 #include <Uefi/UefiBaseType.h>
 #include <Uefi/UefiMultiPhase.h>
 
+#if CONFIG(ARCH_SMM_X86_64)
+#define MM_ABI __attribute__((ms_abi))
+#else
+#define MM_ABI
+#endif
+
+uintptr_t efi_variable_service_call(uintptr_t entry, uintptr_t arg1, uintptr_t arg2,
+				  uintptr_t arg3, uintptr_t arg4);
+
 enum service_state { SERVICE_NOT_INITIALIZED, SERVICE_READY, SERVICE_FAILED };
 
 struct mm_entry_context {
-	uint32_t startup_this_ap;
-	uint32_t current_cpu;
-	uint32_t cpu_count;
-	uint32_t save_state_size;
-	uint32_t save_state;
-} __packed;
+	UINTN startup_this_ap;
+	UINTN current_cpu;
+	UINTN cpu_count;
+	UINTN save_state_size;
+	UINTN save_state;
+};
 
 static enum service_state current_state;
 static struct efi_variable_service_state *service;
@@ -44,7 +53,7 @@ static uint8_t variable_store_buffer[MAX_UNSAFE(CONFIG_SMMSTORE_BLOCK_SIZE,
 					      EFI_CAPSULE_BLOCK_SIZE)];
 static uint8_t capsule_readback[EFI_CAPSULE_BLOCK_SIZE];
 
-static uint32_t capsule_read(uint32_t offset, uint32_t size)
+static uint32_t MM_ABI capsule_read(uint32_t offset, uint32_t size)
 {
 	if (!size || size > EFI_CAPSULE_BLOCK_SIZE || offset >= CONFIG_ROM_SIZE ||
 	    size > CONFIG_ROM_SIZE - offset)
@@ -58,7 +67,7 @@ static uint32_t capsule_read(uint32_t offset, uint32_t size)
 		EFI_VARIABLE_SERVICE_RET_SUCCESS : EFI_VARIABLE_SERVICE_RET_FAILURE;
 }
 
-static uint32_t capsule_resolve(const char name[16], struct efi_capsule_range *range)
+static uint32_t MM_ABI capsule_resolve(const char name[16], struct efi_capsule_range *range)
 {
 	char terminated[17];
 
@@ -79,7 +88,7 @@ static uint32_t capsule_resolve(const char name[16], struct efi_capsule_range *r
 }
 
 /* Private MM callback: there is deliberately no independent erase callback. */
-static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range *ranges,
+static uint32_t MM_ABI capsule_program(uint32_t offset, const struct efi_capsule_range *ranges,
 				uint32_t count, uint8_t *image, uint32_t check_only)
 {
 	bool allow_erase = true;
@@ -115,7 +124,7 @@ static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range 
 #if CONFIG(VBOOT_SLOTS_RW_AB)
 static uint32_t capsule_boot_slot;
 
-static uint32_t capsule_commit(uint32_t slot)
+static uint32_t MM_ABI capsule_commit(uint32_t slot)
 {
 	struct vb2_context ctx = { 0 };
 
@@ -188,13 +197,13 @@ static int prepare_capsule_store(void)
 }
 
 /* These entry points are published only in the SMRAM-resident service HOB. */
-static uint32_t private_read(uint32_t offset, uint32_t size)
+static uint32_t MM_ABI private_read(uint32_t offset, uint32_t size)
 {
 	return efi_private_store_read(&variable_store, offset, variable_store_buffer, size) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
-static uint32_t private_write(uint32_t offset, uint32_t size)
+static uint32_t MM_ABI private_write(uint32_t offset, uint32_t size)
 {
 	if (!fast_spi_wpd_status())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
@@ -202,7 +211,7 @@ static uint32_t private_write(uint32_t offset, uint32_t size)
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
-static uint32_t private_erase(uint32_t offset, uint32_t size)
+static uint32_t MM_ABI private_erase(uint32_t offset, uint32_t size)
 {
 	if (!fast_spi_wpd_status())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
@@ -210,7 +219,7 @@ static uint32_t private_erase(uint32_t offset, uint32_t size)
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
-static uint32_t private_validate(void)
+static uint32_t MM_ABI private_validate(void)
 {
 	bool authenticated = false;
 	enum cb_err ret;
@@ -277,7 +286,7 @@ static bool entry_in_core(uint32_t entry)
 		entry - service->core_base < service->core_size;
 }
 
-static uint32_t register_mm_entry(uint32_t entry, uint32_t manage)
+static uint32_t MM_ABI register_mm_entry(uint32_t entry, uint32_t manage)
 {
 	if (!registration_open || service->dispatch_entry || service->manage_entry ||
 	    !entry_in_core(entry) || !entry_in_core(manage))
@@ -367,29 +376,32 @@ static int initialize_service(void)
 	registration_open = true;
 	info->register_mm_entry = (uintptr_t)register_mm_entry;
 	entry = (void *)(uintptr_t)service->core_entry;
-	entry((void *)(uintptr_t)service->hob_base);
+	if (CONFIG(ARCH_SMM_X86_64))
+		efi_variable_service_call(service->core_entry, service->hob_base, 0, 0, 0);
+	else
+		entry((void *)(uintptr_t)service->hob_base);
 	info->register_mm_entry = 0;
 	registration_open = false;
 	return entry_in_core(service->dispatch_entry) && entry_in_core(service->manage_entry) ?
 		0 : -1;
 }
 
-struct mm_communication_header32 {
+struct mm_communication_header {
 	EFI_GUID guid;
-	uint32_t message_length;
+	UINTN message_length;
 	uint8_t data[];
 } __packed;
 
-struct smm_variable_header32 {
-	uint32_t function;
-	uint32_t return_status;
+struct smm_variable_header {
+	UINTN function;
+	UINTN return_status;
 	uint8_t data[];
 } __packed;
 
-struct smm_variable_access32 {
+struct smm_variable_access {
 	EFI_GUID guid;
-	uint32_t data_size;
-	uint32_t name_size;
+	UINTN data_size;
+	UINTN name_size;
 	uint32_t attributes;
 	CHAR16 name[];
 } __packed;
@@ -409,20 +421,20 @@ static const EFI_GUID efi_variable_service_ready_guid = {
 	0xf4fc98d5, 0xf719, 0x4e49, { 0x88, 0xf4, 0x77, 0xcd, 0xcd, 0xb9, 0xfb, 0x55 }
 };
 
-_Static_assert(sizeof(struct mm_communication_header32) == 20,
+_Static_assert(sizeof(struct mm_communication_header) == (CONFIG(ARCH_SMM_X86_64) ? 24 : 20),
 	       "Unexpected MM communication header size");
 
-_Static_assert(sizeof(struct smm_variable_header32) == 8,
+_Static_assert(sizeof(struct smm_variable_header) == (CONFIG(ARCH_SMM_X86_64) ? 16 : 8),
 	       "Unexpected MM variable header size");
 
-_Static_assert(sizeof(struct smm_variable_access32) == 28,
+_Static_assert(sizeof(struct smm_variable_access) == (CONFIG(ARCH_SMM_X86_64) ? 36 : 28),
 	       "Unexpected MM variable access size");
 
 static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t message_size)
 {
 	struct efi_mm_communication_status *status;
-	uint32_t save_state_size = 0;
-	uint32_t save_state = 0;
+	UINTN save_state_size = 0;
+	UINTN save_state = 0;
 	struct mm_entry_context context = {
 		.current_cpu = 0, .cpu_count = 1,
 		.save_state_size = (uintptr_t)&save_state_size,
@@ -439,14 +451,17 @@ static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t me
 	status->return_status = 0;
 	status->return_buffer_size = message_size;
 	entry = (void *)(uintptr_t)service->dispatch_entry;
-	entry(&context);
+	if (CONFIG(ARCH_SMM_X86_64))
+		efi_variable_service_call(service->dispatch_entry, (uintptr_t)&context, 0, 0, 0);
+	else
+		entry(&context);
 
-	if (status->valid || status->return_buffer_size < sizeof(struct mm_communication_header32) ||
+	if (status->valid || status->return_buffer_size < sizeof(struct mm_communication_header) ||
 	    status->return_buffer_size > buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE)
 		return -1;
 
 	/* MM returns the actual size separately, leaving the legacy header unchanged. */
-	struct mm_communication_header32 *message =
+	struct mm_communication_header *message =
 		(void *)(buffer_base + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
 	message->message_length = status->return_buffer_size - sizeof(*message);
 	return 0;
@@ -456,7 +471,7 @@ static int variable_service_probe(void)
 {
 	uintptr_t base;
 	size_t size;
-	struct mm_communication_header32 *message;
+	struct mm_communication_header *message;
 	struct efi_mm_communication_status *status;
 
 	smm_get_efi_variable_service_buffer(&base, &size);
@@ -571,7 +586,7 @@ uint32_t efi_variable_service_communicate(void)
 	size_t buffer_size;
 	struct efi_variable_service_buffer *buffer;
 	struct efi_mm_communication_status *status;
-	struct mm_communication_header32 *message;
+	struct mm_communication_header *message;
 
 	if (current_state != SERVICE_READY || !service || !entry_in_core(service->dispatch_entry))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
@@ -598,21 +613,29 @@ uint32_t efi_variable_service_communicate(void)
 	return EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
+static UINTN manage_mm(const EFI_GUID *guid, const void *context, void *buffer, UINTN *size)
+{
+	typedef UINTN (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+							 void *, UINTN *);
+
+	if (CONFIG(ARCH_SMM_X86_64))
+		return efi_variable_service_call(service->manage_entry, (uintptr_t)guid,
+			(uintptr_t)context, (uintptr_t)buffer, (uintptr_t)size);
+	mm_manage manage = (void *)(uintptr_t)service->manage_entry;
+	return manage(guid, context, buffer, size);
+}
+
 static enum cb_err boot_access_status(bool *allowed)
 {
-	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
-							    void *, size_t *);
 	uint8_t query = 1;
-	size_t size = sizeof(query);
-	mm_manage manage;
+	UINTN size = sizeof(query);
 
 	if (current_state != SERVICE_READY || !service ||
 	    !entry_in_core(service->manage_entry))
 		return CB_EFI_ACCESS_ERROR;
 
 	/* Query the retained MM lifecycle using a native-owned request and result. */
-	manage = (void *)(uintptr_t)service->manage_entry;
-	if (manage(&efi_variable_service_ready_guid, NULL, &query, &size) ||
+	if (manage_mm(&efi_variable_service_ready_guid, NULL, &query, &size) ||
 	    size != sizeof(query) || query > 1)
 		return CB_EFI_ACCESS_ERROR;
 	*allowed = query == 1;
@@ -632,14 +655,12 @@ enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value)
 		uint64_t alignment;
 		uint8_t bytes[256];
 	} request;
-	struct smm_variable_header32 *variable = (void *)request.bytes;
-	struct smm_variable_access32 *access = (void *)variable->data;
-	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
-							    void *, size_t *);
+	struct smm_variable_header *variable = (void *)request.bytes;
+	struct smm_variable_access *access = (void *)variable->data;
 	size_t max_name = (sizeof(request.bytes) - sizeof(*variable) - sizeof(*access) -
 			   sizeof(*value)) / sizeof(CHAR16);
-	size_t name_length, name_size, request_size, response_size;
-	mm_manage manage;
+	size_t name_length, name_size;
+	UINTN request_size, response_size;
 	bool boot_access;
 
 	if (!name || !value)
@@ -660,15 +681,14 @@ enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value)
 	response_size = request_size;
 	memset(&request, 0, sizeof(request));
 	variable->function = SMM_VARIABLE_FUNCTION_GET_VARIABLE;
-	variable->return_status = UINT32_MAX;
+	variable->return_status = (UINTN)-1;
 	access->guid = efi_coreboot_nv_data_guid;
 	access->data_size = sizeof(*value);
 	access->name_size = name_size;
 	for (size_t i = 0; i < name_length; i++)
 		access->name[i] = (uint8_t)name[i];
 
-	manage = (void *)(uintptr_t)service->manage_entry;
-	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &response_size) ||
+	if (manage_mm(&efi_smm_variable_protocol_guid, NULL, variable, &response_size) ||
 	    response_size != request_size ||
 	    variable->function != SMM_VARIABLE_FUNCTION_GET_VARIABLE)
 		return CB_EFI_ACCESS_ERROR;
@@ -704,16 +724,13 @@ enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 		uint64_t alignment;
 		uint8_t bytes[256];
 	} request;
-	struct smm_variable_header32 *variable = (void *)request.bytes;
-	struct smm_variable_access32 *access = (void *)variable->data;
-	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
-							    void *, size_t *);
+	struct smm_variable_header *variable = (void *)request.bytes;
+	struct smm_variable_access *access = (void *)variable->data;
 	size_t max_name = (sizeof(request.bytes) - sizeof(*variable) - sizeof(*access) -
 			   sizeof(value)) / sizeof(CHAR16);
 	size_t name_length;
 	size_t name_size;
-	size_t request_size;
-	mm_manage manage;
+	UINTN request_size;
 
 	if (!name || current_state != SERVICE_READY || !entry_in_core(service->manage_entry))
 		return CB_EFI_ACCESS_ERROR;
@@ -726,7 +743,7 @@ enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 
 	memset(&request, 0, sizeof(request));
 	variable->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
-	variable->return_status = UINT32_MAX;
+	variable->return_status = (UINTN)-1;
 	access->guid = efi_coreboot_nv_data_guid;
 	access->data_size = sizeof(value);
 	access->name_size = name_size;
@@ -737,8 +754,7 @@ enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 	memcpy((uint8_t *)access->name + name_size, &value, sizeof(value));
 
 	/* Dispatch a firmware-owned request through the untrusted variable handler. */
-	manage = (void *)(uintptr_t)service->manage_entry;
-	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &request_size) ||
+	if (manage_mm(&efi_smm_variable_protocol_guid, NULL, variable, &request_size) ||
 	    request_size < sizeof(*variable) || request_size > sizeof(request.bytes) ||
 	    variable->return_status)
 		return CB_EFI_ACCESS_ERROR;

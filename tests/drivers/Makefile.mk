@@ -125,6 +125,15 @@ efi-variable-service-vboot-test-config += CONFIG_VBOOT_SLOTS_RW_AB=1 \
 efi-variable-service-vboot-test-srcs += src/drivers/efi_variable_service/capsule_store.c \
 	3rdparty/vboot/firmware/2lib/2nvstorage.c 3rdparty/vboot/firmware/2lib/2crc8.c
 efi-variable-service-vboot-test-cflags += -I 3rdparty/vboot/firmware/2lib/include
+$(call copy-test,efi-variable-service-init-test,efi-variable-service-init64-test)
+$(call copy-test,efi-variable-service-4k-test,efi-variable-service-4k64-test)
+$(call copy-test,efi-variable-service-vboot-test,efi-variable-service-vboot64-test)
+tests-y += efi-variable-service-init64-test efi-variable-service-4k64-test \
+	efi-variable-service-vboot64-test
+$(foreach test,efi-variable-service-init64-test efi-variable-service-4k64-test \
+	efi-variable-service-vboot64-test,\
+	$(eval $(test)-config += CONFIG_ARCH_SMM_X86_32=0 CONFIG_ARCH_SMM_X86_64=1)\
+	$(eval $(test)-cflags := $(subst /Include/Ia32,/Include/X64,$($(test)-cflags))))
 intel-fast-spi-resource-test-stage := ramstage
 intel-fast-spi-resource-test-srcs += tests/drivers/intel-fast-spi-resource-test.c \
 	src/device/device_util.c tests/stubs/console.c

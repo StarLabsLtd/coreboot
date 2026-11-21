@@ -7,6 +7,7 @@ static uint8_t smram[0x400000] __aligned(4096);
 static uint8_t transport[EFI_VARIABLE_SERVICE_BUFFER_SIZE];
 static const uint8_t firmware[0x2000];
 static bool resume;
+static bool high_region;
 static unsigned int loads;
 
 bool romstage_handoff_is_resume(void)
@@ -17,7 +18,7 @@ bool romstage_handoff_is_resume(void)
 int smm_subregion(int sub, uintptr_t *base, size_t *size)
 {
 	assert_int_equal(sub, SMM_SUBREGION_EFI_VARIABLE_SERVICE);
-	*base = (uintptr_t)smram;
+	*base = high_region ? 0xfffff000 : (uintptr_t)smram;
 	*size = sizeof(smram);
 	return 0;
 }
@@ -85,6 +86,7 @@ static int setup(void **unused)
 	struct smm_runtime runtime = {0};
 
 	resume = false;
+	high_region = false;
 	loads = 0;
 	memset(smram, 0, sizeof(smram));
 	efi_variable_service_load(&runtime);
@@ -135,12 +137,24 @@ static void reject_invalid_retained_entry(void **unused)
 	assert_int_equal(loads, 0);
 }
 
+static void reject_region_crossing_4g(void **unused)
+{
+	struct smm_runtime runtime = {0};
+
+	high_region = true;
+	efi_variable_service_load(&runtime);
+	assert_false(service_prepared);
+	assert_int_equal(runtime.efi_variable_service_base, 0);
+	assert_int_equal(loads, 0);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(resume_without_loading_fv, setup),
 		cmocka_unit_test_setup(reject_invalid_retained_size, setup),
 		cmocka_unit_test_setup(reject_invalid_retained_entry, setup),
+		cmocka_unit_test_setup(reject_region_crossing_4g, setup),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
