@@ -982,9 +982,19 @@ static void signed_capsule_source_is_rechecked(void **unused)
 		&platform, close, sizeof(close), image, &reply_size), 0);
 	write_le32(begin + 8, 0);
 	program_calls = 0;
-	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, begin, sizeof(begin), image, &reply_size), 0);
-	assert_int_equal(read_le32(begin + 12), 0);
+	/* Revision 1 lacks the separate result field. Its signature is unchanged. */
+	write_le32(begin, 1);
+	memmove(begin + 12, begin + 16, sizeof(begin) - 16);
+	mailbox->state = EFI_VARIABLE_SERVICE_BUFFER_REQUEST;
+	mailbox->transaction++;
+	reply->message_length = sizeof(begin) - sizeof(uint32_t);
+	mailbox->message_size = sizeof(*reply) + reply->message_length;
+	memcpy(reply->data, begin, reply->message_length);
+	assert_int_equal(ass_native_mailbox_dispatch(owner, &policy, NULL, &phase, &capsule,
+		shared, sizeof(shared), scratch, sizeof(scratch)), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	assert_int_equal(mailbox->status, 0);
+	assert_int_equal(mailbox->response_size, sizeof(*reply) + 32);
+	assert_int_equal(reply->message_length, 32);
 	assert_true(source.authorized);
 	const EFI_GUID events[] = {
 		ASS_END_OF_DXE_GUID, ASS_READY_TO_LOCK_GUID, ASS_READY_TO_BOOT_GUID,
