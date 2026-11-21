@@ -58,16 +58,11 @@ endif
 # OPTION			= DEFAULT_VALUE
 #
 # BOOTSPLASH_IMAGE		= FALSE
+EDK2_FALLBACK_LOGO := $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE))
 # A retained coreboot splash does not need another copy in the payload.
 ifneq ($(CONFIG_BOOT_SPLASH_HANDOFF),y)
-ifneq ($(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),)
+ifneq ($(EDK2_FALLBACK_LOGO),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
-EDK2_FALLBACK_LOGO := $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE))
-ifneq ($(filter /%,$(EDK2_FALLBACK_LOGO)),)
-EDK2_FALLBACK_LOGO := $(abspath $(EDK2_FALLBACK_LOGO))
-else
-EDK2_FALLBACK_LOGO := $(abspath $(top)/$(EDK2_FALLBACK_LOGO))
-endif
 endif
 endif
 CONFIG_EDK2_BOOTSPLASH_SOURCE_SCALE ?= 1
@@ -440,11 +435,18 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 	prep print
 	set -e; \
 	if [ -n "$(EDK2_FALLBACK_LOGO)" ]; then \
-		logo="$(abspath $(EDK2_PATH))/MdeModulePkg/Logo/Logo.bmp"; \
-		saved=$$(mktemp "$$logo.XXXXXX"); \
-		cp -p "$$logo" "$$saved" || { rm -f "$$saved"; exit 1; }; \
-		trap 'mv -f "$$saved" "$$logo"' EXIT; \
-		convert -background None "$(EDK2_FALLBACK_LOGO)" "BMP3:$$logo"; \
+		asset="$(EDK2_FALLBACK_LOGO)"; \
+		case "$$asset" in /*) ;; *) asset="$(top)/$$asset";; esac; \
+		dir=$$(cd "$(EDK2_PATH)/MdeModulePkg/Logo" && pwd); \
+		logo="$$dir/Logo.bmp"; \
+		if [ ! -f "$$logo" ] || [ -L "$$logo" ]; then \
+			echo "EDK2: Expected a regular logo file at $$logo" >&2; exit 1; \
+		fi; \
+		work=$$(mktemp -d "$$logo.XXXXXX"); \
+		trap 'if [ -e "$$work/original" ]; then mv -fT "$$work/original" "$$logo" || exit 1; fi; rm -f "$$work/converted"; rmdir "$$work"' EXIT; \
+		convert -background None "$$asset" "BMP3:$$work/converted"; \
+		mv "$$logo" "$$work/original"; \
+		mv "$$work/converted" "$$logo"; \
 	fi; \
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
