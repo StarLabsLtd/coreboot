@@ -2,6 +2,17 @@
 
 ifeq ($(CONFIG_ASS),y)
 
+ass-owner := $(obj)/ass/owner
+.PHONY: ass-owner-check
+$(ass-owner): ass-owner-check
+	@mkdir -p $(dir $@)
+	@printf '%s\n' '$(if $(ASS_NATIVE_LINK_CHECK),native,fixed-mm)' > $@.tmp
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
+	@rm -f $@.tmp
+
+$(obj)/ramstage/drivers/efi_variable_service/ramstage.o: $(ass-owner)
+$(obj)/smm/drivers/efi_variable_service/smi.o: $(ass-owner)
+
 ifeq ($(ASS_NATIVE_LINK_CHECK),)
 cbfs-files-y += efi_variable_service_fv
 efi_variable_service_fv-file := $(obj)/FIXEDMMFV.Fv
