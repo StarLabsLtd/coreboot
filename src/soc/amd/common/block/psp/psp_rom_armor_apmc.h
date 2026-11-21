@@ -24,6 +24,8 @@ enum rom_armor_apm_result {
 	ROM_ARMOR_RET_UNSUPPORTED,
 };
 
+void psp_rom_armor_invalidate_mmap(size_t offset, size_t length);
+
 /* Parameter structures for ROM Armor operations */
 struct rom_armor_params_init {
 	bool capsule_update;	/* 1 for capsule update/recovery mode, 0 otherwise */
