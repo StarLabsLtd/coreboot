@@ -112,8 +112,7 @@ static bool prepare_policy(const struct gop_context *context, struct gop_init_po
 		.length = sizeof(*policy),
 		.format = 1,
 		.content = 1,
-		.width = 1024,
-		.height = 768,
+		/* Leave the resolution unspecified so GOP selects its preferred mode. */
 		.vbios = context->pool.base + context->pool.size - 0x10000,
 	};
 	for (unsigned int i = 0; i < 6; i++)

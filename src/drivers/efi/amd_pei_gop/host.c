@@ -465,7 +465,7 @@ UINT32 EFIAPI _start(VOID *context, struct gop_init_policy *policy, struct gop_m
 		    (o < object + sizeof(*c) && object < o + sizeof(*output)) ||
 		    (p < o + sizeof(*output) && o < p + sizeof(*policy)) ||
 		    policy->length != sizeof(*policy) || policy->format != 1 ||
-		    policy->content != 1 || !policy->width || !policy->height ||
+		    policy->content != 1 || (!policy->width != !policy->height) ||
 		    policy->width > 16384 || policy->height > 16384 ||
 		    policy->vbios != pool_end - 0x10000)
 			return EFI_INVALID_PARAMETER;
