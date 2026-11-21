@@ -143,6 +143,28 @@ static bool target_matches(const struct payload_mm_authvar_policy_request *reque
 	return false;
 }
 
+bool payload_mm_authvar_factory_default(const uint8_t vendor_guid[16],
+	const void *name, size_t name_size)
+{
+	static const struct {
+		const uint8_t *name;
+		size_t size;
+	} keys[] = {
+		{ kek_default_name, sizeof(kek_default_name) },
+		{ pk_default_name, sizeof(pk_default_name) },
+		{ db_default_name, sizeof(db_default_name) },
+		{ dbx_default_name, sizeof(dbx_default_name) },
+		{ dbt_default_name, sizeof(dbt_default_name) },
+	};
+
+	if (memcmp(vendor_guid, global_guid, sizeof(global_guid)))
+		return false;
+	for (size_t i = 0; i < ARRAY_SIZE(keys); i++)
+		if (name_size == keys[i].size && !memcmp(name, keys[i].name, name_size))
+			return true;
+	return false;
+}
+
 bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 	const void *name, size_t name_size)
 {
@@ -153,11 +175,6 @@ bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 	} keys[] = {
 		{ global_guid, audit_mode_name, sizeof(audit_mode_name) },
 		{ global_guid, deployed_mode_name, sizeof(deployed_mode_name) },
-		{ global_guid, kek_default_name, sizeof(kek_default_name) },
-		{ global_guid, pk_default_name, sizeof(pk_default_name) },
-		{ global_guid, db_default_name, sizeof(db_default_name) },
-		{ global_guid, dbx_default_name, sizeof(dbx_default_name) },
-		{ global_guid, dbt_default_name, sizeof(dbt_default_name) },
 		{ cert_db_guid, cert_db_name, sizeof(cert_db_name) },
 	};
 
@@ -171,7 +188,8 @@ bool payload_mm_authvar_bundle_key_reserved(const uint8_t vendor_guid[16],
 		if (payload_mm_authvar_mode_key_matches(vendor_guid, name,
 			name_size, key))
 			return true;
-	if (payload_mm_authvar_view_key_reserved(vendor_guid, name, name_size))
+	if (payload_mm_authvar_view_key_reserved(vendor_guid, name, name_size) ||
+	    payload_mm_authvar_factory_default(vendor_guid, name, name_size))
 		return true;
 
 	for (size_t i = 0U; i < ARRAY_SIZE(keys); i++)

@@ -170,6 +170,61 @@ static void check_boot_next_at_runtime(void **unused)
 	assert_int_equal(read_le16(value), 0x1234);
 }
 
+static void factory_defaults_are_sealed_at_handoff(void **unused)
+{
+	static struct {
+		struct authvar_owner owner;
+		_Alignas(16) uint8_t workspace[128 * 1024];
+	} service;
+	static uint8_t erased[3 * 4096], volume[sizeof(erased)];
+	uint8_t *store = volume + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	const size_t store_size = 4096 - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	struct test_media media = { .store = store, .size = store_size };
+	static struct authvar_policy policy;
+	const uint16_t name[] = u"PKDefault";
+	_Alignas(8) uint8_t request[sizeof(struct smm_variable_header32) +
+		sizeof(struct smm_variable_access32) + sizeof(name) + 1] = { 0 };
+	struct smm_variable_header32 *message = (void *)request;
+	struct smm_variable_access32 *access = (void *)message->data;
+	uint8_t *value = (uint8_t *)access->name + sizeof(name);
+
+	memset(erased, 0xff, sizeof(erased));
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
+		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	access->guid = (EFI_GUID) {
+		0x8be4df61, 0x93ca, 0x11d2, { 0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c },
+	};
+	access->name_size = sizeof(name);
+	access->data_size = 1;
+	access->attributes = 6;
+	memcpy(access->name, name, sizeof(name));
+	*value = 1;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	assert_int_equal(authvar_owner_ready(&service.owner, NULL), 0);
+	*value = 2;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000008U);
+	authvar_owner_enter_runtime(&service.owner);
+	access->attributes = 0;
+	access->data_size = 0;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000008U);
+	message->function = SMM_VARIABLE_FUNCTION_GET_VARIABLE;
+	access->data_size = 1;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	assert_int_equal(*value, 1);
+	assert_int_equal(media.writes, 0);
+}
+
 static void admit_existing_store(void **unused)
 {
 	static struct {
@@ -1518,6 +1573,7 @@ int main(void)
 		cmocka_unit_test(admit_existing_store),
 		cmocka_unit_test(restore_deleted_secure_boot_preference),
 		cmocka_unit_test(check_boot_next_at_runtime),
+		cmocka_unit_test(factory_defaults_are_sealed_at_handoff),
 		cmocka_unit_test(owner_on_nor),
 		cmocka_unit_test(native_smm_opens_before_publication),
 		cmocka_unit_test(lite_ass_private_data_budget),

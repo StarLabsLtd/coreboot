@@ -48,6 +48,7 @@ enum variable_format {
 	VAR_KEY_OPTION,
 	VAR_PATH,
 	VAR_LOAD_OPTION,
+	VAR_FACTORY_DEFAULT,
 	VAR_READ_ONLY,
 };
 
@@ -86,11 +87,11 @@ static const struct {
 	{ u"SecureBoot", 6, 1, 1, VAR_READ_ONLY },
 	{ u"VendorKeys", 6, 1, 1, VAR_READ_ONLY },
 	{ u"SignatureSupport", 6, 16, 0, VAR_READ_ONLY },
-	{ u"PKDefault", 6, 1, 0, VAR_READ_ONLY },
-	{ u"KEKDefault", 6, 1, 0, VAR_READ_ONLY },
-	{ u"dbDefault", 6, 1, 0, VAR_READ_ONLY },
-	{ u"dbxDefault", 6, 1, 0, VAR_READ_ONLY },
-	{ u"dbtDefault", 6, 1, 0, VAR_READ_ONLY },
+	{ u"PKDefault", 6, 1, 0, VAR_FACTORY_DEFAULT },
+	{ u"KEKDefault", 6, 1, 0, VAR_FACTORY_DEFAULT },
+	{ u"dbDefault", 6, 1, 0, VAR_FACTORY_DEFAULT },
+	{ u"dbxDefault", 6, 1, 0, VAR_FACTORY_DEFAULT },
+	{ u"dbtDefault", 6, 1, 0, VAR_FACTORY_DEFAULT },
 };
 
 static bool matches_variable(const uint16_t *pattern, const uint16_t *name)
@@ -138,7 +139,8 @@ static bool valid_load_option(const uint8_t *data, size_t size)
 }
 
 static uint64_t check_uefi_variable(const struct authvar_policy *policy,
-	const uint16_t *name, const struct smm_variable_access32 *access, const void *data)
+	const uint16_t *name, const struct smm_variable_access32 *access, const void *data,
+	bool setup_open)
 {
 	static const EFI_GUID global = {
 		0x8be4df61, 0x93ca, 0x11d2, { 0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c },
@@ -154,19 +156,18 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 	const size_t size = access->data_size;
 	uint32_t attributes = access->attributes;
 	const bool append = attributes & PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
+	const bool deletion = !attributes || (!size && !append);
 	const uint64_t invalid = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	bool valid;
 
 	/* Hardware error records are not supported by the native owner. */
 	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR)
 		return invalid;
-	if (!attributes || (!size && !append))
-		return 0;
 	if (!memcmp(guid, &hardware_error, sizeof(hardware_error)))
-		return invalid;
+		return deletion ? 0 : invalid;
 	if (!memcmp(guid, &image_security, sizeof(image_security))) {
 		/* The authenticated owner checks the attributes and ESL payload. */
-		if (matches_variable(u"db", name) || matches_variable(u"dbx", name) ||
+		if (deletion || matches_variable(u"db", name) || matches_variable(u"dbx", name) ||
 		    matches_variable(u"dbt", name))
 			return 0;
 		goto registered;
@@ -181,8 +182,12 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 
 		if (!matches_variable(rule->name, name))
 			continue;
-		if (rule->format == VAR_READ_ONLY)
+		/* BDS publishes volatile factory defaults before the owner seals boot policy. */
+		if (rule->format == VAR_READ_ONLY ||
+		    (rule->format == VAR_FACTORY_DEFAULT && !setup_open))
 			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		if (deletion)
+			return 0;
 		if (attributes != rule->attributes)
 			return invalid;
 		if (!size && append)
@@ -208,6 +213,7 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 			valid = valid_load_option(data, size);
 			break;
 		case VAR_BYTES:
+		case VAR_FACTORY_DEFAULT:
 			return 0;
 		default:
 			return invalid;
@@ -216,7 +222,8 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 	}
 
 registered:
-	return authvar_policy_has_match(policy, name, access->name_size, guid) ? 0 : invalid;
+	return deletion || authvar_policy_has_match(policy, name, access->name_size, guid) ?
+		0 : invalid;
 }
 
 static uint64_t set_variable(struct authvar_owner *owner,
@@ -226,7 +233,9 @@ static uint64_t set_variable(struct authvar_owner *owner,
 	const size_t size = access->data_size;
 	size_t payload_size = size;
 
-	uint64_t status = check_uefi_variable(policy, name, access, data);
+	/* The SMM owner's retained state closes trusted setup at handoff. */
+	const bool setup_open = !owner->ready && !owner->runtime;
+	uint64_t status = check_uefi_variable(policy, name, access, data, setup_open);
 	if (status)
 		return status;
 	if (access->attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
@@ -241,10 +250,6 @@ static uint64_t set_variable(struct authvar_owner *owner,
 		access->attributes, payload_size, policy_get, owner, NULL);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return status;
-	/* Like Fixed MM, trust built-in setup until the first boot handoff.
-	 * The SMM owner's retained state, not the request, closes this window.
-	 */
-	const bool setup_open = !owner->ready && !owner->runtime;
 	return authvar_owner_set(owner, name, &access->guid, access->attributes,
 		size, data, setup_open, fixed, NULL);
 }

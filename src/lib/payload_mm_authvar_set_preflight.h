@@ -24,6 +24,7 @@ struct payload_mm_authvar_set_snapshot {
 	bool at_runtime;
 	/* The snapshot indexes the owner's RAM bank, not its NOR-backed store. */
 	bool volatile_store;
+	bool allow_factory_defaults;
 	bool trusted_physical_presence;
 };
 

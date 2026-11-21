@@ -187,7 +187,14 @@ uint64_t payload_mm_authvar_set_preflight(
 	}
 	if (controlled_mode == PAYLOAD_MM_AUTHVAR_CONTROLLED_MODE_NONE &&
 	    payload_mm_authvar_bundle_key_reserved(request->vendor_guid,
-		request->name, request->name_size))
+		request->name, request->name_size) &&
+	    !(snapshot->allow_factory_defaults && snapshot->volatile_store &&
+	      !snapshot->at_runtime &&
+	      (!request->attributes || request->attributes ==
+	       (PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS)) &&
+	      payload_mm_authvar_factory_default(request->vendor_guid,
+		request->name, request->name_size)))
 		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
 	memset(&route_request, 0, sizeof(route_request));
 	memcpy(route_request.vendor_guid, request->vendor_guid,

@@ -659,6 +659,7 @@ static uint64_t ordinary_volatile_set(struct authvar_owner *local,
 	struct payload_mm_authvar_set_snapshot snapshot = {
 		.request = request, .index = &local->volatile_index,
 		.at_runtime = local->runtime, .volatile_store = true,
+		.allow_factory_defaults = !local->ready,
 	};
 	struct payload_mm_authvar_set_plan plan;
 	struct payload_mm_authvar_store_index next = {0};
