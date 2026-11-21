@@ -69,6 +69,7 @@ choice
 	prompt "Graphics initialization"
 	default NO_GFX_INIT if VGA_ROM_RUN_DEFAULT && PAYLOAD_SEABIOS
 	default VGA_ROM_RUN if VGA_ROM_RUN_DEFAULT
+	default RUN_AMD_PEI_GOP if DRIVERS_AMD_PEI_GOP
 	default MAINBOARD_DO_NATIVE_VGA_INIT
 	default MAINBOARD_USE_LIBGFXINIT
 	default RUN_FSP_GOP if INTEL_GMA_HAVE_VBT
@@ -108,6 +109,14 @@ config VGA_ROM_RUN
 	  When using a SeaBIOS payload it runs all option ROMs with much
 	  more complete BIOS interrupt services available than coreboot,
 	  which some option ROMs require in order to function correctly.
+
+config RUN_AMD_PEI_GOP
+	bool "Run the AMD PEI GOP driver"
+	depends on DRIVERS_AMD_PEI_GOP
+	select HAVE_LINEAR_FRAMEBUFFER
+	help
+	  Initialize graphics with the AMD IA32 PEIM and pass a linear
+	  framebuffer to the payload.
 
 config RUN_FSP_GOP
 	bool "Run a GOP driver"
