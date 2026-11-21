@@ -179,16 +179,28 @@ class BuildPolicyTest(unittest.TestCase):
                     target = workspace if mode == 'short-path' else workspace / source.name
                     if mode == 'not-a-repository':
                         target.mkdir()
-                    result = subprocess.run([
+                    command = [
                         'make', '--no-print-directory', '-f',
                         str(ROOT / 'payloads/external/edk2/Makefile'),
-                        str(target) + ('/' if mode == 'short-path' else ''),
                         'CONFIG_EDK2_REPOSITORY=' + repository,
                         'CONFIG_EDK2_TAG_OR_REV=' + revision,
-                    ], cwd=caller, env=environment, capture_output=True, text=True)
+                    ]
+                    if mode == 'file-url':
+                        unprepared = subprocess.run(command + [str(target)], cwd=caller,
+                                                    env=environment, capture_output=True,
+                                                    text=True)
+                        self.assertNotEqual(unprepared.returncode, 0)
+                        self.assertIn('before building', unprepared.stderr)
+                        self.assertFalse(target.exists())
+                    result = subprocess.run(command + ['prepare-source'],
+                                            cwd=caller, env=environment,
+                                            capture_output=True, text=True)
                     if mode == 'file-url':
                         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                         self.assertEqual(git(target, 'rev-parse', 'HEAD'), revision)
+                        result = subprocess.run(command + ['-B', str(target)], cwd=caller,
+                                                env=environment, capture_output=True, text=True)
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     else:
                         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                     self.assertEqual(git(parent, 'rev-parse', 'HEAD'), head)
