@@ -27,13 +27,21 @@ CONFIG_APCB_SOURCES_PATH="/path/to/PHX/APCB"
 binaries must be available under their applicable distribution terms; the
 board support patch does not grant permission to redistribute them.
 
-The release configuration requires the Phoenix external-GOP and selectable
-CF9 reset support in the StarLabs EDK2 payload. Apply those payload changes
-before using the configuration until they are included in its selected
-branch. The external GOP path also requires the separately supplied
-`UefiPayloadPkg/AmdX64GenericGop.efi` and `UefiPayloadPkg/amd_vbios.rom` files
-in the payload source directory.
+The release configuration uses the AMD IA32 PEI graphics driver through
+coreboot's PI host after openSIL and PCI resource assignment. Supply the
+board-compatible graphics inputs separately:
 
-Capsule generation requires locally supplied signing certificates. The
-configuration enables capsule updates but does not include private signing
-paths or generate a signed capsule by default.
+```
+CONFIG_RUN_AMD_PEI_GOP=y
+CONFIG_DRIVERS_AMD_PEI_GOP_FILE="/path/to/AmdIa32GenericGop.efi"
+CONFIG_DRIVERS_AMD_PEI_GOP_ATOM_FILE="/path/to/amd_vbios.rom"
+```
+
+Coreboot passes the initialized framebuffer to generic EDK2 and publishes
+the updated ATOM image through its existing VFCT writer. The payload does
+not need the AMD DXE GOP or its platform glue. These binaries remain subject
+to their applicable distribution terms.
+
+The configuration enables capsule updates and signed capsule generation.
+Supply signing certificates at the configured paths before building; private
+key material is not included in the repository.
