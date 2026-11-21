@@ -158,6 +158,9 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 	const bool append = attributes & PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
 	const bool deletion = !attributes || (!size && !append);
 	const uint64_t invalid = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	const uint32_t authenticated_database = PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+		PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS | PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS |
+		PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED;
 	bool valid;
 
 	/* Hardware error records are not supported by the native owner. */
@@ -166,16 +169,20 @@ static uint64_t check_uefi_variable(const struct authvar_policy *policy,
 	if (!memcmp(guid, &hardware_error, sizeof(hardware_error)))
 		return deletion ? 0 : invalid;
 	if (!memcmp(guid, &image_security, sizeof(image_security))) {
-		/* The authenticated owner checks the attributes and ESL payload. */
-		if (deletion || matches_variable(u"db", name) || matches_variable(u"dbx", name) ||
-		    matches_variable(u"dbt", name))
+		if (deletion)
 			return 0;
+		/* The owner also checks the signature and ESL payload. */
+		if (matches_variable(u"db", name) || matches_variable(u"dbx", name) ||
+		    matches_variable(u"dbt", name))
+			return (attributes & ~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND) ==
+				authenticated_database ? 0 : invalid;
 		goto registered;
 	}
 	if (memcmp(guid, &global, sizeof(global)))
 		return 0;
 	if (matches_variable(u"PK", name) || matches_variable(u"KEK", name))
-		return 0;
+		return deletion || (attributes & ~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND) ==
+			authenticated_database ? 0 : invalid;
 	attributes &= ~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
 	for (size_t i = 0; i < ARRAY_SIZE(global_variables); i++) {
 		const typeof(*global_variables) *rule = &global_variables[i];

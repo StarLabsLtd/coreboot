@@ -107,7 +107,7 @@ static void restore_deleted_secure_boot_preference(void **unused)
 	assert_int_equal(media.writes, 4);
 }
 
-static void check_boot_next_at_runtime(void **unused)
+static void check_uefi_properties_at_runtime(void **unused)
 {
 	static struct {
 		struct authvar_owner owner;
@@ -169,6 +169,21 @@ static void check_boot_next_at_runtime(void **unused)
 	assert_int_equal(message->return_status, 0);
 	assert_int_equal(access->data_size, 2);
 	assert_int_equal(read_le16(value), 0x1234);
+	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	access->guid = (EFI_GUID) {
+		0xd719b2cb, 0x3d3a, 0x4596, { 0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f },
+	};
+	access->name_size = sizeof(u"db");
+	memcpy(access->name, u"db", sizeof(u"db"));
+	access->attributes = 0x23;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000002U);
+	access->attributes = 0x27;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x8000001aU);
+	assert_int_equal(media.writes, 1);
 }
 
 static void factory_defaults_are_sealed_at_handoff(void **unused)
@@ -1652,7 +1667,7 @@ int main(void)
 		cmocka_unit_test(admit_existing_store),
 		cmocka_unit_test(restore_deleted_secure_boot_preference),
 		cmocka_unit_test(reopen_orphan_certdb),
-		cmocka_unit_test(check_boot_next_at_runtime),
+		cmocka_unit_test(check_uefi_properties_at_runtime),
 		cmocka_unit_test(factory_defaults_are_sealed_at_handoff),
 		cmocka_unit_test(owner_on_nor),
 		cmocka_unit_test(native_smm_opens_before_publication),
