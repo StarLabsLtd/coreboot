@@ -402,6 +402,20 @@ uint32_t ass_native_mm_dispatch(struct authvar_owner *owner,
 	    wire->message_length > size - sizeof(*wire))
 		return wire_status(PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
 	if (!memcmp(&wire->guid, &variable_guid, sizeof(variable_guid))) {
+		struct smm_variable_header32 *variable = (void *)wire->data;
+
+		/* EDK2's variable notification can precede the exit event. */
+		if (*phase == ASS_MM_WAIT_READY_TO_BOOT && !owner->ready &&
+		    wire->message_length == sizeof(*variable) &&
+		    (uintptr_t)variable % _Alignof(uint16_t) == 0 &&
+		    variable->function == SMM_VARIABLE_FUNCTION_EXIT_BOOT_SERVICE) {
+			const uint64_t status = authvar_owner_ready(owner, fixed);
+
+			if (status) {
+				variable->return_status = wire_status(status);
+				return 0;
+			}
+		}
 		if (!ass_native_variable_dispatch(owner, policy, fixed, wire->data,
 		    wire->message_length))
 			return wire_status(PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);

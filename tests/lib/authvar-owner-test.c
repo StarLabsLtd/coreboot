@@ -362,7 +362,19 @@ static void admit_existing_store(void **unused)
 			packet, sizeof(*wire) + 1), 0);
 	}
 	assert_false(service.owner.ready);
+	wire->guid = (EFI_GUID)ASS_VARIABLE_GUID;
+	wire->message_length = sizeof(*message);
+	message->function = SMM_VARIABLE_FUNCTION_EXIT_BOOT_SERVICE;
+	memcpy(wire->data, request, sizeof(*message));
+	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
+		packet, sizeof(*wire) + sizeof(*message)), 0);
+	assert_int_equal(((struct smm_variable_header32 *)wire->data)->return_status, 0);
+	assert_true(service.owner.ready);
+	assert_true(service.owner.runtime);
+	assert_int_equal(phase, ASS_MM_WAIT_READY_TO_BOOT);
 	wire->guid = events[ARRAY_SIZE(events) - 1];
+	wire->message_length = 1;
+	wire->data[0] = 0;
 	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
 		packet, sizeof(*wire) + 1), 0);
 	assert_int_equal(phase, ASS_MM_RUNTIME);
