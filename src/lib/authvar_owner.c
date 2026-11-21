@@ -236,6 +236,18 @@ uint64_t authvar_owner_view(struct authvar_owner *local,
 		PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 }
 
+static uint64_t init_mode_preference(struct authvar_owner *local,
+	enum payload_mm_authvar_mode_key key, const uint16_t *name, uint8_t value)
+{
+	struct payload_mm_authvar_policy_request request;
+
+	if (!payload_mm_authvar_mode_request(key, &request))
+		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+	return authvar_owner_set(local, name, request.vendor_guid,
+		PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE | PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+		sizeof(value), &value, true, NULL, NULL);
+}
+
 uint64_t authvar_owner_init(struct authvar_owner *local,
 	const void *store, size_t size, size_t maximum_data_size,
 	authvar_owner_commit_fn *commit, void *context,
@@ -358,17 +370,18 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
 	local->failed = false;
 	if (restore_enable) {
-		struct payload_mm_authvar_policy_request request;
-		const uint16_t name[] = u"SecureBootEnable";
-		const uint8_t enabled = 1;
-		uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		uint64_t status = init_mode_preference(local,
+			PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, u"SecureBootEnable", 1);
 
-		if (payload_mm_authvar_mode_request(
-		    PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, &request))
-			status = authvar_owner_set(local, name, request.vendor_guid,
-				PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
-				PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
-				sizeof(enabled), &enabled, true, NULL, NULL);
+		if (status_error(status)) {
+			local->failed = true;
+			return status;
+		}
+	}
+	if (!fixed) {
+		uint64_t status = init_mode_preference(local,
+			PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE, u"CustomMode", 0);
+
 		if (status_error(status)) {
 			local->failed = true;
 			return status;

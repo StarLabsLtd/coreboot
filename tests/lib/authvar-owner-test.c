@@ -491,6 +491,11 @@ static void admit_existing_store(void **unused)
 	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
 		setup_request, sizeof(setup_request)));
 	assert_int_equal(setup->return_status, 0);
+	size_t mode_size = 1;
+	uint8_t mode;
+	assert_int_equal(authvar_owner_get(&service.owner, custom_mode,
+		&setup_access->guid, NULL, &mode_size, &mode), 0);
+	assert_int_equal(mode, 1);
 	policy_message->command = ASS_POLICY_LOCK;
 	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
 		policy_packet, sizeof(policy_packet)), 0);
@@ -537,6 +542,9 @@ static void admit_existing_store(void **unused)
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 1024,
 		commit, &media, service.workspace, sizeof(service.workspace), true,
 		NULL, NULL), PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	assert_int_equal(authvar_owner_get(&service.owner, custom_mode,
+		&setup_access->guid, NULL, &mode_size, &mode), 0);
+	assert_int_equal(mode, 0);
 	phase = ASS_MM_WAIT_END_OF_DXE;
 	for (size_t i = 0; i < 2; i++) {
 		wire->guid = events[i];
