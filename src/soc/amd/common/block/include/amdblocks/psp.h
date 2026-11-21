@@ -138,4 +138,10 @@ int psp_ab_recovery_toggle_bootpartition(void);
  */
 bool read_efs_spi_settings(uint8_t *mode, uint8_t *speed);
 
+#if ENV_RAMSTAGE
+/* Validate data followed by a 32-byte HMAC, before PSP BootDone. */
+int psp_validate_hmac_data(void *data, uint32_t size, uint32_t *status);
+int psp_sign_hmac_data(void *data, uint32_t size, uint32_t *status);
+#endif
+
 #endif /* AMD_BLOCK_PSP_H */
