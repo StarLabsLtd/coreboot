@@ -11,10 +11,20 @@
 
 #define SMU_MESG_RESP_TIMEOUT	0x00
 #define SMU_MESG_RESP_OK	0x01
+#define SMU_MESG_RESP_PREREQUISITE	0xfd
 
 struct smu_payload {
 	uint32_t msg[SMU_NUM_ARGS];
 };
+
+struct smu_mailbox {
+	uint32_t command;
+	uint32_t response;
+	uint32_t arguments;
+};
+
+int32_t send_smu_message_raw_timeout_at(const struct smu_mailbox *mailbox,
+		uint32_t message_id, struct smu_payload *arg, unsigned int timeout_us);
 
 /*
  * Send a message and bi-directional payload to the SMU. The raw variant updates the payload
