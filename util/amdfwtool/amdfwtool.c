@@ -1521,6 +1521,8 @@ integrate_bios_firmwares(context *ctx, struct amd_bios_entry *fw_table,
 			}
 			/* Size needs to be multiple of 4K. Most APCB files are padded, some are not. */
 			bytes = ALIGN_UP(bytes, ERASE_ALIGNMENT);
+			biosdir->entries[count].writable = cb_config->apcb_writable &&
+				fw_table[i].type == AMD_BIOS_APCB && fw_table[i].inst == 0;
 			biosdir->entries[count].size = (uint32_t)bytes;
 			biosdir->entries[count].source = RUN_CURRENT(*ctx);
 			biosdir->entries[count].address_mode = SET_ADDR_MODE_BY_TABLE(biosdir);

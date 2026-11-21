@@ -38,6 +38,7 @@ enum {
 
 	AMDFW_OPT_INSTANCE,
 	AMDFW_OPT_APCB,
+	AMDFW_OPT_APCB_WRITABLE,
 	AMDFW_OPT_APOBBASE,
 	AMDFW_OPT_BIOSBIN,
 	AMDFW_OPT_BIOSBIN_SOURCE,
@@ -115,6 +116,7 @@ static struct option long_options[] = {
 	/* BIOS Directory Table items */
 	{"instance",         required_argument, 0, AMDFW_OPT_INSTANCE },
 	{"apcb",             required_argument, 0, AMDFW_OPT_APCB },
+	{"apcb-writable",    no_argument,       0, AMDFW_OPT_APCB_WRITABLE },
 	{"apob-base",        required_argument, 0, AMDFW_OPT_APOBBASE },
 	{"bios-bin",         required_argument, 0, AMDFW_OPT_BIOSBIN },
 	{"bios-bin-src",     required_argument, 0, AMDFW_OPT_BIOSBIN_SOURCE },
@@ -196,6 +198,7 @@ static void usage(void)
 	printf("--instance <number>             Sets instance field for the next BIOS\n");
 	printf("                                firmware\n");
 	printf("--apcb <FILE>                   Add AGESA PSP customization block\n");
+	printf("--apcb-writable                 Allow writes to the instance-0 primary APCB\n");
 	printf("--apob-base <HEX_VAL>           Destination for AGESA PSP output block\n");
 	printf("--apob-nv-base <HEX_VAL>        Location of S3 resume data\n");
 	printf("--apob-nv-size <HEX_VAL>        Size of S3 resume data\n");
@@ -445,6 +448,9 @@ int amdfwtool_getopt(int argc, char *argv[], amd_cb_config *cb_config)
 			register_fw_fuse(optarg);
 			fuse_defined = 1;
 			sub = 0;
+			break;
+		case AMDFW_OPT_APCB_WRITABLE:
+			cb_config->apcb_writable = true;
 			break;
 		case AMDFW_OPT_APCB:
 			if ((instance & 0xF0) == 0) {
