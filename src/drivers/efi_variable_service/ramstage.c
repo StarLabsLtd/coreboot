@@ -86,7 +86,8 @@ static bool prepare_native_handoff(struct native_handoff *handoff, void *buffer)
 			.buffer_size = EFI_VARIABLE_SERVICE_BUFFER_SIZE,
 		},
 	};
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
+#if CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)
+	{
 		uint32_t version, lowest;
 
 		efi_fw_versions(&version, &lowest);
@@ -105,6 +106,7 @@ static bool prepare_native_handoff(struct native_handoff *handoff, void *buffer)
 			(vboot_get_context()->flags & VB2_CONTEXT_FW_SLOT_B) ? 2 : 1;
 #endif
 	}
+#endif
 	return true;
 }
 #endif
