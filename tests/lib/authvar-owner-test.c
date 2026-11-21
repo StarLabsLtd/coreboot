@@ -23,6 +23,7 @@
 #include "authvar-capsule-fixture.h"
 #include "authvar-capsule-bios-fixture.h"
 #include "authvar-capsule-ab-fixture.h"
+#include "authvar-pk-delete-fixture.h"
 
 struct test_media {
 	uint8_t *store;
@@ -42,6 +43,71 @@ static uint64_t commit(void *context, const void *store, size_t size,
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	memcpy(media->store, store, size);
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+}
+
+static void signed_pk_delete(void **unused)
+{
+	static struct {
+		struct authvar_owner owner;
+		_Alignas(16) uint8_t workspace[128 * 1024];
+	} service;
+	static uint8_t erased[3 * 4096], volume[sizeof(erased)];
+	uint8_t *store = volume + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	const size_t store_size = 4096 - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	struct test_media media = { .store = store, .size = store_size };
+	const uint16_t pk[] = u"PK";
+	const struct payload_mm_authvar_record_descriptor platform_key = {
+		.name = pk, .name_size = sizeof(pk), .attributes = 0x27,
+		.vendor_guid = { 0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+			0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c },
+	};
+	const struct payload_mm_authvar_record_span span = {
+		fixture_pk_esl, sizeof(fixture_pk_esl),
+	};
+	const size_t offset = payload_mm_authvar_default_store_records_end();
+	_Alignas(8) uint8_t request[sizeof(struct smm_variable_header32) +
+		sizeof(struct smm_variable_access32) + sizeof(pk) +
+		sizeof(fixture_pk_delete_auth)] = { 0 };
+	struct smm_variable_header32 *message = (void *)request;
+	struct smm_variable_access32 *access = (void *)message->data;
+	uint8_t *auth = (uint8_t *)access->name + sizeof(pk);
+	struct authvar_policy policy = { 0 };
+	uint32_t length;
+	unsigned int writes;
+	size_t size = 0;
+
+	memset(erased, 0xff, sizeof(erased));
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
+		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+	assert_true(payload_mm_authvar_record_encode(&platform_key, &span, 1,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+		store + offset, store_size - offset, &length));
+	store[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_false(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP);
+	writes = media.writes;
+	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	memcpy(&access->guid, platform_key.vendor_guid, sizeof(access->guid));
+	access->attributes = platform_key.attributes;
+	access->name_size = sizeof(pk);
+	access->data_size = sizeof(fixture_pk_delete_auth);
+	memcpy(access->name, pk, sizeof(pk));
+	memcpy(auth, fixture_pk_delete_auth, sizeof(fixture_pk_delete_auth));
+	auth[4]++;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x8000001aU);
+	assert_int_equal(media.writes, writes);
+	assert_false(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP);
+	auth[4]--;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	assert_int_equal(media.writes, writes + 1);
+	assert_true(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP);
+	assert_int_equal(authvar_owner_get(&service.owner, pk, platform_key.vendor_guid,
+		NULL, &size, NULL), PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
 }
 
 static void restore_deleted_secure_boot_preference(void **unused)
@@ -1786,6 +1852,7 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(admit_existing_store),
+		cmocka_unit_test(signed_pk_delete),
 		cmocka_unit_test(restore_deleted_secure_boot_preference),
 		cmocka_unit_test(reopen_orphan_certdb),
 		cmocka_unit_test(setup_replacement_preserves_timestamp),
