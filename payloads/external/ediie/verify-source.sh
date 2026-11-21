@@ -15,10 +15,14 @@ payload_git()
 )
 
 actual=$(payload_git rev-parse HEAD)
-expected=$(payload_git rev-parse --verify refs/ediie/prepared) || {
-	echo 'Prepare edIIe: sh payloads/external/ediie/prepare-source.sh' >&2
-	exit 1
-}
+case "${2:-}" in
+	--record-local) expected=$actual ;;
+	'') expected=$(payload_git rev-parse --verify refs/ediie/prepared) || {
+		echo 'Prepare edIIe: sh payloads/external/ediie/prepare-source.sh' >&2
+		exit 1
+	} ;;
+	*) exit 1 ;;
+esac
 status=$(payload_git status --porcelain --untracked-files=normal --ignore-submodules=none)
 if [ "$actual" != "$expected" ] || [ -n "$status" ]; then
 	echo 'edIIe must match the clean revision selected during source preparation' >&2
@@ -28,4 +32,8 @@ submodules=$(payload_git submodule status --recursive)
 if printf '%s\n' "$submodules" | grep -Eq '^[+U-]'; then
 	echo 'Re-run edIIe source preparation to initialize dependencies' >&2
 	exit 1
+fi
+if [ "${2:-}" = --record-local ]; then
+	payload_git update-ref refs/ediie/prepared "$actual"
+	printf 'Prepared local edIIe revision %s\n' "$actual"
 fi

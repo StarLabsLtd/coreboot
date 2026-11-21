@@ -3,6 +3,10 @@
 set -eu
 
 unset GIT_INDEX_FILE
+if [ "${1:-}" = --local ]; then
+	test "$#" -eq 2 || { echo 'Usage: prepare-source.sh --local <checkout>' >&2; exit 1; }
+	exec sh "$(dirname "$0")/verify-source.sh" "$2" --record-local
+fi
 cd "$(dirname "$0")"
 source=ediie
 remote=https://github.com/StarLabsLtd/edIIe.git
