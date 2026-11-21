@@ -13,6 +13,7 @@
 #include <Pi/PiFirmwareVolume.h>
 
 static uint32_t spi_bar;
+static size_t bios_offset, bios_size;
 
 static uint32_t read_spi_bar(pci_devfn_t dev, uint16_t reg)
 {
@@ -27,6 +28,9 @@ static uint32_t read_spi_bar(pci_devfn_t dev, uint16_t reg)
 #define cdecl sysv_abi
 #endif
 #include <drivers/efi_variable_service/smi.c>
+#define efi_variable_service_write_device intel_write_device
+#include <drivers/efi_variable_service/platform_intel.c>
+#undef efi_variable_service_write_device
 #undef cdecl
 
 static uint8_t flash[0x80000];
@@ -114,10 +118,15 @@ const struct region_device *efi_variable_service_write_device(void)
 	return write_device_available ? selected_flash : NULL;
 }
 
+size_t fast_spi_get_bios_region(size_t *size)
+{
+	*size = bios_size;
+	return bios_offset;
+}
+
 #if CONFIG(VBOOT_SLOTS_RW_AB)
 const struct region_device *boot_device_ro(void) { return &flash_device; }
 const struct region_device *boot_device_rw(void) { return &flash_device; }
-size_t fast_spi_get_bios_region(size_t *size) { *size = sizeof(flash); return 0; }
 static uint8_t nvdata[VB2_NVDATA_SIZE];
 static unsigned int nv_writes;
 void read_vbnv_flash(uint8_t *data) { memcpy(data, nvdata, sizeof(nvdata)); }
@@ -282,6 +291,8 @@ static int setup(void **unused)
 	native_entry_allowed = true;
 	revoke_writer_after_probe = false;
 	spi_bar = 0xfe010000;
+	bios_offset = 0;
+	bios_size = sizeof(flash);
 	writer_lookups = 0;
 	selected_flash = &flash_device;
 	service_flash = NULL;
@@ -706,6 +717,27 @@ static void native_entry_denied(void **unused)
 }
 #endif
 
+static void invalid_bios_geometry(void **unused)
+{
+	static const char name[16] = "BIOS";
+	struct efi_capsule_range range;
+	const struct { size_t offset, size; } invalid[] = {
+		{ 0x1000, 0 },
+		{ 0x1000, SIZE_MAX - 0xfff },
+		{ CONFIG_ROM_SIZE, 1 },
+		{ 0x1000, CONFIG_ROM_SIZE },
+	};
+
+	assert_int_equal(capsule_resolve(name, &range), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	assert_int_equal(range.offset, 0);
+	assert_int_equal(range.size, sizeof(flash));
+	for (size_t i = 0; i < ARRAY_SIZE(invalid); i++) {
+		bios_offset = invalid[i].offset;
+		bios_size = invalid[i].size;
+		assert_int_equal(capsule_resolve(name, &range), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	}
+}
+
 static void resume_bar_checked_before_writer(void **unused)
 {
 	assert_int_equal(efi_variable_service_finalize(), 0);
@@ -811,6 +843,7 @@ int main(void)
 		cmocka_unit_test_setup(native_entry_denied, setup),
 #endif
 		cmocka_unit_test_setup(resume_bar_checked_before_writer, setup),
+		cmocka_unit_test_setup(invalid_bios_geometry, setup),
 #if CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000
 		cmocka_unit_test_setup(legacy_store_migrates, setup),
 		cmocka_unit_test_setup(legacy_geometry_on_s3_is_refused, setup),

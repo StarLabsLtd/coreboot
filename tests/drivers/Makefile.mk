@@ -157,3 +157,19 @@ $(foreach test,efi-variable-service-entry-amd-test efi-variable-service-entry-in
 	$(eval $(test)-config += CONFIG_ARCH_SMM_X86_64=1))
 efi-variable-service-entry-amd-test-config += CONFIG_SOC_AMD_COMMON=1
 efi-variable-service-entry-intel-test-config += CONFIG_SOC_AMD_COMMON=0
+
+tests-y += efi-variable-service-hob-test
+efi-variable-service-hob-test-srcs += tests/drivers/efi-variable-service-hob.c \
+	src/lib/uuid.c src/lib/hexstrtobin.c src/commonlib/region.c tests/stubs/console.c
+efi-variable-service-hob-test-stage := ramstage
+efi-variable-service-hob-test-config += CONFIG_ASS=1 CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=0 \
+	CONFIG_ROM_SIZE=0x80000 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000 \
+	CONFIG_DRIVERS_EFI_MAIN_FW_GUID=\"12345678-1234-5678-9abc-def012345678\"
+efi-variable-service-hob-test-cflags += -I tests/drivers/efi-variable-service-include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/X64 \
+	-DFMAP_SECTION_FLASH_START=0 -DFMAP_SECTION_FLASH_SIZE=0x80000
+
+$(call copy-test,efi-variable-service-hob-test,efi-variable-service-hob-capsule-test)
+tests-y += efi-variable-service-hob-capsule-test
+efi-variable-service-hob-capsule-test-config += CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1

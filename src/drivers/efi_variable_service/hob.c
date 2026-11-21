@@ -5,18 +5,11 @@
 #include <commonlib/bsd/helpers.h>
 #include <commonlib/region.h>
 #include <boot/coreboot_tables.h>
-#include <device/pci_def.h>
-#include <device/pci_mmio_cfg.h>
-#include <device/pci_ops.h>
 #include <cpu/x86/smm.h>
 #include <efi_variable_service.h>
 #include <drivers/efi/efivars.h>
 #include <fmap.h>
-#include <cbmem.h>
 #include <smmstore.h>
-#include <soc/iomap.h>
-#include <soc/pci_devs.h>
-#include <soc/pm.h>
 #include <string.h>
 #include <uuid.h>
 #if CONFIG(VBOOT_SLOTS_RW_AB)
@@ -45,7 +38,6 @@
 
 #define ACPI_ADDRESS_SPACE_PCI_CONFIGURATION	2
 #define ACPI_ACCESS_SIZE_DWORD			3
-#define SPI_DISABLE_SMM_WRITE_PROTECT		BIT(0)
 
 #define GUID(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7) \
 	{ (a), (b), (c), { (d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7) } }
@@ -220,17 +212,12 @@ static void *append_guid_hob(struct hob_builder *builder, const struct efi_guid 
 	return hob + 1;
 }
 
-static int append_runtime_ram(struct hob_builder *builder)
+static int append_runtime_ram(struct hob_builder *builder, const struct region *ram)
 {
 	struct hob_resource *resource;
-	uintptr_t smram_base;
-	size_t smram_size;
-	uintptr_t end = (uintptr_t)cbmem_top();
 
-	/* CPU/SMM setup precedes PCI resource enumeration. Use the already trained
-	 * low-DRAM boundary, not a resource map which is still being populated. */
-	smm_region(&smram_base, &smram_size);
-	if (!smram_size || end > smram_base || end <= 1 * MiB)
+	if (region_offset(ram) < 1 * MiB || !region_sz(ram) ||
+	    region_offset(ram) >= 4ULL * GiB || region_sz(ram) > 4ULL * GiB - region_offset(ram))
 		return -1;
 	resource = append_hob(builder, HOB_RESOURCE_DESCRIPTOR, sizeof(*resource));
 	if (!resource)
@@ -240,7 +227,7 @@ static int append_runtime_ram(struct hob_builder *builder)
 		.owner = capsule_ram_guid, .type = RESOURCE_SYSTEM_MEMORY,
 		.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED | RESOURCE_TESTED |
 			RESOURCE_WRITE_BACK_CACHEABLE,
-		.base = 1 * MiB, .size = end - 1 * MiB,
+		.base = region_offset(ram), .size = region_sz(ram),
 	};
 	return 0;
 }
@@ -254,8 +241,8 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	struct hob_builder builder = { (void *)hob_base, (void *)region_end };
 	struct hob_handoff *handoff;
 	struct hob_resource *resource;
-	struct hob_resource *spi_config_resource;
-	struct hob_resource *spi_mmio_resource;
+	struct hob_resource *spi_config_resource = NULL;
+	struct hob_resource *spi_mmio_resource = NULL;
 	struct hob_resource *store_resource;
 	struct hob_fv *fv;
 	struct hob_module *module;
@@ -264,17 +251,18 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	struct service_info_hob *service;
 	struct variable_store_hob *store_hob;
 	struct variable_flash_hob *flash;
-	struct spi_flash_info_hob *spi;
+	struct spi_flash_info_hob *spi = NULL;
 	struct acpi_board_info_hob *acpi;
 	struct capsule_info_hob *capsule = NULL;
 	struct smmstore_params_info info;
 	struct region store;
 	struct hob_header *end;
 	uint64_t store_size, spare_size, variable_size;
-	uintptr_t spi_config_base;
+	struct efi_variable_service_platform platform;
 	uintptr_t heap_base;
 
-	if (buffer_size != EFI_VARIABLE_SERVICE_BUFFER_SIZE ||
+	if (efi_variable_service_get_platform_info(&platform) || !platform.pm_timer ||
+	    buffer_size != EFI_VARIABLE_SERVICE_BUFFER_SIZE ||
 	    !IS_ALIGNED(buffer, 0x1000) || !IS_ALIGNED(buffer_size, 0x1000) ||
 	    smmstore_get_info(&info) || fmap_locate_area("SMMSTORE", &store))
 		return -1;
@@ -299,14 +287,15 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	    !IS_ALIGNED(region_offset(&store), info.block_size))
 		return -1;
 	variable_size = store_size - spare_size - info.block_size;
-	spi_config_base = (uintptr_t)pci_mmio_config32_addr(PCI_BDF(PCH_DEV_SPI), 0);
 
 	handoff = append_hob(&builder, HOB_HANDOFF, sizeof(*handoff));
 	resource = append_hob(&builder, HOB_RESOURCE_DESCRIPTOR, sizeof(*resource));
-	spi_config_resource = append_hob(&builder, HOB_RESOURCE_DESCRIPTOR,
-					  sizeof(*spi_config_resource));
-	spi_mmio_resource = append_hob(&builder, HOB_RESOURCE_DESCRIPTOR,
-					sizeof(*spi_mmio_resource));
+	if (platform.spi_config) {
+		spi_config_resource = append_hob(&builder, HOB_RESOURCE_DESCRIPTOR,
+						sizeof(*spi_config_resource));
+		spi_mmio_resource = append_hob(&builder, HOB_RESOURCE_DESCRIPTOR,
+					      sizeof(*spi_mmio_resource));
+	}
 	store_resource = append_hob(&builder, HOB_RESOURCE_DESCRIPTOR,
 				    sizeof(*store_resource));
 	fv = append_hob(&builder, HOB_FIRMWARE_VOLUME, sizeof(*fv));
@@ -316,7 +305,8 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	service = append_guid_hob(&builder, &service_info_guid, sizeof(*service));
 	store_hob = append_guid_hob(&builder, &variable_store_guid, sizeof(*store_hob));
 	flash = append_guid_hob(&builder, &variable_flash_guid, sizeof(*flash));
-	spi = append_guid_hob(&builder, &spi_flash_info_guid, sizeof(*spi));
+	if (platform.spi_config)
+		spi = append_guid_hob(&builder, &spi_flash_info_guid, sizeof(*spi));
 	acpi = append_guid_hob(&builder, &acpi_board_info_guid, sizeof(*acpi));
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
 		uint32_t version, lowest;
@@ -343,12 +333,12 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 		if (parse_uuid(capsule->image_guid, CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 			return -1;
 	}
-	if (append_runtime_ram(&builder))
+	if (append_runtime_ram(&builder, &platform.runtime_ram))
 		return -1;
 	end = append_hob(&builder, HOB_END, sizeof(*end));
-	if (!handoff || !resource || !spi_config_resource || !spi_mmio_resource ||
-	    !store_resource || !fv || !module || !mmram || !communication || !service ||
-	    !store_hob || !flash || !spi || !acpi || !end)
+	if (!handoff || !resource || !store_resource || !fv || !module || !mmram ||
+	    !communication || !service || !store_hob || !flash || !acpi || !end ||
+	    (platform.spi_config && (!spi_config_resource || !spi_mmio_resource || !spi)))
 		return -1;
 	heap_base = ALIGN_UP((uintptr_t)builder.current, 0x1000);
 	if (heap_base >= region_end)
@@ -367,19 +357,21 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 			RESOURCE_WRITE_BACK_CACHEABLE,
 		.base = buffer, .size = buffer_size,
 	};
-	*spi_config_resource = (struct hob_resource) {
-		.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*spi_config_resource), 0 },
-		.owner = zero_guid, .type = RESOURCE_MEMORY_MAPPED_IO,
-		.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED,
-		.base = spi_config_base, .size = 0x1000,
-	};
-	*spi_mmio_resource = (struct hob_resource) {
-		.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*spi_mmio_resource), 0 },
-		.owner = zero_guid, .type = RESOURCE_MEMORY_MAPPED_IO,
-		.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED,
-		/* PCI assigns this BAR later; SMM fills it before MM core initialization. */
-		.base = 0, .size = 0x1000,
-	};
+	if (platform.spi_config) {
+		*spi_config_resource = (struct hob_resource) {
+			.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*spi_config_resource), 0 },
+			.owner = zero_guid, .type = RESOURCE_MEMORY_MAPPED_IO,
+			.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED,
+			.base = platform.spi_config, .size = 0x1000,
+		};
+		*spi_mmio_resource = (struct hob_resource) {
+			.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*spi_mmio_resource), 0 },
+			.owner = zero_guid, .type = RESOURCE_MEMORY_MAPPED_IO,
+			.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED,
+			/* PCI assigns this BAR later; SMM fills it before MM core initialization. */
+			.base = 0, .size = 0x1000,
+		};
+	}
 	*store_resource = (struct hob_resource) {
 		.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*store_resource), 0 },
 		.owner = zero_guid, .type = RESOURCE_MEMORY_MAPPED_IO,
@@ -427,17 +419,19 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 		.spare_base = info.mmap_addr + variable_size + info.block_size,
 		.spare_size = spare_size,
 	};
-	*spi = (struct spi_flash_info_hob) {
-		.flags = CONFIG(HAVE_INSMM_STS) ? SPI_DISABLE_SMM_WRITE_PROTECT : 0,
-		.spi_address = {
-			.address_space_id = ACPI_ADDRESS_SPACE_PCI_CONFIGURATION,
-			.register_bit_width = 32,
-			.access_size = ACPI_ACCESS_SIZE_DWORD,
-			.address = (uintptr_t)pci_mmio_config32_addr(PCI_BDF(PCH_DEV_SPI), 0),
-		},
-	};
+	if (platform.spi_config) {
+		*spi = (struct spi_flash_info_hob) {
+			.flags = platform.spi_flags,
+			.spi_address = {
+				.address_space_id = ACPI_ADDRESS_SPACE_PCI_CONFIGURATION,
+				.register_bit_width = 32,
+				.access_size = ACPI_ACCESS_SIZE_DWORD,
+				.address = platform.spi_config,
+			},
+		};
+	}
 	*acpi = (struct acpi_board_info_hob) {
-		.pm_timer_base = ACPI_BASE_ADDRESS + PM1_TMR,
+		.pm_timer_base = platform.pm_timer,
 	};
 
 	state->hob_base = hob_base;

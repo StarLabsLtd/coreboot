@@ -10,6 +10,7 @@
 struct lb_header;
 struct smm_runtime;
 struct region_device;
+struct region;
 
 #define EFI_VARIABLE_SERVICE_REVISION	(CONFIG(ARCH_SMM_X86_64) ? 2 : 1)
 #define EFI_VARIABLE_SERVICE_APM_CMD	0xe7
@@ -95,6 +96,8 @@ bool efi_variable_service_boot_access_allowed(void);
 bool efi_variable_service_entry_allowed(void);
 /* Return only the protected SMM writer admitted for the current call. */
 const struct region_device *efi_variable_service_write_device(void);
+struct region efi_variable_service_bios_region(void);
+int efi_variable_service_bind_spi(const struct efi_variable_service_state *service);
 bool efi_variable_service_spi_bar_valid(uintptr_t bar);
 void lb_efi_variable_service(struct lb_header *header);
 

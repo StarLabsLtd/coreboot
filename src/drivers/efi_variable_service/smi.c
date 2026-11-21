@@ -4,12 +4,8 @@
 #include <commonlib/region.h>
 #include <cpu/x86/smm.h>
 #include <drivers/efi/efivars.h>
-#include <device/pci_def.h>
-#include <device/pci_ops.h>
 #include <efi_variable_service.h>
 #include <fmap_config.h>
-#include <intelblocks/fast_spi.h>
-#include <soc/pci_devs.h>
 #include <string.h>
 
 #include "hob.h"
@@ -46,7 +42,6 @@ struct mm_entry_context {
 static enum service_state current_state;
 static struct efi_variable_service_state *service;
 static bool registration_open;
-static uintptr_t sealed_spi_bar;
 static struct region_device variable_store_device;
 static const struct region_device *service_flash;
 static struct efi_private_store variable_store;
@@ -80,7 +75,10 @@ static uint32_t MM_ABI capsule_resolve(const char name[16], struct efi_capsule_r
 	memcpy(terminated, name, 16);
 	terminated[16] = 0;
 	if (!strcmp(terminated, "BIOS")) {
-		range->offset = fast_spi_get_bios_region(&range->size);
+		const struct region bios = efi_variable_service_bios_region();
+
+		range->offset = region_offset(&bios);
+		range->size = region_sz(&bios);
 	} else if (!strcmp(terminated, "FMAP")) {
 		range->offset = FMAP_SECTION_FMAP_START;
 		range->size = FMAP_SECTION_FMAP_SIZE;
@@ -323,51 +321,6 @@ static int get_service(void)
 	return 0;
 }
 
-bool efi_variable_service_spi_bar_valid(uintptr_t bar)
-{
-	/* Before trusted finalization, PCI resource assignment may still change BAR0. */
-	return !sealed_spi_bar || bar == sealed_spi_bar;
-}
-
-static int update_spi_bar(void)
-{
-	struct hob_resource *resource;
-	uintptr_t smram_base;
-	size_t smram_size;
-	uint32_t bar;
-	uint32_t offset;
-
-	if (service->spi_mmio_resource < service->hob_base)
-		return -1;
-	offset = service->spi_mmio_resource - service->hob_base;
-	if (offset > service->hob_size || service->hob_size - offset < sizeof(*resource))
-		return -1;
-
-	resource = (void *)(uintptr_t)service->spi_mmio_resource;
-	if (resource->header.type != HOB_RESOURCE_DESCRIPTOR ||
-	    resource->header.length != sizeof(*resource) ||
-	    resource->type != RESOURCE_MEMORY_MAPPED_IO || resource->size != 0x1000)
-		return -1;
-
-	bar = pci_read_config32(PCH_DEV_SPI, PCI_BASE_ADDRESS_0);
-	if (bar & PCI_BASE_ADDRESS_SPACE_IO)
-		return -1;
-	bar &= ~0xfff;
-	if (!bar)
-		return -1;
-	smm_region(&smram_base, &smram_size);
-	const struct region spi_region = region_create(bar, 0x1000);
-	const struct region smram_region = region_create(smram_base, smram_size);
-	if (region_overlap(&spi_region, &smram_region))
-		return -1;
-	if (smm_efi_variable_service_is_s3_resume() && resource->base != bar)
-		return -1;
-
-	sealed_spi_bar = bar;
-	resource->base = bar;
-	return 0;
-}
-
 static int initialize_service(void)
 {
 	struct service_info_hob *info;
@@ -543,7 +496,7 @@ static int service_ready(void)
 		return -1;
 	if (get_service())
 		return -1;
-	if (update_spi_bar())
+	if (efi_variable_service_bind_spi(service))
 		return -1;
 	if (prepare_private_store())
 		return -1;

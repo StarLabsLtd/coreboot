@@ -3,6 +3,7 @@
 #ifndef EFI_VARIABLE_SERVICE_HOB_H
 #define EFI_VARIABLE_SERVICE_HOB_H
 
+#include <commonlib/region.h>
 #include <stddef.h>
 #include <types.h>
 
@@ -12,6 +13,17 @@
 
 #define HOB_RESOURCE_DESCRIPTOR 0x0003
 #define RESOURCE_MEMORY_MAPPED_IO 1
+#define SPI_DISABLE_SMM_WRITE_PROTECT BIT(0)
+
+struct efi_variable_service_platform {
+	struct region runtime_ram;
+	uintptr_t spi_config; /* Zero when the service uses only private flash callbacks. */
+	uint16_t spi_flags;
+	uint16_t pm_timer;
+};
+
+int efi_variable_service_get_platform_info(struct efi_variable_service_platform *info);
+
 #define EFI_VARIABLE_SERVICE_INFO_REVISION 3
 
 struct efi_guid {
