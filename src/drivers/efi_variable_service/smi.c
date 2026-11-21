@@ -474,7 +474,7 @@ static int variable_service_probe(void)
 	/* Probe the installed owner; MM keeps a private copy of its input HOBs. */
 	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
 		struct capsule_geometry {
-			uint32_t revision, command, transaction;
+			uint32_t revision, command, transaction, result;
 			uint32_t flash_size, block_size, lowest_supported_version;
 		} __packed;
 		const EFI_GUID capsule_guid = {
@@ -484,17 +484,18 @@ static int variable_service_probe(void)
 		struct capsule_geometry *geometry = (void *)message->data;
 		const struct capsule_info_hob *info = (void *)(uintptr_t)service->capsule_info;
 
-		_Static_assert(sizeof(*geometry) == 24, "Capsule INFO wire ABI");
+		_Static_assert(sizeof(*geometry) == 28, "Capsule INFO wire ABI");
 		message->guid = capsule_guid;
 		message->message_length = sizeof(*geometry);
 		memset(geometry, 0, sizeof(*geometry));
-		geometry->revision = 1;
+		geometry->revision = 2;
 		geometry->command = 1; /* COREBOOT_CAPSULE_INFO */
 		if (dispatch_message(base, size, sizeof(*message) + sizeof(*geometry)) ||
 		    status->return_status ||
 		    status->return_buffer_size != sizeof(*message) + sizeof(*geometry) ||
 		    message->message_length != sizeof(*geometry) ||
-		    geometry->revision != 1 || geometry->command != 1 || geometry->transaction ||
+		    geometry->revision != 2 || geometry->command != 1 ||
+		    geometry->transaction || geometry->result ||
 		    geometry->flash_size != CONFIG_ROM_SIZE ||
 		    geometry->block_size != EFI_CAPSULE_BLOCK_SIZE ||
 		    geometry->lowest_supported_version < info->lowest_supported_version)

@@ -217,11 +217,14 @@ static void mm_dispatch(const struct mm_entry_context *context)
 	struct mm_communication_header32 *message =
 		(void *)(transport + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
 
-	if (message->message_length == 24) {
+	if (message->message_length == 28) {
 		uint32_t *geometry = (void *)message->data;
 
-		geometry[3] = CONFIG_ROM_SIZE;
-		geometry[4] = EFI_CAPSULE_BLOCK_SIZE;
+		assert_int_equal(geometry[0], 2);
+		assert_int_equal(geometry[1], 1);
+		geometry[3] = 0;
+		geometry[4] = CONFIG_ROM_SIZE;
+		geometry[5] = EFI_CAPSULE_BLOCK_SIZE;
 	}
 #endif
 	status->valid = 0;
