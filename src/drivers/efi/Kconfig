@@ -123,7 +123,8 @@ config DRIVERS_EFI_CAPSULE_INITIATE_RESET
 config DRIVERS_EFI_CAPSULE_REGIONS
 	string "FMAP regions to include in the capsule manifest"
 	default "COREBOOT"
-	depends on DRIVERS_EFI_GENERATE_CAPSULE || DRIVERS_EFI_CAPSULE_DISK_ONLY
+	depends on DRIVERS_EFI_GENERATE_CAPSULE || DRIVERS_EFI_CAPSULE_DISK_ONLY || \
+		(ASS && DRIVERS_EFI_UPDATE_CAPSULES)
 	help
 	  Whitespace-separated list of FMAP regions that the update capsule is
 	  allowed to modify. The list is embedded as a manifest inside the ROM

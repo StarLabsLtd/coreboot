@@ -13,6 +13,10 @@ efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Pi/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include/
 
 tests-y += efi-private-store-test
+tests-y += ass-signature-list-test
+ass-signature-list-test-srcs += tests/drivers/ass-signature-list.c
+ass-signature-list-test-srcs += src/lib/payload_mm_authvar_format.c
+
 efi-private-store-test-srcs += tests/drivers/efi-private-store.c
 efi-private-store-test-srcs += src/drivers/efi_variable_service/private_store.c
 efi-private-store-test-srcs += src/drivers/efi_variable_service/capsule_store.c

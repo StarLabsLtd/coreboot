@@ -1,6 +1,36 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 tests-y += lib-test
+tests-y += authvar-empty-list-test
+tests-y += authvar-owner-test
+include $(src)/lib/authvar_sources.mk
+authvar-owner-test-srcs += tests/lib/authvar-owner-test.c $(authvar_sources)
+authvar-owner-test-srcs += src/lib/authvar_fixed_policy.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_variables.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_media.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_smm.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_capsule.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_capsule_source.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/private_store.c
+authvar-owner-test-srcs += src/commonlib/region.c
+authvar-owner-test-config += CONFIG_EDIIE_SECURE_BOOT_FIXED_KEYS=1
+authvar-owner-test-cflags += -Itests/lib/authvar-owner-include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32 \
+	-I3rdparty/mbedtls/include -I3rdparty/mbedtls/library \
+	-Isrc/lib -Isrc/lib/payload_mm_crypto -DPAYLOAD_MM_AUTHVAR_CRYPTO \
+	-DMBEDTLS_CONFIG_FILE=\"payload_mm_mbedtls_config.h\" \
+	-DMBEDTLS_TEST_SW_INET_PTON -Wl,--wrap=mbedtls_rsa_parse_pubkey
+ifneq ($(ASS_FIXED_TEST_ASSETS),)
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_fixed.c
+authvar-owner-test-cflags += -DASS_FIXED_ASSET_TEST -I$(ASS_FIXED_TEST_BUILD) \
+	-Wl,$(ASS_FIXED_TEST_ASSETS)
+endif
+authvar-empty-list-test-srcs += tests/lib/authvar-empty-list-test.c
+authvar-empty-list-test-srcs += src/lib/payload_mm_authvar_format.c
+authvar-empty-list-test-srcs += src/lib/payload_mm_crypto/owner.c
+authvar-empty-list-test-cflags += -I3rdparty/mbedtls/include -Isrc/lib/payload_mm_crypto \
+	-DMBEDTLS_CONFIG_FILE=\"payload_mm_mbedtls_config.h\"
 tests-y += string-test
 tests-y += b64_decode-test
 tests-y += hexstrtobin-test

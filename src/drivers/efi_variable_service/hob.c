@@ -222,7 +222,8 @@ static void *append_guid_hob(struct hob_builder *builder, const struct efi_guid 
 	return hob + 1;
 }
 
-static int append_runtime_ram(struct hob_builder *builder)
+static int append_runtime_ram(struct hob_builder *builder,
+	struct efi_variable_service_state *state)
 {
 	struct hob_resource *resource;
 	uintptr_t smram_base;
@@ -232,17 +233,18 @@ static int append_runtime_ram(struct hob_builder *builder)
 	/* CPU/SMM setup precedes PCI resource enumeration. Use the already trained
 	 * low-DRAM boundary, not a resource map which is still being populated. */
 	smm_region(&smram_base, &smram_size);
-	if (!smram_size || end > smram_base || end <= 1 * MiB)
+	if (!smram_size || end > smram_base || end > UINT32_MAX || end <= 1 * MiB)
 		return -1;
 	resource = append_hob(builder, HOB_RESOURCE_DESCRIPTOR, sizeof(*resource));
 	if (!resource)
 		return -1;
+	state->capsule_ram_end = end;
 	*resource = (struct hob_resource) {
 		.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*resource), 0 },
 		.owner = capsule_ram_guid, .type = RESOURCE_SYSTEM_MEMORY,
 		.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED | RESOURCE_TESTED |
 			RESOURCE_WRITE_BACK_CACHEABLE,
-		.base = 1 * MiB, .size = end - 1 * MiB,
+		.base = 1 * MiB, .size = state->capsule_ram_end - 1 * MiB,
 	};
 	return 0;
 }
@@ -347,7 +349,7 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 			return -1;
 	}
 #endif
-	if (append_runtime_ram(&builder))
+	if (append_runtime_ram(&builder, state))
 		return -1;
 	end = append_hob(&builder, HOB_END, sizeof(*end));
 	if (!handoff || !resource || !spi_config_resource || !spi_mmio_resource ||
