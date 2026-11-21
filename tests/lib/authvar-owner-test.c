@@ -136,7 +136,7 @@ static void admit_existing_store(void **unused)
 	assert_int_equal(mailbox->response_size, sizeof(packet));
 	assert_int_equal(mailbox->status, 0);
 	assert_memory_equal(shared_message, packet, sizeof(packet));
-	assert_memory_equal(scratch, (uint8_t[sizeof(scratch)]){ 0 }, sizeof(scratch));
+	assert_memory_equal(scratch, (uint8_t[sizeof(scratch)]) { 0 }, sizeof(scratch));
 	wire->guid = (EFI_GUID)ASS_SERVICE_READY_GUID;
 	wire->message_length = 1;
 	wire->data[0] = 0;
@@ -594,7 +594,7 @@ static void malformed_capsule_never_authorizes_source(void **unused)
 	assert_true(ass_capsule_source_verify(&source, &crypto, signed_bytes,
 		sizeof(signed_bytes), &invalid, &invalid) != PAYLOAD_MM_VERIFY_OK);
 	assert_false(ass_capsule_source_read(&source, 0, output, sizeof(output)));
-	assert_memory_equal(output, (uint8_t[sizeof(output)]){ 0 }, sizeof(output));
+	assert_memory_equal(output, (uint8_t[sizeof(output)]) { 0 }, sizeof(output));
 }
 
 static unsigned int program_calls;
@@ -766,7 +766,7 @@ static void signed_capsule_source_is_rechecked(void **unused)
 	memset(output, 0xff, sizeof(output));
 	assert_true(ass_capsule_source_read(&source, ASS_CAPSULE_SOURCE_BLOCK - 2,
 		output, sizeof(output)));
-	assert_memory_equal(output, (uint8_t[sizeof(output)]){ 0 }, sizeof(output));
+	assert_memory_equal(output, (uint8_t[sizeof(output)]) { 0 }, sizeof(output));
 	body[ASS_CAPSULE_SOURCE_BLOCK] = 1;
 	memset(output, 0xff, sizeof(output));
 	assert_false(ass_capsule_source_read(&source, ASS_CAPSULE_SOURCE_BLOCK, output, 1));
