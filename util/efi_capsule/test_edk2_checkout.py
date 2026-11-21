@@ -14,6 +14,14 @@ from test_validate_capsule import OLD_GUID, capsule, volume
 
 ROOT = Path(__file__).resolve().parents[2]
 EDK2 = ROOT / 'payloads/external/edk2'
+FIXED_MM_SUBMODULES = (
+    'BaseTools/Source/C/BrotliCompress/brotli',
+    'MdeModulePkg/Library/BrotliCustomDecompressLib/brotli',
+    'MdePkg/Library/MipiSysTLib/mipisyst',
+    'CryptoPkg/Library/MbedTlsLib/mbedtls',
+    'SecurityPkg/DeviceSecurity/SpdmLib/libspdm',
+    'CryptoPkg/Library/OpensslLib/openssl',
+)
 
 
 class CachedCheckoutTest(unittest.TestCase):
@@ -96,11 +104,46 @@ cp "$TEST_CAPSULE" "$output"
                               [f'{key}={value}' for key, value in config.items()],
                               cwd=EDK2, env=env, capture_output=True, text=True)
 
+    def test_fixed_mm_repairs_clean_dependency_but_rejects_edits(self):
+        dependency = self.directory / 'dependency'
+        old = self.git(dependency, 'rev-parse', 'HEAD')
+        (dependency / 'file').write_text('next revision\n')
+        self.git(dependency, 'add', 'file')
+        self.commit(dependency)
+        new = self.git(dependency, 'rev-parse', 'HEAD')
+        for path in FIXED_MM_SUBMODULES:
+            self.git(self.repo, 'submodule', 'add', '-q', dependency.as_uri(), path)
+        self.commit(self.repo)
+        pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        checker = ROOT / 'util/efi_capsule/check-pinned-source.sh'
+        command = ['sh', str(checker), str(self.checkout), self.repository_url,
+                   pin, '', 'fixed-mm']
+        subprocess.run(command, env=self.online, check=True, capture_output=True)
+        self.assertFalse((self.checkout / 'dependency/file').exists())
+        module = self.checkout / FIXED_MM_SUBMODULES[0]
+        self.git(module, 'checkout', '--detach', old)
+        subprocess.run(command, env=self.offline, check=True, capture_output=True)
+        self.assertEqual(self.git(module, 'rev-parse', 'HEAD'), new)
+
+        self.git(module, 'checkout', '--detach', old)
+        (module / 'file').write_text('local edit\n')
+        rejected = subprocess.run(command, env=self.offline,
+                                  capture_output=True, text=True)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn('tracked changes', rejected.stderr)
+        self.assertEqual(self.git(module, 'rev-parse', 'HEAD'), old)
+        self.assertEqual((module / 'file').read_text(), 'local edit\n')
+
     def test_cached_pin_prepares_and_packages_offline(self):
-        initial = self.make(str(self.checkout), self.online)
+        initial = self.make('prepare-source', self.online)
         self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
-        prepared = self.make('prep', self.offline)
+        producer_index = self.directory / 'producer.index'
+        env = dict(self.offline, GIT_INDEX_FILE=str(producer_index))
+        subprocess.run(['git', 'read-tree', 'HEAD'], cwd=ROOT, env=env, check=True)
+        original_index = producer_index.read_bytes()
+        prepared = self.make('prep', env)
         self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+        self.assertEqual(producer_index.read_bytes(), original_index)
 
         fv = self.workspace / 'Build/UefiPayloadPkgX64/RELEASE_GCC/FV/DXEFV.Fv'
         fv.parent.mkdir(parents=True)
@@ -108,6 +151,32 @@ cp "$TEST_CAPSULE" "$output"
         packaged = self.make('coreboot_capsule', self.offline)
         self.assertEqual(packaged.returncode, 0, packaged.stdout + packaged.stderr)
         self.assertEqual((self.directory / 'coreboot.cap').read_bytes(), self.fixture.read_bytes())
+
+    def test_branch_refresh_changes_source_state_only_when_head_changes(self):
+        config = dict(CONFIG_EDK2_TAG_OR_REV='origin/main')
+        state = self.workspace / '.coreboot-source'
+        initial = self.make('prepare-source', self.online, **config)
+        self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
+        self.assertEqual(state.read_text().strip(), self.pin)
+        initial_mtime = state.stat().st_mtime_ns
+
+        (self.repo / 'edksetup.sh').write_text('# updated fixture source\n')
+        self.git(self.repo, 'add', 'edksetup.sh')
+        self.commit(self.repo)
+        new = self.git(self.repo, 'rev-parse', 'HEAD')
+        verified = self.make(str(self.checkout), self.offline, **config)
+        self.assertEqual(verified.returncode, 0, verified.stdout + verified.stderr)
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), self.pin)
+        self.assertEqual(state.stat().st_mtime_ns, initial_mtime)
+
+        refreshed = self.make('prepare-source', self.online, **config)
+        self.assertEqual(refreshed.returncode, 0, refreshed.stdout + refreshed.stderr)
+        self.assertEqual(state.read_text().strip(), new)
+        refreshed_mtime = state.stat().st_mtime_ns
+        self.assertGreater(refreshed_mtime, initial_mtime)
+        unchanged = self.make('prepare-source', self.online, **config)
+        self.assertEqual(unchanged.returncode, 0, unchanged.stdout + unchanged.stderr)
+        self.assertEqual(state.stat().st_mtime_ns, refreshed_mtime)
 
     def test_outer_capsule_requires_manifest_for_vboot(self):
         fv = self.workspace / 'Build/UefiPayloadPkgX64/RELEASE_GCC/FV/DXEFV.Fv'
@@ -164,6 +233,8 @@ CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT := edksetup.sh
 include {ROOT}/Makefile.mk
 include {ROOT}/payloads/external/Makefile.mk
 ''')
+                prepared = self.make('prepare-source', self.online)
+                self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
                 result = subprocess.run([
                     'make', '--no-print-directory', '-f', str(makefile),
                     '-o', str(self.rom), '-o', 'coreboot', '-o', 'build_complete',
@@ -199,6 +270,8 @@ include {ROOT}/payloads/external/Makefile.mk
         self.git(self.repo, 'add', '.')
         self.commit(self.repo)
         self.pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        prepared = self.make('prepare-source', self.online, **config)
+        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
         unsupported = self.make('prep', self.online, **config)
         self.assertNotEqual(unsupported.returncode, 0, unsupported.stdout + unsupported.stderr)
         self.assertIn('does not consume DISABLE_BOOT_MANAGER_WAIT', unsupported.stderr)
@@ -207,38 +280,46 @@ include {ROOT}/payloads/external/Makefile.mk
         self.git(self.repo, 'add', '.')
         self.commit(self.repo)
         self.pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        prepared = self.make('prepare-source', self.online, **config)
+        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
         supported = self.make('prep', self.online, **config)
         self.assertEqual(supported.returncode, 0, supported.stdout + supported.stderr)
 
-    def test_ass_requires_a_fixed_mm_description(self):
+    def test_ass_payload_source_does_not_need_fixed_mm_description(self):
+        prepared = self.make('prepare-source', self.online)
+        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+        result = self.make('prep', self.online, CONFIG_ASS='y')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_mm_builder_requires_its_platform_description(self):
         dependency = (self.directory / 'dependency').as_uri()
-        for path in ('BaseTools/Source/C/BrotliCompress/brotli',
-                     'MdeModulePkg/Library/BrotliCustomDecompressLib/brotli',
-                     'MdePkg/Library/MipiSysTLib/mipisyst',
-                     'CryptoPkg/Library/MbedTlsLib/mbedtls',
-                     'SecurityPkg/DeviceSecurity/SpdmLib/libspdm',
-                     'CryptoPkg/Library/OpensslLib/openssl'):
+        for path in FIXED_MM_SUBMODULES:
             self.git(self.repo, 'submodule', 'add', '-q', dependency, path)
         self.commit(self.repo)
         pin = self.git(self.repo, 'rev-parse', 'HEAD')
         output = self.directory / 'fixed-mm.fv'
+        producer_index = self.directory / 'producer.index'
+        env = dict(self.online, GIT_INDEX_FILE=str(producer_index))
+        subprocess.run(['git', 'read-tree', 'HEAD'], cwd=ROOT, env=env, check=True)
+        original_index = producer_index.read_bytes()
         result = subprocess.run(
             ['bash', 'src/drivers/efi_variable_service/build-fixed-mm.sh',
              str(self.workspace), str(output), self.repository_url, pin, 'n', ''],
-            cwd=ROOT, env=self.online, text=True, capture_output=True)
+            cwd=ROOT, env=env, text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('Fixed MM source is missing its DSC or FDF', result.stderr)
         self.assertFalse(output.exists())
+        self.assertEqual(producer_index.read_bytes(), original_index)
 
     def test_missing_submodule_fails_offline(self):
         self.workspace.mkdir()
         self.git(self.workspace, 'clone', '-q', self.repository_url, str(self.checkout))
         result = self.make('prep', self.offline)
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('transport', result.stderr)
+        self.assertIn('before building', result.stderr)
 
     def test_failed_offline_switch_can_be_retried_online(self):
-        initial = self.make(str(self.checkout), self.online)
+        initial = self.make('prepare-source', self.online)
         self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
         dependency = self.directory / 'dependency'
         (dependency / 'file').write_text('new dependency revision\n')
@@ -251,20 +332,20 @@ include {ROOT}/payloads/external/Makefile.mk
         self.git(self.checkout, 'fetch', '--no-recurse-submodules', 'origin')
 
         overrides = dict(CONFIG_EDK2_TAG_OR_REV=next_pin)
-        attempt = self.make('prep', self.offline, **overrides)
+        attempt = self.make('prepare-source', self.offline, **overrides)
         self.assertNotEqual(attempt.returncode, 0, attempt.stdout + attempt.stderr)
         self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), self.pin)
-        retry = self.make('prep', self.online, **overrides)
+        retry = self.make('prepare-source', self.online, **overrides)
         self.assertEqual(retry.returncode, 0, retry.stdout + retry.stderr)
         self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), next_pin)
 
     def test_wrong_origin_unavailable_pin_and_dirty_source_fail(self):
-        initial = self.make(str(self.checkout), self.online)
+        initial = self.make('prepare-source', self.online)
         self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
         for override, diagnostic in (
                 ({'CONFIG_EDK2_REPOSITORY': self.repository('wrong').as_uri()},
                  'belongs to a different repository'),
-                ({'CONFIG_EDK2_TAG_OR_REV': '0' * 40}, 'transport')):
+                ({'CONFIG_EDK2_TAG_OR_REV': '0' * 40}, 'before building')):
             result = self.make('prep', self.offline, **override)
             self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn(diagnostic, result.stderr)

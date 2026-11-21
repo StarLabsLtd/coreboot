@@ -303,8 +303,25 @@ EDK2_PAYLOAD_ARGS = \
 
 EDK2_PAYLOAD_ARGS += $(EDK2_RELEASE_POLICY_ARGS)
 
+EDK2_SOURCE_STATE ?= $(abspath $(if $(WORKSPACE),$(WORKSPACE),payloads/external/edk2/workspace))/.coreboot-source
+
+.PHONY: prepare-edk2-source
+prepare-edk2-source: $(DOTCONFIG)
+	$(MAKE) -C payloads/external/edk2 prepare-source \
+		EDK2_SOURCE_STATE="$(EDK2_SOURCE_STATE)" $(EDK2_PAYLOAD_ARGS)
+
+$(EDK2_SOURCE_STATE):
+	@echo 'Prepare the configured EDK2 source with make prepare-edk2-source' >&2
+	@false
+
+.PHONY: verify-edk2-source
+verify-edk2-source: $(EDK2_SOURCE_STATE)
+	$(MAKE) -C payloads/external/edk2 verify-source \
+		EDK2_SOURCE_STATE="$(EDK2_SOURCE_STATE)" $(EDK2_PAYLOAD_ARGS)
+
 $(obj)/UEFIPAYLOAD.fd: $(DOTCONFIG) $(IPXE_EFI) payloads/external/Makefile.mk \
-	payloads/external/edk2/Makefile $(edk2-release-policy-file) $(ass-trust-dep)
+	payloads/external/edk2/Makefile util/efi_capsule/check-pinned-source.sh \
+	$(edk2-release-policy-file) $(ass-trust-dep) $(EDK2_SOURCE_STATE) | verify-edk2-source
 	$(MAKE) -C payloads/external/edk2 UefiPayloadPkg \
 		EDK2_UEFIPAYLOAD_OUT="$(abspath $@)" \
 		$(EDK2_PAYLOAD_ARGS)

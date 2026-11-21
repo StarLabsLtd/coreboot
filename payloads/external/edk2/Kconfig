@@ -50,7 +50,7 @@ config EDK2_REPOSITORY
 	  will only have an effect if the relevant options exist in the target repository.
 
 config EDK2_TAG_OR_REV
-	string "Insert a commit's SHA-1 or a branch name"
+	string "EDK2 branch, tag or revision"
 	default "origin/uefipayload_2608" if EDK2_REPO_MRCHROMEBOX
 	default "origin/master" if EDK2_REPO_OFFICIAL
 	default "" if EDK2_REPO_CUSTOM
@@ -58,6 +58,8 @@ config EDK2_TAG_OR_REV
 	  The commit's SHA-1 or branch name of the revision to use. This must exist in
 	  EDK2_REPOSITORY, and in the case of a branch name, prefixed with origin i.e.
 	  "origin/uefipayload_202202"
+	  Run make prepare-edk2-source after selecting or changing the source.
+	  Firmware builds verify the prepared checkout without refreshing it.
 
 config EDK2_USE_EDK2_PLATFORMS
 	bool "Use edk2-platforms repository"

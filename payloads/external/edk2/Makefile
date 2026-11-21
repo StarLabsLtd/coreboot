@@ -6,6 +6,7 @@ export SHELL := env bash
 EDK2_MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 project_name = edk2
 export WORKSPACE := $(CURDIR)/workspace
+EDK2_SOURCE_STATE ?= $(WORKSPACE)/.coreboot-source
 
 strip_quotes = $(subst ",,$(1))
 
@@ -59,7 +60,7 @@ endif
 # BOOTSPLASH_IMAGE		= FALSE
 # A retained coreboot splash does not need another copy in the payload.
 ifneq ($(CONFIG_BOOT_SPLASH_HANDOFF),y)
-ifneq ($(CONFIG_EDK2_BOOTSPLASH_FILE),)
+ifneq ($(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
 endif
 endif
@@ -221,8 +222,7 @@ EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
 EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
-EDK2_PREPARE_SOURCE = sh "$(EDK2_MAKEFILE_DIR)../../../util/efi_capsule/check-pinned-source.sh"
-edk2_allowed_dirty_logo := $(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)
+EDK2_PREPARE_SOURCE = $(EDK2_MAKEFILE_DIR)../../../util/efi_capsule/check-pinned-source.sh
 CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
 CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
@@ -303,26 +303,58 @@ all: UefiPayloadPkg
 $(WORKSPACE):
 	mkdir $(WORKSPACE)
 
-ifneq ($(EDK2_PLATFORMS_PATH),)
-$(EDK2_PLATFORMS_PATH): | $(WORKSPACE)
-	$(EDK2_PREPARE_SOURCE) "$@" "$(EDK2_PLATFORMS_REPOSITORY)" \
-		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))"
-endif
-
-$(EDK2_PATH): | $(WORKSPACE)
+.PHONY: prepare-source
+prepare-source: | $(WORKSPACE)
 	test -n "$(EDK2_PATH_REPO_ROOT)" || \
 		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
-	$(EDK2_PREPARE_SOURCE) "$@" "$(EDK2_REPOSITORY)" \
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PATH)" "$(EDK2_REPOSITORY)" \
 		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
-		"$(edk2_allowed_dirty_logo)"
+		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)"
+ifneq ($(EDK2_PLATFORMS_PATH),)
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PLATFORMS_PATH)" "$(EDK2_PLATFORMS_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))"
+endif
+	@set -e; \
+	state=$$(mktemp "$(EDK2_SOURCE_STATE).XXXXXX"); \
+	trap 'rm -f "$$state"' EXIT; \
+	{ git -C "$(EDK2_PATH)" rev-parse HEAD; \
+	  $(if $(EDK2_PLATFORMS_PATH),git -C "$(EDK2_PLATFORMS_PATH)" rev-parse HEAD,:) ; } > "$$state"; \
+	if ! cmp -s "$$state" "$(EDK2_SOURCE_STATE)"; then mv "$$state" "$(EDK2_SOURCE_STATE)"; fi
 
-check-payload-contract: $(EDK2_PATH)
+ifneq ($(EDK2_PLATFORMS_PATH),)
+$(EDK2_PLATFORMS_PATH):
+	sh "$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_PLATFORMS_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))" "" verify
+endif
+
+$(EDK2_PATH):
+	test -n "$(EDK2_PATH_REPO_ROOT)" || \
+		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
+	sh "$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
+		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)" verify
+
+.PHONY: verify-source
+verify-source:
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PATH)" "$(EDK2_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
+		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)" verify
+ifneq ($(EDK2_PLATFORMS_PATH),)
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PLATFORMS_PATH)" "$(EDK2_PLATFORMS_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))" "" verify
+endif
+	@set -e; \
+	{ git -C "$(EDK2_PATH)" rev-parse HEAD; \
+	  $(if $(EDK2_PLATFORMS_PATH),git -C "$(EDK2_PLATFORMS_PATH)" rev-parse HEAD,:) ; } | \
+		cmp -s "$(EDK2_SOURCE_STATE)" - || \
+		{ echo "EDK2 source receipt does not match the prepared checkout" >&2; exit 1; }
+
+check-payload-contract: verify-source
 ifeq ($(CONFIG_EDK2_DISABLE_BOOT_MANAGER_WAIT),y)
 	grep -F '$$(DISABLE_BOOT_MANAGER_WAIT)' "$(EDK2_PATH)/UefiPayloadPkg/UefiPayloadPkg.dsc" | \
 		grep -q '^[[:blank:]]*[^[:blank:]#]' || \
 		{ echo "EDK2: UefiPayloadPkg.dsc does not consume DISABLE_BOOT_MANAGER_WAIT" >&2; exit 1; }
 endif
-
 logo: $(EDK2_PATH)
 	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
 		"") ;; \
