@@ -346,6 +346,23 @@ static void admit_existing_store(void **unused)
 	assert_int_equal(message->return_status, 0);
 	assert_true(service.owner.runtime);
 
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 1024,
+		commit, &media, service.workspace, sizeof(service.workspace), true,
+		NULL, NULL), PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
+	phase = ASS_MM_WAIT_END_OF_DXE;
+	for (size_t i = 0; i < 2; i++) {
+		wire->guid = events[i];
+		assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
+			packet, sizeof(*wire) + 1), 0);
+	}
+	assert_false(service.owner.ready);
+	wire->guid = events[ARRAY_SIZE(events) - 1];
+	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
+		packet, sizeof(*wire) + 1), 0);
+	assert_int_equal(phase, ASS_MM_RUNTIME);
+	assert_true(service.owner.ready);
+	assert_true(service.owner.runtime);
+
 	unsigned int writes = media.writes;
 	store[0] ^= 1;
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 1024,

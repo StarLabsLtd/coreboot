@@ -352,6 +352,14 @@ static uint64_t dispatch_event(struct authvar_owner *owner, struct authvar_polic
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	if (event < *phase)
 		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	/* EDK2 can exit from a built-in image without signalling ReadyToBoot. */
+	if (event == ASS_MM_WAIT_EXIT_BOOT_SERVICES && *phase == ASS_MM_WAIT_READY_TO_BOOT) {
+		uint64_t status = authvar_owner_ready(owner, fixed);
+
+		if (status)
+			return status;
+		*phase = ASS_MM_WAIT_EXIT_BOOT_SERVICES;
+	}
 	if (event != *phase)
 		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
 	switch (*phase) {
