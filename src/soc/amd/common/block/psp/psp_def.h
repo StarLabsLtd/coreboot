@@ -35,6 +35,7 @@
 #define MBOX_BIOS_CMD_PSP_CAPS_QUERY		0x27
 #define MBOX_BIOS_CMD_SET_SPL_FUSE		0x2d
 #define MBOX_BIOS_CMD_SET_RPMC_ADDRESS		0x39
+#define MBOX_BIOS_CMD_VALIDATE_HMAC_PRE_SMM	0x34
 #define MBOX_BIOS_CMD_QUERY_SPL_FUSE		0x47
 #define MBOX_BIOS_CMD_ARMOR_ENTER_SMM_MODE	0x50
 #define MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION	0x51
@@ -71,6 +72,17 @@ struct mbox_buffer_header {
 
 struct mbox_default_buffer {	/* command-response buffer unused by command */
 	struct mbox_buffer_header header;
+} __packed __aligned(32);
+
+struct mbox_cmd_hmac_data_buffer {
+	struct mbox_buffer_header header;
+	uint64_t buffer;
+	uint32_t buffer_size;
+	uint32_t data_offset;
+	uint32_t data_size;
+	uint32_t signature_offset;
+	uint32_t signature_size;
+	uint32_t validate;
 } __packed __aligned(32);
 
 struct mbox_cmd_set_config_buffer {

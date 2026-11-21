@@ -14,6 +14,38 @@ static const char *psp_status_init_timeout = "error: PSP init timeout";
 static const char *psp_status_cmd_timeout = "error: PSP command timeout";
 static const char *psp_status_noerror = "";
 
+#if ENV_RAMSTAGE
+static int hmac_data(void *data, uint32_t size, uint32_t *status, bool validate)
+{
+	if (!data || !status || !size || size > UINT32_MAX - 32)
+		return CB_ERR;
+
+	struct mbox_cmd_hmac_data_buffer buffer = {
+		.header.size = sizeof(buffer),
+		.buffer = (uintptr_t)data,
+		.buffer_size = size + 32,
+		.data_size = size,
+		.signature_offset = size,
+		.signature_size = 32,
+		.validate = validate,
+	};
+
+	int ret = send_psp_command(MBOX_BIOS_CMD_VALIDATE_HMAC_PRE_SMM, &buffer);
+	*status = buffer.header.status;
+	return ret;
+}
+
+int psp_validate_hmac_data(void *data, uint32_t size, uint32_t *status)
+{
+	return hmac_data(data, size, status, true);
+}
+
+int psp_sign_hmac_data(void *data, uint32_t size, uint32_t *status)
+{
+	return hmac_data(data, size, status, false);
+}
+#endif
+
 static const char *status_to_string(int err)
 {
 	switch (err) {
