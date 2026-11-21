@@ -214,6 +214,25 @@ static void admit_existing_store(void **unused)
 	assert_int_equal(message->return_status, 0x8000001aU);
 	assert_int_equal(media.writes, 3);
 
+	struct smm_variable_next32 *lock_request = (void *)message->data;
+	const size_t lock_size = sizeof(*message) + sizeof(*lock_request) + sizeof(name);
+	message->function = SMM_VARIABLE_FUNCTION_LOCK_VARIABLE;
+	memcpy(&lock_request->guid, guid, sizeof(guid));
+	lock_request->name_size = sizeof(name);
+	memcpy(lock_request->name, name, sizeof(name));
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL, request,
+		lock_size - 1));
+	assert_int_equal(message->return_status, 0x80000002U);
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL, request,
+		lock_size));
+	assert_int_equal(message->return_status, 0);
+	assert_int_equal(policy.count, 1);
+	lock_request->guid.Data1 ^= 1;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL, request,
+		lock_size));
+	assert_int_equal(message->return_status, 0);
+	assert_int_equal(policy.count, 2);
+
 	memset(request, 0, sizeof(request));
 	struct smm_variable_query32 *query = (void *)message->data;
 	message->function = SMM_VARIABLE_FUNCTION_QUERY_VARIABLE_INFO;
@@ -309,10 +328,14 @@ static void admit_existing_store(void **unused)
 		setup_request, sizeof(setup_request)));
 	assert_int_equal(setup->return_status, 0x8000001aU);
 	assert_true(policy.locked);
+	message->function = SMM_VARIABLE_FUNCTION_LOCK_VARIABLE;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL, request,
+		lock_size));
+	assert_int_equal(message->return_status, 0x8000000fU);
 	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
 		policy_packet, sizeof(*policy_wire) + policy_wire->message_length), 0);
 	assert_int_equal(policy_message->result, 0x80000008U);
-	assert_int_equal(policy.count, 1);
+	assert_int_equal(policy.count, 2);
 	wire->guid = events[ARRAY_SIZE(events) - 1];
 	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
 		packet, sizeof(*wire) + 1), 0);

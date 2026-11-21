@@ -119,6 +119,42 @@ static uint64_t next_variable(struct authvar_owner *owner, void *data, size_t si
 	return status;
 }
 
+static uint64_t lock_variable(struct authvar_owner *owner, struct authvar_policy *policy,
+	const void *data, size_t size)
+{
+	const struct smm_variable_next32 *request = data;
+	struct {
+		struct authvar_policy_entry entry;
+		uint16_t name[(AUTHVAR_POLICY_BYTES - sizeof(struct authvar_policy_entry)) / 2];
+	} lock = {
+		.entry = {
+			.version = AUTHVAR_POLICY_REVISION,
+			.offset_to_name = sizeof(lock.entry),
+			.max_size = UINT32_MAX,
+			.lock_policy_type = 1,
+		},
+	};
+
+	if (policy->locked || owner->ready || owner->runtime)
+		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
+	if (size < sizeof(*request) || request->name_size != size - sizeof(*request) ||
+	    request->name_size > sizeof(lock.name) ||
+	    !terminated_name((const uint8_t *)data + sizeof(*request), request->name_size))
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+
+	lock.entry.size = sizeof(lock.entry) + request->name_size;
+	memcpy(lock.entry.name_space, &request->guid, sizeof(request->guid));
+	memcpy(lock.name, (const uint8_t *)data + sizeof(*request), request->name_size);
+	uint64_t status = authvar_policy_register(policy, &lock.entry);
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_ALREADY_STARTED) {
+		status = authvar_policy_check(policy, lock.name, lock.entry.name_space,
+			0, 0, policy_get, owner, NULL);
+		return status == PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED ?
+			PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS : PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
+	}
+	return status;
+}
+
 static uint64_t query_variables(struct authvar_owner *owner, void *data, size_t size)
 {
 	struct smm_variable_query32 *query = data;
@@ -158,6 +194,9 @@ bool ass_native_variable_dispatch(struct authvar_owner *owner,
 		break;
 	case SMM_VARIABLE_FUNCTION_QUERY_VARIABLE_INFO:
 		status = query_variables(owner, variable->data, size);
+		break;
+	case SMM_VARIABLE_FUNCTION_LOCK_VARIABLE:
+		status = lock_variable(owner, policy, variable->data, size);
 		break;
 	case SMM_VARIABLE_FUNCTION_READY_TO_BOOT:
 		if (size) {
