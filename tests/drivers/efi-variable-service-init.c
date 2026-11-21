@@ -611,6 +611,31 @@ static void volatile_option_does_not_shadow_flash(void **unused)
 	}
 }
 
+static void request_envelope_bounds(void **unused)
+{
+	struct efi_variable_service_buffer *request = (void *)transport;
+	struct mm_communication_header32 *message =
+		(void *)(transport + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
+
+	assert_int_equal(efi_variable_service_finalize(), 0);
+	request->signature = EFI_VARIABLE_SERVICE_BUFFER_SIGNATURE;
+	request->revision = EFI_VARIABLE_SERVICE_REVISION;
+	request->header_size = EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE;
+	request->state = EFI_VARIABLE_SERVICE_BUFFER_REQUEST;
+	request->message_size = sizeof(*message) - 1;
+	assert_int_equal(efi_variable_service_communicate(), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	request->message_size = EFI_VARIABLE_SERVICE_MESSAGE_CAPACITY + 1;
+	assert_int_equal(efi_variable_service_communicate(), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	request->message_size = sizeof(*message);
+	message->message_length = 1;
+	assert_int_equal(efi_variable_service_communicate(), EFI_VARIABLE_SERVICE_RET_FAILURE);
+	assert_int_equal(request->state, EFI_VARIABLE_SERVICE_BUFFER_REQUEST);
+	message->message_length = 0;
+	assert_int_equal(efi_variable_service_communicate(), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	assert_int_equal(request->state, EFI_VARIABLE_SERVICE_BUFFER_RESPONSE);
+	assert_int_equal(request->response_size, sizeof(*message));
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -627,6 +652,7 @@ int main(void)
 		cmocka_unit_test_setup(cached_option_read, setup),
 		cmocka_unit_test_setup(cached_option_errors, setup),
 		cmocka_unit_test_setup(cached_lifecycle_errors, setup),
+		cmocka_unit_test_setup(request_envelope_bounds, setup),
 		cmocka_unit_test_setup(legacy_option_without_owner, setup),
 		cmocka_unit_test_setup(legacy_option_after_boot, setup),
 		cmocka_unit_test_setup(long_option_name, setup),

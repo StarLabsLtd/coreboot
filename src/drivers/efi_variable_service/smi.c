@@ -400,7 +400,9 @@ static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t me
 	typedef void (*mm_entry)(const struct mm_entry_context *context);
 	mm_entry entry;
 
-	if (message_size > buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE)
+	if (buffer_size < EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE ||
+	    message_size < sizeof(struct mm_communication_header32) ||
+	    message_size > buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE)
 		return -1;
 
 	status = (void *)(buffer_base + sizeof(struct efi_variable_service_buffer));
@@ -537,6 +539,7 @@ uint32_t efi_variable_service_communicate(void)
 {
 	uintptr_t buffer_base;
 	size_t buffer_size;
+	uint32_t message_size;
 	struct efi_variable_service_buffer *buffer;
 	struct efi_mm_communication_status *status;
 	struct mm_communication_header32 *message;
@@ -549,16 +552,20 @@ uint32_t efi_variable_service_communicate(void)
 	buffer = (void *)buffer_base;
 	status = (void *)(buffer_base + sizeof(*buffer));
 	message = (void *)(buffer_base + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
+	if (__atomic_load_n(&buffer->state, __ATOMIC_ACQUIRE) !=
+	    EFI_VARIABLE_SERVICE_BUFFER_REQUEST)
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+
+	message_size = buffer->message_size;
 	if (buffer->signature != EFI_VARIABLE_SERVICE_BUFFER_SIGNATURE ||
 	    buffer->revision != EFI_VARIABLE_SERVICE_REVISION ||
 	    buffer->header_size != EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE ||
-	    buffer->state != EFI_VARIABLE_SERVICE_BUFFER_REQUEST ||
-	    buffer->message_size < sizeof(*message) ||
-	    buffer->message_size > buffer_size - buffer->header_size ||
-	    message->message_length > buffer->message_size - sizeof(*message))
+	    message_size < sizeof(*message) ||
+	    message_size > EFI_VARIABLE_SERVICE_MESSAGE_CAPACITY ||
+	    message->message_length > message_size - sizeof(*message))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 
-	if (dispatch_message(buffer_base, buffer_size, buffer->message_size))
+	if (dispatch_message(buffer_base, buffer_size, message_size))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	buffer->status = status->return_status;
 	buffer->response_size = status->return_buffer_size;
