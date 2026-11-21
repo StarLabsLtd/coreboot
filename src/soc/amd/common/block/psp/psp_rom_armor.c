@@ -65,6 +65,7 @@ static ssize_t rom_armor_ramstage_writeat(const struct region_device *rd, const 
 	}
 
 	ret = call_smm(APM_CNT_ROM_ARMOR, ROM_ARMOR_APM_CMD_WRITE, &params);
+	psp_rom_armor_invalidate_mmap(offset, len);
 
 	if (ret != ROM_ARMOR_RET_SUCCESS) {
 		printk(BIOS_ERR, "PSP ROM Armor (ramstage): Write failed, ret=%u\n", ret);
@@ -87,6 +88,7 @@ static ssize_t rom_armor_ramstage_eraseat(const struct region_device *rd,
 	       offset, len);
 
 	ret = call_smm(APM_CNT_ROM_ARMOR, ROM_ARMOR_APM_CMD_ERASE, &params);
+	psp_rom_armor_invalidate_mmap(offset, len);
 
 	if (ret != ROM_ARMOR_RET_SUCCESS) {
 		printk(BIOS_ERR, "PSP ROM Armor (ramstage): Erase failed, ret=%u\n", ret);
