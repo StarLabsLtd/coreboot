@@ -70,7 +70,7 @@ $(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template $(obj)/c
 	    -e "s,##BIOS_ENTRY_SIZE##,$(bios_size) ," \
 		$(opensil_config_sed) $< > $@
 
-$(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(OBJPATH)/config.h $(objutil)/kconfig/conf
+$(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(obj)/config.h $(objutil)/kconfig/conf
 ifeq ($(CONFIG_SOC_AMD_OPENSIL_PHOENIX_POC),y)
 	mkdir -p $(OBJPATH)/opensil/config; \
 	cd $(opensil_dir); \
