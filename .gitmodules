@@ -79,11 +79,6 @@
 	url = https://github.com/openSIL/openSIL.git
 	branch = turin_poc
 
-[submodule "payloads/external/ediie/ediie"]
-	path = payloads/external/ediie/ediie
-	url = https://github.com/StarLabsLtd/edIIe.git
-	update = none
-
 [submodule "3rdparty/mbedtls"]
 	path = 3rdparty/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls.git

@@ -219,4 +219,10 @@ config PAYLOAD_RESOURCE_HANDOFF
 	  ownership for a payload that consumes the resource handoff. Bus mastering
 	  is disabled and verified before publishing delegated device resources.
 
+config PAYLOAD_DMA_HANDOFF
+	bool
+	help
+	  Producer capability for handing off active DMA protection. This
+	  producer does not select it; resource handoff alone is not sufficient.
+
 endmenu

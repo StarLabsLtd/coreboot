@@ -9,7 +9,7 @@ SMM code or choose an executable address.
 
 ## Service image
 
-Coreboot builds the IA32 Standalone MM service from
+The coreboot build takes the IA32 Standalone MM service from
 `CONFIG_ASS_SERVICE_REPOSITORY` at `CONFIG_ASS_SERVICE_REVISION`, independently
 of the selected payload. The service source must supply the Fixed MM platform
 description and BaseTools. An EDK2 payload still needs `ASS=TRUE` and the

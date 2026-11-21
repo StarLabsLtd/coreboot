@@ -1,11 +1,16 @@
 # edIIe payload
 
-Before configuring edIIe, initialize the recorded payload and dependency
-revisions from the coreboot checkout:
+Before configuring edIIe, prepare its source and dependencies from the
+coreboot checkout:
 
 ```sh
-git submodule update --init --checkout --recursive -- payloads/external/ediie/ediie
+sh payloads/external/ediie/prepare-source.sh
 ```
+
+This selects `refs/heads/main`. For a release, pass its full tag ref
+(`refs/tags/<tag>`) instead. Source preparation records and prints the
+resolved commit. Run it explicitly to change or refresh the selection;
+configuration and builds do not advance the checkout.
 
 Select `PAYLOAD_EDIIE` on a supported x86 board and enable ASS. For firmware
 updates, enable the EFI capsule driver and configure the trusted public

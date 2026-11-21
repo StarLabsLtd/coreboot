@@ -3,19 +3,29 @@
 set -eu
 
 source=$1
-expected=$(git ls-files --stage -- "$source" | awk '$1 == "160000" { print $2 }')
-if [ -z "$expected" ] || [ ! -e "$source/.git" ]; then
-	echo 'Initialize edIIe: git submodule update --init --checkout --recursive -- payloads/external/ediie/ediie' >&2
+if [ ! -e "$source/.git" ]; then
+	echo 'Prepare edIIe: sh payloads/external/ediie/prepare-source.sh' >&2
 	exit 1
 fi
-actual=$(git -C "$source" rev-parse HEAD)
-status=$(git -C "$source" status --porcelain --untracked-files=normal --ignore-submodules=none)
+payload_git()
+(
+	# An alternate producer index does not describe the payload checkout.
+	unset GIT_INDEX_FILE
+	git -C "$source" "$@"
+)
+
+actual=$(payload_git rev-parse HEAD)
+expected=$(payload_git rev-parse --verify refs/ediie/prepared) || {
+	echo 'Prepare edIIe: sh payloads/external/ediie/prepare-source.sh' >&2
+	exit 1
+}
+status=$(payload_git status --porcelain --untracked-files=normal --ignore-submodules=none)
 if [ "$actual" != "$expected" ] || [ -n "$status" ]; then
-	echo 'edIIe must match the clean revision recorded by coreboot' >&2
+	echo 'edIIe must match the clean revision selected during source preparation' >&2
 	exit 1
 fi
-submodules=$(git -C "$source" submodule status --recursive)
+submodules=$(payload_git submodule status --recursive)
 if printf '%s\n' "$submodules" | grep -Eq '^[+U-]'; then
-	echo 'Initialize edIIe dependencies: git submodule update --init --checkout --recursive -- payloads/external/ediie/ediie' >&2
+	echo 'Re-run edIIe source preparation to initialize dependencies' >&2
 	exit 1
 fi
