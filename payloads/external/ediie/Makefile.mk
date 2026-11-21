@@ -19,6 +19,30 @@ EDIIE_OUTPUT := $(obj)/ediie
 EDIIE_PAYLOAD := $(EDIIE_OUTPUT)/native/ediie-coreboot-image.elf
 override CONFIG_PAYLOAD_FILE := $(EDIIE_PAYLOAD)
 
+ifeq ($(CONFIG_EDIIE_SECURE_BOOT_FIXED_KEYS),y)
+.PHONY: ediie-fixed-policy-check
+ediie-fixed-policy-check:
+
+$(obj)/ass/fixed_policy.h: ediie-fixed-policy-check | $(EDIIE_PAYLOAD)
+	@mkdir -p "$(dir $@)"
+ifneq ($(findstring n,$(filter-out --%,$(firstword $(MAKEFLAGS)))),)
+	@echo "Generate edIIe fixed policy header $@"
+else
+	+$(MAKE) -C $(EDIIE_SOURCE) fixed-policy-header \
+		COREBOOT_SOURCE="$(abspath .)" \
+		COREBOOT_CONFIG="$(abspath $(DOTCONFIG))" \
+		COREBOOT_CONFIG_HEADER="$(abspath $(obj)/config.h)" \
+		EDIIE_BUILD_DIR="$(abspath $(EDIIE_OUTPUT))" \
+		EDIIE_KCONFIG_TOOL="$(abspath $(objutil)/kconfig/conf)" \
+		EDIIE_FIXED_POLICY_HEADER="$(abspath $@)" \
+		HOSTCC="$(HOSTCC)" CC="$(CC_x86_64)" \
+		EDIIE_NATIVE_LD="$(EDIIE_NATIVE_LD)" \
+		EDIIE_NATIVE_OBJCOPY="$(OBJCOPY_x86_64)" \
+		EDIIE_NATIVE_NM="$(NM_x86_64)" \
+		EDIIE_NATIVE_READELF="$(READELF_x86_64)"
+endif
+endif
+
 # binutils built only for ELF may lack the PE emulation used by the modules.
 EDIIE_NATIVE_LD ?= $(shell command -v ld)
 .PHONY: ediie-source-check
