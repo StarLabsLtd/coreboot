@@ -171,6 +171,7 @@ typedef struct _amd_cb_config {
 	bool recovery_ab;
 	bool recovery_ab_single_copy;
 	bool have_apcb_bk;
+	bool apcb_writable;
 	enum platform soc_id;
 
 	uint8_t efs_spi_readmode, efs_spi_speed, efs_spi_micron_flag;
