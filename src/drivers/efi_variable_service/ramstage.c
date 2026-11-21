@@ -153,8 +153,10 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 		"Native ASS metadata exceeds its reserved page");
 	buffer = cbmem_add(CBMEM_ID_EFI_VARIABLE_SERVICE, buffer_size);
 	entry = cbmem_entry_find(CBMEM_ID_EFI_VARIABLE_SERVICE);
-	if (!buffer || !entry || cbmem_entry_size(entry) != buffer_size)
+	if (!buffer || !entry || cbmem_entry_size(entry) != buffer_size) {
+		printk(BIOS_ERR, "EFI variable service communication buffer unavailable\n");
 		return;
+	}
 	if (acpi_is_wakeup_s3()) {
 		const struct native_handoff *handoff = (const void *)base;
 
@@ -167,9 +169,12 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 		    state->service_info != (uintptr_t)&handoff->store ||
 		    state->spi_mmio_resource != (uintptr_t)&handoff->spi ||
 		    handoff->store.buffer != (uintptr_t)buffer ||
-		    handoff->store.buffer_size != buffer_size)
+		    handoff->store.buffer_size != buffer_size) {
+			printk(BIOS_ERR, "EFI variable service state is invalid after S3\n");
 			return;
+		}
 	} else if (!prepare_native_handoff((void *)base, buffer)) {
+		printk(BIOS_ERR, "EFI variable service handoff failed\n");
 		return;
 	}
 #else
