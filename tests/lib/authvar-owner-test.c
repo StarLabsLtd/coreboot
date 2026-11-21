@@ -273,6 +273,23 @@ static void admit_existing_store(void **unused)
 		ASS_END_OF_DXE_GUID, ASS_READY_TO_LOCK_GUID,
 		ASS_READY_TO_BOOT_GUID, ASS_EXIT_BOOT_SERVICES_GUID,
 	};
+	const uint16_t custom_mode[] = u"CustomMode";
+	_Alignas(8) uint8_t setup_request[sizeof(*message) + sizeof(*access) +
+		sizeof(custom_mode) + 1] = { 0 };
+	struct smm_variable_header32 *setup = (void *)setup_request;
+	struct smm_variable_access32 *setup_access = (void *)setup->data;
+	setup->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	setup_access->guid = (EFI_GUID) {
+		0xc076ec0c, 0x7028, 0x4399, { 0xa0, 0x72, 0x71, 0xee, 0x5c, 0x44, 0x8b, 0x9f },
+	};
+	setup_access->attributes = nv;
+	setup_access->name_size = sizeof(custom_mode);
+	setup_access->data_size = 1;
+	memcpy(setup_access->name, custom_mode, sizeof(custom_mode));
+	setup_request[sizeof(setup_request) - 1] = 1;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		setup_request, sizeof(setup_request)));
+	assert_int_equal(setup->return_status, 0);
 	for (size_t i = 0; i < ARRAY_SIZE(events) - 1; i++) {
 		wire->guid = events[i];
 		assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
@@ -287,6 +304,10 @@ static void admit_existing_store(void **unused)
 		request, sizeof(*message)));
 	assert_int_equal(message->return_status, 0);
 	assert_true(service.owner.ready);
+	setup_request[sizeof(setup_request) - 1] = 0;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		setup_request, sizeof(setup_request)));
+	assert_int_equal(setup->return_status, 0x8000001aU);
 	assert_true(policy.locked);
 	assert_int_equal(ass_native_mm_dispatch(&service.owner, &policy, NULL, &phase, NULL,
 		policy_packet, sizeof(*policy_wire) + policy_wire->message_length), 0);

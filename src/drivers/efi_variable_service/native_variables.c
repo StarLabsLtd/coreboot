@@ -60,8 +60,12 @@ static uint64_t set_variable(struct authvar_owner *owner,
 		access->attributes, payload_size, policy_get, owner, NULL);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return status;
+	/* Like Fixed MM, trust built-in setup until the first boot handoff.
+	 * The SMM owner's retained state, not the request, closes this window.
+	 */
+	const bool setup_open = !owner->ready && !owner->runtime;
 	return authvar_owner_set(owner, name, &access->guid, access->attributes,
-		size, data, false, fixed, NULL);
+		size, data, setup_open, fixed, NULL);
 }
 
 static uint64_t access_variable(struct authvar_owner *owner,
