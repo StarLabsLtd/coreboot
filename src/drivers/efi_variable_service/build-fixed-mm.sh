@@ -9,8 +9,17 @@ repository=$3
 revision=$4
 capsules=$5
 trust=$6
+architecture=$7
 source_dir=$WORKSPACE/source
 set --
+
+case $architecture in
+IA32|X64) ;;
+*)
+	echo "ASS: unsupported Fixed MM architecture: $architecture" >&2
+	exit 1
+	;;
+esac
 
 if [[ ! $revision =~ ^[[:xdigit:]]{40}$ ]]; then
 	echo "ASS: Fixed MM requires an immutable source revision" >&2
@@ -52,7 +61,7 @@ if [[ $capsules == y ]]; then
 	args=(-D CAPSULE_SUPPORT=TRUE -D FMP_DEVICE_PKCS7_PCD_INC=Conf/CapsuleFmpPkcs7Pcd.inc)
 fi
 
-build -a IA32 -b RELEASE -t GCC -p "$platform.dsc" "${args[@]}"
+build -a "$architecture" -b RELEASE -t GCC -p "$platform.dsc" "${args[@]}"
 fv=Build/CorebootFixedMmService/RELEASE_GCC/FV/FIXEDMMFV.Fv
 test -s "$fv"
 cp "$fv" "$output.tmp"

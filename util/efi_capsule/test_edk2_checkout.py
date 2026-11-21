@@ -210,7 +210,7 @@ include {ROOT}/payloads/external/Makefile.mk
         supported = self.make('prep', self.online, **config)
         self.assertEqual(supported.returncode, 0, supported.stdout + supported.stderr)
 
-    def test_ass_requires_a_fixed_mm_description(self):
+    def prepare_fixed_mm_source(self):
         dependency = (self.directory / 'dependency').as_uri()
         for path in ('BaseTools/Source/C/BrotliCompress/brotli',
                      'MdeModulePkg/Library/BrotliCustomDecompressLib/brotli',
@@ -220,15 +220,47 @@ include {ROOT}/payloads/external/Makefile.mk
                      'CryptoPkg/Library/OpensslLib/openssl'):
             self.git(self.repo, 'submodule', 'add', '-q', dependency, path)
         self.commit(self.repo)
-        pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        return self.git(self.repo, 'rev-parse', 'HEAD')
+
+    def test_ass_requires_a_fixed_mm_description(self):
+        pin = self.prepare_fixed_mm_source()
         output = self.directory / 'fixed-mm.fv'
         result = subprocess.run(
             ['bash', 'src/drivers/efi_variable_service/build-fixed-mm.sh',
-             str(self.workspace), str(output), self.repository_url, pin, 'n', ''],
+             str(self.workspace), str(output), self.repository_url, pin, 'n', '', 'IA32'],
             cwd=ROOT, env=self.online, text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('Fixed MM source is missing its DSC or FDF', result.stderr)
         self.assertFalse(output.exists())
+
+    def test_fixed_mm_build_selects_the_requested_architecture(self):
+        self.prepare_fixed_mm_source()
+        package = self.repo / 'UefiPayloadPkg'
+        package.mkdir()
+        for suffix in ('dsc', 'fdf'):
+            (package / f'CorebootFixedMmService.{suffix}').touch()
+        (self.repo / 'BaseTools/Makefile').write_text('all:\n\ttrue\n')
+        (self.repo / 'edksetup.sh').write_text('''build()
+{
+    [ "$1" = -a ] || return 1
+    case $2 in IA32|X64) ;; *) return 1 ;; esac
+    mkdir -p Build/CorebootFixedMmService/RELEASE_GCC/FV
+    printf '%s' "$2" > Build/CorebootFixedMmService/RELEASE_GCC/FV/FIXEDMMFV.Fv
+}
+''')
+        self.git(self.repo, 'add', '.')
+        self.commit(self.repo)
+        pin = self.git(self.repo, 'rev-parse', 'HEAD')
+        for architecture in ('IA32', 'X64'):
+            with self.subTest(architecture=architecture):
+                output = self.directory / f'{architecture}.fv'
+                result = subprocess.run([
+                    'bash', 'src/drivers/efi_variable_service/build-fixed-mm.sh',
+                    str(self.directory / architecture), str(output), self.repository_url,
+                    pin, 'n', '', architecture,
+                ], cwd=ROOT, env=self.online, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(output.read_text(), architecture)
 
     def test_missing_submodule_fails_offline(self):
         self.workspace.mkdir()

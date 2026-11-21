@@ -10,7 +10,8 @@ efi_variable_service_fv-type := raw
 efi_variable_service_fv-compression := $(if $(filter y,$(CONFIG_VBOOT)),lzma,lz4)
 
 ass-capsule-trust := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
-ass-workspace := $(abspath $(obj)/ass/workspace)
+ass-architecture := $(if $(filter y,$(CONFIG_ARCH_SMM_X86_64)),X64,IA32)
+ass-workspace := $(abspath $(obj)/ass/$(ass-architecture))
 ass-trust-dep := $(if $(filter y,$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)),$(filter /%,$(ass-capsule-trust)))
 $(obj)/FIXEDMMFV.Fv: $(DOTCONFIG) util/efi_capsule/check-pinned-source.sh \
 		src/drivers/efi_variable_service/Makefile.mk src/drivers/efi_variable_service/build-fixed-mm.sh \
@@ -20,7 +21,7 @@ $(obj)/FIXEDMMFV.Fv: $(DOTCONFIG) util/efi_capsule/check-pinned-source.sh \
 		"$(ass-workspace)" "$(abspath $@)" \
 		"$(call strip_quotes,$(CONFIG_ASS_SERVICE_REPOSITORY))" \
 		"$(call strip_quotes,$(CONFIG_ASS_SERVICE_REVISION))" \
-		"$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" "$(ass-capsule-trust)"
+		"$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES)" "$(ass-capsule-trust)" "$(ass-architecture)"
 
 endif
 

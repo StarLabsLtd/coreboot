@@ -135,11 +135,20 @@ class BuildPolicyTest(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn('Star Labs VBOOT', result.stderr)
 
+    def test_fixed_mm_rejects_an_unsupported_architecture(self):
+        result = subprocess.run([
+            'bash', 'src/drivers/efi_variable_service/build-fixed-mm.sh',
+            '/unused', '/unused/fixed-mm.fv', 'unused', 'a' * 40,
+            'n', '', 'AARCH64',
+        ], cwd=ROOT, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('unsupported Fixed MM architecture', result.stderr)
+
     def test_fixed_mm_rejects_payload_relative_capsule_trust(self):
         result = subprocess.run([
             'bash', 'src/drivers/efi_variable_service/build-fixed-mm.sh',
             '/unused', '/unused/fixed-mm.fv', 'unused', 'a' * 40,
-            'y', 'keys/root.pem',
+            'y', 'keys/root.pem', 'IA32',
         ], cwd=ROOT, capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('requires an absolute public trust certificate path', result.stderr)
