@@ -256,7 +256,8 @@ ramstage-c-ccopts += -fprofile-arcs -ftest-coverage
 endif
 ifneq ($(GIT),)
 ifneq ($(UPDATED_SUBMODULES),1)
-ifeq ($(findstring n,$(filter-out --%,$(firstword $(MAKEFLAGS)))),)
+submodule_make_flags := $(filter-out --%,$(firstword $(MAKEFLAGS)))
+ifeq ($(findstring n,$(submodule_make_flags))$(findstring q,$(submodule_make_flags)),)
 $(info Updating git submodules.)
 # try to fetch non-optional submodules if the source is under git
 forgetthis:=$(shell git submodule update --init $(quiet_errors))
@@ -280,7 +281,7 @@ endif
 UPDATED_SUBMODULES:=1
 COREBOOT_EXPORTS += UPDATED_SUBMODULES
 
-endif # not a dry run
+endif # neither dry run nor question mode
 endif
 endif # GIT != ""
 
