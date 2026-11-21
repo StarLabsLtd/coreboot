@@ -22,26 +22,12 @@
 
 Scope (\_SB.PCI0.GP43)
 {
-	OperationRegion (U4SM, SystemIO, 0xB2, 2)
-	Field (U4SM, ByteAcc, NoLock, Preserve)
-	{
-		U4CM, 8,
-		U4ST, 8
-	}
-
-	/* Serialized across both controllers. SMM accepts only these two commands. */
+	/* Use the shared board APMC method so the data and command stay paired. */
 	Method (U4PS, 1, Serialized)
 	{
-		U4ST = 0xFF
-		If (Arg0 == Zero)
-		{
-			U4CM = 0xE5
-		}
-		Else
-		{
-			U4CM = 0xE6
-		}
-		If (U4ST != Zero)
+		Local0 = 0xE5
+		If (Arg0 != Zero) { Local0 = 0xE6 }
+		If (\_SB.PXSM (Local0, 0xFF) != Zero)
 		{
 			Debug = "USB4 PS3 handoff failed"
 		}

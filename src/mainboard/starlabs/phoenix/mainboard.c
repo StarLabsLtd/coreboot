@@ -5,6 +5,11 @@
 #include <amdblocks/acpimmio.h>
 #include <amdblocks/pci_clk_req.h>
 #include <acpi/acpi.h>
+#include <arch/io.h>
+#include <bootstate.h>
+#include <console/console.h>
+#include <cpu/x86/smm.h>
+#include <power_budget.h>
 #include <acpi/acpigen.h>
 #include <commonlib/helpers.h>
 #include <device/device.h>
@@ -177,12 +182,38 @@ void mainboard_xhci_acpi_fill_ssdt(const struct device *dev)
 	acpigen_write_method_end();
 }
 
+static void mainboard_fill_ssdt(const struct device *dev)
+{
+	static const struct fieldlist power_budget_fields[] = {
+		FIELDLIST_OFFSET(0x6d), FIELDLIST_NAMESTR("PBVR", 8),
+		FIELDLIST_NAMESTR("PBWT", 8),
+	};
+	merlin_fill_ssdt(dev);
+	acpigen_write_scope("\\_SB.PCI0.LPCB.EC");
+	acpigen_write_field("ECF2", power_budget_fields, ARRAY_SIZE(power_budget_fields),
+			    FIELD_BYTEACC | FIELD_LOCK | FIELD_PRESERVE);
+	acpigen_write_method("_Q20", 0);
+	acpigen_emit_namestring("\\_SB.PBUD");
+	acpigen_write_method_end();
+	acpigen_write_scope_end();
+}
+
 static void enable_mainboard(struct device *dev)
 {
-	dev->ops->acpi_fill_ssdt = merlin_fill_ssdt;
+	dev->ops->acpi_fill_ssdt = mainboard_fill_ssdt;
 }
 
 struct chip_operations mainboard_ops = {
 	.enable_dev = enable_mainboard,
 	.init = mainboard_init,
 };
+
+static void capture_power_limits(void *unused)
+{
+	outb(0xff, APM_STS);
+	if (apm_control(PHX_POWER_BUDGET_APMC) != CB_SUCCESS ||
+	    inb(APM_STS) != PHX_POWER_BUDGET_READY)
+		printk(BIOS_ERR, "PHX: native power-limit capture failed; runtime budget disabled\n");
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_LOAD, BS_ON_EXIT, capture_power_limits, NULL);

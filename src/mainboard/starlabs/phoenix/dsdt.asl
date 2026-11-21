@@ -18,6 +18,7 @@ DefinitionBlock (
 		OSFG = Zero
 	}
 	#include <soc.asl>
+	#include "acpi/power_budget.asl"
 
 	Name(LIDS, 0)
 	Name(KBFG, 1)
