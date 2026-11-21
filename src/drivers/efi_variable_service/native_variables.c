@@ -425,9 +425,12 @@ uint32_t ass_native_mm_dispatch(struct authvar_owner *owner,
 	if (!memcmp(&wire->guid, capsule_guid, sizeof(capsule_guid))) {
 		if (!capsule)
 			return wire_status(PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
-		return ass_native_capsule_dispatch(capsule->transaction, capsule->source,
+		size_t response_size = wire->message_length;
+		uint32_t status = ass_native_capsule_dispatch(capsule->transaction, capsule->source,
 			owner, capsule->crypto, capsule->platform, wire->data,
-			wire->message_length, capsule->image);
+			wire->message_length, capsule->image, &response_size);
+		wire->message_length = response_size;
+		return status;
 	}
 	if (!memcmp(&wire->guid, &fixed_guid, sizeof(fixed_guid)))
 		return dispatch_fixed_policy(owner, wire->data, wire->message_length);
@@ -476,15 +479,19 @@ uint32_t ass_native_mailbox_dispatch(struct authvar_owner *owner,
 	if (buffer->transaction == transaction &&
 	    __atomic_load_n(&buffer->state, __ATOMIC_ACQUIRE) ==
 		EFI_VARIABLE_SERVICE_BUFFER_REQUEST) {
+		const struct mm_communication_header32 *wire = scratch;
+		const size_t request_length = wire->message_length;
 		const uint32_t status =
 			ass_native_mm_dispatch(owner, policy, fixed, phase, capsule, scratch, size);
+		const size_t response_size = !status && wire->message_length < request_length ?
+			sizeof(*wire) + wire->message_length : size;
 
 		if (buffer->transaction == transaction &&
 		    __atomic_load_n(&buffer->state, __ATOMIC_ACQUIRE) ==
 			EFI_VARIABLE_SERVICE_BUFFER_REQUEST) {
-			memcpy(message, scratch, size);
+			memcpy(message, scratch, response_size);
 			buffer->status = status;
-			buffer->response_size = size;
+			buffer->response_size = response_size;
 			__atomic_store_n(&buffer->state, EFI_VARIABLE_SERVICE_BUFFER_RESPONSE,
 				__ATOMIC_RELEASE);
 			result = EFI_VARIABLE_SERVICE_RET_SUCCESS;

@@ -595,7 +595,7 @@ bool ass_capsule_source_in_ram(uint64_t address, size_t size, uintptr_t ram_star
 uint32_t ass_native_capsule_dispatch(struct ass_capsule_transaction *transaction,
 	struct ass_capsule_source *source, struct authvar_owner *owner,
 	struct payload_mm_crypto_owner *crypto, const struct ass_capsule_platform *platform,
-	void *message, size_t size, uint8_t *image)
+	void *message, size_t size, uint8_t *image, size_t *response_size)
 {
 	struct ass_capsule_wire_request request;
 	uint8_t *payload;
@@ -655,7 +655,9 @@ uint32_t ass_native_capsule_dispatch(struct ass_capsule_transaction *transaction
 		platform->count, transaction->floor, image, platform->program, platform->boot_slot);
 	if (status)
 		ass_capsule_source_close(source);
-	else
+	else {
 		write_le32((uint8_t *)message + 8, ass_native_capsule_activate(transaction));
+		*response_size = payload - (uint8_t *)message + 20;
+	}
 	return capsule_result(message, request.revision, status);
 }

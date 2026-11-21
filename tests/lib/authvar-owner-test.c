@@ -899,6 +899,7 @@ static void signed_capsule_source_is_rechecked(void **unused)
 		info, sizeof(info)), 0);
 	assert_int_equal(read_le32(wire->data + 24), 35);
 	uint8_t begin[36 + sizeof(ass_fixture_signature)] = { 0 };
+	size_t reply_size = sizeof(begin);
 	write_le32(begin, 2);
 	write_le32(begin + 4, ASS_CAPSULE_BEGIN);
 	write_le32(begin + 24, sizeof(body));
@@ -907,14 +908,34 @@ static void signed_capsule_source_is_rechecked(void **unused)
 	memcpy(begin + 36, ass_fixture_signature, sizeof(ass_fixture_signature));
 	program_calls = 0;
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, begin, sizeof(begin), image), 0);
+		&platform, begin, sizeof(begin), image, &reply_size), 0);
 	assert_int_equal(read_le32(begin + 12), 0x8000000f);
 	assert_int_equal(read_le32(begin + 8), 0);
 	assert_int_equal(program_calls, 0);
 	assert_false(source.authorized);
 	write_le64(begin + 16, 0x100000);
-	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, begin, sizeof(begin), image), 0);
+	static _Alignas(8) uint8_t shared[EFI_VARIABLE_SERVICE_BUFFER_SIZE];
+	_Alignas(8) uint8_t scratch[sizeof(*wire) + sizeof(begin)];
+	struct efi_variable_service_buffer *mailbox = (void *)shared;
+	struct mm_communication_header32 *reply =
+		(void *)(shared + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
+	*mailbox = (struct efi_variable_service_buffer) {
+		.signature = EFI_VARIABLE_SERVICE_BUFFER_SIGNATURE,
+		.revision = EFI_VARIABLE_SERVICE_REVISION,
+		.header_size = EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE,
+		.state = EFI_VARIABLE_SERVICE_BUFFER_REQUEST,
+		.transaction = 7,
+		.message_size = sizeof(scratch),
+	};
+	memcpy(&reply->guid, &wire->guid, sizeof(reply->guid));
+	reply->message_length = sizeof(begin);
+	memcpy(reply->data, begin, sizeof(begin));
+	assert_int_equal(ass_native_mailbox_dispatch(owner, &policy, NULL, &phase, &capsule,
+		shared, sizeof(shared), scratch, sizeof(scratch)), EFI_VARIABLE_SERVICE_RET_SUCCESS);
+	assert_int_equal(mailbox->status, 0);
+	assert_int_equal(mailbox->response_size, sizeof(*reply) + 36);
+	assert_int_equal(reply->message_length, 36);
+	memcpy(begin, reply->data, 36);
 	assert_int_equal(read_le32(begin + 12), 0);
 	assert_int_equal(read_le32(begin + 8), 2);
 	assert_int_equal(program_calls, 1);
@@ -923,46 +944,46 @@ static void signed_capsule_source_is_rechecked(void **unused)
 	transaction.plan.blocks = 2;
 	program[2] = 2;
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, program, sizeof(program), image), 0);
+		&platform, program, sizeof(program), image, &reply_size), 0);
 	assert_int_equal(program[3], 0);
 	assert_int_equal(program_calls, 2);
 	assert_int_equal(trial_commits, 0);
 	program[4] = 1;
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, program, sizeof(program), image), 0);
+		&platform, program, sizeof(program), image, &reply_size), 0);
 	assert_int_equal(program[3], 0);
 	assert_int_equal(trial_commits, 1);
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, program, sizeof(program), image), 0);
+		&platform, program, sizeof(program), image, &reply_size), 0);
 	assert_int_equal(program[3], 0x8000000f);
 	assert_int_equal(trial_commits, 1);
 	program[4] = 0;
 	close[2] = 2;
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, close, sizeof(close), image), 0);
+		&platform, close, sizeof(close), image, &reply_size), 0);
 	assert_false(source.authorized);
 	assert_int_equal(transaction.active, 0);
 
 	write_le32(begin + 8, 0);
 	program_calls = 0;
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, begin, sizeof(begin), image), 0);
+		&platform, begin, sizeof(begin), image, &reply_size), 0);
 	assert_int_equal(read_le32(begin + 12), 0);
 	program[2] = read_le32(begin + 8);
 	body[32 + ranges[1].offset] ^= 1;
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, program, sizeof(program), image), 0);
+		&platform, program, sizeof(program), image, &reply_size), 0);
 	assert_int_equal(program[3], 0x8000001a);
 	assert_false(source.authorized);
 	assert_int_equal(program_calls, 1);
 	body[32 + ranges[1].offset] ^= 1;
 	close[2] = program[2];
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, close, sizeof(close), image), 0);
+		&platform, close, sizeof(close), image, &reply_size), 0);
 	write_le32(begin + 8, 0);
 	program_calls = 0;
 	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
-		&platform, begin, sizeof(begin), image), 0);
+		&platform, begin, sizeof(begin), image, &reply_size), 0);
 	assert_int_equal(read_le32(begin + 12), 0);
 	assert_true(source.authorized);
 	const EFI_GUID events[] = {

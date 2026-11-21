@@ -119,6 +119,6 @@ bool ass_capsule_source_in_ram(uint64_t address, size_t size, uintptr_t ram_star
 uint32_t ass_native_capsule_dispatch(struct ass_capsule_transaction *transaction,
 	struct ass_capsule_source *source, struct authvar_owner *owner,
 	struct payload_mm_crypto_owner *crypto, const struct ass_capsule_platform *platform,
-	void *message, size_t size, uint8_t *image);
+	void *message, size_t size, uint8_t *image, size_t *response_size);
 
 #endif
