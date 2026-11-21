@@ -155,8 +155,6 @@ bool payload_mm_authvar_coordinator_source_modes(
 		&enable_value)))
 		return false;
 	modes = (u8)(pk ? 0U : PAYLOAD_MM_AUTHVAR_MODE_SETUP);
-	if (pk && !enable)
-		return false;
 	if (vendor_value)
 		modes |= PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
 	/* Enable is a next-boot preference. Once published, SecureBoot changes
@@ -169,7 +167,7 @@ bool payload_mm_authvar_coordinator_source_modes(
 			return false;
 		modes |= sealed_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 	} else {
-		if (pk && enable_value)
+		if (pk && (!enable || enable_value))
 			modes |= PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 	}
 	*source_modes = modes;

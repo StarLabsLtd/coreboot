@@ -41,6 +41,184 @@ static uint64_t policy_get(void *context, const uint16_t *name, const void *guid
 	return status;
 }
 
+enum variable_format {
+	VAR_BYTES,
+	VAR_ASCII,
+	VAR_ARRAY,
+	VAR_KEY_OPTION,
+	VAR_PATH,
+	VAR_LOAD_OPTION,
+	VAR_READ_ONLY,
+};
+
+/* The standard global-variable formats checked by Fixed MM. */
+static const struct {
+	const uint16_t *name;
+	uint8_t attributes, min_size, max_size;
+	enum variable_format format;
+} global_variables[] = {
+	{ u"LangCodes", 6, 1, 0, VAR_ASCII },
+	{ u"Lang", 7, 1, 0, VAR_ASCII },
+	{ u"Timeout", 7, 2, 2, VAR_BYTES },
+	{ u"PlatformLangCodes", 6, 1, 0, VAR_ASCII },
+	{ u"PlatformLang", 7, 1, 0, VAR_ASCII },
+	{ u"ConIn", 7, 4, 0, VAR_PATH },
+	{ u"ConOut", 7, 4, 0, VAR_PATH },
+	{ u"ErrOut", 7, 4, 0, VAR_PATH },
+	{ u"ConInDev", 6, 4, 0, VAR_PATH },
+	{ u"ConOutDev", 6, 4, 0, VAR_PATH },
+	{ u"ErrOutDev", 6, 4, 0, VAR_PATH },
+	{ u"BootOrder", 7, 2, 0, VAR_ARRAY },
+	{ u"BootNext", 7, 2, 2, VAR_BYTES },
+	{ u"BootCurrent", 6, 2, 2, VAR_BYTES },
+	{ u"BootOptionSupport", 6, 4, 4, VAR_BYTES },
+	{ u"DriverOrder", 7, 2, 0, VAR_ARRAY },
+	{ u"SysPrepOrder", 7, 2, 0, VAR_ARRAY },
+	{ u"HwErrRecSupport", 7, 2, 2, VAR_BYTES },
+	{ u"OsIndicationsSupported", 6, 8, 8, VAR_BYTES },
+	{ u"OsIndications", 7, 8, 8, VAR_BYTES },
+	{ u"Boot####", 7, 6, 0, VAR_LOAD_OPTION },
+	{ u"Driver####", 7, 6, 0, VAR_LOAD_OPTION },
+	{ u"SysPrep####", 7, 6, 0, VAR_LOAD_OPTION },
+	{ u"PlatformRecovery####", 6, 6, 0, VAR_LOAD_OPTION },
+	{ u"Key####", 7, 10, 22, VAR_KEY_OPTION },
+	{ u"SetupMode", 6, 1, 1, VAR_READ_ONLY },
+	{ u"SecureBoot", 6, 1, 1, VAR_READ_ONLY },
+	{ u"VendorKeys", 6, 1, 1, VAR_READ_ONLY },
+	{ u"SignatureSupport", 6, 16, 0, VAR_READ_ONLY },
+	{ u"PKDefault", 6, 1, 0, VAR_READ_ONLY },
+	{ u"KEKDefault", 6, 1, 0, VAR_READ_ONLY },
+	{ u"dbDefault", 6, 1, 0, VAR_READ_ONLY },
+	{ u"dbxDefault", 6, 1, 0, VAR_READ_ONLY },
+	{ u"dbtDefault", 6, 1, 0, VAR_READ_ONLY },
+};
+
+static bool matches_variable(const uint16_t *pattern, const uint16_t *name)
+{
+	for (; *pattern; pattern++, name++) {
+		if (*pattern == '#') {
+			if (!(*name >= '0' && *name <= '9') &&
+			    !(*name >= 'A' && *name <= 'F'))
+				return false;
+		} else if (*pattern != *name) {
+			return false;
+		}
+	}
+	return !*name;
+}
+
+static bool valid_device_path(const uint8_t *data, size_t size)
+{
+	while (size >= 4) {
+		const size_t length = read_le16(data + 2);
+
+		if (length < 4 || length > size)
+			return false;
+		if (data[0] == 0x7f && data[1] == 0xff)
+			return length == 4;
+		/* A media file-path node must end with a UTF-16 NUL. */
+		if (data[0] == 4 && data[1] == 4 &&
+		    (length < 6 || length % 2 || read_le16(data + length - 2)))
+			return false;
+		data += length;
+		size -= length;
+	}
+	return false;
+}
+
+static bool valid_load_option(const uint8_t *data, size_t size)
+{
+	const size_t path_size = read_le16(data + 4);
+
+	for (size_t offset = 6; size - offset >= 2; offset += 2)
+		if (!read_le16(data + offset))
+			return path_size <= size - offset - 2 &&
+				valid_device_path(data + offset + 2, path_size);
+	return false;
+}
+
+static uint64_t check_uefi_variable(const struct authvar_policy *policy,
+	const uint16_t *name, const struct smm_variable_access32 *access, const void *data)
+{
+	static const EFI_GUID global = {
+		0x8be4df61, 0x93ca, 0x11d2, { 0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c },
+	};
+	static const EFI_GUID image_security = {
+		0xd719b2cb, 0x3d3a, 0x4596, { 0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f },
+	};
+	static const EFI_GUID hardware_error = {
+		0x414e6bdd, 0xe47b, 0x47cc, { 0xb2, 0x44, 0xbb, 0x61, 2, 0x0c, 0xf5, 0x16 },
+	};
+	const void *guid = &access->guid;
+	const uint8_t *bytes = data;
+	const size_t size = access->data_size;
+	uint32_t attributes = access->attributes;
+	const bool append = attributes & PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
+	const uint64_t invalid = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	bool valid;
+
+	/* Hardware error records are not supported by the native owner. */
+	if (attributes & PAYLOAD_MM_AUTHVAR_ATTR_HARDWARE_ERROR)
+		return invalid;
+	if (!attributes || (!size && !append))
+		return 0;
+	if (!memcmp(guid, &hardware_error, sizeof(hardware_error)))
+		return invalid;
+	if (!memcmp(guid, &image_security, sizeof(image_security))) {
+		/* The authenticated owner checks the attributes and ESL payload. */
+		if (matches_variable(u"db", name) || matches_variable(u"dbx", name) ||
+		    matches_variable(u"dbt", name))
+			return 0;
+		goto registered;
+	}
+	if (memcmp(guid, &global, sizeof(global)))
+		return 0;
+	if (matches_variable(u"PK", name) || matches_variable(u"KEK", name))
+		return 0;
+	attributes &= ~PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND;
+	for (size_t i = 0; i < ARRAY_SIZE(global_variables); i++) {
+		const typeof(*global_variables) *rule = &global_variables[i];
+
+		if (!matches_variable(rule->name, name))
+			continue;
+		if (rule->format == VAR_READ_ONLY)
+			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
+		if (attributes != rule->attributes)
+			return invalid;
+		if (!size && append)
+			return 0;
+		if (size < rule->min_size || (rule->max_size && size > rule->max_size))
+			return invalid;
+		switch (rule->format) {
+		case VAR_ASCII:
+			for (size_t j = 0; j < size; j++)
+				if (!bytes[j])
+					return 0;
+			return invalid;
+		case VAR_ARRAY:
+			valid = size % rule->min_size == 0;
+			break;
+		case VAR_KEY_OPTION:
+			valid = (size - rule->min_size) % 4 == 0;
+			break;
+		case VAR_PATH:
+			valid = valid_device_path(data, size);
+			break;
+		case VAR_LOAD_OPTION:
+			valid = valid_load_option(data, size);
+			break;
+		case VAR_BYTES:
+			return 0;
+		default:
+			return invalid;
+		}
+		return valid ? 0 : invalid;
+	}
+
+registered:
+	return authvar_policy_has_match(policy, name, access->name_size, guid) ? 0 : invalid;
+}
+
 static uint64_t set_variable(struct authvar_owner *owner,
 	const struct authvar_policy *policy, const struct authvar_fixed_policy *fixed,
 	const struct smm_variable_access32 *access, const uint16_t *name, const void *data)
@@ -48,6 +226,9 @@ static uint64_t set_variable(struct authvar_owner *owner,
 	const size_t size = access->data_size;
 	size_t payload_size = size;
 
+	uint64_t status = check_uefi_variable(policy, name, access, data);
+	if (status)
+		return status;
 	if (access->attributes & PAYLOAD_MM_AUTHVAR_ATTR_TIME_AUTHENTICATED) {
 		struct payload_mm_authvar_auth2_view auth;
 
@@ -56,7 +237,7 @@ static uint64_t set_variable(struct authvar_owner *owner,
 			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
 		payload_size = auth.payload.size;
 	}
-	const uint64_t status = authvar_policy_check(policy, name, &access->guid,
+	status = authvar_policy_check(policy, name, &access->guid,
 		access->attributes, payload_size, policy_get, owner, NULL);
 	if (status != PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS)
 		return status;

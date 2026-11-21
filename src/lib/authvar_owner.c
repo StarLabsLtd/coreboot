@@ -297,9 +297,14 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	    !payload_mm_authvar_coordinator_source_modes(&local->index, false,
 		false, 0, &local->modes))
 		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
+	const bool restore_enable =
+		!(local->modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) &&
+		!payload_mm_authvar_mode_find(&local->index,
+			PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE);
 #if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
 	if (fixed) {
-		if ((local->modes & (PAYLOAD_MM_AUTHVAR_MODE_SETUP |
+		if (restore_enable ||
+		    (local->modes & (PAYLOAD_MM_AUTHVAR_MODE_SETUP |
 		    PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT)) != PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT)
 			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
 		uint8_t fixed_custom_mode = 0;
@@ -352,6 +357,23 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 		size, &local->limits) != CB_SUCCESS)
 		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
 	local->failed = false;
+	if (restore_enable) {
+		struct payload_mm_authvar_policy_request request;
+		const uint16_t name[] = u"SecureBootEnable";
+		const uint8_t enabled = 1;
+		uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+
+		if (payload_mm_authvar_mode_request(
+		    PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, &request))
+			status = authvar_owner_set(local, name, request.vendor_guid,
+				PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE |
+				PAYLOAD_MM_AUTHVAR_ATTR_BOOTSERVICE_ACCESS,
+				sizeof(enabled), &enabled, true, NULL, NULL);
+		if (status_error(status)) {
+			local->failed = true;
+			return status;
+		}
+	}
 #if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
 	if (fixed) {
 		if (fixed_update) {

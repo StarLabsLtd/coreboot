@@ -43,6 +43,133 @@ static uint64_t commit(void *context, const void *store, size_t size,
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
+static void restore_deleted_secure_boot_preference(void **unused)
+{
+	static struct {
+		struct authvar_owner owner;
+		_Alignas(16) uint8_t workspace[128 * 1024];
+	} service;
+	static uint8_t erased[3 * 4096], volume[sizeof(erased)];
+	uint8_t *store = volume + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	const size_t store_size = 4096 - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	struct test_media media = { .store = store, .size = store_size };
+	const uint16_t pk[] = u"PK", enable[] = u"SecureBootEnable";
+	const uint8_t enable_guid[] = {
+		0xc7, 0x0b, 0xa3, 0xf0, 0x08, 0xaf, 0x56, 0x45,
+		0x99, 0xc4, 0, 0x10, 0x09, 0xc9, 0x3a, 0x44,
+	};
+	const struct payload_mm_authvar_record_descriptor platform_key = {
+		.name = pk, .name_size = sizeof(pk), .attributes = 0x27,
+		.vendor_guid = {
+			0x61, 0xdf, 0xe4, 0x8b, 0xca, 0x93, 0xd2, 0x11,
+			0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c,
+		},
+	};
+	/* This loaded record supplies PK presence; no signature is verified here. */
+	const uint8_t key_data = 1;
+	const struct payload_mm_authvar_record_span span = { &key_data, sizeof(key_data) };
+	size_t offset = payload_mm_authvar_default_store_records_end();
+	uint32_t length;
+	uint8_t value = 0;
+	size_t size = sizeof(value);
+
+	memset(erased, 0xff, sizeof(erased));
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
+		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+	assert_true(payload_mm_authvar_record_encode(&platform_key, &span, 1,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
+		store + offset, store_size - offset, &length));
+	store[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_true(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	assert_int_equal(authvar_owner_get(&service.owner, enable, enable_guid, NULL,
+		&size, &value), 0);
+	assert_int_equal(value, 1);
+	value = 0;
+	assert_int_equal(authvar_owner_set(&service.owner, enable, enable_guid, 3, 1,
+		&value, true, NULL, NULL), 0);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_false(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	assert_int_equal(authvar_owner_set(&service.owner, enable, enable_guid, 0, 0,
+		NULL, true, NULL, NULL), 0);
+	assert_false(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	assert_int_equal(authvar_owner_get(&service.owner, enable, enable_guid, NULL,
+		&size, &value), PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_true(service.owner.modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT);
+	assert_int_equal(authvar_owner_get(&service.owner, enable, enable_guid, NULL,
+		&size, &value), 0);
+	assert_int_equal(value, 1);
+	assert_int_equal(media.writes, 4);
+}
+
+static void check_boot_next_at_runtime(void **unused)
+{
+	static struct {
+		struct authvar_owner owner;
+		_Alignas(16) uint8_t workspace[128 * 1024];
+	} service;
+	static uint8_t erased[3 * 4096], volume[sizeof(erased)];
+	uint8_t *store = volume + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	const size_t store_size = 4096 - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	struct test_media media = { .store = store, .size = store_size };
+	static struct authvar_policy policy = { .locked = true };
+	const uint16_t name[] = u"BootNext";
+	_Alignas(8) uint8_t request[sizeof(struct smm_variable_header32) +
+		sizeof(struct smm_variable_access32) + sizeof(name) + 2] = { 0 };
+	struct smm_variable_header32 *message = (void *)request;
+	struct smm_variable_access32 *access = (void *)message->data;
+	uint8_t *value = (uint8_t *)access->name + sizeof(name);
+
+	memset(erased, 0xff, sizeof(erased));
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
+		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_int_equal(authvar_owner_ready(&service.owner, NULL), 0);
+	authvar_owner_enter_runtime(&service.owner);
+	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	access->guid = (EFI_GUID) {
+		0x8be4df61, 0x93ca, 0x11d2, { 0xaa, 0x0d, 0, 0xe0, 0x98, 3, 0x2b, 0x8c },
+	};
+	access->name_size = sizeof(name);
+	access->data_size = 1;
+	access->attributes = 7;
+	memcpy(access->name, name, sizeof(name));
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000002U);
+	assert_int_equal(media.writes, 0);
+	access->data_size = 2;
+	access->attributes = 6;
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000002U);
+	assert_int_equal(media.writes, 0);
+	access->attributes = 7;
+	write_le16(value, 0x1234);
+	memcpy(access->name, u"BadNameX", sizeof(name));
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000002U);
+	assert_int_equal(media.writes, 0);
+	memcpy(access->name, name, sizeof(name));
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	assert_int_equal(media.writes, 1);
+	message->function = SMM_VARIABLE_FUNCTION_GET_VARIABLE;
+	write_le16(value, 0);
+	assert_true(ass_native_variable_dispatch(&service.owner, &policy, NULL,
+		request, sizeof(request)));
+	assert_int_equal(message->return_status, 0);
+	assert_int_equal(access->data_size, 2);
+	assert_int_equal(read_le16(value), 0x1234);
+}
+
 static void admit_existing_store(void **unused)
 {
 	static struct {
@@ -1389,6 +1516,8 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(admit_existing_store),
+		cmocka_unit_test(restore_deleted_secure_boot_preference),
+		cmocka_unit_test(check_boot_next_at_runtime),
 		cmocka_unit_test(owner_on_nor),
 		cmocka_unit_test(native_smm_opens_before_publication),
 		cmocka_unit_test(lite_ass_private_data_budget),

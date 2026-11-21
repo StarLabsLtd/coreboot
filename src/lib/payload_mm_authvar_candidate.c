@@ -674,9 +674,7 @@ static bool projection_matches(
 		16U) ||
 	    *source_vendor_data > 1U ||
 	    source_vendor_keys != !!*source_vendor_data ||
-	    (!binding->at_runtime &&
-	     ((source_setup && source_secure) ||
-	      (!source_setup && !source_enable))) ||
+	    (!binding->at_runtime && source_setup && source_secure) ||
 	    setup == !!pk || !vendor || vendor->attributes != nv_bs_time ||
 	    vendor->data_size != 1U ||
 	    !vendor_data || *vendor_data > 1U || vendor_keys != !!*vendor_data)
@@ -778,9 +776,6 @@ bool payload_mm_authvar_candidate_projection_valid(
 	secure = volatile_modes & PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 	enable_changed = !!source_enable != !!candidate_enable ||
 		(source_enable && *source_enable_data != *candidate_enable_data);
-	if ((source_pk && !source_enable) ||
-	    (candidate_pk && !candidate_enable))
-		return false;
 	if (binding->at_runtime)
 		return !enable_changed && secure == source_secure;
 	/* The sealed source mode need not match a changed next-boot preference. */

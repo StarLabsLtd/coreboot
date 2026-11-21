@@ -556,9 +556,8 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		 PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS),
 		&secure_boot_enable_data))
 		return PAYLOAD_MM_VERIFY_CHANGED;
-	if (!snapshot->facts.at_runtime &&
-	    ((snapshot->facts.setup_mode && snapshot->facts.secure_boot) ||
-	     (!snapshot->facts.setup_mode && !secure_boot_enable)))
+	if (!snapshot->facts.at_runtime && snapshot->facts.setup_mode &&
+	    snapshot->facts.secure_boot)
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	/* Facts carry the owner's published mode; Enable is a next-boot preference. */
 	if (decision->outcome != PAYLOAD_MM_AUTHVAR_OUTCOME_MUTATION) {
