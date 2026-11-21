@@ -1,15 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Authenticate only unchanged factory APCBs with an erased MAC. */
+/* Authenticate factory APCBs and complete validated memory-context saves. */
 
 #include <acpi/acpi.h>
 #include <amdblocks/psp.h>
+#include <amdblocks/apob_cache.h>
 #include <boot_device.h>
 #include <bootstate.h>
 #include <cbfs.h>
 #include <commonlib/endian.h>
+#include <commonlib/bsd/xxhash.h>
 #include <console/console.h>
 #include <cpu/x86/cache.h>
 #include <fmap.h>
+#include <pc80/mc146818rtc.h>
 #include <string.h>
 #include <vendorcode/amd/psp/psp_fw_parser.h>
 
@@ -17,7 +20,7 @@
 static uint8_t factory[0xc000] __aligned(32);
 static uint8_t data[0xc000] __aligned(32);
 static size_t slots[4], slot_count, apcb_size;
-static bool prepared, pending[4];
+static bool prepared, pending[4], authenticated_at_entry;
 
 static bool collect(const struct psp_dir_region *dir, size_t level, size_t index,
 		    const union psp_dir_entry *entry, void *arg)
@@ -99,6 +102,7 @@ static void prepare(void *unused)
 	for (size_t i = 0; i < slot_count; i++)
 		needs_signing |= pending[i];
 	if (!needs_signing) {
+		authenticated_at_entry = true;
 		memset(factory, 0, sizeof(factory));
 		memset(data, 0, sizeof(data));
 		return;
@@ -154,5 +158,70 @@ static void commit(void *unused)
 	prepared = false;
 }
 
+/* The ABL wire record reserves either one or two sockets, independent of CPUs present. */
+static bool normal_memory_boot(const struct apob_base_header *apob)
+{
+	const uint8_t *bytes = (const void *)apob;
+	size_t offset = apob->offset_of_first_entry;
+	bool found = false;
+
+	if (offset < sizeof(*apob) || offset > apob->size)
+		return false;
+	while (offset < apob->size) {
+		if (apob->size - offset < 48)
+			return false;
+		const uint8_t *entry = bytes + offset;
+		size_t size = read_le32(entry + 12);
+		if (size < 48 || size % 4 || size > apob->size - offset)
+			return false;
+		if (read_le32(entry) == 1 && read_le32(entry + 4) == 16 &&
+		    read_le32(entry + 8) == 0) {
+			if (found || (size != 168 && size != 264))
+				return false;
+			/* Stable trailer: DIMM change, recovery, BIST, policy, four DWORDs. */
+			if (read_le32(entry + 48) != 0x60 || entry[size - 20] ||
+			    entry[size - 19])
+				return false;
+			found = true;
+		}
+		offset += size;
+	}
+	return found;
+}
+
+/* Match AMI MemRestoreLib's sign-off, after an authenticated normal boot. */
+static void restore_sign_off(void *unused)
+{
+	struct region_device region;
+	const struct apob_base_header *ram = (void *)(uintptr_t)CONFIG_PSP_APOB_DRAM_ADDRESS;
+	if (!authenticated_at_entry || fmap_locate_area_as_rdev("RW_MRC_CACHE", &region))
+		return;
+	size_t size = region_device_sz(&region);
+	if (size < sizeof(*ram) + sizeof(uint64_t) || ram->signature != APOB_SIGNATURE ||
+	    ram->size < sizeof(*ram) || ram->size > size - sizeof(uint64_t) ||
+	    !normal_memory_boot(ram))
+		return;
+
+	void *nv = rdev_mmap_full(&region);
+	if (!nv)
+		return;
+	/* The preceding cache update may have left old WP-cached ROM lines. */
+	clflush_region((uintptr_t)nv, size);
+	uint64_t hash = read_le64((uint8_t *)nv + size - sizeof(uint64_t));
+	bool valid = !memcmp(ram, nv, ram->size) && xxh64(ram, ram->size, 0) == hash;
+	rdev_munmap(&region, nv);
+	if (!valid) {
+		printk(BIOS_ERR, "APCB init: memory context sign-off refused; cache unverified\n");
+		return;
+	}
+
+	/* Preserve discard/APCB-change flags; clear boot failure and mark saved. */
+	uint8_t flags = cmos_read(0x8d);
+	cmos_write((flags & ~1) | 4, 0x8d);
+	printk(BIOS_NOTICE, "APCB init: verified memory context sign-off %02x->%02x\n",
+	       flags, cmos_read(0x8d));
+}
+
+BOOT_STATE_INIT_ENTRY(BS_PAYLOAD_BOOT, BS_ON_ENTRY, restore_sign_off, NULL);
 BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_ENTRY, prepare, NULL);
 BOOT_STATE_INIT_ENTRY(BS_WRITE_TABLES, BS_ON_ENTRY, commit, NULL);
