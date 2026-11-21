@@ -57,6 +57,44 @@ struct capsule_manifest_footer {
 	uint8_t count[2];
 };
 
+static uint64_t find_image_fmap(struct ass_capsule_source *source,
+	const struct ass_capsule_geometry *geometry, uint8_t *scratch,
+	struct ass_capsule_range *fmap)
+{
+	const size_t prefix = sizeof(struct capsule_signed_header);
+	const size_t step = ASS_CAPSULE_SOURCE_BLOCK - sizeof(struct fmap) + 1;
+
+	if (!source->authorized || prefix > source->size ||
+	    geometry->flash_size > source->size - prefix)
+		return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+
+	/* Overlap reads so a header crossing a scratch boundary is still visible. */
+	for (size_t offset = 0; offset < geometry->flash_size; offset += step) {
+		const size_t remaining = geometry->flash_size - offset;
+		const size_t bytes = MIN(remaining, ASS_CAPSULE_SOURCE_BLOCK);
+
+		if (bytes < sizeof(struct fmap))
+			break;
+		if (!ass_capsule_source_read(source, prefix + offset, scratch, bytes))
+			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+		for (size_t i = 0; i <= bytes - sizeof(struct fmap); i++) {
+			const struct fmap *map = (const void *)(scratch + i);
+
+			if (memcmp(map->signature, FMAP_SIGNATURE, sizeof(map->signature)) ||
+			    map->ver_major != FMAP_VER_MAJOR || map->ver_minor > FMAP_VER_MINOR ||
+			    read_le32(&map->size) != geometry->flash_size)
+				continue;
+			const size_t length = sizeof(*map) +
+				read_le16(&map->nareas) * sizeof(struct fmap_area);
+			if (length > MIN(remaining - i, ASS_CAPSULE_SOURCE_BLOCK))
+				continue;
+			*fmap = (struct ass_capsule_range) { offset + i, length };
+			return 0;
+		}
+	}
+	return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
+}
+
 static uint64_t check_fmap_range(struct ass_capsule_source *source,
 	const struct ass_capsule_geometry *geometry, uint32_t fmap_offset,
 	uint32_t fmap_size, const char *name, uint32_t offset, uint32_t size)
@@ -339,8 +377,16 @@ uint64_t ass_native_capsule_begin(struct ass_capsule_plan *plan,
 	uint64_t status = ass_native_capsule_target(source, geometry, prefix, floor);
 	if (status)
 		return status;
+	struct ass_capsule_range candidate_fmap;
+	status = find_image_fmap(source, geometry, image, &candidate_fmap);
+	if (status)
+		return status;
+	const bool relocated = fmap.offset != candidate_fmap.offset;
+	fmap = candidate_fmap;
 	status = ass_native_capsule_select_ranges(source, geometry, fmap, store, names,
 		ranges, count, &mask);
+	if (!status && relocated)
+		status = CAPSULE_LAYOUT_MISMATCH;
 	if (boot_slot) {
 		if (status)
 			return status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ?

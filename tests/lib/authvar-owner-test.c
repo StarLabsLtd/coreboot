@@ -1005,7 +1005,8 @@ static void signed_capsule_bios_fallback(void **unused)
 	};
 	const char names[][16] = { "COREBOOT" };
 	const struct ass_capsule_range ranges[] = { { 4096, 4096 } };
-	const struct ass_capsule_range fmap = { 128, 512 }, store = { 8192, 4096 };
+	/* The signed candidate's map is at 128, independently of the running map. */
+	const struct ass_capsule_range fmap = { 64, 512 }, store = { 8192, 4096 };
 
 	assert_int_equal(ass_capsule_source_verify(&source, &crypto, body, sizeof(body),
 		&cms, &root), PAYLOAD_MM_VERIFY_OK);
