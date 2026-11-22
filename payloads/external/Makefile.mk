@@ -4,6 +4,11 @@ ifeq ($(CONFIG_PAYLOAD_EDIIE),y)
 include payloads/external/ediie/Makefile.mk
 endif
 
+ifeq ($(CONFIG_PAYLOAD_EDK2),y)
+# A resolved config copied from another output tree can retain its old path.
+override CONFIG_PAYLOAD_FILE := $(obj)/UEFIPAYLOAD.fd
+endif
+
 # set up payload config and version files for later inclusion
 ifeq ($(CONFIG_PAYLOAD_BUILD_SEABIOS),y)
 PAYLOAD_CONFIG=payloads/external/SeaBIOS/seabios/.config
