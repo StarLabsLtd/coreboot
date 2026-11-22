@@ -60,3 +60,17 @@ $(call copy-test,turin-mpio-1p-test,turin-mpio-2p-test)
 turin-mpio-2p-test-config := $(filter-out CONFIG_MAX_SOCKET=1,$(turin-mpio-2p-test-config))
 turin-mpio-2p-test-config += CONFIG_MAX_SOCKET=2
 endif
+
+phoenix_test_opensil ?= src/vendorcode/amd/opensil/phoenix_poc/opensil
+ifneq ($(wildcard $(phoenix_test_opensil)/xUSL/APOB/Common/ApobCmn.h),)
+tests-y += phoenix-memory-test
+phoenix-memory-test-srcs += tests/vendorcode/amd/opensil/phoenix-memory-test.c \
+	tests/stubs/console.c
+phoenix-memory-test-stage := ramstage
+phoenix-memory-test-config += CONFIG_PSP_APOB_DRAM_ADDRESS=0x10000000 \
+	CONFIG_PSP_APOB_DRAM_SIZE=0x1000
+phoenix-memory-test-cflags += -I$(phoenix_test_opensil)/Include \
+	-I$(phoenix_test_opensil)/xUSL -I$(phoenix_test_opensil)/xUSL/Include \
+	-I$(phoenix_test_opensil)/xSIM -I$(phoenix_test_opensil)/xPRF \
+	-D_MSC_EXTENSIONS=0 -Wno-unknown-pragmas
+endif
