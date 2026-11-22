@@ -205,6 +205,10 @@ tpm_result_t crb_tpm_init(void)
 		if (entry) {
 			buf = cbmem_entry_start(entry);
 			length = cbmem_entry_size(entry);
+			if (length < 2 * FTPM_CRB_SIZE) {
+				printk(BIOS_ERR, "fTPM: CBMEM allocation cannot hold both buffers\n");
+				return CB_ERR;
+			}
 		} else {
 			buf = cbmem_add(CBMEM_ID_TPM2_CRB, length);
 			if (!buf) {
