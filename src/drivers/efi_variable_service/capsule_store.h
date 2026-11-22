@@ -31,4 +31,8 @@ int efi_capsule_program_sectors(const struct region_device *flash, size_t transf
 				size_t transfer_size, const struct efi_capsule_range *ranges,
 				size_t count, const uint8_t *image, uint8_t *readback,
 				const struct efi_capsule_sector_policy *policy, bool check_only);
+int efi_variable_service_program_capsule(const struct region_device *flash, uint32_t offset,
+			const struct efi_capsule_range *ranges, size_t count,
+			uint8_t *image, uint8_t *readback, bool check_only);
+
 #endif

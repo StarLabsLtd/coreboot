@@ -718,7 +718,7 @@ static enum cb_err boot_access_status(bool *allowed)
 #ifdef ASS_NATIVE_LINK_CHECK
 	return ass_native_smm_boot_access(native_arena, allowed) ? CB_SUCCESS : CB_EFI_ACCESS_ERROR;
 #endif
-	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+	typedef uint32_t (EFIAPI *mm_manage)(const EFI_GUID *, const void *,
 							    void *, size_t *);
 	uint8_t query = 1;
 	size_t size = sizeof(query);
@@ -752,7 +752,7 @@ enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value)
 	} request;
 	struct smm_variable_header32 *variable = (void *)request.bytes;
 	struct smm_variable_access32 *access = (void *)variable->data;
-	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+	typedef uint32_t (EFIAPI *mm_manage)(const EFI_GUID *, const void *,
 							    void *, size_t *);
 	size_t max_name = (sizeof(request.bytes) - sizeof(*variable) - sizeof(*access) -
 			   sizeof(*value)) / sizeof(CHAR16);
@@ -831,7 +831,7 @@ enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 	} request;
 	struct smm_variable_header32 *variable = (void *)request.bytes;
 	struct smm_variable_access32 *access = (void *)variable->data;
-	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+	typedef uint32_t (EFIAPI *mm_manage)(const EFI_GUID *, const void *,
 							    void *, size_t *);
 	size_t max_name = (sizeof(request.bytes) - sizeof(*variable) - sizeof(*access) -
 			   sizeof(value)) / sizeof(CHAR16);
