@@ -187,10 +187,34 @@ int psp_rom_armor_enter_smm_mode(const bool allow_capsule_update, size_t *flash_
 	return 0;
 }
 
+static bool ass_c2p_unavailable;
+
+bool psp_rom_armor_spi_transaction_available(void)
+{
+	return !CONFIG(ASS) || !ass_c2p_unavailable;
+}
+
+static int send_c2p_command(uint32_t command, void *buffer)
+{
+	if (CONFIG(ASS))
+		ass_c2p_unavailable = true;
+
+	int status = send_psp_command(command, buffer);
+
+	/* A transport error leaves completion uncertain. Keep C2P reserved until reset. */
+	if (CONFIG(ASS) && !status)
+		ass_c2p_unavailable = false;
+
+	return status;
+}
+
 int psp_rom_armor_spi_transaction(const struct mbox_rom_armor_flash_command *cmd_buf)
 {
 	int cmd_status;
 	struct mbox_rom_armor_flash_command_buffer *buffer;
+
+	if (!psp_rom_armor_spi_transaction_available())
+		return -1;
 
 	/* PSP verifies that this buffer is at the address specified in psp_notify_smm() */
 	buffer = (struct mbox_rom_armor_flash_command_buffer *)c2p_buffer.buffer;
@@ -213,7 +237,7 @@ int psp_rom_armor_spi_transaction(const struct mbox_rom_armor_flash_command *cmd
 	asm volatile ("sfence");
 
 	/* Send command to PSP */
-	cmd_status = send_psp_command(MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION, buffer);
+	cmd_status = send_c2p_command(MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION, buffer);
 	if (cmd_status || buffer->header.status) {
 		psp_print_cmd_status(cmd_status, &buffer->header);
 		return -1;
@@ -227,6 +251,11 @@ void psp_notify_sx_info(uint8_t sleep_type)
 {
 	int cmd_status;
 	struct mbox_cmd_sx_info_buffer *buffer;
+
+	if (!psp_rom_armor_spi_transaction_available()) {
+		printk(BIOS_ERR, "PSP: C2P buffer unavailable for SxInfo\n");
+		return;
+	}
 
 	/* PSP verifies that this buffer is at the address specified in psp_notify_smm() */
 	buffer = (struct mbox_cmd_sx_info_buffer *)c2p_buffer.buffer;
@@ -242,7 +271,7 @@ void psp_notify_sx_info(uint8_t sleep_type)
 
 	buffer->sleep_type = sleep_type;
 
-	cmd_status = send_psp_command(MBOX_BIOS_CMD_SX_INFO, buffer);
+	cmd_status = send_c2p_command(MBOX_BIOS_CMD_SX_INFO, buffer);
 
 	/* buffer's status shouldn't change but report it if it does */
 	psp_print_cmd_status(cmd_status, &buffer->header);
