@@ -6,6 +6,7 @@
 #include <amdblocks/smi.h>
 #include <amdblocks/smm.h>
 #include <arch/io.h>
+#include <console/console.h>
 #include <cpu/amd/amd64_save_state.h>
 #include <cpu/x86/smm.h>
 #include <delay.h>
@@ -43,8 +44,10 @@ static void *find_save_state(int cmd)
 	if (CONFIG(ASS)) {
 		const unsigned int count = smm_get_cpu_count();
 
-		if (!count || count > CONFIG_MAX_CPUS)
+		if (!count || count > CONFIG_MAX_CPUS) {
+			printk(BIOS_ERR, "APMC 0x%02x: invalid runtime CPU count %u\n", cmd, count);
 			return NULL;
+		}
 		/* Broadcast peers keep their save states stable until we release the lock. */
 		for (unsigned int elapsed = 0; ; elapsed++) {
 			for (core = 0; core < count; core++)
@@ -52,8 +55,11 @@ static void *find_save_state(int cmd)
 					break;
 			if (core == count)
 				break;
-			if (elapsed == 1000)
+			if (elapsed == 1000) {
+				printk(BIOS_ERR, "APMC 0x%02x: CPU %u of %u did not join this SMI\n",
+				       cmd, core, count);
 				return NULL;
+			}
 			udelay(1);
 		}
 	}
@@ -85,10 +91,14 @@ static void *find_save_state(int cmd)
 		if (!CONFIG(ASS))
 			return state;
 		/* Never dispatch from an ambiguous or previous-SMI save state. */
-		if (issuer)
+		if (issuer) {
+			printk(BIOS_ERR, "APMC 0x%02x: multiple matching callers\n", cmd);
 			return NULL;
+		}
 		issuer = state;
 	}
+	if (CONFIG(ASS) && !issuer)
+		printk(BIOS_ERR, "APMC 0x%02x: no matching byte-OUT save state\n", cmd);
 	return issuer;
 }
 
