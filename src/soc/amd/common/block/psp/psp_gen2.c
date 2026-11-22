@@ -17,7 +17,7 @@ union pspv2_mbox_command {
 	struct pspv2_mbox_cmd_fields {
 		uint16_t mbox_status;
 		uint8_t mbox_command;
-		uint32_t reserved:6;
+		uint32_t other_flags:6; /* Includes AsyncCmdInProgress and ResetRequired */
 		uint32_t recovery:1;
 		uint32_t ready:1;
 	} __packed fields;
@@ -54,6 +54,21 @@ static uint8_t rd_mbox_recovery(uint64_t base)
 
 	tmp.val = psp_read32(base, PSP_MAILBOX_COMMAND_OFFSET);
 	return !!tmp.fields.recovery;
+}
+
+enum cb_err psp_get_recovery_mode(bool *recovery)
+{
+	const uint64_t base = psp_get_base();
+	union pspv2_mbox_command sample;
+
+	if (!base)
+		return CB_ERR;
+	sample.val = psp_read32(base, PSP_MAILBOX_COMMAND_OFFSET);
+	if (!sample.fields.ready || sample.fields.mbox_command || sample.fields.other_flags)
+		return CB_ERR;
+
+	*recovery = sample.fields.recovery;
+	return CB_SUCCESS;
 }
 
 static void wr_mbox_buffer_ptr(uint64_t base, void *buffer)

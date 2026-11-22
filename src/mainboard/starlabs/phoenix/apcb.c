@@ -13,38 +13,45 @@
 #include <cpu/x86/cache.h>
 #include <fmap.h>
 #include <pc80/mc146818rtc.h>
+#include <soc/soc_util.h>
 #include <string.h>
 #include <vendorcode/amd/psp/psp_fw_parser.h>
 
 #define HMAC_SIZE 32
 static uint8_t factory[0xc000] __aligned(32);
 static uint8_t data[0xc000] __aligned(32);
-static size_t slots[4], slot_count, apcb_size;
-static bool prepared, pending[4], authenticated_at_entry;
+static size_t pending_slot, apcb_size;
+static bool pending_recovery, authenticated_at_entry;
+
+struct apcb_directories {
+	struct region amdfw;
+	struct region primary[2]; /* ISH partitions A and B */
+};
 
 static bool collect(const struct psp_dir_region *dir, size_t level, size_t index,
 		    const union psp_dir_entry *entry, void *arg)
 {
-	struct region_device region;
+	struct apcb_directories *dirs = arg;
 	if (dir->type != PSP_DIR_BIOS || dir->level != 2 ||
 	    entry->bios.type != AMD_BIOS_APCB || entry->bios.inst != 0)
 		return true;
 
-	size_t offset = psp_dir_entry_offset(dir, entry);
-	for (size_t i = 0; i < slot_count; i++)
-		if (slots[i] == offset)
-			return true;
-
-	if (!entry->bios.writable || entry->bios.size < apcb_size + HMAC_SIZE ||
-	    fmap_locate_area_as_rdev("AMDFW", &region))
+	char partition = psp_fw_partition(dir);
+	struct region region;
+	if ((partition != 'A' && partition != 'B') || !dir->parent || !dir->parent->parent ||
+	    dir->parent->parent->type != PSP_DIR_ISH || !entry->bios.writable ||
+	    entry->bios.size < apcb_size + HMAC_SIZE ||
+	    region_create_untrusted(&region, psp_dir_entry_offset(dir, entry),
+				    entry->bios.size) != CB_SUCCESS ||
+	    !region_is_subregion(&dirs->amdfw, &region))
 		return false;
 
-	size_t start = region_device_offset(&region), size = region_device_sz(&region);
-	if (offset < start || entry->bios.size > size ||
-	    offset - start > size - entry->bios.size || slot_count == ARRAY_SIZE(slots))
-		return false;
-
-	slots[slot_count++] = offset;
+	/* The primary and backup directory roots may reference the same ISH. */
+	struct region *slot = &dirs->primary[partition - 'A'];
+	if (region_sz(slot))
+		return region_offset(slot) == region_offset(&region) &&
+		       region_sz(slot) == region_sz(&region);
+	*slot = region;
 	return true;
 }
 
@@ -56,10 +63,41 @@ static bool erased_mac(const uint8_t *mac)
 	return true;
 }
 
-static void prepare(void *unused)
+static bool find_primaries(struct apcb_directories *dirs)
 {
 	struct psp_dir_region efs;
+	uint32_t chip_id;
+
+	/* PHX ISH v2 selects the chip's 0x48/0x4a directory using C2PMSG_28.Recovery. */
+	switch (get_soc_type()) {
+	case SOC_PHOENIX:
+		chip_id = 0xbc0d0400;
+		break;
+	case SOC_PHOENIX2:
+		chip_id = 0xbc0d0b00;
+		break;
+	default:
+		printk(BIOS_ERR, "APCB init: unknown PSP directory chip ID\n");
+		return false;
+	}
+	if (fmap_locate_area("AMDFW", &dirs->amdfw) ||
+	    psp_fw_read_and_validate_table(boot_device_ro(), CONFIG_AMD_FWM_POSITION,
+					   PSP_DIR_EFS, &efs) != CB_SUCCESS ||
+	    !psp_dir_walk_recursive(&efs, 0, chip_id, NULL, collect, dirs) ||
+	    !region_sz(&dirs->primary[0]) || !region_sz(&dirs->primary[1]) ||
+	    region_overlap(&dirs->primary[0], &dirs->primary[1])) {
+		printk(BIOS_ERR, "APCB init: invalid primary APCB directory\n");
+		return false;
+	}
+	return true;
+}
+
+static void prepare(void *unused)
+{
+	struct apcb_directories dirs = {0};
+	bool recovery;
 	uint32_t status = UINT32_MAX;
+
 	if (acpi_is_wakeup_s3())
 		return;
 
@@ -74,88 +112,106 @@ static void prepare(void *unused)
 	uint8_t sum = 0;
 	for (size_t i = 0; i < apcb_size; i++)
 		sum += factory[i];
-	if (sum || psp_fw_read_and_validate_table(boot_device_ro(),
-	    CONFIG_AMD_FWM_POSITION, PSP_DIR_EFS, &efs) != CB_SUCCESS ||
-	    !psp_dir_walk_recursive(&efs, 0, 0, NULL, collect, NULL) || !slot_count) {
-		printk(BIOS_ERR, "APCB init: invalid factory data or directory\n");
+	if (sum) {
+		printk(BIOS_ERR, "APCB init: invalid factory checksum\n");
 		return;
 	}
+	if (psp_get_recovery_mode(&recovery) != CB_SUCCESS) {
+		printk(BIOS_ERR, "APCB init: cannot determine current PSP partition\n");
+		return;
+	}
+	if (!find_primaries(&dirs))
+		return;
 
-	for (size_t i = 0; i < slot_count; i++) {
-		if (rdev_readat(boot_device_ro(), data, slots[i], apcb_size + HMAC_SIZE) !=
+	bool all_valid = true;
+	size_t target = 0;
+	for (size_t i = 0; i < ARRAY_SIZE(dirs.primary); i++) {
+		size_t offset = region_offset(&dirs.primary[i]);
+		if (rdev_readat(boot_device_ro(), data, offset, apcb_size + HMAC_SIZE) !=
 		    apcb_size + HMAC_SIZE || memcmp(data, factory, apcb_size)) {
-			printk(BIOS_ERR, "APCB init: primary %zx differs from factory; refusing\n", slots[i]);
+			printk(BIOS_ERR, "APCB init: primary %zx differs from factory; refusing\n",
+			       offset);
 			return;
 		}
 		if (erased_mac(data + apcb_size)) {
-			pending[i] = true;
+			all_valid = false;
+			if (i == (recovery ? 1 : 0))
+				target = offset;
+			else
+				printk(BIOS_NOTICE, "APCB init: deferring inactive primary %zx\n",
+				       offset);
 			continue;
 		}
 		int ret = psp_validate_hmac_data(data, apcb_size, &status);
 		printk(BIOS_NOTICE, "APCB init: primary %zx validation=%d status=%#x\n",
-		       slots[i], ret, status);
+		       offset, ret, status);
 		if (ret || status)
 			return;
 	}
 
-	bool needs_signing = false;
-	for (size_t i = 0; i < slot_count; i++)
-		needs_signing |= pending[i];
-	if (!needs_signing) {
-		authenticated_at_entry = true;
+	/* Sign-off still requires both MACs to have validated on entry. */
+	authenticated_at_entry = all_valid;
+	if (!target) {
 		memset(factory, 0, sizeof(factory));
 		memset(data, 0, sizeof(data));
 		return;
 	}
 
-	/* The PSP authenticates the exact immutable body already checked above. */
 	int ret = psp_sign_hmac_data(factory, apcb_size, &status);
-	printk(BIOS_NOTICE, "APCB init: sign=%d status=%#x slots=%zu\n", ret, status, slot_count);
+	printk(BIOS_NOTICE, "APCB init: sign=%d status=%#x primary=%zx\n", ret, status, target);
 	if (ret || status)
 		return;
 	ret = psp_validate_hmac_data(factory, apcb_size, &status);
 	printk(BIOS_NOTICE, "APCB init: signed factory validation=%d status=%#x\n", ret, status);
-	prepared = !ret && !status;
+	if (!ret && !status) {
+		pending_slot = target;
+		pending_recovery = recovery;
+	}
 }
 
 static void commit(void *unused)
 {
-	if (!prepared)
+	size_t offset = pending_slot;
+	bool recovery;
+
+	if (!offset)
 		return;
+	pending_slot = 0;
+	if (psp_get_recovery_mode(&recovery) != CB_SUCCESS || recovery != pending_recovery) {
+		printk(BIOS_ERR, "APCB init: current PSP partition changed or unavailable\n");
+		goto out;
+	}
+
 	const struct region_device *rw = boot_device_rw();
 	if (!rw)
-		return;
+		goto out;
 
-	for (size_t i = 0; i < slot_count; i++) {
-		if (!pending[i])
-			continue;
-		/* Recheck through the protected SPI backend. */
-		if (rdev_readat(rw, data, slots[i], apcb_size + HMAC_SIZE) !=
-		    apcb_size + HMAC_SIZE || memcmp(data, factory, apcb_size) ||
-		    !erased_mac(data + apcb_size)) {
-			printk(BIOS_ERR, "APCB init: primary changed before write; refusing\n");
-			break;
-		}
-		if (rdev_writeat(rw, factory + apcb_size, slots[i] + apcb_size, HMAC_SIZE) != HMAC_SIZE) {
-			printk(BIOS_ERR, "APCB init: MAC write failed\n");
-			break;
-		}
-		/* ROM Armor 3 reads the WP-cached ROM mapping; discard the old line. */
-		void *mapped = rdev_mmap(boot_device_ro(), slots[i] + apcb_size, HMAC_SIZE);
-		if (!mapped)
-			break;
-		clflush_region((uintptr_t)mapped, HMAC_SIZE);
-		rdev_munmap(boot_device_ro(), mapped);
-		if (rdev_readat(rw, data, slots[i] + apcb_size, HMAC_SIZE) != HMAC_SIZE ||
-		    memcmp(data, factory + apcb_size, HMAC_SIZE)) {
-			printk(BIOS_ERR, "APCB init: primary %zx MAC write/readback failed\n", slots[i]);
-			break;
-		}
-		printk(BIOS_NOTICE, "APCB init: primary %zx MAC initialized and verified\n", slots[i]);
+	/* Recheck through the protected SPI backend. */
+	if (rdev_readat(rw, data, offset, apcb_size + HMAC_SIZE) != apcb_size + HMAC_SIZE ||
+	    memcmp(data, factory, apcb_size) || !erased_mac(data + apcb_size)) {
+		printk(BIOS_ERR, "APCB init: primary changed before write; refusing\n");
+		goto out;
 	}
+	size_t mac = offset + apcb_size;
+	if (rdev_writeat(rw, factory + apcb_size, mac, HMAC_SIZE) != HMAC_SIZE) {
+		printk(BIOS_ERR, "APCB init: MAC write failed\n");
+		goto out;
+	}
+	/* ROM Armor 3 reads the WP-cached ROM mapping; discard the old line. */
+	void *mapped = rdev_mmap(boot_device_ro(), mac, HMAC_SIZE);
+	if (!mapped)
+		goto out;
+	clflush_region((uintptr_t)mapped, HMAC_SIZE);
+	rdev_munmap(boot_device_ro(), mapped);
+	if (rdev_readat(rw, data, mac, HMAC_SIZE) != HMAC_SIZE ||
+	    memcmp(data, factory + apcb_size, HMAC_SIZE)) {
+		printk(BIOS_ERR, "APCB init: primary %zx MAC write/readback failed\n", offset);
+		goto out;
+	}
+	printk(BIOS_NOTICE, "APCB init: primary %zx MAC initialized and verified\n", offset);
+out:
 	memset(factory, 0, sizeof(factory));
 	memset(data, 0, sizeof(data));
-	prepared = false;
 }
 
 /* The ABL wire record reserves either one or two sockets, independent of CPUs present. */

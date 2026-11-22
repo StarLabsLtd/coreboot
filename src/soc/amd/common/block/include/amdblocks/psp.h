@@ -59,6 +59,9 @@ void soc_fill_smm_reg_info(struct smm_register_info *reg); /* v2 only */
    the x86 cores are released from reset. */
 int psp_notify_dram(void);
 
+/* Current Gen2 mailbox recovery flag, sampled while idle. */
+enum cb_err psp_get_recovery_mode(bool *recovery);
+
 int psp_notify_smm(void);
 /* SMM-only receipt for successful ASS SMMINFO registration. */
 bool psp_smm_info_registered(void);
