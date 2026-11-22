@@ -459,7 +459,7 @@ static const struct region_device *register_and_seal_writer(void)
 	return writer;
 }
 
-static void spi_timeout_reserves_request_and_transfer(void **state)
+static void spi_uncertain_completion_reserves_buffers(void **state)
 {
 	const struct region_device *writer = register_and_seal_writer();
 	uint8_t first = 0x5a;
@@ -475,7 +475,7 @@ static void spi_timeout_reserves_request_and_transfer(void **state)
 	const uint8_t *transfer;
 
 	probe_during_spi = writer;
-	spi_transport_status = -PSPSTS_CMD_TIMEOUT;
+	spi_transport_status = (intptr_t)*state;
 	assert_int_equal(rdev_writeat(writer, &first, 0, 1), -1);
 	assert_null(probe_during_spi);
 	assert_int_equal(write_calls, 1);
@@ -502,6 +502,25 @@ static void spi_timeout_reserves_request_and_transfer(void **state)
 	assert_memory_equal(spi_buffer, request, sizeof(request));
 	assert_int_equal(hsti_calls, 3);
 	assert_int_equal(fch_burst_calls, 1);
+}
+
+static void spi_terminal_error_before_seal(void **state)
+{
+	uint8_t value = 0x5a;
+	struct rom_armor_params_write write = { .buf = &value, .size = 1 };
+
+	assert_int_equal(public_init(false), ROM_ARMOR_RET_SUCCESS);
+	assert_int_equal(psp_notify_smm(), 0);
+	spi_transport_status = -PSPSTS_SPI_COMMAND_ERROR;
+	assert_int_equal(rom_armor_exec(ROM_ARMOR_APM_CMD_WRITE, &write),
+			 ROM_ARMOR_RET_FAILURE);
+	assert_int_equal(write_calls, 1);
+	assert_true(psp_rom_armor_seal());
+	assert_int_equal(rom_armor_exec(ROM_ARMOR_APM_CMD_WRITE, &write),
+			 ROM_ARMOR_RET_SHUTDOWN);
+	spi_transport_status = 0;
+	assert_int_equal(rdev_writeat(psp_rom_armor_smm_device(), &value, 0, 1), 1);
+	assert_int_equal(write_calls, 2);
 }
 
 static void spi_completed_command_error_allows_retry(void **state)
@@ -594,8 +613,12 @@ int main(void)
 		cmocka_unit_test(preownership_hsti_transport_failure),
 		cmocka_unit_test(preownership_hsti_command_failure),
 		cmocka_unit_test(pending_ownership_cannot_touch_spi),
-		cmocka_unit_test(spi_timeout_reserves_request_and_transfer),
+		{ "spi_timeout_reserves_request_and_transfer", spi_uncertain_completion_reserves_buffers,
+		  NULL, NULL, (void *)-PSPSTS_CMD_TIMEOUT },
+		{ "spi_ambiguous_status_reserves_buffers", spi_uncertain_completion_reserves_buffers,
+		  NULL, NULL, (void *)-PSPSTS_SEND_ERROR },
 		cmocka_unit_test(spi_completed_command_error_allows_retry),
+		cmocka_unit_test(spi_terminal_error_before_seal),
 		cmocka_unit_test(sx_timeout_prevents_c2p_reuse),
 	};
 	const struct CMUnitTest legacy[] = { cmocka_unit_test(legacy_resizes_flash) };

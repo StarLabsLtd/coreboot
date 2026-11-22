@@ -55,6 +55,7 @@ static const char *status_to_string(int err)
 		return psp_status_halted;
 	case -PSPSTS_RECOVERY:
 		return psp_status_recovery;
+	case -PSPSTS_SPI_COMMAND_ERROR:
 	case -PSPSTS_SEND_ERROR:
 		return psp_status_errcmd;
 	case -PSPSTS_INIT_TIMEOUT:
@@ -77,7 +78,7 @@ static uint32_t rd_resp_sts(struct mbox_buffer_header *header)
  */
 void psp_print_cmd_status(int cmd_status, struct mbox_buffer_header *header)
 {
-	if (header && rd_resp_sts(header))
+	if (!cmd_status && header && rd_resp_sts(header))
 		printk(BIOS_DEBUG, "buffer status=0x%x ", rd_resp_sts(header));
 
 	if (cmd_status)
