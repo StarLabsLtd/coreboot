@@ -266,6 +266,9 @@ int psp_ab_recovery_set_bootpartition(const uint32_t partition);
  */
 int psp_ab_recovery_get_bootpartition(void);
 
+/* An outstanding C2P command may still access its request and transfer buffer. */
+bool psp_rom_armor_spi_transaction_available(void);
+
 struct mbox_rom_armor_flash_command;
 /*
  * psp_rom_armor_spi_transaction - Send PSP ROM Armor SPI transaction command to PSP firmware

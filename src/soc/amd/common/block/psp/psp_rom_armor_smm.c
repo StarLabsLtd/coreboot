@@ -25,6 +25,9 @@ static ssize_t psp_rom_armor_spi_readat(const struct region_device *rd, void *bu
 	uint32_t byte_counter;
 	int ret;
 
+	if (!psp_rom_armor_spi_transaction_available())
+		return -1;
+
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
 		return rdev_readat(boot_device_ro(), buf, offset, len);
 
@@ -91,6 +94,9 @@ static ssize_t psp_rom_armor_spi_writeat(const struct region_device *rd, const v
 	uint32_t byte_counter;
 	const uint8_t *current_buffer;
 
+	if (!psp_rom_armor_spi_transaction_available())
+		return -1;
+
 	printk(BIOS_DEBUG, "ROM Armor rdev_ops: Write offset=0x%zx, len=0x%zx\n",
 	       offset, len);
 
@@ -146,6 +152,9 @@ static ssize_t psp_rom_armor_spi_eraseat(const struct region_device *rd,
 		.offset = offset,
 		.read_back = 0,
 	};
+
+	if (!psp_rom_armor_spi_transaction_available())
+		return -1;
 
 	printk(BIOS_DEBUG, "ROM Armor rdev_ops: Erase offset=0x%zx, len=0x%zx\n",
 	       offset, len);
@@ -211,7 +220,8 @@ static bool initialized;
 const struct region_device *psp_rom_armor_smm_device(void)
 {
 	if (!CONFIG(ASS) || !initialized || !psp_smm_info_registered() || !shutdown ||
-	    region_device_sz(&rom_armor_smm_rw) != CONFIG_ROM_SIZE)
+	    region_device_sz(&rom_armor_smm_rw) != CONFIG_ROM_SIZE ||
+	    !psp_rom_armor_spi_transaction_available())
 		return NULL;
 
 	return &rom_armor_smm_rw;

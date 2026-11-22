@@ -28,6 +28,12 @@ static struct mbox_cmd_smm_info_buffer *info_buffer;
 static struct mbox_rom_armor_enforce_buffer *enter_buffer;
 static struct mbox_cmd_hsti_query_buffer *hsti_buffer;
 static uint8_t mapped_flash[CONFIG_ROM_SIZE];
+static struct mbox_rom_armor_flash_command_buffer *spi_buffer;
+static int spi_transport_status, sx_transport_status;
+static uint32_t spi_command_status;
+static unsigned int sx_calls;
+static uint8_t expected_write_value = 0x5a;
+static const struct region_device *probe_during_spi;
 
 static void assert_persistent_buffer(const struct mbox_buffer_header *header, size_t size)
 {
@@ -93,22 +99,45 @@ int send_psp_command(uint32_t command, void *buffer)
 		return pre_hsti_transport_status;
 	}
 	case MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION: {
-		const struct mbox_rom_armor_flash_command_buffer *transaction = buffer;
+		struct mbox_rom_armor_flash_command_buffer *transaction = buffer;
 
+		spi_buffer = transaction;
+		assert_int_equal(transaction->header.size, sizeof(*transaction));
+		assert_int_equal(transaction->header.status, 0);
 		assert_non_null(info_buffer);
 		if (CONFIG(ASS))
 			assert_ptr_equal(buffer, (void *)(uintptr_t)
 					 info_buffer->req.psp_mbox_smm_buffer_address);
 		if (transaction->cmd.transaction == RA_WRITE) {
 			assert_int_equal(transaction->cmd.size, 1);
-			assert_int_equal(*(uint8_t *)(uintptr_t)transaction->cmd.buffer_ptr, 0x5a);
+			assert_int_equal(*(uint8_t *)(uintptr_t)transaction->cmd.buffer_ptr,
+					 expected_write_value);
 			write_calls++;
 		} else {
 			assert_int_equal(transaction->cmd.transaction, RA_ERASE);
 			assert_int_equal(transaction->cmd.size, 4 * KiB);
 			erase_calls++;
 		}
-		return 0;
+		if (probe_during_spi) {
+			const struct region_device *writer = probe_during_spi;
+			uint8_t value = 0;
+
+			probe_during_spi = NULL;
+			assert_false(psp_rom_armor_spi_transaction_available());
+			assert_null(psp_rom_armor_smm_device());
+			assert_int_equal(rdev_readat(writer, &value, 0, 1), -1);
+			assert_int_equal(value, 0);
+		}
+		transaction->header.status = spi_command_status;
+		return spi_transport_status;
+	}
+	case MBOX_BIOS_CMD_SX_INFO: {
+		const struct mbox_cmd_sx_info_buffer *sx = buffer;
+
+		assert_int_equal(sx->header.size, sizeof(*sx));
+		assert_int_equal(sx->sleep_type, 3);
+		sx_calls++;
+		return sx_transport_status;
 	}
 	default:
 		fail_msg("Unexpected PSP command %#x", command);
@@ -418,6 +447,102 @@ static void pending_ownership_cannot_touch_spi(void **state)
 	assert_int_equal(fch_burst_calls, 1);
 }
 
+static const struct region_device *register_and_seal_writer(void)
+{
+	const struct region_device *writer;
+
+	assert_int_equal(public_init(false), ROM_ARMOR_RET_SUCCESS);
+	assert_int_equal(psp_notify_smm(), 0);
+	assert_true(psp_rom_armor_seal());
+	writer = psp_rom_armor_smm_device();
+	assert_non_null(writer);
+	return writer;
+}
+
+static void spi_timeout_reserves_request_and_transfer(void **state)
+{
+	const struct region_device *writer = register_and_seal_writer();
+	uint8_t first = 0x5a;
+	uint8_t retry = 0x6b;
+	uint8_t output = 0;
+	struct mbox_rom_armor_flash_command direct_retry = {
+		.transaction = RA_WRITE,
+		.offset = 4 * KiB,
+		.size = 1,
+		.buffer_ptr = (uintptr_t)&retry,
+	};
+	uint8_t request[C2P_BUFFER_MAXSIZE];
+	const uint8_t *transfer;
+
+	probe_during_spi = writer;
+	spi_transport_status = -PSPSTS_CMD_TIMEOUT;
+	assert_int_equal(rdev_writeat(writer, &first, 0, 1), -1);
+	assert_null(probe_during_spi);
+	assert_int_equal(write_calls, 1);
+	memcpy(request, spi_buffer, sizeof(request));
+	transfer = (const void *)(uintptr_t)spi_buffer->cmd.buffer_ptr;
+	assert_int_equal(*transfer, first);
+
+	spi_transport_status = 0;
+	expected_write_value = retry;
+	assert_false(psp_rom_armor_spi_transaction_available());
+	assert_true(psp_smm_info_registered());
+	assert_false(psp_rom_armor_seal());
+	assert_null(psp_rom_armor_smm_device());
+	assert_int_equal(rdev_writeat(writer, &retry, 0, 1), -1);
+	assert_int_equal(rdev_eraseat(writer, 0, 4 * KiB), -1);
+	assert_int_equal(rdev_readat(writer, &output, 0, 1), -1);
+	assert_int_equal(output, 0);
+	assert_int_equal(psp_rom_armor_spi_transaction(&direct_retry), -1);
+	psp_notify_sx_info(3);
+	assert_int_equal(sx_calls, 0);
+	assert_int_equal(write_calls, 1);
+	assert_int_equal(erase_calls, 0);
+	assert_int_equal(*transfer, first);
+	assert_memory_equal(spi_buffer, request, sizeof(request));
+	assert_int_equal(hsti_calls, 3);
+	assert_int_equal(fch_burst_calls, 1);
+}
+
+static void spi_completed_command_error_allows_retry(void **state)
+{
+	const struct region_device *writer = register_and_seal_writer();
+	uint8_t value = 0x5a;
+
+	spi_command_status = 1;
+	assert_int_equal(rdev_writeat(writer, &value, 0, 1), -1);
+	assert_int_equal(write_calls, 1);
+	assert_true(psp_rom_armor_spi_transaction_available());
+	assert_ptr_equal(psp_rom_armor_smm_device(), writer);
+
+	spi_command_status = 0;
+	value = 0x6b;
+	expected_write_value = value;
+	assert_int_equal(rdev_writeat(writer, &value, 0, 1), 1);
+	assert_int_equal(write_calls, 2);
+	assert_int_equal(*(const uint8_t *)(uintptr_t)spi_buffer->cmd.buffer_ptr, value);
+	assert_ptr_equal(psp_rom_armor_smm_device(), writer);
+}
+
+static void sx_timeout_prevents_c2p_reuse(void **state)
+{
+	const struct region_device *writer = register_and_seal_writer();
+	const void *c2p = (const void *)(uintptr_t)info_buffer->req.psp_mbox_smm_buffer_address;
+	uint8_t request[C2P_BUFFER_MAXSIZE];
+	uint8_t value = 0x5a;
+
+	sx_transport_status = -PSPSTS_CMD_TIMEOUT;
+	psp_notify_sx_info(3);
+	assert_int_equal(sx_calls, 1);
+	memcpy(request, c2p, sizeof(request));
+	assert_null(psp_rom_armor_smm_device());
+	assert_int_equal(rdev_writeat(writer, &value, 0, 1), -1);
+	assert_int_equal(write_calls, 0);
+	psp_notify_sx_info(3);
+	assert_int_equal(sx_calls, 1);
+	assert_memory_equal(c2p, request, sizeof(request));
+}
+
 static void legacy_resizes_flash(void **state)
 {
 	flash_size -= 4 * KiB;
@@ -434,6 +559,19 @@ static void legacy_resizes_flash(void **state)
 	assert_int_equal(hsti_calls, 4);
 	assert_int_equal(fch_burst_calls, 2);
 	assert_int_equal(region_device_sz(&rom_armor_smm_rw), flash_size);
+
+	uint8_t value = 0x5a;
+	struct rom_armor_params_write write = { .buf = &value, .size = 1 };
+
+	spi_transport_status = -PSPSTS_CMD_TIMEOUT;
+	assert_int_equal(rom_armor_exec(ROM_ARMOR_APM_CMD_WRITE, &write), ROM_ARMOR_RET_FAILURE);
+	assert_true(psp_rom_armor_spi_transaction_available());
+	value = 0x6b;
+	expected_write_value = value;
+	spi_transport_status = 0;
+	assert_int_equal(rom_armor_exec(ROM_ARMOR_APM_CMD_WRITE, &write), ROM_ARMOR_RET_SUCCESS);
+	assert_int_equal(write_calls, 2);
+
 	assert_int_equal(rom_armor_exec(ROM_ARMOR_APM_CMD_SHUTDOWN, NULL), ROM_ARMOR_RET_SUCCESS);
 	check_raw_closed();
 	assert_null(psp_rom_armor_smm_device());
@@ -456,6 +594,9 @@ int main(void)
 		cmocka_unit_test(preownership_hsti_transport_failure),
 		cmocka_unit_test(preownership_hsti_command_failure),
 		cmocka_unit_test(pending_ownership_cannot_touch_spi),
+		cmocka_unit_test(spi_timeout_reserves_request_and_transfer),
+		cmocka_unit_test(spi_completed_command_error_allows_retry),
+		cmocka_unit_test(sx_timeout_prevents_c2p_reuse),
 	};
 	const struct CMUnitTest legacy[] = { cmocka_unit_test(legacy_resizes_flash) };
 	int result = 0;
