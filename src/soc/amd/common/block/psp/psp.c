@@ -269,17 +269,26 @@ static void psp_notify_boot_done(void)
 
 	/* buffer's status shouldn't change but report it if it does */
 	psp_print_cmd_status(cmd_status, &buffer.header);
+	/* An uncertain completion must not outlive this request or reach the payload. */
+	if (CONFIG(ASS) && (cmd_status || rd_resp_sts(&buffer.header)))
+		die("PSP: BOOT_DONE failed\n");
 }
 
 static void psp_notify_boot_complete(void *unused)
 {
 	/* Resource assignment and CPU SMM lockdown precede payload boot. */
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK) &&
-	    psp_notify_df_lock() != CB_SUCCESS)
+	    psp_notify_df_lock() != CB_SUCCESS) {
+		if (CONFIG(ASS))
+			die("PSP: Data Fabric lock failed\n");
 		return;
+	}
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_SMM_LOCK) &&
-	    psp_notify_smm_lock() != CB_SUCCESS)
+	    psp_notify_smm_lock() != CB_SUCCESS) {
+		if (CONFIG(ASS))
+			die("PSP: SMM lock failed\n");
 		return;
+	}
 	psp_notify_boot_done();
 }
 

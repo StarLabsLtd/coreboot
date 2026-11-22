@@ -63,3 +63,9 @@ rom-armor-admission-test-stage := smm
 $(call copy-test,rom-armor-admission-test,rom-armor-legacy-test)
 rom-armor-admission-test-config += CONFIG_ASS=1
 rom-armor-legacy-test-config += CONFIG_ASS=0
+
+tests-y += boot-done-ass-test boot-done-ass-locks-test
+$(call copy-test,boot-done-legacy-test,boot-done-ass-test)
+boot-done-ass-test-config += CONFIG_ASS=1
+$(call copy-test,boot-done-locks-test,boot-done-ass-locks-test)
+boot-done-ass-locks-test-config += CONFIG_ASS=1
