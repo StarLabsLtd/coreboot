@@ -111,24 +111,34 @@ enum cb_err psp_get_ftpm_capabilities(uint32_t *capabilities)
 
 enum cb_err psp_get_hsti_state(uint32_t *state)
 {
+	static struct mbox_cmd_hsti_query_buffer ass_buffer;
+	static bool ass_query_unavailable;
+	struct mbox_cmd_hsti_query_buffer local_buffer;
+	struct mbox_cmd_hsti_query_buffer *buffer = &local_buffer;
 	int cmd_status;
-	struct mbox_cmd_hsti_query_buffer buffer = {
-		.header = {
-			.size = sizeof(buffer)
-		},
+
+	if (CONFIG(ASS)) {
+		/* Keep the request intact until the PSP confirms successful completion. */
+		if (ass_query_unavailable)
+			return CB_ERR;
+		ass_query_unavailable = true;
+		buffer = &ass_buffer;
+	}
+
+	*buffer = (struct mbox_cmd_hsti_query_buffer) {
+		.header.size = sizeof(*buffer),
 	};
 
 	printk(BIOS_DEBUG, "PSP: Querying HSTI state... ");
+	cmd_status = send_psp_command(MBOX_BIOS_CMD_HSTI_QUERY, buffer);
+	psp_print_cmd_status(cmd_status, &buffer->header);
 
-	cmd_status = send_psp_command(MBOX_BIOS_CMD_HSTI_QUERY, &buffer);
-
-	/* buffer's status shouldn't change but report it if it does */
-	psp_print_cmd_status(cmd_status, &buffer.header);
-
-	if (cmd_status)
+	if (cmd_status || (CONFIG(ASS) && rd_resp_sts(&buffer->header)))
 		return CB_ERR;
 
-	*state = read32(&buffer.state);
+	*state = read32(&buffer->state);
+	if (CONFIG(ASS))
+		ass_query_unavailable = false;
 	return CB_SUCCESS;
 }
 
@@ -157,6 +167,9 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 	if (!CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
 		return false;
 
+	if (ENV_SMM && CONFIG(ASS) && psp_smm_rom_armor_enforced())
+		return true;
+
 #if ENV_RAMSTAGE
 	/* Early CBFS reads precede PSP MMIO setup and ROM Armor initialization. */
 	if (!rom_armor_query_ready)
@@ -168,6 +181,8 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 		return true; /* ROM Armor already enforced, no need to check again */
 
 	if (psp_get_hsti_state(&hsti_state) != CB_SUCCESS) {
+		if (CONFIG(ASS))
+			die("PSP: Cannot determine ROM Armor ownership\n");
 		printk(BIOS_EMERG, "PSP: Failed to get HSTI state\n");
 		return false;
 	}

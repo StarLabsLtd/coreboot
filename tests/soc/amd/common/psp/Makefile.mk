@@ -42,3 +42,24 @@ boot-done-df-lock-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK=1
 
 $(call copy-test,boot-done-smm-lock-test,boot-done-locks-test)
 boot-done-locks-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK=1
+
+tests-y += rom-armor-admission-test rom-armor-legacy-test
+rom-armor-admission-test-srcs += tests/soc/amd/common/psp/rom-armor-admission-test.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp_smm.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp_rom_armor_smm.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp_rom_armor_cache.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/spi/mmap_boot_rom3.c
+rom-armor-admission-test-srcs += src/commonlib/region.c tests/stubs/console.c
+rom-armor-admission-test-cflags += -Isrc/soc/amd/common/block/include
+rom-armor-admission-test-cflags += -Isrc/soc/amd/common/block/psp -Isrc/soc/amd/phoenix/include
+rom-armor-admission-test-cflags += -include tests/soc/amd/common/psp/mock-rom-armor-msr.h
+rom-armor-admission-test-config += CONFIG_ROM_SIZE=0x2000000 CONFIG_SOC_AMD_COMMON_BLOCK_PSP_GEN2=1
+rom-armor-admission-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3=1
+rom-armor-admission-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_SMI=0
+rom-armor-admission-test-config += CONFIG_CPU_PT_ROM_MAP_GB=8
+rom-armor-admission-test-stage := smm
+
+$(call copy-test,rom-armor-admission-test,rom-armor-legacy-test)
+rom-armor-admission-test-config += CONFIG_ASS=1
+rom-armor-legacy-test-config += CONFIG_ASS=0
