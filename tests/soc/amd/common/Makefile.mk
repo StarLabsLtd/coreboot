@@ -36,3 +36,13 @@ amd-madt-test-srcs += tests/soc/amd/common/amd-madt-test.c
 amd-madt-test-srcs += src/soc/amd/common/block/acpi/madt.c src/device/device_const.c
 amd-madt-test-srcs += tests/stubs/console.c
 amd-madt-test-cflags += -Isrc/soc/amd/common/block/include
+
+# The fixed service must identify the issuer from this SMI generation only.
+tests-y += amd-apmc-ass-test amd-apmc-legacy-test
+amd-apmc-ass-test-srcs += tests/soc/amd/common/amd-apmc-test.c
+amd-apmc-ass-test-cflags += -Isrc/soc/amd/phoenix/include -Isrc/soc/amd/common/block/include
+amd-apmc-ass-test-config += CONFIG_MAX_CPUS=4
+amd-apmc-ass-test-stage := smm
+$(call copy-test,amd-apmc-ass-test,amd-apmc-legacy-test)
+amd-apmc-ass-test-config += CONFIG_ASS=1
+amd-apmc-legacy-test-config += CONFIG_ASS=0
