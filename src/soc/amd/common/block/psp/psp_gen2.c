@@ -135,7 +135,10 @@ int send_psp_command(uint32_t command, void *buffer)
 	}
 
 	/* check delivery status */
-	if (rd_mbox_sts(base)) {
+	const uint16_t status = rd_mbox_sts(base);
+	if (status) {
+		printk(BIOS_ERR, "PSP: command %#x failed, mailbox status=%#x\n",
+		       command, status);
 		ret = -PSPSTS_SEND_ERROR;
 		goto out;
 	}
