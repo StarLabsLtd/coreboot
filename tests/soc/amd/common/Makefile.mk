@@ -39,10 +39,19 @@ amd-madt-test-cflags += -Isrc/soc/amd/common/block/include
 
 # The fixed service must identify the issuer from this SMI generation only.
 tests-y += amd-apmc-ass-test amd-apmc-legacy-test
-amd-apmc-ass-test-srcs += tests/soc/amd/common/amd-apmc-test.c
+amd-apmc-ass-test-srcs += tests/soc/amd/common/amd-apmc-test.c tests/stubs/console.c
 amd-apmc-ass-test-cflags += -Isrc/soc/amd/phoenix/include -Isrc/soc/amd/common/block/include
 amd-apmc-ass-test-config += CONFIG_MAX_CPUS=4
 amd-apmc-ass-test-stage := smm
 $(call copy-test,amd-apmc-ass-test,amd-apmc-legacy-test)
 amd-apmc-ass-test-config += CONFIG_ASS=1
 amd-apmc-legacy-test-config += CONFIG_ASS=0
+
+tests-y += amd-finalize-ass-test amd-finalize-legacy-test
+amd-finalize-ass-test-srcs += tests/soc/amd/common/amd-finalize-test.c tests/stubs/console.c
+amd-finalize-ass-test-cflags += -Isrc/soc/amd/phoenix/include -Isrc/soc/amd/common/block/include
+amd-finalize-ass-test-config += CONFIG_HAVE_SMI_HANDLER=1
+amd-finalize-ass-test-stage := ramstage
+$(call copy-test,amd-finalize-ass-test,amd-finalize-legacy-test)
+amd-finalize-ass-test-config += CONFIG_ASS=1
+amd-finalize-legacy-test-config += CONFIG_ASS=0
