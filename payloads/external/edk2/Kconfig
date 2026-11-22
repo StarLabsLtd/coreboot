@@ -4,9 +4,9 @@ if PAYLOAD_EDK2
 
 config PAYLOAD_FILE
 	string "edk2 binary"
-	default "$(obj)/UEFIPAYLOAD.fd"
 	help
-	  The result of a UefiPayloadPkg build
+	  Leave empty to build UefiPayloadPkg in the current output directory.
+	  Set an explicit path to package a prebuilt EDK2 payload.
 
 choice
 	prompt "Tianocore's EDK II payload"

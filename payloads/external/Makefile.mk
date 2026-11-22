@@ -5,8 +5,16 @@ include payloads/external/ediie/Makefile.mk
 endif
 
 ifeq ($(CONFIG_PAYLOAD_EDK2),y)
-# A resolved config copied from another output tree can retain its old path.
+ifeq ($(call strip_quotes,$(CONFIG_PAYLOAD_FILE)),)
 override CONFIG_PAYLOAD_FILE := $(obj)/UEFIPAYLOAD.fd
+else ifneq ($(origin CONFIG_PAYLOAD_FILE),command line)
+# Older resolved configs recorded the generated path, not the user's intent.
+ifneq ($(filter %/UEFIPAYLOAD.fd,$(call strip_quotes,$(CONFIG_PAYLOAD_FILE))),)
+ifneq ($(abspath $(call strip_quotes,$(CONFIG_PAYLOAD_FILE))),$(abspath $(obj)/UEFIPAYLOAD.fd))
+$(error Clear the EDK2 binary path to build from source, or pass CONFIG_PAYLOAD_FILE explicitly to reuse the existing binary)
+endif
+endif
+endif
 endif
 
 # set up payload config and version files for later inclusion
