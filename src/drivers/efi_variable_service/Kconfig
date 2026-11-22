@@ -5,10 +5,12 @@ config ASS
 	depends on HAVE_SMI_HANDLER
 	depends on SMM_TSEG
 	depends on SMMSTORE
-	depends on ARCH_SMM_X86_32
 	depends on !PAYLOAD_EDK2 || EDK2_REPO_CUSTOM
-	depends on SOC_INTEL_COMMON_BLOCK_SMM
-	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on (SOC_INTEL_COMMON_BLOCK_SMM && SOC_INTEL_COMMON_BLOCK_FAST_SPI && ARCH_SMM_X86_32) || \
+		(SOC_AMD_COMMON_BLOCK_SMM && SOC_AMD_PHOENIX_OPENSIL && ARCH_SMM_X86_64 && \
+		SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3 && SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK && \
+		SOC_AMD_COMMON_BLOCK_PSP_SMM_LOCK && !SOC_AMD_COMMON_LATE_SMM_LOCKING && \
+		!HAVE_ACPI_RESUME && !VBOOT_SLOTS_RW_AB && !PSP_AB_RECOVERY)
 	depends on !CONSOLE_SPI_FLASH
 	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
 	help
@@ -17,6 +19,8 @@ config ASS
 	  submit requests through a bounded shared buffer, but cannot supply
 	  executable code or choose the service address.
 	  The service source must provide the fixed Standalone MM build.
+	  AMD currently requires native X64 Phoenix, fixed ROM Armor protection,
+	  early SMM locking and a cold boot without A/B firmware slots.
 
 if ASS
 

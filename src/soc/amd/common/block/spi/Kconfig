@@ -187,6 +187,7 @@ config SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3
 
 config SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION
 	bool "Allow ROM Armor to be controlled via option API"
+	depends on !ASS
 	depends on SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3
 	depends on !OPTION_BACKEND_NONE
 	help
