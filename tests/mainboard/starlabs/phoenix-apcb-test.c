@@ -167,10 +167,10 @@ static void selected_slot(void **state)
 		assert_int_equal(inactive[i], 0xff);
 	}
 
-	/* On a later boot an erased inactive MAC must still withhold sign-off. */
+	/* The authenticated active bank permits reuse on the following boot. */
 	prepare(NULL);
 	assert_int_equal(pending_slot, 0);
-	assert_false(authenticated_at_entry);
+	assert_true(authenticated_at_entry);
 	assert_int_equal(signatures, 1);
 }
 
@@ -191,16 +191,29 @@ static void existing_macs(void **state)
 	memset(image + 2 * SLOT_SIZE + BODY_SIZE, 0x5a, HMAC_SIZE);
 	prepare(NULL);
 	assert_true(authenticated_at_entry);
-	assert_int_equal(validations, 2);
+	assert_int_equal(validations, 1);
 	assert_int_equal(signatures, 0);
 	assert_int_equal(pending_slot, 0);
 }
 
 static void invalid_existing_mac(void **state)
 {
-	image[2 * SLOT_SIZE + BODY_SIZE] = 0;
+	current = (intptr_t)*state;
+	image[(current + 1) * SLOT_SIZE + BODY_SIZE] = 0;
 	prepare(NULL);
 	assert_false(authenticated_at_entry);
+	assert_int_equal(validations, 1);
+	assert_int_equal(signatures, 0);
+	assert_int_equal(pending_slot, 0);
+}
+
+static void invalid_inactive_bank(void **state)
+{
+	current = (intptr_t)*state;
+	memset(image + (current + 1) * SLOT_SIZE + BODY_SIZE, 0x5a, HMAC_SIZE);
+	memset(image + (2 - current) * SLOT_SIZE, 0, SLOT_SIZE);
+	prepare(NULL);
+	assert_true(authenticated_at_entry);
 	assert_int_equal(validations, 1);
 	assert_int_equal(signatures, 0);
 	assert_int_equal(pending_slot, 0);
@@ -235,7 +248,10 @@ int main(void)
 		cmocka_unit_test_setup(existing_macs, setup),
 		cmocka_unit_test_setup(partition_changed, setup),
 		cmocka_unit_test_setup(unknown_partition, setup),
-		cmocka_unit_test_setup(invalid_existing_mac, setup),
+		{ "invalid_active_a", invalid_existing_mac, setup, NULL, (void *)0 },
+		{ "invalid_active_b", invalid_existing_mac, setup, NULL, (void *)1 },
+		{ "invalid_inactive_b", invalid_inactive_bank, setup, NULL, (void *)0 },
+		{ "invalid_inactive_a", invalid_inactive_bank, setup, NULL, (void *)1 },
 		cmocka_unit_test_setup(hmac_timeout, setup),
 	};
 	return cb_run_group_tests(tests, NULL, NULL);

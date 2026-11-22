@@ -97,6 +97,8 @@ static void prepare(void *unused)
 	struct apcb_directories dirs = {0};
 	bool recovery;
 	uint32_t status = UINT32_MAX;
+	authenticated_at_entry = false;
+	pending_slot = 0;
 
 	if (acpi_is_wakeup_s3())
 		return;
@@ -123,35 +125,20 @@ static void prepare(void *unused)
 	if (!find_primaries(&dirs))
 		return;
 
-	bool all_valid = true;
-	size_t target = 0;
-	for (size_t i = 0; i < ARRAY_SIZE(dirs.primary); i++) {
-		size_t offset = region_offset(&dirs.primary[i]);
-		if (rdev_readat(boot_device_ro(), data, offset, apcb_size + HMAC_SIZE) !=
-		    apcb_size + HMAC_SIZE || memcmp(data, factory, apcb_size)) {
-			printk(BIOS_ERR, "APCB init: primary %zx differs from factory; refusing\n",
-			       offset);
-			return;
-		}
-		if (erased_mac(data + apcb_size)) {
-			all_valid = false;
-			if (i == (recovery ? 1 : 0))
-				target = offset;
-			else
-				printk(BIOS_NOTICE, "APCB init: deferring inactive primary %zx\n",
-				       offset);
-			continue;
-		}
+	size_t target = region_offset(&dirs.primary[recovery ? 1 : 0]);
+	if (rdev_readat(boot_device_ro(), data, target, apcb_size + HMAC_SIZE) !=
+	    apcb_size + HMAC_SIZE || memcmp(data, factory, apcb_size)) {
+		printk(BIOS_ERR, "APCB init: primary %zx differs from factory; refusing\n",
+		       target);
+		return;
+	}
+	if (!erased_mac(data + apcb_size)) {
 		int ret = psp_validate_hmac_data(data, apcb_size, &status);
 		printk(BIOS_NOTICE, "APCB init: primary %zx validation=%d status=%#x\n",
-		       offset, ret, status);
+		       target, ret, status);
 		if (ret || status)
 			return;
-	}
-
-	/* Sign-off still requires both MACs to have validated on entry. */
-	authenticated_at_entry = all_valid;
-	if (!target) {
+		authenticated_at_entry = true;
 		memset(factory, 0, sizeof(factory));
 		memset(data, 0, sizeof(data));
 		return;
