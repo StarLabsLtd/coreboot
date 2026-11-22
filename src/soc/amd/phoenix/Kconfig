@@ -117,6 +117,9 @@ config SOC_AMD_PHOENIX_OPENSIL
 
 if SOC_AMD_PHOENIX_BASE
 
+config CPU_PT_ROM_MAP_GB
+	default 1024
+
 config CHIPSET_DEVICETREE
 	string
 	default "soc/amd/phoenix/chipset_fsp.cb" if SOC_AMD_PHOENIX_FSP
