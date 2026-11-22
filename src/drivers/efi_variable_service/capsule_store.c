@@ -67,3 +67,94 @@ int efi_capsule_program_block(const struct region_device *flash, size_t block_of
 	}
 	return -1;
 }
+
+static bool capsule_plan_allowed(const struct efi_capsule_sector_policy *policy,
+				 const struct efi_capsule_range *ranges, size_t count,
+				 size_t flash_size, size_t transfer_offset, size_t transfer_size)
+{
+	bool intersects = false;
+
+	for (size_t i = 0; i < policy->region_count; i++) {
+		const struct efi_capsule_range *region = &policy->regions[i];
+
+		if (!region->size || region->offset >= flash_size ||
+		    region->size > flash_size - region->offset ||
+		    region->offset % policy->erase_size || region->size % policy->erase_size ||
+		    region->size == flash_size)
+			return false;
+	}
+
+	for (size_t i = 0; i < count; i++) {
+		size_t j;
+
+		for (j = 0; j < policy->region_count; j++) {
+			if (ranges[i].offset == policy->regions[j].offset &&
+			    ranges[i].size == policy->regions[j].size)
+				break;
+		}
+		if (j == policy->region_count)
+			return false;
+		if (ranges[i].offset < transfer_offset + transfer_size &&
+		    transfer_offset < ranges[i].offset + ranges[i].size)
+			intersects = true;
+	}
+
+	return intersects;
+}
+
+int efi_capsule_program_sectors(const struct region_device *flash, size_t transfer_offset,
+				size_t transfer_size, const struct efi_capsule_range *ranges,
+				size_t count, const uint8_t *image, uint8_t *readback,
+				const struct efi_capsule_sector_policy *policy, bool check_only)
+{
+	struct region image_span, readback_span, plan_span;
+	const struct region_device *root;
+	size_t erase_size, flash_size, flash_offset;
+
+	if (!flash || !policy || !policy->regions || !policy->region_count ||
+	    !ranges || !count || count > 32 || !image || !readback || !transfer_size)
+		return -1;
+
+	root = flash->root ? flash->root : flash;
+	if (!root->ops || !root->ops->readat || !root->ops->writeat || !root->ops->eraseat)
+		return -1;
+
+	erase_size = policy->erase_size;
+	flash_size = region_device_sz(flash);
+	flash_offset = region_device_offset(flash);
+	if (!erase_size || erase_size > INT_MAX || erase_size > transfer_size / 2 ||
+	    transfer_size % erase_size || transfer_offset % transfer_size ||
+	    flash_size % transfer_size ||
+	    flash_offset % erase_size || flash_size > SIZE_MAX - flash_offset ||
+	    transfer_offset >= flash_size || transfer_size > flash_size - transfer_offset ||
+	    region_create_untrusted(&image_span, (uintptr_t)image, transfer_size) ||
+	    region_create_untrusted(&readback_span, (uintptr_t)readback, transfer_size) ||
+	    region_create_untrusted(&plan_span, (uintptr_t)ranges, count * sizeof(*ranges)) ||
+	    region_overlap(&image_span, &readback_span) || region_overlap(&plan_span, &readback_span))
+		return -1;
+
+	/* Validate the complete policy and selection before touching any sector. */
+	if (!capsule_plan_allowed(policy, ranges, count, flash_size, transfer_offset, transfer_size))
+		return -1;
+	if (check_only)
+		return 0;
+
+	for (size_t offset = 0; offset < transfer_size; offset += erase_size) {
+		const struct efi_capsule_range sector = { transfer_offset + offset, erase_size };
+
+		for (size_t i = 0; i < count; i++) {
+			if (sector.offset < ranges[i].offset ||
+			    sector.offset - ranges[i].offset >= ranges[i].size)
+				continue;
+
+			/* The block verifier may overwrite its input during failed readback. */
+			memcpy(readback, image + offset, erase_size);
+			if (efi_capsule_program_block(flash, sector.offset, erase_size, &sector, 1,
+						      readback, readback + erase_size, true))
+				return -1;
+			break;
+		}
+	}
+
+	return 0;
+}
