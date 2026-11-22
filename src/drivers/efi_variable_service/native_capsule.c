@@ -280,6 +280,40 @@ static uint64_t process_block(const struct ass_capsule_plan *plan,
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
+static uint64_t compare_flash_maps(struct ass_capsule_source *source,
+	const struct ass_capsule_geometry *geometry, struct ass_capsule_range live,
+	struct ass_capsule_range incoming)
+{
+	struct fmap header;
+	size_t length;
+	const size_t prefix = sizeof(struct capsule_signed_header);
+
+	if (live.size < sizeof(header) || live.offset > geometry->flash_size ||
+	    live.size > geometry->flash_size - live.offset ||
+	    !geometry->read_flash(live.offset, &header, sizeof(header)) ||
+	    memcmp(header.signature, FMAP_SIGNATURE, sizeof(header.signature)) ||
+	    header.ver_major != FMAP_VER_MAJOR || header.ver_minor > FMAP_VER_MINOR ||
+	    read_le32(&header.size) != geometry->flash_size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
+	length = sizeof(header) + read_le16(&header.nareas) * sizeof(struct fmap_area);
+	if (length > live.size)
+		return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
+	if (live.offset != incoming.offset || length != incoming.size)
+		return CAPSULE_LAYOUT_MISMATCH;
+	for (size_t offset = 0; offset < length;) {
+		uint8_t old[64], new[64];
+		size_t size = MIN(sizeof(old), length - offset);
+
+		if (!geometry->read_flash(live.offset + offset, old, size) ||
+		    !ass_capsule_source_read(source, prefix + incoming.offset + offset, new, size))
+			return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+		if (memcmp(old, new, size))
+			return CAPSULE_LAYOUT_MISMATCH;
+		offset += size;
+	}
+	return 0;
+}
+
 static uint64_t check_bios_range(struct ass_capsule_source *source, uint32_t flash_size,
 	struct ass_capsule_range bios)
 {
@@ -380,15 +414,17 @@ uint64_t ass_native_capsule_begin(struct ass_capsule_plan *plan,
 	uint64_t status = ass_native_capsule_target(source, geometry, prefix, floor);
 	if (status)
 		return status;
-	struct ass_capsule_range candidate_fmap;
+	struct ass_capsule_range candidate_fmap = { 0 };
 	status = find_image_fmap(source, geometry, image, &candidate_fmap);
 	if (status)
 		return status;
-	const bool relocated = fmap.offset != candidate_fmap.offset;
+	const struct ass_capsule_range live_fmap = fmap;
 	fmap = candidate_fmap;
 	status = ass_native_capsule_select_ranges(source, geometry, fmap, store, names,
 		ranges, count, &mask);
-	if (!status && relocated)
+	if (!status && geometry->read_flash)
+		status = compare_flash_maps(source, geometry, live_fmap, fmap);
+	else if (!status && live_fmap.offset != fmap.offset)
 		status = CAPSULE_LAYOUT_MISMATCH;
 	if (boot_slot) {
 		if (status)

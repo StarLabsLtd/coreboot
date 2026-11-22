@@ -19,6 +19,7 @@ struct ass_capsule_geometry {
 	uint32_t flash_size;
 	uint32_t block_size;
 	uint32_t compiled_floor;
+	bool (*read_flash)(size_t offset, void *data, size_t size);
 };
 
 /* The geometry is supplied by coreboot, never by the caller of the capsule service. */

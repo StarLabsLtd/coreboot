@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <boot_device.h>
 #include <cpu/x86/smm.h>
 #include <efi_variable_service.h>
 #include <fmap.h>
@@ -14,6 +15,11 @@
 extern const uint8_t ass_capsule_trust_start[], ass_capsule_trust_end[];
 
 static uintptr_t ram_end;
+
+static bool read_flash(size_t offset, void *data, size_t size)
+{
+	return rdev_readat(boot_device_ro(), data, offset, size) == (ssize_t)size;
+}
 
 static const void *map_capsule(uint64_t address, size_t size)
 {
@@ -89,6 +95,7 @@ const struct ass_capsule_platform *ass_native_smm_capsule_platform(
 		.geometry = {
 			.flash_size = info->flash_size, .block_size = info->block_size,
 			.compiled_floor = info->lowest_supported_version,
+			.read_flash = read_flash,
 		},
 		.fmap = { FMAP_SECTION_FMAP_START, FMAP_SECTION_FMAP_SIZE },
 		.store = { FMAP_SECTION_SMMSTORE_START, FMAP_SECTION_SMMSTORE_SIZE },

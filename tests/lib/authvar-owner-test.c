@@ -1033,6 +1033,16 @@ static uint32_t record_capsule_program(uint32_t offset, const struct efi_capsule
 	return reject_preflight && preflight;
 }
 
+static uint8_t live_fmap_bytes[512];
+
+static bool read_test_fmap(size_t offset, void *data, size_t size)
+{
+	if (offset > sizeof(live_fmap_bytes) || size > sizeof(live_fmap_bytes) - offset)
+		return false;
+	memcpy(data, live_fmap_bytes + offset, size);
+	return true;
+}
+
 static void signed_capsule_source_is_rechecked(void **unused)
 {
 	static struct ass_capsule_source source;
@@ -1098,6 +1108,20 @@ static void signed_capsule_source_is_rechecked(void **unused)
 		bios, allowed, moved, 1, 42, image, record_layout_preflight, 0),
 		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
 	assert_int_equal(program_calls, 0);
+
+	memcpy(live_fmap_bytes, body + 32, sizeof(live_fmap_bytes));
+	geometry.read_flash = read_test_fmap;
+	assert_int_equal(ass_native_capsule_begin(&fallback, &source, &geometry, fmap, store,
+		bios, allowed, ranges, ARRAY_SIZE(ranges), 42, image, record_capsule_program, 0), 0);
+	assert_int_equal(fallback.ranges[0].offset, ranges[1].offset);
+	program_calls = 0;
+	/* Change the live map name, without changing the signed region bounds. */
+	live_fmap_bytes[22] = 'O';
+	assert_int_equal(ass_native_capsule_begin(&fallback, &source, &geometry, fmap, store,
+		bios, allowed, ranges, ARRAY_SIZE(ranges), 42, image, record_layout_preflight, 0), 0);
+	assert_int_equal(fallback.ranges[0].offset, bios.offset);
+	live_fmap_bytes[22] = body[54];
+	program_calls = 0;
 
 	assert_int_equal(ass_native_capsule_begin(plan, &source, &geometry, fmap, store, (struct ass_capsule_range) { 0 },
 		allowed, ranges, ARRAY_SIZE(allowed), 43, image, record_capsule_program, 0),
