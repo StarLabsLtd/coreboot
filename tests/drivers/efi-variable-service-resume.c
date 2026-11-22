@@ -41,6 +41,11 @@ void *cbmem_add(u32 id, u64 size)
 	return transport;
 }
 
+uintptr_t cbmem_top(void)
+{
+	return 0x80000000;
+}
+
 const struct cbmem_entry *cbmem_entry_find(u32 id)
 {
 	assert_int_equal(id, CBMEM_ID_EFI_VARIABLE_SERVICE);
@@ -75,6 +80,7 @@ int efi_variable_service_build_hobs(uintptr_t base, uintptr_t end,
 	state->hob_base = base;
 	state->hob_size = sizeof(*info);
 	state->service_info = base;
+	state->capsule_ram_end = cbmem_top();
 	state->dispatch_entry = state->core_entry;
 	state->manage_entry = state->core_entry;
 	return 0;
