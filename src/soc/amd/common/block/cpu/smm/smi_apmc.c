@@ -10,6 +10,7 @@
 #include <cpu/x86/smm.h>
 #include <delay.h>
 #include <drivers/option/cfr_runtime.h>
+#include <efi_variable_service.h>
 #include <elog.h>
 #include <soc/smi.h>
 #include <smmstore.h>
@@ -179,7 +180,35 @@ void fch_apmc_smi_handler(void)
 			cfr_runtime_apply_smi();
 		break;
 	case APM_CNT_SMMINFO:
-		psp_notify_smm();
+		if (CONFIG(ASS)) {
+			amd64_smm_state_save_area_t *state = find_save_state(cmd);
+
+			if (state)
+				state->rax = psp_notify_smm() ? 1 : 0;
+		} else {
+			psp_notify_smm();
+		}
+		break;
+	case APM_CNT_FINALIZE:
+		if (CONFIG(ASS)) {
+			amd64_smm_state_save_area_t *state = find_save_state(cmd);
+
+			if (state) {
+				/* Recovery writes must use only the sealed, checked PSP owner. */
+				int ret = psp_rom_armor_seal() ? efi_variable_service_finalize() : -1;
+
+				state->rax = ret == EFI_VARIABLE_SERVICE_REBOOT_REQUIRED ?
+					APM_FINALIZE_REBOOT_REQUIRED : ret ? APM_FINALIZE_EFI_ERROR : 0;
+			}
+		}
+		break;
+	case APM_CNT_EFI_VARIABLE_SERVICE:
+		if (CONFIG(ASS)) {
+			amd64_smm_state_save_area_t *state = find_save_state(cmd);
+
+			if (state)
+				state->rax = efi_variable_service_communicate();
+		}
 		break;
 	}
 

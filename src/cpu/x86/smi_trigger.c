@@ -62,6 +62,8 @@ enum cb_err apm_control(u8 cmd)
 
 	/* Now raise the SMI. */
 	u32 ret = apm_control_call_smm(cmd);
+	if (CONFIG(ASS) && cmd == APM_CNT_SMMINFO && ret)
+		die("PSP SMM registration failed\n");
 	if (CONFIG(ASS) && cmd == APM_CNT_FINALIZE && ret == APM_FINALIZE_REBOOT_REQUIRED) {
 		printk(BIOS_INFO, "Rebooting after EFI variable store migration\n");
 		board_reset();

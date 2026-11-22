@@ -35,6 +35,46 @@ u16 pm_acpi_smi_cmd_port(void)
 	return 0xb2;
 }
 
+static uint8_t command;
+static unsigned int registrations, seals, finalizations, communications, board_calls;
+static int registration_result, finalization_result;
+static bool sealed;
+
+u8 apm_get_apmc(void) { return command; }
+void fch_disable_power_button_smi(void) { }
+void fch_enable_power_button_smi(void) { }
+void acpi_clear_pm_gpe_status(void) { }
+void acpi_enable_sci(void) { }
+void acpi_disable_sci(void) { }
+int mainboard_smi_apmc(u8 cmd)
+{
+	assert_int_equal(cmd, command);
+	board_calls++;
+	return 0;
+}
+int psp_notify_smm(void)
+{
+	registrations++;
+	return registration_result;
+}
+bool psp_rom_armor_seal(void)
+{
+	seals++;
+	return sealed;
+}
+int efi_variable_service_finalize(void)
+{
+	assert_true(sealed);
+	assert_true(seals > finalizations);
+	finalizations++;
+	return finalization_result;
+}
+uint32_t efi_variable_service_communicate(void)
+{
+	communications++;
+	return EFI_VARIABLE_SERVICE_RET_IO_ERROR;
+}
+
 static int setup(void **unused)
 {
 	memset(states, 0, sizeof(states));
@@ -125,6 +165,62 @@ static void incomplete_or_smaller_runtime(void **unused)
 	assert_null(find_save_state(APM_CNT_ROM_ARMOR));
 }
 
+static void checked_service_dispatch(void **unused)
+{
+	for (unsigned int cpu = 0; cpu < CONFIG_MAX_CPUS; cpu++)
+		states[cpu].rax = 0;
+	registrations = seals = finalizations = communications = board_calls = 0;
+	command = APM_CNT_SMMINFO;
+	states[2].rax = command;
+	registration_result = -1;
+	fch_apmc_smi_handler();
+	assert_int_equal(registrations, 1);
+	assert_int_equal(states[2].rax, CONFIG(ASS) ? 1 : command);
+	registration_result = 0;
+	states[2].rax = command;
+	fch_apmc_smi_handler();
+	assert_int_equal(states[2].rax, CONFIG(ASS) ? 0 : command);
+
+	command = APM_CNT_FINALIZE;
+	states[2].rax = command;
+	sealed = false;
+	fch_apmc_smi_handler();
+	assert_int_equal(finalizations, 0);
+	assert_int_equal(states[2].rax, CONFIG(ASS) ? APM_FINALIZE_EFI_ERROR : command);
+	sealed = true;
+	const int results[] = { -1, EFI_VARIABLE_SERVICE_REBOOT_REQUIRED, 0 };
+	const uint32_t expected[] = { APM_FINALIZE_EFI_ERROR, APM_FINALIZE_REBOOT_REQUIRED, 0 };
+	for (size_t i = 0; i < ARRAY_SIZE(results); i++) {
+		states[2].rax = command;
+		finalization_result = results[i];
+		fch_apmc_smi_handler();
+		assert_int_equal(states[2].rax, CONFIG(ASS) ? expected[i] : command);
+	}
+	assert_int_equal(finalizations, CONFIG(ASS) ? 3 : 0);
+	command = APM_CNT_EFI_VARIABLE_SERVICE;
+	states[2].rax = command;
+	fch_apmc_smi_handler();
+	assert_int_equal(communications, CONFIG(ASS) ? 1 : 0);
+	assert_int_equal(states[2].rax, CONFIG(ASS) ? EFI_VARIABLE_SERVICE_RET_IO_ERROR : command);
+	assert_int_equal(board_calls, 7);
+
+	if (CONFIG(ASS)) {
+		/* Ambiguous requests must not enter any of the protected operations. */
+		const uint8_t commands[] = { APM_CNT_SMMINFO, APM_CNT_FINALIZE,
+			APM_CNT_EFI_VARIABLE_SERVICE };
+		for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
+			command = commands[i];
+			states[1].rax = states[2].rax = command;
+			fch_apmc_smi_handler();
+			assert_int_equal(states[1].rax, command);
+			assert_int_equal(states[2].rax, command);
+		}
+		assert_int_equal(registrations, 2);
+		assert_int_equal(finalizations, 3);
+		assert_int_equal(communications, 1);
+	}
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -132,6 +228,7 @@ int main(void)
 		cmocka_unit_test_setup(reject_ambiguous_issuer, setup),
 		cmocka_unit_test_setup(reject_wrong_io, setup),
 		cmocka_unit_test_setup(incomplete_or_smaller_runtime, setup),
+		cmocka_unit_test_setup(checked_service_dispatch, setup),
 	};
 
 	return cb_run_group_tests(tests, NULL, NULL);
