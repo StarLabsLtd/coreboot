@@ -173,3 +173,13 @@ efi-variable-service-hob-test-cflags += -I tests/drivers/efi-variable-service-in
 $(call copy-test,efi-variable-service-hob-test,efi-variable-service-hob-capsule-test)
 tests-y += efi-variable-service-hob-capsule-test
 efi-variable-service-hob-capsule-test-config += CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1
+
+tests-y += efi-variable-service-amd-test
+efi-variable-service-amd-test-srcs += tests/drivers/efi-variable-service-amd.c \
+	src/drivers/efi_variable_service/capsule_store.c src/commonlib/region.c \
+	tests/stubs/console.c
+efi-variable-service-amd-test-stage := smm
+efi-variable-service-amd-test-config += CONFIG_ASS=1 CONFIG_ROM_SIZE=0x2000000 \
+	CONFIG_SOC_AMD_PHOENIX_OPENSIL=1 CONFIG_EARLY_RESERVED_DRAM_BASE=0x10000000
+efi-variable-service-amd-test-cflags += -I tests/drivers/efi-variable-service-amd-include \
+	-I src/soc/amd/common/block/include -I src/soc/amd/phoenix/include

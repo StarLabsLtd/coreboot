@@ -5,6 +5,8 @@ ifeq ($(CONFIG_ASS),y)
 smm-$(CONFIG_ARCH_SMM_X86_64) += call_64.S entry_64.c
 smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM) += platform_intel.c
 ramstage-$(CONFIG_SOC_INTEL_COMMON_BLOCK_SMM) += hob_intel.c
+smm-$(CONFIG_SOC_AMD_COMMON_BLOCK_SMM) += platform_amd.c
+ramstage-$(CONFIG_SOC_AMD_COMMON_BLOCK_SMM) += hob_amd.c
 
 cbfs-files-y += efi_variable_service_fv
 efi_variable_service_fv-file := $(obj)/FIXEDMMFV.Fv

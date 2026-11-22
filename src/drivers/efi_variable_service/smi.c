@@ -64,7 +64,9 @@ static uint32_t MM_ABI capsule_read(uint32_t offset, uint32_t size)
 	    offset + size > FMAP_SECTION_SRK_PIN_V1_START)
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 #endif
-	return rdev_readat(boot_device_ro(), variable_store_buffer, offset, size) == size ?
+	const struct region_device *flash = efi_variable_service_read_device();
+
+	return flash && rdev_readat(flash, variable_store_buffer, offset, size) == size ?
 		EFI_VARIABLE_SERVICE_RET_SUCCESS : EFI_VARIABLE_SERVICE_RET_FAILURE;
 }
 
@@ -95,33 +97,10 @@ static uint32_t MM_ABI capsule_resolve(const char name[16], struct efi_capsule_r
 static uint32_t MM_ABI capsule_program(uint32_t offset, const struct efi_capsule_range *ranges,
 				uint32_t count, uint8_t *image, uint32_t check_only)
 {
-	bool allow_erase = true;
-
 	if (!write_access_allowed())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
-	_Static_assert(FMAP_SECTION_SMMSTORE_START % EFI_CAPSULE_BLOCK_SIZE == 0 &&
-		       FMAP_SECTION_SMMSTORE_SIZE % EFI_CAPSULE_BLOCK_SIZE == 0,
-		       "Authenticated variable store must occupy whole capsule erase blocks");
-	/* Neither a signed BIOS fallback nor a public command may replace live keys/FTW. */
-	if (offset >= FMAP_SECTION_SMMSTORE_START &&
-	    offset < FMAP_SECTION_SMMSTORE_START + FMAP_SECTION_SMMSTORE_SIZE)
-		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
-#if CONFIG(SMMSTORE_SRK_PIN)
-	const size_t fmap_start = ALIGN_DOWN(FMAP_SECTION_FMAP_START, EFI_CAPSULE_BLOCK_SIZE);
-	const size_t fmap_end = ALIGN_UP(FMAP_SECTION_FMAP_START + FMAP_SECTION_FMAP_SIZE,
-				       EFI_CAPSULE_BLOCK_SIZE);
-	/* The enrolled pin is platform state, never capsule-owned image data. */
-	if (offset < FMAP_SECTION_SRK_PIN_V1_START + FMAP_SECTION_SRK_PIN_V1_SIZE &&
-	    FMAP_SECTION_SRK_PIN_V1_START < (uint64_t)offset + EFI_CAPSULE_BLOCK_SIZE)
-		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
-	if (offset < fmap_end && fmap_start < (uint64_t)offset + EFI_CAPSULE_BLOCK_SIZE)
-		allow_erase = false;
-#endif
-	/* Preflight immutable blocks before the first destructive operation. */
-	if (check_only && allow_erase)
-		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
-	return efi_capsule_program_block(service_flash, offset, EFI_CAPSULE_BLOCK_SIZE,
-					ranges, count, image, capsule_readback, allow_erase) ?
+	return efi_variable_service_program_capsule(service_flash, offset, ranges, count,
+			image, capsule_readback, check_only) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 

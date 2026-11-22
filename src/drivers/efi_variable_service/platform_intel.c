@@ -5,10 +5,12 @@
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <efi_variable_service.h>
+#include <fmap_config.h>
 #include <intelblocks/fast_spi.h>
 #include <soc/pci_devs.h>
 
 #include "hob.h"
+#include "capsule_store.h"
 
 static uintptr_t sealed_spi_bar;
 
@@ -73,4 +75,41 @@ struct region efi_variable_service_bios_region(void)
 	if (!size || offset >= CONFIG_ROM_SIZE || size > CONFIG_ROM_SIZE - offset)
 		return (struct region) { 0 };
 	return region_create(offset, size);
+}
+
+const struct region_device *efi_variable_service_read_device(void)
+{
+	return boot_device_ro();
+}
+
+int efi_variable_service_program_capsule(const struct region_device *flash, uint32_t offset,
+			const struct efi_capsule_range *ranges, size_t count,
+			uint8_t *image, uint8_t *readback, bool check_only)
+{
+	bool allow_erase = true;
+
+	_Static_assert(FMAP_SECTION_SMMSTORE_START % EFI_CAPSULE_BLOCK_SIZE == 0 &&
+		       FMAP_SECTION_SMMSTORE_SIZE % EFI_CAPSULE_BLOCK_SIZE == 0,
+		       "Authenticated variable store must occupy whole capsule erase blocks");
+	/* Neither a signed BIOS fallback nor a public command may replace live keys/FTW. */
+	if (offset >= FMAP_SECTION_SMMSTORE_START &&
+	    offset < FMAP_SECTION_SMMSTORE_START + FMAP_SECTION_SMMSTORE_SIZE)
+		return 0;
+#if CONFIG(SMMSTORE_SRK_PIN)
+	const size_t fmap_start = ALIGN_DOWN(FMAP_SECTION_FMAP_START, EFI_CAPSULE_BLOCK_SIZE);
+	const size_t fmap_end = ALIGN_UP(FMAP_SECTION_FMAP_START + FMAP_SECTION_FMAP_SIZE,
+				       EFI_CAPSULE_BLOCK_SIZE);
+	/* The enrolled pin is platform state, never capsule-owned image data. */
+	if (offset < FMAP_SECTION_SRK_PIN_V1_START + FMAP_SECTION_SRK_PIN_V1_SIZE &&
+	    FMAP_SECTION_SRK_PIN_V1_START < (uint64_t)offset + EFI_CAPSULE_BLOCK_SIZE)
+		return 0;
+	if (offset < fmap_end && fmap_start < (uint64_t)offset + EFI_CAPSULE_BLOCK_SIZE)
+		allow_erase = false;
+#endif
+	/* Preflight immutable blocks before the first destructive operation. */
+	if (check_only && allow_erase)
+		return 0;
+	return efi_capsule_program_block(flash, offset, EFI_CAPSULE_BLOCK_SIZE,
+					ranges, count, image, readback, allow_erase) ?
+		-1 : 0;
 }

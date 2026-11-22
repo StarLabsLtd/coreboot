@@ -96,7 +96,9 @@ bool efi_variable_service_boot_access_allowed(void);
 bool efi_variable_service_entry_allowed(void);
 /* Return only the protected SMM writer admitted for the current call. */
 const struct region_device *efi_variable_service_write_device(void);
+const struct region_device *efi_variable_service_read_device(void);
 struct region efi_variable_service_bios_region(void);
+bool efi_variable_service_ram_ready(void);
 int efi_variable_service_bind_spi(const struct efi_variable_service_state *service);
 bool efi_variable_service_spi_bar_valid(uintptr_t bar);
 void lb_efi_variable_service(struct lb_header *header);
