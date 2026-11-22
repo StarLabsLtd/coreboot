@@ -566,7 +566,7 @@ uint32_t efi_variable_service_communicate(void)
 
 static UINTN manage_mm(const EFI_GUID *guid, const void *context, void *buffer, UINTN *size)
 {
-	typedef UINTN (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
+	typedef UINTN (EFIAPI *mm_manage)(const EFI_GUID *, const void *,
 							 void *, UINTN *);
 
 	if (CONFIG(ARCH_SMM_X86_64)) {
