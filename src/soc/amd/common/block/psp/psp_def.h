@@ -244,6 +244,8 @@ int send_psp_command(uint32_t command, void *buffer);
 enum cb_err psp_get_ftpm_capabilities(uint32_t *capabilities);
 enum cb_err psp_get_psp_capabilities(uint32_t *capabilities);
 enum cb_err psp_get_hsti_state(uint32_t *state);
+/* SMM ASS receipt. Halt if the ownership transition is uncertain. */
+bool psp_smm_rom_armor_enforced(void);
 enum cb_err soc_read_c2p38(uint32_t *msg_38_value);
 enum cb_err psp_command_set_config(uint32_t config, const uint32_t args[4]);
 

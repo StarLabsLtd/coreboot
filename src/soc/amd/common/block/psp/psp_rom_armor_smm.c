@@ -205,13 +205,33 @@ static const struct region_device_ops rom_armor_spi_flash_ops = {
 struct region_device rom_armor_smm_rw =
 	REGION_DEV_INIT(&rom_armor_spi_flash_ops, 0, CONFIG_ROM_SIZE);
 
-/*
- * SMM handler for ROM Armor operations
- * Called from APMC SMI handler with parameters passed via CPU registers
- */
 static bool shutdown;
 static bool initialized;
 
+const struct region_device *psp_rom_armor_smm_device(void)
+{
+	if (!CONFIG(ASS) || !initialized || !psp_smm_info_registered() || !shutdown ||
+	    region_device_sz(&rom_armor_smm_rw) != CONFIG_ROM_SIZE)
+		return NULL;
+
+	return &rom_armor_smm_rw;
+}
+
+static void close_raw_apmc(void)
+{
+	if (!shutdown) {
+		shutdown = true;
+		printk(BIOS_DEBUG, "PSP: Disabled raw ROM Armor APMC operations\n");
+	}
+}
+
+bool psp_rom_armor_seal(void)
+{
+	close_raw_apmc();
+	return psp_rom_armor_smm_device() != NULL;
+}
+
+/* Called from the APMC SMI handler with parameters passed via CPU registers. */
 uint32_t rom_armor_exec(uint8_t command, void *param)
 {
 	ssize_t ret;
@@ -239,19 +259,16 @@ uint32_t rom_armor_exec(uint8_t command, void *param)
 		printk(BIOS_DEBUG, "%s: Init command received (capsule_update=%d)\n",
 		       __func__, params->capsule_update);
 
-		/* LPC registers become inaccessible after ROM Armor takes ownership. */
-		boot_device_ro();
-
 		if (psp_rom_armor_enter_smm_mode(params->capsule_update, &flash_size) != 0) {
 			printk(BIOS_ERR, "%s: Failed to enter SMM mode\n", __func__);
 			return ROM_ARMOR_RET_FAILURE;
 		}
-		/* Sanity check HSTI status */
-		if (!psp_get_hsti_state_rom_armor_enforced())
+		/* ASS checks HSTI and exact geometry as part of entering SMM mode. */
+		if (!CONFIG(ASS) && !psp_get_hsti_state_rom_armor_enforced())
 			return ROM_ARMOR_RET_FAILURE;
 
 		printk(BIOS_INFO, "%s: Initialized with flash size 0x%zx\n", __func__, flash_size);
-		if (region_device_sz(&rom_armor_smm_rw) != flash_size) {
+		if (!CONFIG(ASS) && region_device_sz(&rom_armor_smm_rw) != flash_size) {
 			printk(BIOS_ERR, "%s: Flash size 0x%zx doesn't match CONFIG_ROM_SIZE!\n",
 			       __func__, flash_size);
 			rom_armor_smm_rw.region.size = flash_size;
@@ -314,8 +331,7 @@ uint32_t rom_armor_exec(uint8_t command, void *param)
 							ROM_ARMOR_RET_FAILURE;
 	}
 	case ROM_ARMOR_APM_CMD_SHUTDOWN:
-		shutdown = true;
-		printk(BIOS_DEBUG, "%s: Disabled\n", __func__);
+		close_raw_apmc();
 		return ROM_ARMOR_RET_SUCCESS;
 	default:
 		printk(BIOS_ERR, "%s: Unknown command: 0x%02x\n", __func__, command);
