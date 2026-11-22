@@ -1,19 +1,21 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+ass-native := $(strip $(CONFIG_ASS_NATIVE) $(ASS_NATIVE_LINK_CHECK))
+
 ifeq ($(CONFIG_ASS),y)
 
 ass-owner := $(obj)/ass/owner
 .PHONY: ass-owner-check
 $(ass-owner): ass-owner-check
 	@mkdir -p $(dir $@)
-	@printf '%s\n' '$(if $(ASS_NATIVE_LINK_CHECK),native,fixed-mm)' > $@.tmp
+	@printf '%s\n' '$(if $(ass-native),native,fixed-mm)' > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
 $(obj)/ramstage/drivers/efi_variable_service/ramstage.o: $(ass-owner)
 $(obj)/smm/drivers/efi_variable_service/smi.o: $(ass-owner)
 
-ifeq ($(ASS_NATIVE_LINK_CHECK),)
+ifeq ($(ass-native),)
 cbfs-files-y += efi_variable_service_fv
 efi_variable_service_fv-file := $(obj)/FIXEDMMFV.Fv
 efi_variable_service_fv-type := raw
@@ -36,13 +38,13 @@ $(obj)/FIXEDMMFV.Fv: $(DOTCONFIG) util/efi_capsule/check-pinned-source.sh \
 endif
 
 ramstage-$(CONFIG_ASS) += ramstage.c
-ifeq ($(ASS_NATIVE_LINK_CHECK),)
+ifeq ($(ass-native),)
 ramstage-$(CONFIG_ASS) += ipl.c hob.c
 endif
 smm-$(CONFIG_ASS) += smi.c private_store.c capsule_store.c
 
 ifeq ($(CONFIG_ASS),y)
-ifneq ($(ASS_NATIVE_LINK_CHECK),)
+ifneq ($(ass-native),)
 include $(src)/lib/authvar_sources.mk
 smm-y += native_smm.c native_media.c native_variables.c native_capsule.c native_capsule_source.c
 smm-y += $(addprefix ../../../,$(authvar_sources))

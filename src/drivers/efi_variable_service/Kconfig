@@ -17,9 +17,15 @@ config ASS
 	  variable and capsule service in a fixed SMRAM region. The payload can
 	  submit requests through a bounded shared buffer, but cannot supply
 	  executable code or choose the service address.
-	  The service source must provide the fixed Standalone MM build.
+	  edIIe uses the native coreboot service. Other payloads still require
+	  the fixed Standalone MM build by default.
 
 if ASS
+
+config ASS_NATIVE
+	def_bool PAYLOAD_EDIIE
+
+if !ASS_NATIVE
 
 config ASS_SERVICE_REPOSITORY
 	string "Fixed MM service source repository"
@@ -28,6 +34,8 @@ config ASS_SERVICE_REPOSITORY
 config ASS_SERVICE_REVISION
 	string "Fixed MM service source revision"
 	default "a3a0792c9554d8fbe0c25aebd6e83cecff0f127d"
+
+endif
 
 endif
 
