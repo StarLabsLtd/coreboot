@@ -63,6 +63,7 @@ static uint64_t find_image_fmap(struct ass_capsule_source *source,
 {
 	const size_t prefix = sizeof(struct capsule_signed_header);
 	const size_t step = ASS_CAPSULE_SOURCE_BLOCK - sizeof(struct fmap) + 1;
+	bool found = false;
 
 	if (!source->authorized || prefix > source->size ||
 	    geometry->flash_size > source->size - prefix)
@@ -88,11 +89,13 @@ static uint64_t find_image_fmap(struct ass_capsule_source *source,
 				read_le16(&map->nareas) * sizeof(struct fmap_area);
 			if (length > MIN(remaining - i, ASS_CAPSULE_SOURCE_BLOCK))
 				continue;
+			if (found)
+				return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
 			*fmap = (struct ass_capsule_range) { offset + i, length };
-			return 0;
+			found = true;
 		}
 	}
-	return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
+	return found ? 0 : PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
 }
 
 static uint64_t check_fmap_range(struct ass_capsule_source *source,
