@@ -31,7 +31,10 @@ static int hmac_data(void *data, uint32_t size, uint32_t *status, bool validate)
 	};
 
 	int ret = send_psp_command(MBOX_BIOS_CMD_VALIDATE_HMAC_PRE_SMM, &buffer);
-	*status = buffer.header.status;
+	/* The submitted request and its data must outlive a PSP timeout. */
+	if (ret == -PSPSTS_CMD_TIMEOUT)
+		die("PSP: APCB HMAC command timed out\n");
+	*status = ret ? UINT32_MAX : buffer.header.status;
 	return ret;
 }
 

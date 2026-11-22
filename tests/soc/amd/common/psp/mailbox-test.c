@@ -107,6 +107,24 @@ static void recovery_mode_requires_support(void **state)
 	assert_int_equal(command_writes, recovery ? 1 : 0);
 }
 
+static void current_recovery_mode(void **state)
+{
+	bool recovery;
+
+	reset_mailbox(0, 0);
+	assert_int_equal(psp_get_recovery_mode(&recovery), CB_SUCCESS);
+	assert_false(recovery);
+	mailbox |= RECOVERY;
+	assert_int_equal(psp_get_recovery_mode(&recovery), CB_SUCCESS);
+	assert_true(recovery);
+	const uint32_t invalid[] = { 0, UINT32_MAX, READY | BIT(28), READY | BIT(16) };
+	for (size_t i = 0; i < ARRAY_SIZE(invalid); i++) {
+		mailbox = invalid[i];
+		assert_int_equal(psp_get_recovery_mode(&recovery), CB_ERR);
+	}
+	assert_int_equal(command_writes, 0);
+}
+
 static void not_ready_does_not_submit(void **state)
 {
 	struct mbox_default_buffer buffer = {0};
@@ -168,6 +186,7 @@ int main(void)
 		cmocka_unit_test(delivery_error),
 		cmocka_unit_test(spi_completion),
 		cmocka_unit_test(recovery_mode_requires_support),
+		cmocka_unit_test(current_recovery_mode),
 		cmocka_unit_test(not_ready_does_not_submit),
 		cmocka_unit_test(submitted_timeout_keeps_command_ownership),
 	};
