@@ -55,6 +55,13 @@ case "$revision" in
 esac
 resolve=$revision
 case "$revision" in
+origin/*)
+	branch="refs/heads/${revision#origin/}"
+	tracking="refs/remotes/$revision"
+	git check-ref-format "$branch" || fail "invalid branch ref: $revision"
+	git fetch --no-tags --no-recurse-submodules origin "+$branch:$tracking"
+	resolve=$tracking
+	;;
 refs/tags/*)
 	git check-ref-format "$revision" || fail "invalid tag ref: $revision"
 	git fetch --no-tags --no-recurse-submodules origin "$revision"

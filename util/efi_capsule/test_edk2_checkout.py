@@ -178,6 +178,24 @@ cp "$TEST_CAPSULE" "$output"
         self.assertEqual(unchanged.returncode, 0, unchanged.stdout + unchanged.stderr)
         self.assertEqual(state.stat().st_mtime_ns, refreshed_mtime)
 
+    def test_deleted_branch_cannot_be_prepared_from_cached_ref(self):
+        branch = 'release-candidate'
+        self.git(self.repo, 'branch', branch)
+        config = dict(CONFIG_EDK2_TAG_OR_REV='origin/' + branch)
+        initial = self.make('prepare-source', self.online, **config)
+        self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'origin/' + branch), self.pin)
+
+        self.git(self.repo, 'branch', '-d', branch)
+        state = self.workspace / '.coreboot-source'
+        before = state.read_bytes()
+        rejected = self.make('prepare-source', self.online, **config)
+        self.assertNotEqual(rejected.returncode, 0, rejected.stdout + rejected.stderr)
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), self.pin)
+        self.assertEqual(state.read_bytes(), before)
+        verified = self.make('verify-source', self.offline, **config)
+        self.assertEqual(verified.returncode, 0, verified.stdout + verified.stderr)
+
     def test_release_tag_prepares_and_verifies_offline(self):
         initial = self.make('prepare-source', self.online)
         self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
