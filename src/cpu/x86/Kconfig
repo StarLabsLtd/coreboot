@@ -107,6 +107,12 @@ config UNKNOWN_TSC_RATE
 	bool
 	default y if LAPIC_MONOTONIC_TIMER
 
+config PAYLOAD_LOCAL_APIC_TIMER_INFO
+	bool
+	help
+	  Measure the local APIC timer against the TSC and publish its
+	  input frequency for the payload.
+
 config TSC_MONOTONIC_TIMER
 	def_bool n
 	depends on UDELAY_TSC

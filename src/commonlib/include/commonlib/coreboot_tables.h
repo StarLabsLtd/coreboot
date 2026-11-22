@@ -97,6 +97,7 @@ enum {
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_BOOT_REASON		= 0x004b,
 	LB_TAG_EFI_VARIABLE_SERVICE	= 0x004c,
+	LB_TAG_LOCAL_APIC_TIMER_INFO	= 0x004e,
 	LB_TAG_CAPSULE_DELIVERY_POLICY	= 0x0059,
 	LB_TAG_EC_BATTERY_DESCRIPTOR	= 0x005a,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x005b,
@@ -181,6 +182,19 @@ struct lb_record {
 	uint32_t tag;		/* tag ID */
 	uint32_t size;		/* size of record (in bytes) */
 };
+
+struct lb_local_apic_timer_info {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t reserved;
+	lb_uint64_t frequency_hz;
+};
+
+_Static_assert(sizeof(struct lb_local_apic_timer_info) == 20,
+	       "local APIC timer record ABI changed");
+_Static_assert(offsetof(struct lb_local_apic_timer_info, frequency_hz) == 12,
+	       "local APIC timer frequency offset changed");
 
 struct lb_memory_range {
 	lb_uint64_t start;
