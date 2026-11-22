@@ -18,11 +18,14 @@ certificate and update regions. edIIe accepts capsules on disk only. Normal
 builds verify the payload revision without updating its checkout.
 
 To build a local edIIe commit, first initialize its submodules and commit
-your changes. From the coreboot checkout, run:
+your changes. Place the checkout at `payloads/external/ediie/ediie` or
+make that path a symlink to the checkout without overwriting existing
+sources. From the coreboot checkout, run:
 
 ```sh
-sh payloads/external/ediie/prepare-source.sh --local /path/to/ediie
-make EDIIE_SOURCE=/path/to/ediie
+sh payloads/external/ediie/prepare-source.sh --local payloads/external/ediie/ediie
+make menuconfig
+make
 ```
 
 The local checkout must be clean and its submodules must match the recorded

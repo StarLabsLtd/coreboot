@@ -15,6 +15,10 @@ $(ediie-capsule-policy): $(obj)/fmap_config.h $(DOTCONFIG) util/efi_capsule/chec
 endif
 
 EDIIE_SOURCE := payloads/external/ediie/ediie
+# Kconfig reads the canonical path before this makefile is included.
+ifneq ($(realpath $(EDIIE_SOURCE)),$(realpath payloads/external/ediie/ediie))
+$(error Point payloads/external/ediie/ediie at the prepared EDIIE_SOURCE checkout before configuring)
+endif
 EDIIE_OUTPUT := $(obj)/ediie
 EDIIE_PAYLOAD := $(EDIIE_OUTPUT)/native/ediie-coreboot-image.elf
 override CONFIG_PAYLOAD_FILE := $(EDIIE_PAYLOAD)

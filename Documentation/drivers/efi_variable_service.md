@@ -15,10 +15,12 @@ and run `make prepare-edk2-source` after configuration. For edIIe, run
 `sh payloads/external/ediie/prepare-source.sh` for private `main`, or
 pass a full `refs/tags/<tag>` release ref. Preparation resolves the ref
 and records the selected commit; normal builds verify that checkout.
-To build an unpublished local revision, run
-`sh payloads/external/ediie/prepare-source.sh --local /path/to/edIIe`,
-then pass `EDIIE_SOURCE=/path/to/edIIe` to make. The local preparation
-checks and records the clean checkout without fetching or moving it.
+For an unpublished local revision, place the clean checkout at
+`payloads/external/ediie/ediie` (a symlink to the checkout also works).
+Before configuring, run
+`sh payloads/external/ediie/prepare-source.sh --local payloads/external/ediie/ediie`.
+Local preparation records the revision without fetching or moving it.
+Kconfig and the build both read that checkout.
 
 The legacy Fixed MM backend described below is the default. The
 `ASS_NATIVE_LINK_CHECK=1` build override selects the native integration
