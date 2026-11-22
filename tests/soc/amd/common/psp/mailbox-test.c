@@ -12,7 +12,7 @@
 
 static uint32_t mailbox, written_command;
 static uint16_t completion_status;
-static uintptr_t written_buffer;
+static uint64_t written_buffer;
 static unsigned int command_writes;
 static bool complete_command;
 
@@ -31,19 +31,20 @@ uint32_t psp_read32(uint64_t base, uint32_t offset)
 void psp_write32(uint64_t base, uint32_t offset, uint32_t value)
 {
 	assert_int_equal(base, MAILBOX_BASE);
+	if (offset == CONFIG_PSPV2_MBOX_CMD_OFFSET + 4) {
+		written_buffer = (written_buffer & 0xffffffff00000000ULL) | value;
+		return;
+	}
+	if (offset == CONFIG_PSPV2_MBOX_CMD_OFFSET + 8) {
+		written_buffer = (written_buffer & UINT32_MAX) | ((uint64_t)value << 32);
+		return;
+	}
 	assert_int_equal(offset, CONFIG_PSPV2_MBOX_CMD_OFFSET);
 	written_command = value;
 	command_writes++;
 	/* Model completion by clearing the command and reporting delivery status. */
 	mailbox = complete_command ?
 		(value & (PLATFORM_FLAGS | RECOVERY)) | READY | completion_status : value;
-}
-
-void psp_write64(uint64_t base, uint32_t offset, uint64_t value)
-{
-	assert_int_equal(base, MAILBOX_BASE);
-	assert_int_equal(offset, CONFIG_PSPV2_MBOX_CMD_OFFSET + 4);
-	written_buffer = value;
 }
 
 void timer_monotonic_get(struct mono_time *time)
@@ -77,7 +78,7 @@ static void request_fields(void **state)
 		expected |= RECOVERY;
 	assert_int_equal(written_command, expected);
 	assert_int_equal(command_writes, 1);
-	assert_ptr_equal((void *)written_buffer, &buffer);
+	assert_ptr_equal((void *)(uintptr_t)written_buffer, &buffer);
 }
 
 static void delivery_error(void **state)
@@ -123,7 +124,7 @@ static void submitted_timeout_keeps_command_ownership(void **state)
 	assert_int_equal(send_psp_command(MBOX_BIOS_CMD_BOOT_DONE, &buffer),
 			 -PSPSTS_CMD_TIMEOUT);
 	assert_int_equal(command_writes, 1);
-	assert_ptr_equal((void *)written_buffer, &buffer);
+	assert_ptr_equal((void *)(uintptr_t)written_buffer, &buffer);
 	assert_int_equal(mailbox, MBOX_BIOS_CMD_BOOT_DONE << 16);
 }
 
