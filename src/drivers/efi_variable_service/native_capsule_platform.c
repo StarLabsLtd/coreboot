@@ -18,7 +18,10 @@ static uintptr_t ram_end;
 
 static bool read_flash(size_t offset, void *data, size_t size)
 {
-	return rdev_readat(boot_device_ro(), data, offset, size) == (ssize_t)size;
+	const struct region_device *flash = boot_device_rw();
+
+	/* Use the same SPI view as the writer, not cached mapped ROM. */
+	return flash && rdev_readat(flash, data, offset, size) == (ssize_t)size;
 }
 
 static const void *map_capsule(uint64_t address, size_t size)
