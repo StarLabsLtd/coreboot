@@ -55,6 +55,10 @@ case "$revision" in
 esac
 resolve=$revision
 case "$revision" in
+origin/HEAD)
+	git fetch --no-tags --no-recurse-submodules origin HEAD
+	resolve=FETCH_HEAD
+	;;
 origin/*)
 	branch="refs/heads/${revision#origin/}"
 	tracking="refs/remotes/$revision"

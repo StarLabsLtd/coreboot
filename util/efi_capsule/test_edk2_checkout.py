@@ -178,6 +178,22 @@ cp "$TEST_CAPSULE" "$output"
         self.assertEqual(unchanged.returncode, 0, unchanged.stdout + unchanged.stderr)
         self.assertEqual(state.stat().st_mtime_ns, refreshed_mtime)
 
+    def test_remote_head_tracks_the_current_default_branch(self):
+        config = dict(CONFIG_EDK2_TAG_OR_REV='origin/HEAD')
+        initial = self.make('prepare-source', self.online, **config)
+        self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
+        self.git(self.repo, 'checkout', '-b', 'new-default')
+        (self.repo / 'edksetup.sh').write_text('# new default branch\n')
+        self.git(self.repo, 'add', 'edksetup.sh')
+        self.commit(self.repo)
+        expected = self.git(self.repo, 'rev-parse', 'HEAD')
+
+        refreshed = self.make('prepare-source', self.online, **config)
+        self.assertEqual(refreshed.returncode, 0, refreshed.stdout + refreshed.stderr)
+        self.assertEqual(self.git(self.checkout, 'rev-parse', 'HEAD'), expected)
+        verified = self.make('verify-source', self.offline, **config)
+        self.assertEqual(verified.returncode, 0, verified.stdout + verified.stderr)
+
     def test_deleted_branch_cannot_be_prepared_from_cached_ref(self):
         branch = 'release-candidate'
         self.git(self.repo, 'branch', branch)
