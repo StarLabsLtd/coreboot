@@ -201,8 +201,9 @@ static int send_c2p_command(uint32_t command, void *buffer)
 
 	int status = send_psp_command(command, buffer);
 
-	/* A transport error leaves completion uncertain. Keep C2P reserved until reset. */
-	if (CONFIG(ASS) && !status)
+	/* Keep both buffers reserved unless the PSP finished this command. */
+	if (CONFIG(ASS) && (!status || (command == MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION &&
+				       status == -PSPSTS_SPI_COMMAND_ERROR)))
 		ass_c2p_unavailable = false;
 
 	return status;
