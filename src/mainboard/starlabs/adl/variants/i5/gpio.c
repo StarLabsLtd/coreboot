@@ -5,7 +5,7 @@
 /* Early pad configuration in bootblock */
 const struct pad_config early_gpio_table[] = {
 	/* Debug Connector */
-#if CONFIG(EDK2_DEBUG)
+#if CONFIG(CONSOLE_SERIAL)
 	PAD_CFG_NF(GPP_H10, NONE, DEEP, NF2), /* RXD */
 	PAD_CFG_NF(GPP_H11, NONE, DEEP, NF2), /* TXD */
 #else

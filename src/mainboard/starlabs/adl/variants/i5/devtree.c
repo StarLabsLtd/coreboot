@@ -15,7 +15,7 @@ void mb_devtree_update(void)
 	config_t *cfg = config_of_soc();
 
 	update_power_limits(cfg);
-	if (!CONFIG(EDK2_DEBUG)) {
+	if (!CONFIG(CONSOLE_SERIAL)) {
 		DEV_PTR(uart0)->enabled = 0;
 		cfg->serial_io_uart_mode[PchSerialIoIndexUART0] = PchSerialIoDisabled;
 	}
