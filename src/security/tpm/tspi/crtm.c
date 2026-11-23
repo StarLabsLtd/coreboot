@@ -4,6 +4,7 @@
 #include <fmap.h>
 #include <bootstate.h>
 #include <cbfs.h>
+#include <security/vboot/misc.h>
 #include <symbols.h>
 #include "crtm.h"
 #include <stdio.h>
@@ -67,6 +68,8 @@ static tpm_result_t tspi_init_crtm(void)
 		}
 	} else {
 		printk(BIOS_ERR, "TSPI: Could not find FMAP!\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			return TPM_CB_FAIL;
 	}
 
 	/* measure bootblock from RO */
@@ -255,15 +258,26 @@ tpm_result_t tspi_measure_cache_to_pcr(void)
 static void recover_tpm_log(int is_recovery)
 {
 	const void *preram_log = _tpm_log;
-	void *ram_log = tpm_log_cbmem_init();
+	void *ram_log;
+
+	/* The retained log already describes the PCRs restored on S3 resume. */
+	if (CONFIG(VBOOT) && vboot_logic_executed() &&
+	    (vboot_get_context()->flags & VB2_CONTEXT_S3_RESUME))
+		return;
+
+	ram_log = tpm_log_cbmem_init();
 
 	if (tpm_log_get_size(preram_log) > MAX_PRERAM_TPM_LOG_ENTRIES) {
 		printk(BIOS_WARNING, "TPM LOG: pre-RAM log is too full, possible corruption\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Required TPM log is corrupt\n");
 		return;
 	}
 
 	if (ram_log == NULL) {
 		printk(BIOS_WARNING, "TPM LOG: CBMEM not available, something went wrong\n");
+		if (CONFIG(SECURITY_FAIL_CLOSED))
+			die("Required TPM log cannot be retained\n");
 		return;
 	}
 

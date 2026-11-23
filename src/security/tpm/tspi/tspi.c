@@ -226,13 +226,20 @@ tpm_result_t tpm_clear_and_reenable(void)
 	return TPM_SUCCESS;
 }
 
-tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
-			const uint8_t *digest, size_t digest_len, const char *name)
+static tpm_result_t extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
+			      const uint8_t *digest, size_t digest_len, const char *name,
+			      bool required)
 {
 	tpm_result_t rc;
+	bool ready;
 
 	if (!digest)
 		return TPM_IOERROR;
+
+	/* Resume retains the original PCRs and event log; verification still runs. */
+	if (CONFIG(VBOOT) && vboot_logic_executed() &&
+	    (vboot_get_context()->flags & VB2_CONTEXT_S3_RESUME))
+		return required ? TPM_IOERROR : TPM_SUCCESS;
 
 	if (CONFIG(TPM_MEASURED_BOOT)) {
 		rc = tspi_ensure_event_log_initialized();
@@ -240,7 +247,10 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 			return rc;
 	}
 
-	if (tspi_tpm_is_setup()) {
+	ready = tspi_tpm_is_setup();
+	if (required && !ready)
+		return TPM_IOERROR;
+	if (ready) {
 		rc = tlcl_lib_init();
 		if (rc != TPM_SUCCESS) {
 			printk(BIOS_ERR, "TPM Error (%#x): Can't initialize library.\n", rc);
@@ -260,10 +270,47 @@ tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
 		tpm_log_add_table_entry(name, pcr, digest_algo, digest, digest_len);
 
 	printk(BIOS_DEBUG, "TPM: Digest of `%s` to PCR %d %s\n",
-	       name, pcr, tspi_tpm_is_setup() ? "measured" : "logged");
+	       name, pcr, ready ? "measured" : "logged");
 
 	return TPM_SUCCESS;
 }
+
+tpm_result_t tpm_extend_pcr(int pcr, enum vb2_hash_algorithm digest_algo,
+			    const uint8_t *digest, size_t digest_len, const char *name)
+{
+	return extend_pcr(pcr, digest_algo, digest, digest_len, name, false);
+}
+
+tpm_result_t tpm_extend_pcr_required(int pcr, enum vb2_hash_algorithm digest_algo,
+				    const uint8_t *digest, size_t digest_len, const char *name)
+{
+	return extend_pcr(pcr, digest_algo, digest, digest_len, name, true);
+}
+
+#if CONFIG(TPM_PREBOOT_AUTH_PHASE) && ENV_RAMSTAGE
+tpm_result_t tpm_extend_pcr_compact_hash(int pcr, enum vb2_hash_algorithm digest_algo,
+				      const uint8_t *digest, size_t digest_len, const char *name)
+{
+	tpm_result_t rc;
+
+	/* Unlike ordinary measured-boot events, logging alone cannot open a phase. */
+	if (!digest || !name || digest_len != vb2_digest_size(digest_algo) ||
+	    !tspi_tpm_is_setup() || !tpm_log_init())
+		return TPM_IOERROR;
+
+	rc = tlcl_lib_init();
+	if (rc != TPM_SUCCESS)
+		return rc;
+	rc = tlcl_extend(pcr, digest, digest_algo);
+	if (rc != TPM_SUCCESS)
+		return rc;
+
+	if (!tpm2_log_add_compact_hash(name, pcr, digest_algo, digest, digest_len))
+		return TPM_IOERROR;
+
+	return TPM_SUCCESS;
+}
+#endif
 
 #if CONFIG(VBOOT_LIB)
 tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
@@ -291,7 +338,7 @@ tpm_result_t tpm_measure_region(const struct region_device *rdev, uint8_t pcr,
 	 */
 	for (offset = 0; offset < region_device_sz(rdev); offset += len) {
 		len = MIN(sizeof(buf), region_device_sz(rdev) - offset);
-		if (rdev_readat(rdev, buf, offset, len) < 0) {
+		if (rdev_readat(rdev, buf, offset, len) != len) {
 			printk(BIOS_ERR, "TPM: Not able to read region %s.\n",
 			       rname);
 			return TPM_CB_READ_FAILURE;
