@@ -115,19 +115,47 @@ static void test_append_and_reboot(void **state)
 	assert_int_equal(vbnv_flash.sequence, 400);
 }
 
+static void test_sequence_rollover(void **state)
+{
+	uint8_t data[VB2_NVDATA_SIZE], actual[VB2_NVDATA_SIZE];
+
+	assert_int_equal(init_vbnv(), 0);
+	/* Skip the preceding writes and let the backend commit both records. */
+	vbnv_flash.sequence = UINT32_MAX - 2;
+	data_for(1, data);
+	assert_int_equal(save_vbnv_flash(data), 0);
+	reboot();
+	read_vbnv_flash(actual);
+	assert_int_equal(vbnv_flash.sequence, UINT32_MAX - 1);
+	assert_memory_equal(actual, data, sizeof(data));
+
+	data_for(2, data);
+	assert_int_equal(save_vbnv_flash(data), 0);
+	reboot();
+	read_vbnv_flash(actual);
+	assert_int_equal(vbnv_flash.sequence, 1);
+	assert_memory_equal(actual, data, sizeof(data));
+}
+
 static void test_power_cuts(void **state)
 {
 	uint8_t old[VB2_NVDATA_SIZE], next[VB2_NVDATA_SIZE], actual[VB2_NVDATA_SIZE];
 
-	for (unsigned int rollover = 0; rollover < 3; rollover++) {
+	/* Cut an ordinary append and a sequence wrap into each of the two banks. */
+	for (unsigned int banks = 0; banks < 3; banks++) {
 		memset(flash, 0xff, sizeof(flash));
 		reboot();
-		unsigned int erase = rollover ? 1 : 0;
-		unsigned int count = rollover ? rollover * BANK_SIZE / sizeof(struct vbnv_record) : 1;
+		const bool erase = banks != 0;
+		const unsigned int count = erase ? banks * BANK_SIZE / sizeof(struct vbnv_record) : 1;
+		const uint32_t old_sequence = erase ? UINT32_MAX - 1 : 1;
+		const uint32_t next_sequence = erase ? 1 : 2;
+		assert_int_equal(init_vbnv(), 0);
+		vbnv_flash.sequence = old_sequence - count;
 		for (unsigned int i = 0; i < count; i++) {
 			data_for(i & 255, old);
 			assert_int_equal(save_vbnv_flash(old), 0);
 		}
+		assert_int_equal(vbnv_flash.sequence, old_sequence);
 		data_for(200, next);
 		memcpy(saved, flash, sizeof(saved));
 		for (unsigned int operation = 1; operation <= 2 + erase; operation++) {
@@ -143,10 +171,13 @@ static void test_power_cuts(void **state)
 				read_vbnv_flash(actual);
 				const bool committed = operation == 2 + erase && prefix == length;
 				assert_memory_equal(actual, committed ? next : old, sizeof(actual));
+				assert_int_equal(vbnv_flash.sequence,
+						 committed ? next_sequence : old_sequence);
 				assert_int_equal(save_vbnv_flash(next), 0);
 				reboot();
 				read_vbnv_flash(actual);
 				assert_memory_equal(actual, next, sizeof(next));
+				assert_int_equal(vbnv_flash.sequence, next_sequence);
 			}
 		}
 	}
@@ -156,6 +187,7 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(test_append_and_reboot, setup),
+		cmocka_unit_test_setup(test_sequence_rollover, setup),
 		cmocka_unit_test_setup(test_power_cuts, setup),
 	};
 	return cb_run_group_tests(tests, NULL, NULL);

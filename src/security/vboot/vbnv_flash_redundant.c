@@ -45,6 +45,14 @@ static bool valid_record(const struct vbnv_record *record)
 	return vb2_nv_check_crc(&ctx) == VB2_SUCCESS;
 }
 
+/* Two banks can contain fewer than half the sequence space. */
+static bool sequence_is_newer(uint32_t sequence, uint32_t current)
+{
+	uint32_t distance = sequence - current;
+
+	return !current || (distance && distance < (1U << 31));
+}
+
 static int init_vbnv(void)
 {
 	struct vbnv_record record, empty;
@@ -65,9 +73,11 @@ static int init_vbnv(void)
 				continue;
 			/* Torn records are occupied; never try to program over them. */
 			vbnv_flash.next[bank] = offset + sizeof(record);
-			if (!valid_record(&record) || le32toh(record.sequence) <= vbnv_flash.sequence)
+			uint32_t sequence = le32toh(record.sequence);
+			if (!valid_record(&record) ||
+			    !sequence_is_newer(sequence, vbnv_flash.sequence))
 				continue;
-			vbnv_flash.sequence = le32toh(record.sequence);
+			vbnv_flash.sequence = sequence;
 			vbnv_flash.bank = bank;
 			memcpy(vbnv_flash.cache, record.data, sizeof(record.data));
 		}
@@ -93,11 +103,12 @@ int save_vbnv_flash(const uint8_t *data)
 		return -1;
 	if (!memcmp(data, vbnv_flash.cache, sizeof(vbnv_flash.cache)))
 		return 0;
-	if (vbnv_flash.sequence == UINT32_MAX - 1)
-		return -1;
+	uint32_t sequence = vbnv_flash.sequence + 1;
+	if (sequence == UINT32_MAX)
+		sequence = 1;
 
 	memset(&record, 0xff, sizeof(record));
-	record.sequence = htole32(vbnv_flash.sequence + 1);
+	record.sequence = htole32(sequence);
 	record.inverse = ~record.sequence;
 	memcpy(record.data, data, sizeof(record.data));
 	record.committed = 0;
@@ -124,7 +135,7 @@ int save_vbnv_flash(const uint8_t *data)
 	    memcmp(&record, &readback, sizeof(record)))
 		goto failed;
 
-	vbnv_flash.sequence++;
+	vbnv_flash.sequence = sequence;
 	vbnv_flash.bank = bank;
 	vbnv_flash.next[bank] += sizeof(record);
 	memcpy(vbnv_flash.cache, data, sizeof(vbnv_flash.cache));
