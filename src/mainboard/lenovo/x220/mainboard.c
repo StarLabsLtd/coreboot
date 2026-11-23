@@ -35,7 +35,7 @@ static void mainboard_init(void *chip_info)
 		snprintf(option, sizeof(option), "pch_pcie_enable_rp%u", idx);
 
 		/* When option is not found keep current configuration */
-		dev->enabled = get_uint_option(option, dev->enabled);
+		dev->enabled = get_uint_option_checked(option, dev->enabled, OPTION_BOOL);
 		printk(BIOS_DEBUG, "%s: %s %sabled\n", __func__, dev_path(dev),
 		       dev->enabled ? "en" : "dis");
 	}
