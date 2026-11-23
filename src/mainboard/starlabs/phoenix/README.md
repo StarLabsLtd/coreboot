@@ -1,7 +1,7 @@
 # StarFighter Phoenix build inputs
 
-The Phoenix EC firmware is not supplied by the blobs repository. A complete
-SPI image must include a separately supplied, validated Phoenix EC binary:
+A complete SPI image must include a validated Phoenix Merlin release
+binary. Set an explicit EC firmware path if the profile input is absent:
 
 ```
 CONFIG_EC_STARLABS_ADD_ITE_BIN=y
@@ -42,6 +42,11 @@ the updated ATOM image through its existing VFCT writer. The payload does
 not need the AMD DXE GOP or its platform glue. These binaries remain subject
 to their applicable distribution terms.
 
-The configuration enables capsule updates and signed capsule generation.
-Supply signing certificates at the configured paths before building; private
-key material is not included in the repository.
+The configuration uses native ASS with a pinned EDK2 payload and generates
+signed COREBOOT-only capsules. Capsule updates preserve the running EC,
+AMDFW, persistent variables, TPM state and memory-training storage.
+
+Run `make prepare-edk2-source` with the configured profile before building
+from source. Set `PAYLOAD_FILE` explicitly to reuse a verified prebuilt
+EDK2 payload. Supply the capsule signing credentials and the public trust
+chain at the paths selected in the local configuration.
