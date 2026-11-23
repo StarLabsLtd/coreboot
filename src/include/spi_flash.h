@@ -182,6 +182,11 @@ int spi_flash_probe(unsigned int bus, unsigned int cs, struct spi_flash *flash);
 int spi_flash_generic_probe(const struct spi_slave *slave,
 				struct spi_flash *flash);
 
+/* Fill flash identification data from a three or five byte JEDEC ID. */
+int spi_flash_fill_from_id(const struct spi_slave *slave,
+			   struct spi_flash *flash, const u8 *idcode,
+			   size_t idcode_len);
+
 /* All the following functions return 0 on success and non-zero on error. */
 int spi_flash_read(const struct spi_flash *flash, u32 offset, size_t len,
 		   void *buf);
