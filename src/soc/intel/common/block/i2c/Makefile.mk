@@ -6,5 +6,6 @@ romstage-y += i2c.c
 verstage-y += i2c.c
 postcar-y += i2c.c
 ramstage-y += i2c.c
+smm-$(CONFIG_SOC_INTEL_COMMON_BLOCK_I2C_SMM) += i2c.c
 
 endif
