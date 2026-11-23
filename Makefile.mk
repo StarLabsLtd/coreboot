@@ -1301,7 +1301,7 @@ $(obj)/fmap.fmd: $(top)/Makefile.mk $(obj)/config.h
 endif # ifeq ($(CONFIG_ARCH_X86),y)
 
 else # ifeq ($(CONFIG_FMDFILE),)
-$(obj)/fmap.fmd: $(CONFIG_FMDFILE) $(obj)/config.h
+$(obj)/fmap.fmd: $$(CONFIG_FMDFILE) $(obj)/config.h Makefile.mk
 	$(HOSTCC) $(PREPROCESS_ONLY) -include $(obj)/config.h $< -o $@.pre
 	mv $@.pre $@
 endif # ifeq ($(CONFIG_FMDFILE),)
