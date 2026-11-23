@@ -69,6 +69,8 @@ vbnv-flash-redundant-test-cflags += -I tests/drivers/vbnv-flash-include \
 vbnv-flash-redundant-test-config += CONFIG_ROM_SIZE=0x2000
 
 $(call copy-test,efi-variable-service-init-test,efi-variable-service-vboot-test)
+tests-y += intel-fast-spi-resource-test
+
 tests-y += opal-s3-resources-test
 opal-s3-resources-test-srcs += tests/drivers/opal-s3-resources.c src/commonlib/region.c \
 	tests/stubs/console.c

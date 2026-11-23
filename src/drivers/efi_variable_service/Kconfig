@@ -1,0 +1,24 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+config HAVE_PHOENIX_ASS
+	def_bool BOARD_STARLABS_PHOENIX_SERIES && SOC_AMD_COMMON_BLOCK_SMM && SOC_AMD_PHOENIX_OPENSIL && ARCH_SMM_X86_64 && \
+		SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3 && SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK && \
+		SOC_AMD_COMMON_BLOCK_PSP_SMM_LOCK && !SOC_AMD_COMMON_LATE_SMM_LOCKING && \
+		!HAVE_ACPI_RESUME && !VBOOT_SLOTS_RW_AB && !PSP_AB_RECOVERY
+
+config ASS
+	bool "Authorised SMM Service (ASS)"
+	depends on HAVE_SMI_HANDLER && SMM_TSEG && SMMSTORE && DRIVERS_EFI_VARIABLE_STORE
+	depends on (SOC_INTEL_COMMON_BLOCK_SMM && SOC_INTEL_COMMON_BLOCK_FAST_SPI && ARCH_SMM_X86_32) || HAVE_PHOENIX_ASS
+	depends on !CONSOLE_SPI_FLASH
+	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
+	help
+	  Run the coreboot EFI variable and capsule service in protected SMRAM.
+	  Clients submit requests through the reserved communication buffer.
+
+config ASS_FIXED_KEYS
+	bool "Use firmware Secure Boot keys"
+	depends on ASS
+	help
+	  Use the running firmware's PK, KEK and db. The authenticated dbx
+	  revocation database remains in persistent variable storage.
