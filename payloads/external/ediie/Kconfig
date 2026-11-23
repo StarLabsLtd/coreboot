@@ -8,4 +8,7 @@ config EDIIE_COREBOOT_CAPSULE_PROFILE
 
 source "payloads/external/ediie/ediie/Kconfig"
 
+config EDIIE_SECURE_BOOT_FIXED_KEYS
+	select ASS_FIXED_KEYS if ASS_NATIVE
+
 endif

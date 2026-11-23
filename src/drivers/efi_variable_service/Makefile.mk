@@ -54,7 +54,7 @@ endif
 smm-c-ccopts += -DASS_NATIVE_LINK_CHECK
 ramstage-c-ccopts += -DASS_NATIVE_LINK_CHECK
 
-ifeq ($(CONFIG_PAYLOAD_EDIIE)$(CONFIG_EDIIE_SECURE_BOOT_FIXED_KEYS),yy)
+ifeq ($(CONFIG_ASS_FIXED_KEYS),y)
 ass-fixed-header := $(obj)/ass/fixed_policy.h
 ass-ediie := $(abspath $(or $(EDIIE_SOURCE),payloads/external/ediie/ediie))
 ass-dbx-baseline := $(ass-ediie)/src/modules/bds/keys/dbx_microsoft_update.bin

@@ -143,7 +143,7 @@ static uint64_t commit_native_store(void *context, const void *data, size_t size
 	return authvar_media_commit(&store->media, &store->io, data, size, append, record);
 }
 
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 static uint64_t reject_seed_write(void *context, const void *data, size_t size,
 	const struct payload_mm_authvar_write_plan *append, const void *record)
 {
@@ -174,7 +174,7 @@ uint64_t ass_native_store_open(struct ass_native_store *store, struct authvar_ow
 	uint64_t status = authvar_media_initialize(&store->media, &store->io);
 	if (status)
 		return status;
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	if (fixed) {
 		struct authvar_media *media = &store->media;
 		uint8_t *candidate = media->candidate + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;

@@ -25,6 +25,13 @@ if ASS
 config ASS_NATIVE
 	def_bool PAYLOAD_EDIIE
 
+config ASS_FIXED_KEYS
+	bool
+	depends on ASS_NATIVE
+	help
+	  Serve PK, KEK and db from firmware while keeping authenticated dbx
+	  updates in persistent storage.
+
 if !ASS_NATIVE
 
 config ASS_SERVICE_REPOSITORY

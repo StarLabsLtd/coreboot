@@ -547,7 +547,7 @@ static int service_ready(void)
 		return -1;
 	void *owner_arena = (void *)(arena + metadata);
 	const struct authvar_fixed_policy *fixed = NULL;
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	fixed = ass_native_fixed_policy();
 	if (!fixed)
 		return -1;

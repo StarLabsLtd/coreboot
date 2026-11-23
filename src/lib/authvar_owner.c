@@ -288,7 +288,7 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	const struct authvar_fixed_policy *fixed, struct authvar_owner_initialization *report)
 {
 	struct local_workspace workspace = workspace_layout(size);
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	const uint8_t *fixed_update = NULL;
 	size_t fixed_update_size = 0;
 	uint64_t fixed_status;
@@ -296,7 +296,7 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 
 	if (report)
 		*report = (struct authvar_owner_initialization) { 0 };
-#if !CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if !CONFIG(ASS_FIXED_KEYS)
 	if (fixed)
 		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 #endif
@@ -346,7 +346,7 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 		!(local->modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) &&
 		!payload_mm_authvar_mode_find(&local->index,
 			PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE);
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	if (fixed) {
 		if (restore_enable ||
 		    (local->modes & (PAYLOAD_MM_AUTHVAR_MODE_SETUP |
@@ -425,7 +425,7 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 			return status;
 		}
 	}
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	if (fixed) {
 		if (fixed_update) {
 			static const uint8_t dbx_guid[16] = {
@@ -481,7 +481,7 @@ uint64_t authvar_owner_refresh(struct authvar_owner *local, const void *store,
 	for (size_t i = 0; i < next.entry_count; i++)
 		if (!(next.entries[i].attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE))
 			goto fail;
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	if (local->fixed_keys) {
 		status = authvar_fixed_validate(&next, fixed);
 		if (status_error(status))
@@ -963,7 +963,7 @@ static uint64_t publish_candidate(struct authvar_owner *local, uint8_t bank, uin
 	if (candidate_snapshot_size > local->policy.maximum_data_size &&
 	    candidate_snapshot_size > current_snapshot_size)
 		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	if (local->fixed_keys) {
 		if (!fixed)
 			return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
@@ -1062,7 +1062,7 @@ uint64_t authvar_owner_set(struct authvar_owner *local,
 		return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
 	if (local->fixed_keys != (fixed != NULL))
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	if (local->fixed_keys) {
 		if (authvar_fixed_classify(guid, name, request.name_size) == AUTHVAR_FIXED_LOCKED)
 			return PAYLOAD_MM_AUTHVAR_STATUS_WRITE_PROTECTED;
@@ -1129,7 +1129,7 @@ uint64_t authvar_owner_set(struct authvar_owner *local,
 			return status;
 	}
 	bool policy_changed = false;
-#if CONFIG(EDIIE_SECURE_BOOT_FIXED_KEYS)
+#if CONFIG(ASS_FIXED_KEYS)
 	policy_changed = local->fixed_keys &&
 		authvar_fixed_classify(guid, name, request.name_size) == AUTHVAR_FIXED_REVOCATIONS;
 #endif

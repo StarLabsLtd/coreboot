@@ -13,7 +13,7 @@ authvar-owner-test-srcs += src/drivers/efi_variable_service/native_capsule.c
 authvar-owner-test-srcs += src/drivers/efi_variable_service/native_capsule_source.c
 authvar-owner-test-srcs += src/drivers/efi_variable_service/private_store.c
 authvar-owner-test-srcs += src/commonlib/region.c
-authvar-owner-test-config += CONFIG_EDIIE_SECURE_BOOT_FIXED_KEYS=1
+authvar-owner-test-config += CONFIG_ASS_FIXED_KEYS=1
 authvar-owner-test-cflags += -Itests/lib/authvar-owner-include \
 	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
 	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32 \

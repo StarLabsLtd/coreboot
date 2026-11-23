@@ -14,6 +14,6 @@ authvar_mbedtls := asn1parse asn1write bignum bignum_core bignum_mod bignum_mod_
 	constant_time md oid pk pkparse platform_util rsa rsa_alt_helpers sha256 \
 	sha512 x509 x509_crt
 authvar_sources += $(addprefix 3rdparty/mbedtls/library/,$(addsuffix .c,$(authvar_mbedtls)))
-ifeq ($(CONFIG_EDIIE_SECURE_BOOT_FIXED_KEYS),y)
+ifeq ($(CONFIG_ASS_FIXED_KEYS),y)
 authvar_sources += src/lib/authvar_fixed_policy.c
 endif
