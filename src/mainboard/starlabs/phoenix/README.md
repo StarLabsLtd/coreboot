@@ -42,9 +42,11 @@ the updated ATOM image through its existing VFCT writer. The payload does
 not need the AMD DXE GOP or its platform glue. These binaries remain subject
 to their applicable distribution terms.
 
-The configuration uses native ASS with a pinned EDK2 payload and generates
-signed COREBOOT-only capsules. Capsule updates preserve the running EC,
-AMDFW, persistent variables, TPM state and memory-training storage.
+The configuration uses native ASS with EDK2 from `origin/wip/sean/phx`
+and generates signed COREBOOT-only capsules. That branch includes the
+low-memory capsule staging, MM reply and buffer lifetime changes this
+profile uses. Capsule updates preserve the running EC, AMDFW, persistent
+variables, TPM state and memory-training storage.
 
 Run `make prepare-edk2-source` with the configured profile before building
 from source. Set `PAYLOAD_FILE` explicitly to reuse a verified prebuilt
