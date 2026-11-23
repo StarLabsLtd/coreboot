@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <amdblocks/psp.h>
+#include <boot_device.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <stdint.h>
@@ -11,15 +12,11 @@
 
 static u8 transfer_buffer[4 * KiB] __aligned(32);
 
+
+
 /*
- * Read data from the SPI flash via PSP RomArmor.
- * ROM Armor 2 only.
- *
- * On ROM Armor 3, reads can be done directly through ROM2/ROM3 MMIO,
- * so this function is not used.
- *
- * This bypasses direct SPI controller access and uses PSP firmware
- * to perform the read operation through RomArmor protocol.
+ * ROM Armor 3 reads use the mapped boot device; only ROM Armor 2 supports
+ * mailbox read commands.
  */
 static ssize_t psp_rom_armor_spi_readat(const struct region_device *rd, void *buf,
 					size_t offset, size_t len)
@@ -28,8 +25,11 @@ static ssize_t psp_rom_armor_spi_readat(const struct region_device *rd, void *bu
 	uint32_t byte_counter;
 	int ret;
 
-	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
+	if (!psp_rom_armor_spi_transaction_available())
 		return -1;
+
+	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
+		return rdev_readat(boot_device_ro(), buf, offset, len);
 
 	printk(BIOS_DEBUG, "PSP RomArmor rdev_ops: read offset=0x%zx, len=0x%zx\n",
 	       offset, len);
@@ -94,6 +94,9 @@ static ssize_t psp_rom_armor_spi_writeat(const struct region_device *rd, const v
 	uint32_t byte_counter;
 	const uint8_t *current_buffer;
 
+	if (!psp_rom_armor_spi_transaction_available())
+		return -1;
+
 	printk(BIOS_DEBUG, "ROM Armor rdev_ops: Write offset=0x%zx, len=0x%zx\n",
 	       offset, len);
 
@@ -120,6 +123,7 @@ static ssize_t psp_rom_armor_spi_writeat(const struct region_device *rd, const v
 		memcpy(transfer_buffer, current_buffer, cmd.size);
 
 		int ret = psp_rom_armor_spi_transaction(&cmd);
+		psp_rom_armor_invalidate_mmap(cmd.offset, cmd.size);
 		if (ret < 0) {
 			printk(BIOS_ERR, "ROM Armor rdev_ops: Write transaction failed\n");
 			return -1;
@@ -148,6 +152,9 @@ static ssize_t psp_rom_armor_spi_eraseat(const struct region_device *rd,
 		.offset = offset,
 		.read_back = 0,
 	};
+
+	if (!psp_rom_armor_spi_transaction_available())
+		return -1;
 
 	printk(BIOS_DEBUG, "ROM Armor rdev_ops: Erase offset=0x%zx, len=0x%zx\n",
 	       offset, len);
@@ -182,6 +189,7 @@ static ssize_t psp_rom_armor_spi_eraseat(const struct region_device *rd,
 		}
 
 		int ret = psp_rom_armor_spi_transaction(&cmd);
+		psp_rom_armor_invalidate_mmap(cmd.offset, cmd.size);
 		if (ret < 0) {
 			printk(BIOS_ERR, "ROM Armor rdev_ops: Erase transaction failed: %d\n", ret);
 			return ret;
@@ -206,13 +214,34 @@ static const struct region_device_ops rom_armor_spi_flash_ops = {
 struct region_device rom_armor_smm_rw =
 	REGION_DEV_INIT(&rom_armor_spi_flash_ops, 0, CONFIG_ROM_SIZE);
 
-/*
- * SMM handler for ROM Armor operations
- * Called from APMC SMI handler with parameters passed via CPU registers
- */
 static bool shutdown;
 static bool initialized;
 
+const struct region_device *psp_rom_armor_smm_device(void)
+{
+	if (!CONFIG(ASS) || !initialized || !psp_smm_info_registered() || !shutdown ||
+	    region_device_sz(&rom_armor_smm_rw) != CONFIG_ROM_SIZE ||
+	    !psp_rom_armor_spi_transaction_available())
+		return NULL;
+
+	return &rom_armor_smm_rw;
+}
+
+static void close_raw_apmc(void)
+{
+	if (!shutdown) {
+		shutdown = true;
+		printk(BIOS_DEBUG, "PSP: Disabled raw ROM Armor APMC operations\n");
+	}
+}
+
+bool psp_rom_armor_seal(void)
+{
+	close_raw_apmc();
+	return psp_rom_armor_smm_device() != NULL;
+}
+
+/* Called from the APMC SMI handler with parameters passed via CPU registers. */
 uint32_t rom_armor_exec(uint8_t command, void *param)
 {
 	ssize_t ret;
@@ -244,12 +273,12 @@ uint32_t rom_armor_exec(uint8_t command, void *param)
 			printk(BIOS_ERR, "%s: Failed to enter SMM mode\n", __func__);
 			return ROM_ARMOR_RET_FAILURE;
 		}
-		/* Sanity check HSTI status */
-		if (!psp_get_hsti_state_rom_armor_enforced())
+		/* ASS checks HSTI and exact geometry as part of entering SMM mode. */
+		if (!CONFIG(ASS) && !psp_get_hsti_state_rom_armor_enforced())
 			return ROM_ARMOR_RET_FAILURE;
 
 		printk(BIOS_INFO, "%s: Initialized with flash size 0x%zx\n", __func__, flash_size);
-		if (region_device_sz(&rom_armor_smm_rw) != flash_size) {
+		if (!CONFIG(ASS) && region_device_sz(&rom_armor_smm_rw) != flash_size) {
 			printk(BIOS_ERR, "%s: Flash size 0x%zx doesn't match CONFIG_ROM_SIZE!\n",
 			       __func__, flash_size);
 			rom_armor_smm_rw.region.size = flash_size;
@@ -312,8 +341,7 @@ uint32_t rom_armor_exec(uint8_t command, void *param)
 							ROM_ARMOR_RET_FAILURE;
 	}
 	case ROM_ARMOR_APM_CMD_SHUTDOWN:
-		shutdown = true;
-		printk(BIOS_DEBUG, "%s: Disabled\n", __func__);
+		close_raw_apmc();
 		return ROM_ARMOR_RET_SUCCESS;
 	default:
 		printk(BIOS_ERR, "%s: Unknown command: 0x%02x\n", __func__, command);
