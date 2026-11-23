@@ -142,6 +142,12 @@ config SOC_INTEL_COMMON_ACPI_TIME_ALARM
 	  Preserve an OS-armed Intel WADT wake source across S3/S4 sleep
 	  entry for ACPI Time and Alarm users.
 
+config SOC_INTEL_COMMON_ACPI_RTC_WAKE
+	bool
+	default y
+	help
+	  Advertise fixed RTC wake support in the FADT.
+
 config SOC_INTEL_COMMON_ACPI_TIME_ALARM_S5
 	bool
 	depends on SOC_INTEL_COMMON_ACPI_TIME_ALARM
