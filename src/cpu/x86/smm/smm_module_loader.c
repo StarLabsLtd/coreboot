@@ -8,6 +8,7 @@
 #include <console/console.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/gdt.h>
 #include <device/device.h>
 #include <device/mmio.h>
 #include <rmodule.h>
@@ -239,6 +240,7 @@ static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
 				 struct smm_loader_params *params)
 {
 	struct rmodule smm_stub;
+
 	if (rmodule_parse(&_binary_smmstub_start, &smm_stub)) {
 		printk(BIOS_ERR, "%s: unable to parse smm stub\n", __func__);
 		return -1;
@@ -262,6 +264,8 @@ static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
 	stub_params->stack_size = g_stack_size;
 	stub_params->c_handler = (uintptr_t)params->handler;
 	stub_params->cr3 = params->cr3;
+	stub_params->gdt_limit = params->gdt_limit;
+	stub_params->gdt_base = params->gdt_base;
 
 	/* This runs on the BSP. All the APs are its siblings */
 	struct cpu_info *info = cpu_info();
@@ -299,6 +303,8 @@ static int smm_module_setup_stub(const uintptr_t smbase, const size_t smm_size,
  */
 int smm_setup_relocation_handler(struct smm_loader_params *params)
 {
+	struct gdt_descriptor gdtr;
+
 	uintptr_t smram = SMM_DEFAULT_BASE;
 	printk(BIOS_SPEW, "%s: enter\n", __func__);
 	/* There can't be more than 1 concurrent save state for the relocation
@@ -314,6 +320,11 @@ int smm_setup_relocation_handler(struct smm_loader_params *params)
 	 * of concurrent stack users to be CONFIG_MAX_CPUS. */
 	if (params->num_cpus == 0)
 		params->num_cpus = CONFIG_MAX_CPUS;
+
+	/* Use current GDT for the relocation handler */
+	read_gdtr(&gdtr);
+	params->gdt_limit = gdtr.limit;
+	params->gdt_base = gdtr.base;
 
 	printk(BIOS_SPEW, "%s: exit\n", __func__);
 	return smm_module_setup_stub(smram, SMM_DEFAULT_SIZE, params);
@@ -419,8 +430,8 @@ static void print_region(const char *name, const struct region region)
 	       region_last(&region));
 }
 
-/* STM + Handler + (Stub + Save state) * CONFIG_MAX_CPUS + stacks + page tables*/
-#define SMM_REGIONS_ARRAY_SIZE (1  + 1 + CONFIG_MAX_CPUS * 2 + 1 + 1)
+/* STM + Handler + GDT + (Stub + Save state) * CONFIG_MAX_CPUS + stacks + page tables*/
+#define SMM_REGIONS_ARRAY_SIZE (1 + 1 + 1 + CONFIG_MAX_CPUS * 2 + 1 + 1)
 
 static int append_and_check_region(const struct region smram,
 				   const struct region region,
@@ -551,10 +562,47 @@ int smm_load_module(const uintptr_t smram_base, const size_t smram_size,
 		printk(BIOS_DEBUG, "BIOS res list 0x%x\n", CONFIG_BIOS_RESOURCE_LIST_SIZE);
 	}
 
+	/* Install permanent GDT */
+	static const struct gdt_entry permanent_gdt[] __aligned(4) = {
+		[0] = { 0 }, /* Empty to keep NULL selector */
+		[1] = { /* gdt selector 0x08, flat code segment */
+			.limit_low = 0xffff,
+			.access = 0x9b,
+			.limit_high_and_flags = 0xcf,
+		},
+		[2] = { /* gdt selector 0x10, flat data segment */
+
+			.limit_low = 0xffff,
+			.access = 0x93,
+			.limit_high_and_flags = 0xcf,
+		},
+		[3] = { /* gdt selector 0x18, flat code segment (64-bit) */
+
+			.limit_low = 0xffff,
+			.access = 0x9b,
+			.limit_high_and_flags = 0xaf,
+		},
+		[4] = { /* gdt selector 0x20 tss segment */
+			.limit_low = 0xffff,
+			.access = 0x8b,
+			.limit_high_and_flags = 0x80,
+		},
+	};
+	const size_t permanent_gdt_size = sizeof(permanent_gdt);
+	const size_t permanent_gdt_base = ALIGN_DOWN(smram_top - stm_size - permanent_gdt_size,
+		4);
+	struct region permanent_gdt_region = region_create(permanent_gdt_base, permanent_gdt_size);
+	if (append_and_check_region(smram, permanent_gdt_region, region_list, "GDT"))
+		return -1;
+
+	memcpy((void *)permanent_gdt_base, permanent_gdt, permanent_gdt_size);
+	params->gdt_base = permanent_gdt_base;
+	params->gdt_limit = permanent_gdt_size - 1;
+
 	const size_t handler_size = rmodule_memory_size(&smi_handler);
 	const size_t handler_alignment = rmodule_load_alignment(&smi_handler);
 	const uintptr_t handler_base =
-		ALIGN_DOWN(smram_top - stm_size - handler_size,
+		ALIGN_DOWN(permanent_gdt_base - handler_size,
 			   handler_alignment);
 	struct region handler = region_create(handler_base, handler_size);
 	if (append_and_check_region(smram, handler, region_list, "HANDLER"))
