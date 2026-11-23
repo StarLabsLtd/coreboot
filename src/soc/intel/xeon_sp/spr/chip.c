@@ -69,7 +69,9 @@ static void chip_final(void *data)
 
 	tco_lockdown();
 
-	p2sb_hide();
+	if (!p2sb_hide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	/* Accessing xHCI CSR needs to be done after PCI enumeration. */
 	lock_oc_cfg(false);
@@ -90,7 +92,9 @@ static void chip_init(void *data)
 	override_hpet_ioapic_bdf();
 	pch_enable_ioapic();
 	pch_lock_dmictl();
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 	lock_gpio(false);
 	mainboard_override_fsp_gpio();
 	lock_gpio(true);

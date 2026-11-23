@@ -34,7 +34,9 @@
 void soc_disable_heci1_using_pcr(void)
 {
 	/* unhide p2sb device */
-	p2sb_unhide();
+	if (!p2sb_unhide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	/* disable heci */
 	pcr_or32(PID_PSF1, PSF_BASE_ADDRESS + PCR_PSFX_T0_SHDW_PCIEN,
@@ -63,7 +65,9 @@ static void pch_finalize_script(struct device *dev)
 		heci1_disable();
 
 	/* Hide p2sb device as the OS must not change BAR0. */
-	p2sb_hide();
+	if (!p2sb_hide())
+		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
+				   "Unable to change P2SB visibility\n");
 
 	pmc_clear_pmcon_sts();
 }
