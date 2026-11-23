@@ -22,10 +22,14 @@ Enable capsule support and use an EDK2 payload:
 When enabled, the coreboot build generates `build/coreboot.cap` after the ROM image is
 finalised. The capsule can also be generated explicitly with `make capsule`.
 
-Configure the FMAP allowlist embedded into the ROM as a manifest:
+The generated manifest and runtime policy use separate settings.
 
-- `CONFIG_DRIVERS_EFI_CAPSULE_REGIONS`: whitespace-separated FMAP region allowlist embedded into
-  the ROM as a manifest (e.g. `COREBOOT EC`).
+- `CONFIG_DRIVERS_EFI_CAPSULE_REGIONS` lists the FMAP regions included in the
+  generated capsule manifest.
+- `CONFIG_DRIVERS_EFI_CAPSULE_AUTHORIZED_REGIONS` lists the FMAP regions that
+  native ASS admits and that coreboot publishes in the capsule region table
+  when configured to emit it. It defaults to the generated manifest list.
+  A signed capsule may select a subset of the authorized regions.
 
 Configure the ESRT/FMP firmware identity used by the capsule:
 

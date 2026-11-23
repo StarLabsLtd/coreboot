@@ -814,7 +814,7 @@ exit:
 static bool capsule_regions(struct lb_capsule_smmstore_region *regions,
 	uint32_t *count)
 {
-	const char *names = CONFIG_DRIVERS_EFI_CAPSULE_REGIONS;
+	const char *names = CONFIG_DRIVERS_EFI_CAPSULE_AUTHORIZED_REGIONS;
 	struct region store;
 	const uint32_t block_size = CONFIG_SMMSTORE_BLOCK_SIZE;
 

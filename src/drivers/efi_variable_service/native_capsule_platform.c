@@ -47,7 +47,7 @@ const struct ass_capsule_platform *ass_native_smm_capsule_platform(
 	static struct payload_mm_crypto_span trust;
 	static char names[ASS_CAPSULE_MAX_RANGES][16];
 	static struct ass_capsule_range ranges[ARRAY_SIZE(names)];
-	const char *input = CONFIG_DRIVERS_EFI_CAPSULE_REGIONS;
+	const char *input = CONFIG_DRIVERS_EFI_CAPSULE_AUTHORIZED_REGIONS;
 	size_t count = 0;
 
 	if (!state || !program || boot_slot > 3 || (boot_slot && !commit) ||

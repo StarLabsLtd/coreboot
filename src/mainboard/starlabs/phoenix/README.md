@@ -45,8 +45,9 @@ to their applicable distribution terms.
 The configuration uses native ASS with EDK2 from `origin/wip/sean/phx`
 and generates signed COREBOOT-only capsules. That branch includes the
 low-memory capsule staging, MM reply and buffer lifetime changes this
-profile uses. Capsule updates preserve the running EC, AMDFW, persistent
-variables, TPM state and memory-training storage.
+profile uses. The generated capsule preserves the running EC, AMDFW,
+persistent variables, TPM state and memory-training storage. An explicitly
+signed capsule with an EC-only manifest can update the EC independently.
 
 Run `make prepare-edk2-source` with the configured profile before building
 from source. Set `PAYLOAD_FILE` explicitly to reuse a verified prebuilt
