@@ -10,7 +10,7 @@ def validate(fmap_header, block_size, names, srk_pin):
     fields = {
         key: int(value, 16)
         for key, value in re.findall(
-            r"^#define FMAP_SECTION_(\w+_(?:START|SIZE)) (0x[0-9a-fA-F]+)$",
+            r"^#define FMAP_SECTION_(\w+_(?:START|SIZE)) (0|0x[0-9a-fA-F]+)$",
             fmap_header, re.MULTILINE
         )
     }
