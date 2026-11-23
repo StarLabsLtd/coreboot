@@ -9,6 +9,7 @@
 #include <fsp/fsp_debug_event.h>
 #include <fsp/fsp_gop_blt.h>
 #include <fsp/ppi/mp_service_ppi.h>
+#include <intelblocks/8254.h>
 #include <intelblocks/aspm.h>
 #include <intelblocks/cfg.h>
 #include <intelblocks/irq.h>
@@ -591,10 +592,7 @@ static void fill_fsps_thc_params(FSP_S_CONFIG *s_cfg,
 static void fill_fsps_8254_params(FSP_S_CONFIG *s_cfg,
 				  const struct soc_intel_pantherlake_config *config)
 {
-	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
-						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
-	s_cfg->Enable8254ClockGating = !use_8254;
-	s_cfg->Enable8254ClockGatingOnS3 = !use_8254;
+	fsp_configure_8254_clock_gating(s_cfg);
 }
 
 static void fill_fsps_pm_timer_params(FSP_S_CONFIG *s_cfg,
@@ -809,6 +807,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	mainboard_update_soc_chip_config(config);
 	soc_silicon_init_params(s_cfg, config);
 	mainboard_silicon_init_params(s_cfg);
+	config->s0ix_enable = fsp_check_s0ix_clock_gating(s_cfg, config->s0ix_enable);
 }
 
 /*

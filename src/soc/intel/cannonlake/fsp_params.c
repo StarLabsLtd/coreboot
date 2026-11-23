@@ -8,6 +8,9 @@
 #include <fsp/api.h>
 #include <fsp/util.h>
 #include <option.h>
+#if !CONFIG(SOC_INTEL_COMETLAKE_V)
+#include <intelblocks/8254.h>
+#endif
 #include <intelblocks/cse.h>
 #include <intelblocks/irq.h>
 #include <intelblocks/lpss.h>
@@ -347,6 +350,10 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	/* Load VBT before devicetree-specific config. */
 	s_cfg->GraphicsConfigPtr = (uintptr_t)vbt_get();
 
+	/* Comet Lake V exposes only an early POST clock gate for C11. */
+#if !CONFIG(SOC_INTEL_COMETLAKE_V)
+	fsp_configure_8254_clock_gating(s_cfg);
+#endif
 	mainboard_silicon_init_params(supd);
 
 	const struct soc_power_limits_config *soc_config;
@@ -386,6 +393,9 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 	/* S0ix */
 	config->s0ix_enable = cse_get_s0ix_enable_state(config->s0ix_enable);
+#if !CONFIG(SOC_INTEL_COMETLAKE_V)
+	config->s0ix_enable = fsp_check_s0ix_clock_gating(s_cfg, config->s0ix_enable);
+#endif
 	s_cfg->PchPmSlpS0Enable = config->s0ix_enable;
 
 	/* Lan */
@@ -442,12 +452,6 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 
 	/* disable Legacy PME */
 	memset(s_cfg->PcieRpPmSci, 0, sizeof(s_cfg->PcieRpPmSci));
-
-	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
-						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
-	s_cfg->Enable8254ClockGating = !use_8254;
-	s_cfg->Enable8254ClockGatingOnS3 = !use_8254;
 
 	/*
 	 * Legacy PM ACPI Timer (and TCO Timer)

@@ -7,6 +7,7 @@
 #include <fsp/ppi/mp_service_ppi.h>
 #include <fsp/util.h>
 #include <option.h>
+#include <intelblocks/8254.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/lpss.h>
 #include <intelblocks/pmclib.h>
@@ -311,11 +312,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	/* Disable PAVP */
 	params->PavpEnable = 0;
 
-	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
-						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
-	params->Enable8254ClockGating = !use_8254;
-	params->Enable8254ClockGatingOnS3 = !use_8254;
+	fsp_configure_8254_clock_gating(params);
 
 	/*
 	 * Legacy PM ACPI Timer (and TCO Timer)
@@ -536,7 +533,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	mainboard_silicon_init_params(params);
 
 	/* Runtime configuration of S0ix */
-	config->s0ix_enable = cse_get_s0ix_enable_state(config->s0ix_enable);
+	config->s0ix_enable = fsp_check_s0ix_clock_gating(params,
+		cse_get_s0ix_enable_state(config->s0ix_enable));
 }
 
 /* Mainboard GPIO Configuration */

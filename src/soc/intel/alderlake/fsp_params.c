@@ -19,6 +19,7 @@
 #include <fsp/ppi/mp_service_ppi.h>
 #include <fsp/util.h>
 #include <gpio.h>
+#include <intelblocks/8254.h>
 #include <intelblocks/aspm.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/irq.h>
@@ -940,11 +941,7 @@ static void fill_fsps_tbt_params(FSP_S_CONFIG *s_cfg,
 static void fill_fsps_8254_params(FSP_S_CONFIG *s_cfg,
 		const struct soc_intel_alderlake_config *config)
 {
-	/* Legacy 8254 timer support */
-	bool use_8254 = get_uint_option_checked("legacy_8254_timer",
-						CONFIG(USE_LEGACY_8254_TIMER), OPTION_BOOL);
-	s_cfg->Enable8254ClockGating = !use_8254;
-	s_cfg->Enable8254ClockGatingOnS3 = !use_8254;
+	fsp_configure_8254_clock_gating(s_cfg);
 }
 
 static void fill_fsps_pm_timer_params(FSP_S_CONFIG *s_cfg,
@@ -1150,11 +1147,6 @@ static void fill_fsps_misc_power_params(FSP_S_CONFIG *s_cfg,
 	s_cfg->C1StateAutoDemotion = !config->disable_c1_state_auto_demotion;
 
 	s_cfg->VrPowerDeliveryDesign = config->vr_power_delivery_design;
-
-	/* C state demotion must be disabled for Raptorlake J0 and Q0 SKUs */
-	assert(!(config->s0ix_enable && ((cpu_id == CPUID_RAPTORLAKE_J0) ||
-		(cpu_id == CPUID_RAPTORLAKE_Q0)) &&
-		!config->disable_package_c_state_demotion));
 
 	s_cfg->PkgCStateDemotion = !config->disable_package_c_state_demotion;
 
@@ -1443,6 +1435,19 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	config = config_of_soc();
 	soc_silicon_init_params(s_cfg, config);
 	mainboard_silicon_init_params(s_cfg);
+
+	/* Check the board's final clock gate before keeping the S0ix C-state default. */
+	const bool s0ix_enable = fsp_check_s0ix_clock_gating(s_cfg, config->s0ix_enable);
+
+	if (config->s0ix_enable && !s0ix_enable && s_cfg->PkgCStateLimit == LIMIT_AUTO)
+		s_cfg->PkgCStateLimit = LIMIT_C8;
+	config->s0ix_enable = s0ix_enable;
+
+	/* C-state demotion must be disabled for Raptor Lake J0 and Q0 SKUs using S0ix. */
+	const u32 cpu_id = cpu_get_cpuid();
+	assert(!(config->s0ix_enable && (cpu_id == CPUID_RAPTORLAKE_J0 ||
+		cpu_id == CPUID_RAPTORLAKE_Q0) && s_cfg->PkgCStateDemotion));
+
 
 	wait_for_panel_power_cycle_done(config);
 }
