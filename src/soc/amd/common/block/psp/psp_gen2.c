@@ -17,18 +17,16 @@ union pspv2_mbox_command {
 	struct pspv2_mbox_cmd_fields {
 		uint16_t mbox_status;
 		uint8_t mbox_command;
-		uint32_t reserved:6;
+		uint32_t other_flags:6; /* Includes AsyncCmdInProgress and ResetRequired */
 		uint32_t recovery:1;
 		uint32_t ready:1;
 	} __packed fields;
 };
 
-static uint16_t rd_mbox_sts(uint64_t base)
+/* AsyncCmdInProgress, ResetRequired, Recovery or unknown flags preclude reuse. */
+static bool spi_mailbox_idle(union pspv2_mbox_command sample)
 {
-	union pspv2_mbox_command tmp;
-
-	tmp.val = psp_read32(base, PSP_MAILBOX_COMMAND_OFFSET);
-	return tmp.fields.mbox_status;
+	return (sample.val & 0xffff0000) == BIT(31);
 }
 
 static void wr_mbox_cmd(uint64_t base, uint8_t cmd)
@@ -58,46 +56,53 @@ static uint8_t rd_mbox_recovery(uint64_t base)
 	return !!tmp.fields.recovery;
 }
 
-static void wr_mbox_buffer_ptr(uint64_t base, void *buffer)
+enum cb_err psp_get_recovery_mode(bool *recovery)
 {
-	psp_write64(base, PSP_MAILBOX_BUFFER_OFFSET, (uintptr_t)buffer);
+	const uint64_t base = psp_get_base();
+	union pspv2_mbox_command sample;
+
+	if (!base)
+		return CB_ERR;
+	sample.val = psp_read32(base, PSP_MAILBOX_COMMAND_OFFSET);
+	if (!sample.fields.ready || sample.fields.mbox_command || sample.fields.other_flags)
+		return CB_ERR;
+
+	*recovery = sample.fields.recovery;
+	return CB_SUCCESS;
 }
 
-static int wait_command(uint64_t base, bool wait_for_ready)
+static void wr_mbox_buffer_ptr(uint64_t base, void *buffer)
 {
-	union pspv2_mbox_command and_mask = { .val = ~0 };
-	union pspv2_mbox_command expected = { .val = 0 };
+	const uint64_t address = (uintptr_t)buffer;
+
+	/* The pointer occupies two dword registers, with only dword alignment. */
+	psp_write32(base, PSP_MAILBOX_BUFFER_OFFSET, (uint32_t)address);
+	psp_write32(base, PSP_MAILBOX_BUFFER_OFFSET + 4, address >> 32);
+}
+
+static int wait_command(uint64_t base, bool wait_for_ready, union pspv2_mbox_command *sample)
+{
 	struct stopwatch sw;
-	uint32_t tmp;
-
-	/* Zero fields from and_mask that should be kept */
-	and_mask.fields.mbox_command = 0;
-	and_mask.fields.ready = wait_for_ready ? 0 : 1;
-
-	/* Expect mbox_cmd == 0 but ready depends */
-	if (wait_for_ready)
-		expected.fields.ready = 1;
 
 	stopwatch_init_msecs_expire(&sw, PSP_CMD_TIMEOUT);
 
 	while (1) {
-		tmp = psp_read32(base, PSP_MAILBOX_COMMAND_OFFSET);
-		tmp &= ~and_mask.val;
-		if (tmp == expected.val)
-			break;
+		sample->val = psp_read32(base, PSP_MAILBOX_COMMAND_OFFSET);
+		if (!sample->fields.mbox_command && (!wait_for_ready || sample->fields.ready))
+			return 0;
 
 		if (stopwatch_expired(&sw))
 			return -PSPSTS_CMD_TIMEOUT;
 
 		thread_yield();
 	}
-
-	return 0;
 }
 
 int send_psp_command(uint32_t command, void *buffer)
 {
 	const uint64_t base = psp_get_base();
+	const bool armor_spi = CONFIG(ASS) && command == MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION;
+	union pspv2_mbox_command sample;
 	int ret = 0;
 
 	if (!base)
@@ -113,8 +118,10 @@ int send_psp_command(uint32_t command, void *buffer)
 	      rd_mbox_recovery(base))
 		return -PSPSTS_RECOVERY;
 
-	if (wait_command(base, true))
+	if (wait_command(base, true, &sample))
 		return -PSPSTS_INIT_TIMEOUT;
+	if (armor_spi && !spi_mailbox_idle(sample))
+		return -PSPSTS_SEND_ERROR;
 
 	if (ENV_SMM)
 		psp_set_smm_flag();
@@ -125,15 +132,22 @@ int send_psp_command(uint32_t command, void *buffer)
 
 	/* PSP clears command register when complete.  All commands except
 	 * SxInfo set the Ready bit. */
-	if (wait_command(base, command != MBOX_BIOS_CMD_SX_INFO)) {
+	if (wait_command(base, command != MBOX_BIOS_CMD_SX_INFO, &sample)) {
 		ret = -PSPSTS_CMD_TIMEOUT;
 		goto out;
 	}
 
-	/* check delivery status */
-	if (rd_mbox_sts(base)) {
+	/* Classify SPI ownership and status from the same completion sample. */
+	if (!armor_spi)
+		sample.val = psp_read32(base, PSP_MAILBOX_COMMAND_OFFSET);
+	if (armor_spi && !spi_mailbox_idle(sample)) {
+		printk(BIOS_ERR, "PSP: SPI transaction completion uncertain, mailbox=%#x\n",
+		       sample.val);
 		ret = -PSPSTS_SEND_ERROR;
-		goto out;
+	} else if (sample.fields.mbox_status) {
+		printk(BIOS_ERR, "PSP: command %#x failed, mailbox status=%#x\n",
+		       command, sample.fields.mbox_status);
+		ret = armor_spi ? -PSPSTS_SPI_COMMAND_ERROR : -PSPSTS_SEND_ERROR;
 	}
 
 out:

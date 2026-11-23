@@ -35,9 +35,11 @@
 #define MBOX_BIOS_CMD_PSP_CAPS_QUERY		0x27
 #define MBOX_BIOS_CMD_SET_SPL_FUSE		0x2d
 #define MBOX_BIOS_CMD_SET_RPMC_ADDRESS		0x39
+#define MBOX_BIOS_CMD_VALIDATE_HMAC_PRE_SMM	0x34
 #define MBOX_BIOS_CMD_QUERY_SPL_FUSE		0x47
 #define MBOX_BIOS_CMD_ARMOR_ENTER_SMM_MODE	0x50
 #define MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION	0x51
+#define MBOX_BIOS_CMD_SET_CONFIG			0x5d
 #define MBOX_BIOS_CMD_I2C_TPM_ARBITRATION	0x64
 #define MBOX_BIOS_CMD_SMM_LOCK			0x6c
 #define MBOX_BIOS_CMD_ABORT			0xfe
@@ -70,6 +72,23 @@ struct mbox_buffer_header {
 
 struct mbox_default_buffer {	/* command-response buffer unused by command */
 	struct mbox_buffer_header header;
+} __packed __aligned(32);
+
+struct mbox_cmd_hmac_data_buffer {
+	struct mbox_buffer_header header;
+	uint64_t buffer;
+	uint32_t buffer_size;
+	uint32_t data_offset;
+	uint32_t data_size;
+	uint32_t signature_offset;
+	uint32_t signature_size;
+	uint32_t validate;
+} __packed __aligned(32);
+
+struct mbox_cmd_set_config_buffer {
+	struct mbox_buffer_header header;
+	uint32_t config_id;
+	uint32_t args[4];
 } __packed __aligned(32);
 
 struct smm_req_buffer {
@@ -213,9 +232,9 @@ enum mbox_p2c_status {
  * overhead compared to MMIO.
  */
 uint64_t psp_get_base(void);
+uintptr_t get_ccp_mmio_base(void);
 uint32_t psp_read32(uint64_t base, uint32_t offset);
 void psp_write32(uint64_t base, uint32_t offset, uint32_t data);
-void psp_write64(uint64_t base, uint32_t offset, uint64_t data);
 
 void psp_print_cmd_status(int cmd_status, struct mbox_buffer_header *header);
 
@@ -225,7 +244,10 @@ int send_psp_command(uint32_t command, void *buffer);
 enum cb_err psp_get_ftpm_capabilities(uint32_t *capabilities);
 enum cb_err psp_get_psp_capabilities(uint32_t *capabilities);
 enum cb_err psp_get_hsti_state(uint32_t *state);
+/* SMM ASS receipt. Halt if the ownership transition is uncertain. */
+bool psp_smm_rom_armor_enforced(void);
 enum cb_err soc_read_c2p38(uint32_t *msg_38_value);
+enum cb_err psp_command_set_config(uint32_t config, const uint32_t args[4]);
 
 void enable_psp_smi(void);
 
@@ -243,6 +265,9 @@ int psp_ab_recovery_set_bootpartition(const uint32_t partition);
  *         boot partition.
  */
 int psp_ab_recovery_get_bootpartition(void);
+
+/* An outstanding C2P command may still access its request and transfer buffer. */
+bool psp_rom_armor_spi_transaction_available(void);
 
 struct mbox_rom_armor_flash_command;
 /*

@@ -14,6 +14,41 @@ static const char *psp_status_init_timeout = "error: PSP init timeout";
 static const char *psp_status_cmd_timeout = "error: PSP command timeout";
 static const char *psp_status_noerror = "";
 
+#if ENV_RAMSTAGE
+static int hmac_data(void *data, uint32_t size, uint32_t *status, bool validate)
+{
+	if (!data || !status || !size || size > UINT32_MAX - 32)
+		return CB_ERR;
+
+	struct mbox_cmd_hmac_data_buffer buffer = {
+		.header.size = sizeof(buffer),
+		.buffer = (uintptr_t)data,
+		.buffer_size = size + 32,
+		.data_size = size,
+		.signature_offset = size,
+		.signature_size = 32,
+		.validate = validate,
+	};
+
+	int ret = send_psp_command(MBOX_BIOS_CMD_VALIDATE_HMAC_PRE_SMM, &buffer);
+	/* The submitted request and its data must outlive a PSP timeout. */
+	if (ret == -PSPSTS_CMD_TIMEOUT)
+		die("PSP: APCB HMAC command timed out\n");
+	*status = ret ? UINT32_MAX : buffer.header.status;
+	return ret;
+}
+
+int psp_validate_hmac_data(void *data, uint32_t size, uint32_t *status)
+{
+	return hmac_data(data, size, status, true);
+}
+
+int psp_sign_hmac_data(void *data, uint32_t size, uint32_t *status)
+{
+	return hmac_data(data, size, status, false);
+}
+#endif
+
 static const char *status_to_string(int err)
 {
 	switch (err) {
@@ -23,6 +58,7 @@ static const char *status_to_string(int err)
 		return psp_status_halted;
 	case -PSPSTS_RECOVERY:
 		return psp_status_recovery;
+	case -PSPSTS_SPI_COMMAND_ERROR:
 	case -PSPSTS_SEND_ERROR:
 		return psp_status_errcmd;
 	case -PSPSTS_INIT_TIMEOUT:
@@ -45,7 +81,7 @@ static uint32_t rd_resp_sts(struct mbox_buffer_header *header)
  */
 void psp_print_cmd_status(int cmd_status, struct mbox_buffer_header *header)
 {
-	if (header && rd_resp_sts(header))
+	if (!cmd_status && header && rd_resp_sts(header))
 		printk(BIOS_DEBUG, "buffer status=0x%x ", rd_resp_sts(header));
 
 	if (cmd_status)
@@ -79,26 +115,47 @@ enum cb_err psp_get_ftpm_capabilities(uint32_t *capabilities)
 
 enum cb_err psp_get_hsti_state(uint32_t *state)
 {
+	static struct mbox_cmd_hsti_query_buffer ass_buffer;
+	static bool ass_query_unavailable;
+	struct mbox_cmd_hsti_query_buffer local_buffer;
+	struct mbox_cmd_hsti_query_buffer *buffer = &local_buffer;
 	int cmd_status;
-	struct mbox_cmd_hsti_query_buffer buffer = {
-		.header = {
-			.size = sizeof(buffer)
-		},
+
+	if (CONFIG(ASS)) {
+		/* Keep the request intact until the PSP confirms successful completion. */
+		if (ass_query_unavailable)
+			return CB_ERR;
+		ass_query_unavailable = true;
+		buffer = &ass_buffer;
+	}
+
+	*buffer = (struct mbox_cmd_hsti_query_buffer) {
+		.header.size = sizeof(*buffer),
 	};
 
 	printk(BIOS_DEBUG, "PSP: Querying HSTI state... ");
+	cmd_status = send_psp_command(MBOX_BIOS_CMD_HSTI_QUERY, buffer);
+	psp_print_cmd_status(cmd_status, &buffer->header);
 
-	cmd_status = send_psp_command(MBOX_BIOS_CMD_HSTI_QUERY, &buffer);
-
-	/* buffer's status shouldn't change but report it if it does */
-	psp_print_cmd_status(cmd_status, &buffer.header);
-
-	if (cmd_status)
+	if (cmd_status || (CONFIG(ASS) && rd_resp_sts(&buffer->header)))
 		return CB_ERR;
 
-	*state = read32(&buffer.state);
+	*state = read32(&buffer->state);
+	if (CONFIG(ASS))
+		ass_query_unavailable = false;
 	return CB_SUCCESS;
 }
+
+#if ENV_RAMSTAGE
+static bool rom_armor_query_ready;
+
+static void enable_rom_armor_query(void *unused)
+{
+	rom_armor_query_ready = true;
+}
+
+BOOT_STATE_INIT_ENTRY(BS_DEV_INIT_CHIPS, BS_ON_EXIT, enable_rom_armor_query, NULL);
+#endif
 
 /*
  * Returns true if ROM Armor is enforced, that is after PSP command
@@ -114,11 +171,22 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 	if (!CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
 		return false;
 
+	if (ENV_SMM && CONFIG(ASS) && psp_smm_rom_armor_enforced())
+		return true;
+
+#if ENV_RAMSTAGE
+	/* Early CBFS reads precede PSP MMIO setup and ROM Armor initialization. */
+	if (!rom_armor_query_ready)
+		return false;
+#endif
+
 	static bool enforced;
 	if (enforced)
 		return true; /* ROM Armor already enforced, no need to check again */
 
 	if (psp_get_hsti_state(&hsti_state) != CB_SUCCESS) {
+		if (CONFIG(ASS))
+			die("PSP: Cannot determine ROM Armor ownership\n");
 		printk(BIOS_EMERG, "PSP: Failed to get HSTI state\n");
 		return false;
 	}
@@ -129,6 +197,21 @@ bool psp_get_hsti_state_rom_armor_enforced(void)
 	return enforced;
 }
 #endif
+
+enum cb_err psp_command_set_config(uint32_t config, const uint32_t args[4])
+{
+	struct mbox_cmd_set_config_buffer buffer = {
+		.header.size = sizeof(buffer.header) + sizeof(buffer.config_id) +
+			       sizeof(buffer.args),
+		.config_id = config,
+		.args = { args[0], args[1], args[2], args[3] },
+	};
+	int status = send_psp_command(MBOX_BIOS_CMD_SET_CONFIG, &buffer);
+
+	if (status == -PSPSTS_CMD_TIMEOUT)
+		die("PSP: Set-config command timed out\n");
+	return status || rd_resp_sts(&buffer.header) ? CB_ERR : CB_SUCCESS;
+}
 
 static enum cb_err psp_notify_df_lock(void)
 {
@@ -180,7 +263,7 @@ static void psp_notify_boot_done(void)
 	int cmd_status;
 	struct mbox_default_buffer buffer = {
 		.header = {
-			.size = sizeof(buffer)
+			.size = sizeof(buffer.header)
 		}
 	};
 
@@ -190,17 +273,26 @@ static void psp_notify_boot_done(void)
 
 	/* buffer's status shouldn't change but report it if it does */
 	psp_print_cmd_status(cmd_status, &buffer.header);
+	/* An uncertain completion must not outlive this request or reach the payload. */
+	if (CONFIG(ASS) && (cmd_status || rd_resp_sts(&buffer.header)))
+		die("PSP: BOOT_DONE failed\n");
 }
 
 static void psp_notify_boot_complete(void *unused)
 {
 	/* Resource assignment and CPU SMM lockdown precede payload boot. */
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK) &&
-	    psp_notify_df_lock() != CB_SUCCESS)
+	    psp_notify_df_lock() != CB_SUCCESS) {
+		if (CONFIG(ASS))
+			die("PSP: Data Fabric lock failed\n");
 		return;
+	}
 	if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_SMM_LOCK) &&
-	    psp_notify_smm_lock() != CB_SUCCESS)
+	    psp_notify_smm_lock() != CB_SUCCESS) {
+		if (CONFIG(ASS))
+			die("PSP: SMM lock failed\n");
 		return;
+	}
 	psp_notify_boot_done();
 }
 
