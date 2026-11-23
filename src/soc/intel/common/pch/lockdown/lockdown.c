@@ -15,6 +15,10 @@
 #include <soc/pcr_ids.h>
 #include <soc/soc_chip.h>
 
+void __weak boot_device_wp_status_locked(void)
+{
+}
+
 /*
  * This function will get lockdown config specific to soc.
  *

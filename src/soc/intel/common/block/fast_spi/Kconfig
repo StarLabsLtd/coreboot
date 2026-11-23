@@ -6,6 +6,14 @@ config SOC_INTEL_COMMON_BLOCK_FAST_SPI
 	help
 	  Intel Processor common FAST_SPI support
 
+config FAST_SPI_SUPPORTS_SWSEQ
+	bool
+	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	help
+	  Fast SPI controller implements the software-sequencer registers.
+	  Select this only on SoCs whose SPI controller exposes those registers;
+	  other controllers use hardware sequencing only.
+
 config FAST_SPI_DISABLE_WRITE_STATUS
 	bool "Disable write status SPI opcode"
 	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
@@ -13,6 +21,9 @@ config FAST_SPI_DISABLE_WRITE_STATUS
 	default y
 	help
 	  Disable the write status SPI opcode in Intel Fast SPI block.
+	  BOOTMEDIA_SPI_LOCK_PLATFORM permits coreboot to set the flash
+	  block-protection bits before WRSDIS and FLOCKDN disable and lock the
+	  hardware status-write cycle.
 
 config FAST_SPI_SUPPORTS_EXT_BIOS_WINDOW
 	bool
