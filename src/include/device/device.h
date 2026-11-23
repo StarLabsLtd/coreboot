@@ -114,12 +114,18 @@ struct device {
 	unsigned int  initialized : 1; /* 1 if we have initialized the device */
 	unsigned int    on_mainboard : 1;
 	unsigned int    disable_pcie_aspm : 1;
+	/* Disable Clock PM on the endpoint of this port's downstream link. */
+	unsigned int    disable_pcie_clk_pm : 1;
 	/* set if we should hide from UI */
 	unsigned int    hidden : 1;
 	/* set if this device is used even in minimum PCI cases */
 	unsigned int    mandatory : 1;
 	unsigned int	hotplug_port : 1;
 	u8 command;
+	/* L1SS Control 1 enable bits excluded on this downstream port's link. */
+	u8 pcie_l1ss_disable;
+	/* ASPM Link Control bits excluded on this port's downstream link. */
+	u8 pcie_aspm_disable;
 	uint16_t hotplug_buses; /* Number of hotplug buses to allocate */
 
 	/* Base registers for this device. I/O, MEM and Expansion ROM */
@@ -537,6 +543,14 @@ static inline bool is_root_device(const struct device *dev)
 
 	return (dev->path.type == DEVICE_PATH_ROOT) ||
 	       (dev->upstream->dev == dev);
+}
+
+static inline uint32_t pcidev_get_ssid(const struct device *dev)
+{
+	if (!dev)
+		return 0;
+
+	return (dev->subsystem_vendor | ((uint32_t)dev->subsystem_device << 16));
 }
 
 void enable_static_device(struct device *dev);
