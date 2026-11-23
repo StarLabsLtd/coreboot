@@ -12,7 +12,9 @@ Device (XHCI)
 {
 	Name (_ADR, 0x00140000)
 
+#if CONFIG(SOC_INTEL_COMMON_ACPI_XHCI_WAKE)
 	Name (_PRW, Package () { GPE0_PME_B0, 4 })
+#endif
 
 	Method (_DSW, 3)
 	{
