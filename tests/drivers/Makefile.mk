@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+tests-y += crb-test crb-ptt-test
+crb-test-srcs += tests/drivers/crb.c src/drivers/crb/tis.c tests/stubs/console.c
+crb-test-config += CONFIG_CRB_TPM_BASE_ADDRESS=0xfed40000 CONFIG_HAVE_MONOTONIC_TIMER=1 \
+	CONFIG_HAVE_ACPI_TABLES=1 CONFIG_TPM_TREAT_ME_DISABLED_AS_ABSENT=0
+$(call copy-test,crb-test,crb-ptt-test)
+crb-test-config += CONFIG_HAVE_INTEL_PTT=0
+crb-ptt-test-config += CONFIG_HAVE_INTEL_PTT=1
+
 tests-y += efivars-test
 
 efivars-test-srcs += tests/drivers/efivars.c

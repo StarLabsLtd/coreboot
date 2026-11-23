@@ -36,7 +36,7 @@ static const char *tis_get_dev_name(struct crb_tpm_info *info)
 static tpm_result_t crb_tpm_sendrecv(const uint8_t *sendbuf, size_t sbuf_size, uint8_t *recvbuf,
 				     size_t *rbuf_len)
 {
-	int len = crb_tpm_process_command(sendbuf, sbuf_size, recvbuf, *rbuf_len);
+	size_t len = crb_tpm_process_command(sendbuf, sbuf_size, recvbuf, *rbuf_len);
 
 	if (len == 0)
 		return TPM_CB_FAIL;
@@ -102,7 +102,8 @@ static void crb_tpm_fill_ssdt(const struct device *dev)
 	/* Resources */
 	acpigen_write_name("_CRS");
 	acpigen_write_resourcetemplate_header();
-	acpigen_write_mem32fixed(1, TPM_CRB_BASE_ADDRESS, 0x5000);
+	acpigen_write_mem32fixed(1, TPM_CRB_BASE_ADDRESS,
+			       CRB_LOCALITY_COUNT * CRB_LOCALITY_SIZE);
 
 	acpigen_write_resourcetemplate_footer();
 

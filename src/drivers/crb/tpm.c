@@ -12,57 +12,68 @@
       -- Cmd Complete <-- Command Execution
  */
 
-#include <timer.h>
 #include <console/console.h>
 #include <device/mmio.h>
+#include <security/tpm/tss/tcg-2.0/tss_structures.h>
 #include <string.h>
-#include <soc/pci_devs.h>
+#include <timer.h>
 
 #include "tpm.h"
 
-static struct control_area {
-	uint32_t request;
-	uint32_t status;
-	uint32_t cancel;
-	uint32_t start;
-	uint64_t interrupt_control;
+struct crb_buffers {
 	uint32_t command_size;
-	void *command_bfr;
+	uint8_t *command;
 	uint32_t response_size;
-	void *response_bfr;
-} control_area;
+	uint8_t *response;
+};
 
-static uint8_t cur_loc = 0;
-
-/* Read Control Area Structure back  */
-static void crb_readControlArea(void)
+static bool crb_buffer_valid(uint64_t address, uint32_t size)
 {
-	control_area.request = read32(CRB_REG(cur_loc, CRB_REG_REQUEST));
-	control_area.status = read32(CRB_REG(cur_loc, CRB_REG_STATUS));
-	control_area.cancel = read32(CRB_REG(cur_loc, CRB_REG_CANCEL));
-	control_area.interrupt_control = read64(CRB_REG(cur_loc, CRB_REG_INT_CTRL));
-	control_area.command_size = read32(CRB_REG(cur_loc, CRB_REG_CMD_SIZE));
-	control_area.command_bfr =
-		(void *)(uintptr_t)read64(CRB_REG(cur_loc, CRB_REG_CMD_ADDR));
-	control_area.response_size = read32(CRB_REG(cur_loc, CRB_REG_RESP_SIZE));
-	control_area.response_bfr =
-		(void *)(uintptr_t)read64(CRB_REG(cur_loc, CRB_REG_RESP_ADDR));
+	const uint64_t base = TPM_CRB_BASE_ADDRESS;
+	uint64_t offset;
+
+	if (address < base || address > UINTPTR_MAX || !size ||
+	    size - 1 > UINTPTR_MAX - address)
+		return false;
+
+	/* PTP permits the TPM to alias command and response data across localities. */
+	offset = address - base;
+	if (offset >= CRB_LOCALITY_COUNT * CRB_LOCALITY_SIZE)
+		return false;
+	offset %= CRB_LOCALITY_SIZE;
+	return offset >= CRB_REG_DATA_BUFF && size <= CRB_LOCALITY_SIZE - offset;
+}
+
+static bool crb_read_buffers(struct crb_buffers *buffers)
+{
+	uint64_t command, response;
 
 	/*
-	 * Intel PTT has to write the command/response address and size
-	 * register before each command submission otherwise the control area
-	 * is all zeroed. This has been observed on Alder Lake S CPU and may be
-	 * applicable to other new microarchitectures. Update the local control
-	 * area data to make crb_tpm_process_command() not fail on buffer checks.
-	 * PTT command/response buffer is fixed to be at offset 0x80 and spans
-	 * up to the end of 4KB region for the current locality.
+	 * Intel PTT requires the host to program both buffers before each
+	 * command. Its fixed buffer occupies the rest of the locality page.
 	 */
 	if (CONFIG(HAVE_INTEL_PTT)) {
-		control_area.command_size = 0x1000 - CRB_REG_DATA_BUFF;
-		control_area.response_size = control_area.command_size;
-		control_area.command_bfr = CRB_REG(cur_loc, CRB_REG_DATA_BUFF);
-		control_area.response_bfr = CRB_REG(cur_loc, CRB_REG_DATA_BUFF);
+		buffers->command_size = CRB_LOCALITY_SIZE - CRB_REG_DATA_BUFF;
+		buffers->response_size = buffers->command_size;
+		buffers->command = CRB_REG(CRB_REG_DATA_BUFF);
+		buffers->response = buffers->command;
+		return true;
 	}
+
+	buffers->command_size = read32(CRB_REG(CRB_REG_CMD_SIZE));
+	command = read32(CRB_REG(CRB_REG_CMD_ADDR_LOW));
+	command |= (uint64_t)read32(CRB_REG(CRB_REG_CMD_ADDR_HIGH)) << 32;
+	buffers->response_size = read32(CRB_REG(CRB_REG_RESP_SIZE));
+	response = read64(CRB_REG(CRB_REG_RESP_ADDR));
+	if (!crb_buffer_valid(command, buffers->command_size) ||
+	    !crb_buffer_valid(response, buffers->response_size)) {
+		printk(BIOS_ERR, "TPM: CRB buffers fall outside the TPM data windows.\n");
+		return false;
+	}
+
+	buffers->command = (uint8_t *)(uintptr_t)command;
+	buffers->response = (uint8_t *)(uintptr_t)response;
+	return true;
 }
 
 /* Wait for Reg to be expected Value  */
@@ -97,7 +108,7 @@ static tpm_result_t crb_wait_for_reg32(const void *addr, uint32_t timeoutMs, uin
  */
 static tpm_result_t crb_probe(void)
 {
-	uint64_t tpmStatus = read64(CRB_REG(cur_loc, CRB_REG_INTF_ID));
+	uint64_t tpmStatus = read64(CRB_REG(CRB_REG_INTF_ID));
 	printk(BIOS_SPEW, "Interface ID Reg. %llx\n", tpmStatus);
 
 	if ((tpmStatus & CRB_INTF_REG_CAP_CRB) == 0) {
@@ -108,59 +119,53 @@ static tpm_result_t crb_probe(void)
 	if ((tpmStatus & (0xf)) != 1) {
 		printk(BIOS_DEBUG,
 		       "TPM: CRB Interface is not active. System needs reboot in order to active TPM.\n");
-		write32(CRB_REG(cur_loc, CRB_REG_INTF_ID), CRB_INTF_REG_INTF_SEL);
+		write32(CRB_REG(CRB_REG_INTF_ID), CRB_INTF_REG_INTF_SEL);
 		return TPM_CB_FAIL;
 	}
 
-	write32(CRB_REG(cur_loc, CRB_REG_INTF_ID), CRB_INTF_REG_INTF_SEL);
-	write32(CRB_REG(cur_loc, CRB_REG_INTF_ID), CRB_INTF_REG_INTF_LOCK);
+	write32(CRB_REG(CRB_REG_INTF_ID), CRB_INTF_REG_INTF_SEL);
+	write32(CRB_REG(CRB_REG_INTF_ID), CRB_INTF_REG_INTF_LOCK);
 
 	return TPM_SUCCESS;
 }
 
-/*
- * Get active Locality
- *
- * Get the active locality
- */
-static uint8_t crb_activate_locality(void)
+static tpm_result_t crb_claim_locality(void)
 {
-	uint8_t locality = (read8(CRB_REG(0, CRB_REG_LOC_STATE)) >> 2) & 0x07;
-	printk(BIOS_SPEW, "Active locality: %i\n", locality);
-
-	tpm_result_t rc = crb_wait_for_reg32(CRB_REG(locality, CRB_REG_LOC_STATE), 750,
-				    LOC_STATE_LOC_ASSIGN, LOC_STATE_LOC_ASSIGN);
-
-	if (!rc && (locality == 0))
-		return locality;
-
+	struct stopwatch sw;
+	bool requested = false;
+	tpm_result_t rc = crb_wait_for_reg32(CRB_REG(CRB_REG_LOC_STATE), 1500,
+					   LOC_STATE_REG_VALID_STS, LOC_STATE_REG_VALID_STS);
 	if (rc)
-		write8(CRB_REG(locality, CRB_REG_LOC_CTRL), LOC_CTRL_REQ_ACCESS);
+		return rc;
 
-	rc = crb_wait_for_reg32(CRB_REG(locality, CRB_REG_LOC_STATE), 750, LOC_STATE_LOC_ASSIGN,
-				LOC_STATE_LOC_ASSIGN);
-	if (rc) {
-		printk(BIOS_ERR, "TPM: Error (%#x) - No Locality has been assigned TPM-wise.\n", rc);
-		return 0;
-	}
+	/* TIS uses locality 0. Wait for any other owner to release the TPM. */
+	stopwatch_init_msecs_expire(&sw, 750);
+	do {
+		uint32_t state = read32(CRB_REG(CRB_REG_LOC_STATE));
 
-	rc = crb_wait_for_reg32(CRB_REG(locality, CRB_REG_LOC_STATE), 1500,
-				LOC_STATE_REG_VALID_STS, LOC_STATE_REG_VALID_STS);
-	if (rc) {
-		printk(BIOS_ERR, "TPM: Error (%#x) - LOC_STATE Register %u contains errors.\n",
-		       rc, locality);
-		return 0;
-	}
+		if (!(state & LOC_STATE_REG_VALID_STS))
+			continue;
 
-	return locality;
+		if (state & LOC_STATE_LOC_ASSIGN) {
+			if (!(state & LOC_STATE_ACTIVE_LOC_MASK) &&
+			    (read32(CRB_REG(CRB_REG_LOC_STS)) & LOC_STS_GRANTED))
+				return TPM_SUCCESS;
+		} else if (!requested) {
+			write8(CRB_REG(CRB_REG_LOC_CTRL), LOC_CTRL_REQ_ACCESS);
+			requested = true;
+		}
+	} while (!stopwatch_expired(&sw));
+
+	printk(BIOS_ERR, "TPM: Could not claim CRB locality 0.\n");
+	return TPM_CB_TIMEOUT;
 }
 
 /* Switch Device into a Ready State */
 static tpm_result_t crb_switch_to_ready(void)
 {
 	/* Transition into ready state */
-	write8(CRB_REG(cur_loc, CRB_REG_REQUEST), 0x1);
-	tpm_result_t rc = crb_wait_for_reg32(CRB_REG(cur_loc, CRB_REG_REQUEST), 200,
+	write8(CRB_REG(CRB_REG_REQUEST), CRB_REG_REQUEST_CMD_RDY);
+	tpm_result_t rc = crb_wait_for_reg32(CRB_REG(CRB_REG_REQUEST), 200,
 					CRB_REG_REQUEST_CMD_RDY, 0x0);
 	if (rc) {
 		printk(BIOS_ERR,
@@ -169,7 +174,7 @@ static tpm_result_t crb_switch_to_ready(void)
 	}
 
 	/* Check TPM_CRB_CTRL_STS[0] to be "0" - no unrecoverable error */
-	rc = crb_wait_for_reg32(CRB_REG(cur_loc, CRB_REG_STATUS), 500, CRB_REG_STATUS_ERROR,
+	rc = crb_wait_for_reg32(CRB_REG(CRB_REG_STATUS), 500, CRB_REG_STATUS_ERROR,
 				0x0);
 	if (rc) {
 		printk(BIOS_ERR, "TPM Error (%#x): Could not recover.\n", rc);
@@ -179,14 +184,6 @@ static tpm_result_t crb_switch_to_ready(void)
 	return TPM_SUCCESS;
 }
 
-/*
- * crb_tpm_init
- *
- * Even though the TPM does not need an initialization we check
- * if the TPM responds and is in IDLE mode, which should be the
- * normal bring up mode.
- *
- */
 tpm_result_t crb_tpm_init(void)
 {
 	tpm_result_t rc = crb_probe();
@@ -195,34 +192,18 @@ tpm_result_t crb_tpm_init(void)
 		return rc;
 	}
 
-	/* Read back control area structure */
-	crb_readControlArea();
-
-	/*
-	 * PTT may have no assigned locality before startup. Request locality here to save
-	 * some precious milliseconds which would be wasted in crb_activate_locality polling
-	 * for LOC_STATE_LOC_ASSIGN bit for the first time.
-	 */
-	if (CONFIG(HAVE_INTEL_PTT)) {
-		uint8_t locality = (read8(CRB_REG(0, CRB_REG_LOC_STATE)) >> 2) & 0x07;
-		write8(CRB_REG(locality, CRB_REG_LOC_CTRL), LOC_CTRL_REQ_ACCESS);
-	}
-
-	/* Good to go. */
-	printk(BIOS_SPEW, "TPM: CRB TPM initialized successfully\n");
-
-	return TPM_SUCCESS;
+	return crb_claim_locality();
 }
 
-static void set_ptt_cmd_resp_buffers(void)
+static void set_ptt_cmd_resp_buffers(const struct crb_buffers *buffers)
 {
-	write32(CRB_REG(cur_loc, CRB_REG_CMD_ADDR + 4), 0);
-	write32(CRB_REG(cur_loc, CRB_REG_CMD_ADDR),
-		(uintptr_t)CRB_REG(cur_loc, CRB_REG_DATA_BUFF));
-	write32(CRB_REG(cur_loc, CRB_REG_CMD_SIZE), control_area.command_size);
-	write64(CRB_REG(cur_loc, CRB_REG_RESP_ADDR),
-		(uintptr_t)CRB_REG(cur_loc, CRB_REG_DATA_BUFF));
-	write32(CRB_REG(cur_loc, CRB_REG_RESP_SIZE), control_area.response_size);
+	uint64_t command = (uintptr_t)buffers->command;
+
+	write32(CRB_REG(CRB_REG_CMD_ADDR_HIGH), command >> 32);
+	write32(CRB_REG(CRB_REG_CMD_ADDR_LOW), command);
+	write32(CRB_REG(CRB_REG_CMD_SIZE), buffers->command_size);
+	write64(CRB_REG(CRB_REG_RESP_ADDR), (uintptr_t)buffers->response);
+	write32(CRB_REG(CRB_REG_RESP_SIZE), buffers->response_size);
 }
 
 /*
@@ -231,35 +212,39 @@ static void set_ptt_cmd_resp_buffers(void)
 size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
 			       void *tpm2_response, size_t max_response)
 {
+	struct crb_buffers buffers;
+	struct tpm_header header;
+	const uint8_t *command = tpm2_command;
+	uint8_t *response = tpm2_response;
 	tpm_result_t rc;
 
-	if (command_size > control_area.command_size) {
+	if (crb_claim_locality() || !crb_read_buffers(&buffers))
+		return 0;
+
+	if (command_size > buffers.command_size) {
 		printk(BIOS_ERR, "TPM: Command size is too big.\n");
-		return -1;
+		return 0;
 	}
 
-	if (control_area.response_size < max_response) {
-		printk(BIOS_ERR, "TPM: Response size could be too big.\n");
-		return -1;
+	if (buffers.response_size < sizeof(header) || max_response < sizeof(header)) {
+		printk(BIOS_ERR, "TPM: Response buffer cannot hold a TPM header.\n");
+		return 0;
 	}
 
-	cur_loc = crb_activate_locality();
-
-	// Check if CMD bit is cleared.
-	rc = crb_wait_for_reg32(CRB_REG(0, CRB_REG_START), 250, CRB_REG_START_START, 0x0);
+	rc = crb_wait_for_reg32(CRB_REG(CRB_REG_START), 250, CRB_REG_START_START, 0);
 	if (rc) {
 		printk(BIOS_ERR, "TPM Error (%#x): Cmd Bit not cleared.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	rc = crb_switch_to_ready();
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Can not transition into ready state.\n", rc);
-		return -1;
+		return 0;
 	}
 
-	// Write to Command Buffer
-	memcpy(control_area.command_bfr, tpm2_command, command_size);
+	for (size_t i = 0; i < command_size; i++)
+		write8(buffers.command + i, command[i]);
 
 	/*
 	 * Initialize CRB addresses and sizes for PTT. It seems to be possible
@@ -267,39 +252,43 @@ size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
 	 * This is also what EDK2 TPM CRB drivers do.
 	 */
 	if (CONFIG(HAVE_INTEL_PTT))
-		set_ptt_cmd_resp_buffers();
+		set_ptt_cmd_resp_buffers(&buffers);
 
-	// Write Start Bit
-	write8(CRB_REG(cur_loc, CRB_REG_START), 0x1);
+	write8(CRB_REG(CRB_REG_START), CRB_REG_START_START);
 
 	// Poll for Response
-	rc = crb_wait_for_reg32(CRB_REG(cur_loc, CRB_REG_START), 3500, CRB_REG_START_START, 0);
+	rc = crb_wait_for_reg32(CRB_REG(CRB_REG_START), 3500, CRB_REG_START_START, 0);
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Command Timed out.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	// Check for errors
-	rc = crb_wait_for_reg32(CRB_REG(cur_loc, CRB_REG_STATUS), 200, CRB_REG_STATUS_ERROR, 0);
+	rc = crb_wait_for_reg32(CRB_REG(CRB_REG_STATUS), 200, CRB_REG_STATUS_ERROR, 0);
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Command errored.\n", rc);
-		return -1;
+		return 0;
 	}
 
-	// Get Response Length
-	uint32_t length = be32_to_cpu(read32(control_area.response_bfr + 2));
+	/* Read the response from the reported base, in order and without rereads. */
+	for (size_t i = 0; i < sizeof(header); i++)
+		((uint8_t *)&header)[i] = read8(buffers.response + i);
 
-	/* Response has to have at least 6 bytes */
-	if (length < 6)
-		return 1;
-
-	// Copy Response
-	memcpy(tpm2_response, control_area.response_bfr, length);
+	uint32_t length = be32_to_cpu(header.tpm_size);
+	if (length < sizeof(header) || length > buffers.response_size ||
+	    length > max_response) {
+		printk(BIOS_ERR, "TPM: Invalid CRB response length %u.\n", length);
+		length = 0;
+	} else {
+		memcpy(response, &header, sizeof(header));
+		for (size_t i = sizeof(header); i < length; i++)
+			response[i] = read8(buffers.response + i);
+	}
 
 	rc = crb_switch_to_ready();
 	if (rc) {
 		printk(BIOS_DEBUG, "TPM Error (%#x): Can not transition into ready state again.\n", rc);
-		return -1;
+		return 0;
 	}
 
 	return length;
@@ -313,7 +302,7 @@ size_t crb_tpm_process_command(const void *tpm2_command, size_t command_size,
  */
 void crb_tpm_get_info(struct crb_tpm_info *crb_tpm_info)
 {
-	uint64_t interfaceReg = read64(CRB_REG(cur_loc, CRB_REG_INTF_ID));
+	uint64_t interfaceReg = read64(CRB_REG(CRB_REG_INTF_ID));
 
 	crb_tpm_info->vendor_id = (interfaceReg >> 48) & 0xFFFF;
 	crb_tpm_info->device_id = (interfaceReg >> 32) & 0xFFFF;
@@ -330,7 +319,7 @@ void crb_tpm_get_info(struct crb_tpm_info *crb_tpm_info)
  */
 bool crb_tpm_is_active(void)
 {
-	uint64_t tpmStatus = read64(CRB_REG(0, CRB_REG_INTF_ID));
+	uint64_t tpmStatus = read64(CRB_REG(CRB_REG_INTF_ID));
 	printk(BIOS_SPEW, "Interface ID Reg. %llx\n", tpmStatus);
 
 	if ((tpmStatus & CRB_INTF_REG_CAP_CRB) == 0) {
