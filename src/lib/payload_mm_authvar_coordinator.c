@@ -321,7 +321,14 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 		if (set_plan.kind != PAYLOAD_MM_AUTHVAR_SET_AUTH2)
 			return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
 	}
-	if (!payload_mm_authvar_coordinator_source_modes(index,
+	if (binding->firmware_modes) {
+		derived_modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT |
+			PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+		in_custom_mode = false;
+		if (coordinator->confirmed_operation || coordinator->trusted_physical_presence ||
+		    binding->source_volatile_modes != derived_modes)
+			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
+	} else if (!payload_mm_authvar_coordinator_source_modes(index,
 		binding->at_runtime, true, binding->source_volatile_modes,
 		&derived_modes) || derived_modes != binding->source_volatile_modes ||
 	    !custom_mode(index, &in_custom_mode)) {
@@ -417,6 +424,7 @@ uint64_t payload_mm_authvar_coordinator_prepare(
 				PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT,
 			.vendor_keys = binding->source_volatile_modes &
 				PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS,
+			.firmware_modes = binding->firmware_modes,
 		},
 	};
 	status = payload_mm_authvar_bundle_plan(&bundle_snapshot, &bundle);

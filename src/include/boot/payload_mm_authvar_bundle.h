@@ -25,6 +25,7 @@ struct payload_mm_authvar_bundle_facts {
 	bool setup_mode;
 	bool secure_boot;
 	bool vendor_keys;
+	bool firmware_modes;
 };
 
 struct payload_mm_authvar_bundle_snapshot {

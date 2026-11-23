@@ -15,7 +15,6 @@ struct ass_smm_owner {
 	struct ass_native_store store;
 	struct authvar_policy policy;
 	struct authvar_owner *owner;
-	const struct authvar_fixed_policy *fixed;
 	enum ass_mm_phase phase;
 	struct ass_capsule_transaction capsule;
 	_Alignas(16) uint8_t message[EFI_VARIABLE_SERVICE_MESSAGE_CAPACITY];
@@ -49,7 +48,6 @@ uint64_t ass_native_smm_open(void *arena, size_t arena_size,
 		*restart_required = true;
 		return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 	}
-	service->fixed = fixed;
 	service->phase = ASS_MM_WAIT_END_OF_DXE;
 	service->owner = memory.owner;
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
@@ -62,7 +60,7 @@ uint32_t ass_native_smm_communicate(void *arena, void *mailbox, size_t mailbox_s
 
 	if (!service || !service->owner)
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
-	return ass_native_mailbox_dispatch(service->owner, &service->policy, service->fixed,
+	return ass_native_mailbox_dispatch(service->owner, &service->policy, service->owner->fixed,
 		&service->phase, capsule, mailbox, mailbox_size, service->message,
 		sizeof(service->message));
 }
@@ -97,7 +95,7 @@ bool ass_native_smm_resume(void *arena, size_t arena_size,
 	if (!ass_native_store_resume(&service->store, service->owner, region,
 	    memory.scratch, write_enabled))
 		return false;
-	service->fixed = fixed;
+	service->owner->fixed = fixed;
 	return true;
 }
 
@@ -119,7 +117,7 @@ bool ass_native_smm_variable(void *arena, void *message, size_t size)
 	struct ass_smm_owner *service = arena;
 
 	return service && service->owner &&
-		ass_native_variable_dispatch(service->owner, &service->policy, service->fixed,
+		ass_native_variable_dispatch(service->owner, &service->policy, service->owner->fixed,
 			message, size);
 }
 

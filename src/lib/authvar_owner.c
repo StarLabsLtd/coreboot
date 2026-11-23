@@ -105,54 +105,6 @@ static uint64_t image_policy_snapshot_values(
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
-uint64_t authvar_owner_image_snapshot(struct authvar_owner *local,
-	void *output, size_t capacity, uint32_t *size)
-{
-	struct payload_mm_authvar_view view;
-	struct payload_mm_authvar_view_value values[AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS];
-	uint32_t header[AUTHVAR_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE / sizeof(uint32_t)] = { 0 };
-	size_t total;
-	uint64_t status;
-
-	if (!local || !output || !size)
-		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
-	if (local->runtime)
-		return PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
-	status = authvar_owner_view(local, &view);
-	if (status_error(status))
-		return status;
-	status = image_policy_snapshot_values(view.persistent,
-		view.volatile_modes, values, &total);
-	if (status_error(status))
-		return status;
-	*size = (uint32_t)total;
-	if (total > capacity)
-		return PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
-
-	header[0] = AUTHVAR_IMAGE_POLICY_SNAPSHOT_REVISION;
-	header[1] = AUTHVAR_IMAGE_POLICY_SNAPSHOT_HEADER_SIZE;
-	header[2] = (uint32_t)total;
-	header[3] = AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS;
-	header[4] = view.volatile_modes;
-	header[5] = 6U;
-	for (size_t i = 0; i < AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS; i++) {
-		if (!values[i].data_size)
-			continue;
-		header[8U + 4U * i] = 1U;
-		header[9U + 4U * i] = values[i].attributes;
-		header[10U + 4U * i] = values[i].data_size;
-	}
-	memset(output, 0, total);
-	memcpy(output, header, sizeof(header));
-	size_t offset = sizeof(header);
-	for (size_t i = 0; i < AUTHVAR_IMAGE_POLICY_SNAPSHOT_KEYS; i++) {
-		if (!values[i].data_size)
-			continue;
-		memcpy((uint8_t *)output + offset, values[i].data, values[i].data_size);
-		offset += ((size_t)values[i].data_size + 7U) & ~(size_t)7U;
-	}
-	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
-}
 
 /* Backing storage travels with the owner allocation across virtual mapping. */
 static uint8_t *local_buffer(struct authvar_owner *local, enum local_buffer buffer)
@@ -233,7 +185,9 @@ uint64_t authvar_owner_view(struct authvar_owner *local,
 	uint8_t modes = local->modes;
 
 	/* Retain enrolled keys without advertising an omitted image verifier. */
-	if (!local->secure_boot)
+	if (local->fixed_keys)
+		modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT | PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	else if (!local->secure_boot)
 		modes &= ~PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT;
 	return payload_mm_authvar_view_init(view, &local->index, modes,
 		local->runtime) == CB_SUCCESS ? PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS :
@@ -288,11 +242,6 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	const struct authvar_fixed_policy *fixed, struct authvar_owner_initialization *report)
 {
 	struct local_workspace workspace = workspace_layout(size);
-#if CONFIG(ASS_FIXED_KEYS)
-	const uint8_t *fixed_update = NULL;
-	size_t fixed_update_size = 0;
-	uint64_t fixed_status;
-#endif
 
 	if (report)
 		*report = (struct authvar_owner_initialization) { 0 };
@@ -312,6 +261,7 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	memset(local, 0, sizeof(*local));
 	local->secure_boot = secure_boot;
 	local->fixed_keys = fixed != NULL;
+	local->fixed = fixed;
 	local->storage_offset = (uintptr_t)storage - (uintptr_t)local;
 	local->entries_offset = local->storage_offset + workspace.entries_offset;
 	local->copies_offset = local->storage_offset + workspace.copies_offset;
@@ -339,30 +289,21 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 	local->index.entry_capacity = local->limits.maximum_records;
 	if (payload_mm_authvar_store_scan(&local->index, local_buffer(local, LOCAL_NV_FIRST), size,
 		&local->limits) != CB_SUCCESS ||
-	    !payload_mm_authvar_coordinator_source_modes(&local->index, false,
-		false, 0, &local->modes))
+	    (!fixed && !payload_mm_authvar_coordinator_source_modes(&local->index, false,
+		false, 0, &local->modes)))
 		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
-	const bool restore_enable =
+	if (fixed)
+		local->modes = PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT | PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS;
+	const bool restore_enable = !fixed &&
 		!(local->modes & PAYLOAD_MM_AUTHVAR_MODE_SETUP) &&
 		!payload_mm_authvar_mode_find(&local->index,
 			PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE);
 #if CONFIG(ASS_FIXED_KEYS)
 	if (fixed) {
-		if (restore_enable ||
-		    (local->modes & (PAYLOAD_MM_AUTHVAR_MODE_SETUP |
-		    PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT)) != PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT)
-			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-		uint8_t fixed_custom_mode = 0;
-		if (payload_mm_authvar_mode_find(&local->index,
-		    PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE) &&
-		    (!payload_mm_authvar_mode_value(&local->index,
-		    PAYLOAD_MM_AUTHVAR_MODE_KEY_CUSTOM_MODE, 0x03U, &fixed_custom_mode) ||
-		    fixed_custom_mode != 0U))
-			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-		fixed_status = authvar_fixed_prepare_dbx_update(&local->index, fixed,
-			&fixed_update, &fixed_update_size);
-		if (status_error(fixed_status))
-			return fixed_status;
+		uint64_t status = authvar_fixed_validate(&local->index, fixed);
+
+		if (status_error(status))
+			return status;
 	}
 #endif
 	for (size_t i = 0; i < local->index.entry_count; i++)
@@ -425,31 +366,6 @@ uint64_t authvar_owner_init(struct authvar_owner *local,
 			return status;
 		}
 	}
-#if CONFIG(ASS_FIXED_KEYS)
-	if (fixed) {
-		if (fixed_update) {
-			static const uint8_t dbx_guid[16] = {
-				0xcb, 0xb2, 0x19, 0xd7, 0x3a, 0x3d, 0x96, 0x45,
-				0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f,
-			};
-			static const uint16_t dbx[] = { 'd', 'b', 'x', 0 };
-
-			fixed_status = authvar_owner_set(local, dbx, dbx_guid, 0x67U,
-				fixed_update_size, fixed_update, false, fixed, NULL);
-			if (report) {
-				report->dbx_update_size = fixed_update_size;
-				report->dbx_update_status = fixed_status;
-			}
-		}
-		if (!status_error(fixed_status))
-			fixed_status = authvar_fixed_validate(&local->index, fixed);
-		if (status_error(fixed_status)) {
-			local->failed = true;
-			return fixed_status;
-		}
-		local->restart_required = fixed_update != NULL;
-	}
-#endif
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
@@ -474,8 +390,8 @@ uint64_t authvar_owner_refresh(struct authvar_owner *local, const void *store,
 	if (payload_mm_authvar_store_scan(&next,
 	    local_buffer(local, LOCAL_NV_FIRST + bank), size, &local->limits) != CB_SUCCESS ||
 	    next.dirty_tail_offset ||
-	    !payload_mm_authvar_coordinator_source_modes(&next, true, true,
-	    local->modes, &modes) || modes != local->modes)
+	    (!fixed && (!payload_mm_authvar_coordinator_source_modes(&next, true, true,
+	    local->modes, &modes) || modes != local->modes)))
 		goto fail;
 
 	for (size_t i = 0; i < next.entry_count; i++)
@@ -512,6 +428,45 @@ uint64_t authvar_owner_get(struct authvar_owner *local,
 	status = authvar_owner_view(local, &view);
 	if (status_error(status))
 		return status;
+#if CONFIG(ASS_FIXED_KEYS)
+	if (local->fixed) {
+		static const uint8_t enabled = 1, disabled = 0;
+		struct payload_mm_authvar_span database =
+			authvar_fixed_database(local->fixed, guid, name, size);
+		bool preference = false;
+
+		if (!database.data &&
+		    authvar_fixed_classify(guid, name, size) == AUTHVAR_FIXED_LOCKED) {
+			if (size == sizeof(u"SecureBootEnable") &&
+			    !memcmp(name, u"SecureBootEnable", size))
+				database = (struct payload_mm_authvar_span) { &enabled, 1 };
+			else if (size == sizeof(u"CustomMode") &&
+				 !memcmp(name, u"CustomMode", size))
+				database = (struct payload_mm_authvar_span) { &disabled, 1 };
+			else if (size == sizeof(u"VendorKeysNv") &&
+				 !memcmp(name, u"VendorKeysNv", size))
+				database = (struct payload_mm_authvar_span) { &enabled, 1 };
+			else
+				return PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+			preference = size != sizeof(u"VendorKeysNv");
+		}
+		if (database.data) {
+			const bool runtime = size == sizeof(u"dbx") &&
+				!memcmp(name, u"dbx", size);
+			const size_t capacity = *data_size;
+
+			if (local->runtime && !runtime)
+				return PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND;
+			*data_size = database.size;
+			if (attributes)
+				*attributes = preference ? 0x03U : runtime ? 0x27U : 0x23U;
+			if (capacity < database.size)
+				return PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
+			memcpy(data, database.data, database.size);
+			return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		}
+	}
+#endif
 	status = is_certdbv(guid, name, size) ? PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND :
 		payload_mm_authvar_view_get(&view, (const void *)guid, name, size,
 		*data_size > UINT32_MAX ? UINT32_MAX : (uint32_t)*data_size, &value);
@@ -552,6 +507,13 @@ uint64_t authvar_owner_next(struct authvar_owner *local,
 	status = authvar_owner_view(local, &view);
 	if (status_error(status))
 		return status;
+#if CONFIG(ASS_FIXED_KEYS)
+	if (local->fixed && *name &&
+	    authvar_fixed_classify(guid, name, size) != AUTHVAR_FIXED_ORDINARY) {
+		status = authvar_fixed_next(guid, name, size, local->runtime, &value);
+		goto copy_next;
+	}
+#endif
 	bool volatile_cursor = payload_mm_authvar_store_find(&local->volatile_index,
 		(const void *)guid, name, size) != NULL;
 	status = volatile_cursor ? PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND :
@@ -559,18 +521,19 @@ uint64_t authvar_owner_next(struct authvar_owner *local,
 			(uint8_t[16]) { 0 }, *name ? name : NULL, *name ? size : 0,
 			UINT32_MAX, &value);
 	/* The real RAM certdbv belongs to the volatile suffix, not the native view. */
-	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
-	    is_certdbv(value.vendor_guid, value.name, value.name_size))
+	while (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS &&
+	       (is_certdbv(value.vendor_guid, value.name, value.name_size) ||
+		(CONFIG(ASS_FIXED_KEYS) && local->fixed &&
+		 authvar_fixed_classify(value.vendor_guid, value.name, value.name_size) !=
+		 AUTHVAR_FIXED_ORDINARY)))
 		status = payload_mm_authvar_view_get_next(&view, value.vendor_guid,
 			value.name, value.name_size, UINT32_MAX, &value);
-	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && value.name_size > *name_size)
-		status = PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
 	if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
 		struct payload_mm_authvar_next_result result;
 		status = payload_mm_authvar_store_get_next(&local->volatile_index,
 			volatile_cursor ? (const void *)guid : (uint8_t[16]) { 0 },
 			volatile_cursor ? name : NULL, volatile_cursor ? size : 0,
-			*name_size > UINT32_MAX ? UINT32_MAX : (uint32_t)*name_size,
+			UINT32_MAX,
 			local->runtime, &result);
 		value.name_size = result.required_name_size;
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
@@ -578,6 +541,13 @@ uint64_t authvar_owner_next(struct authvar_owner *local,
 			value.vendor_guid = result.entry->vendor_guid;
 		}
 	}
+#if CONFIG(ASS_FIXED_KEYS)
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND && local->fixed)
+		status = authvar_fixed_next(NULL, NULL, 0, local->runtime, &value);
+copy_next:
+#endif
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS && value.name_size > *name_size)
+		status = PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL;
 	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS || status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)
 		*name_size = value.name_size;
 	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
@@ -587,37 +557,6 @@ uint64_t authvar_owner_next(struct authvar_owner *local,
 	return status;
 }
 
-uint64_t authvar_owner_classify(struct authvar_owner *local,
-	const uint16_t *name, const void *guid,
-	struct payload_mm_authvar_key_classification *classification)
-{
-	struct payload_mm_authvar_view view;
-	size_t size = name_bytes(name, PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE);
-	uint64_t status;
-
-	if (!guid || !size || !*name || !classification)
-		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
-	status = authvar_owner_view(local, &view);
-	if (status_error(status))
-		return status;
-	status = is_certdbv(guid, name, size) ? PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND :
-		payload_mm_authvar_view_classify(&view, (const void *)guid, name, size,
-		classification);
-	if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
-		const struct payload_mm_authvar_store_entry *entry =
-			payload_mm_authvar_store_find(&local->volatile_index, (const void *)guid, name, size);
-		if (entry) {
-			*classification = (struct payload_mm_authvar_key_classification) {
-				.kind = PAYLOAD_MM_AUTHVAR_KEY_VOLATILE_PINNED,
-				.attributes = entry->attributes,
-				.flags = !local->runtime || (entry->attributes &
-					PAYLOAD_MM_AUTHVAR_ATTR_RUNTIME_ACCESS) ? PAYLOAD_MM_AUTHVAR_KEY_VISIBLE : 0,
-			};
-			return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
-		}
-	}
-	return status;
-}
 
 static void copy_reclaimed_records(struct authvar_owner *local, uint8_t *candidate,
 	const struct payload_mm_authvar_reclaim_plan *reclaim)
@@ -947,39 +886,27 @@ static uint64_t publish_candidate(struct authvar_owner *local, uint8_t bank, uin
 	if (payload_mm_authvar_store_scan(&next, local_buffer(local, LOCAL_NV_FIRST + bank),
 		local->index.store_size,
 		&local->limits) != CB_SUCCESS ||
-	    !payload_mm_authvar_coordinator_source_modes(&next, local->runtime,
-		true, modes, &modes)) {
+	    (fixed ? modes != local->modes :
+	     !payload_mm_authvar_coordinator_source_modes(&next, local->runtime,
+		true, modes, &modes))) {
 		local->failed = true;
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
-	status = image_policy_snapshot_values(&local->index, local->modes,
-		values, &current_snapshot_size);
-	if (status_error(status))
-		return status;
-	status = image_policy_snapshot_values(&next, modes, values,
-		&candidate_snapshot_size);
-	if (status_error(status))
-		return status;
-	if (candidate_snapshot_size > local->policy.maximum_data_size &&
-	    candidate_snapshot_size > current_snapshot_size)
-		return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
-#if CONFIG(ASS_FIXED_KEYS)
-	if (local->fixed_keys) {
-		if (!fixed)
-			return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
-		if ((modes & (PAYLOAD_MM_AUTHVAR_MODE_SETUP |
-		    PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT)) != PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT)
-			return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-		if (policy_changed) {
-			uint64_t fixed_status = authvar_fixed_validate(&next, fixed);
-			if (status_error(fixed_status))
-				return fixed_status;
-		}
+	if (!fixed) {
+		status = image_policy_snapshot_values(&local->index, local->modes,
+			values, &current_snapshot_size);
+		if (status_error(status))
+			return status;
+		status = image_policy_snapshot_values(&next, modes, values,
+			&candidate_snapshot_size);
+		if (status_error(status))
+			return status;
+		if (candidate_snapshot_size > local->policy.maximum_data_size &&
+		    candidate_snapshot_size > current_snapshot_size)
+			return PAYLOAD_MM_AUTHVAR_STATUS_OUT_OF_RESOURCES;
 	}
-#else
 	(void)policy_changed;
 	(void)fixed;
-#endif
 	/* Neither the new value nor mode/certdb intents become visible before durability. */
 	status = local->commit(local->commit_context,
 		local_buffer(local, LOCAL_NV_FIRST + bank), next.store_size,
@@ -1099,6 +1026,7 @@ uint64_t authvar_owner_set(struct authvar_owner *local,
 		struct payload_mm_authvar_candidate_binding binding = {
 			.generation = local->generation, .token = 1,
 			.source_volatile_modes = local->modes, .at_runtime = local->runtime,
+			.firmware_modes = local->fixed_keys,
 		};
 		struct payload_mm_authvar_coordinator_policy coordinator = {
 			.request = &request, .owner = &local->crypto,
@@ -1128,13 +1056,8 @@ uint64_t authvar_owner_set(struct authvar_owner *local,
 		if (status_error(status) || !changed)
 			return status;
 	}
-	bool policy_changed = false;
-#if CONFIG(ASS_FIXED_KEYS)
-	policy_changed = local->fixed_keys &&
-		authvar_fixed_classify(guid, name, request.name_size) == AUTHVAR_FIXED_REVOCATIONS;
-#endif
 	return publish_candidate(local, bank, modes, append.step_count ? &append : NULL,
-		policy_changed, fixed);
+		false, fixed);
 }
 
 uint64_t authvar_owner_delete_pk(struct authvar_owner *local)

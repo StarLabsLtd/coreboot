@@ -558,11 +558,10 @@ static int service_ready(void)
 			return -1;
 	} else {
 		bool restart;
-		const bool secure_boot = !CONFIG(PAYLOAD_EDIIE) || CONFIG(EDIIE_SECURE_BOOT);
 
 		if (ass_native_smm_open(owner_arena, arena_size - metadata,
 		    &variable_store_device, service->store_block_size, 0x10000,
-		    fast_spi_wpd_status, secure_boot, fixed, &restart))
+		    fast_spi_wpd_status, true, fixed, &restart))
 			return -1;
 		if (restart)
 			return EFI_VARIABLE_SERVICE_REBOOT_REQUIRED;

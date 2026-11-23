@@ -29,8 +29,7 @@ config ASS_FIXED_KEYS
 	bool
 	depends on ASS_NATIVE
 	help
-	  Serve PK, KEK and db from firmware while keeping authenticated dbx
-	  updates in persistent storage.
+	  Serve PK, KEK, db and dbx from firmware without variable-store updates.
 
 if !ASS_NATIVE
 

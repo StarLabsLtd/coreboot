@@ -657,6 +657,9 @@ static bool projection_matches(
 	if (!payload_mm_authvar_candidate_projection_valid(source, built, binding,
 		bundle->volatile_modes))
 		return false;
+	if (binding->firmware_modes)
+		return !enable && !vendor_mutation && target &&
+			private_key(target->vendor_guid, target->name, target->name_size);
 	if (source_enable && !payload_mm_authvar_mode_enabled(source,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE, nv_bs,
 		&source_enable_enabled))
@@ -728,6 +731,11 @@ bool payload_mm_authvar_candidate_projection_valid(
 	    binding->source_volatile_modes & ~mode_mask ||
 	    volatile_modes & ~mode_mask)
 		return false;
+	if (binding->firmware_modes)
+		return binding->firmware_modes == 1U &&
+			binding->source_volatile_modes ==
+				(PAYLOAD_MM_AUTHVAR_MODE_SECURE_BOOT | PAYLOAD_MM_AUTHVAR_MODE_VENDOR_KEYS) &&
+			volatile_modes == binding->source_volatile_modes;
 	source_pk = payload_mm_authvar_store_find(source, global_guid, pk_name,
 		sizeof(pk_name));
 	candidate_pk = payload_mm_authvar_store_find(candidate, global_guid, pk_name,

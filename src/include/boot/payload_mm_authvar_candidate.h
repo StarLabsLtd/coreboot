@@ -11,7 +11,8 @@ struct payload_mm_authvar_candidate_binding {
 	u64 token;
 	u8 source_volatile_modes;
 	u8 at_runtime;
-	u8 reserved[6];
+	u8 firmware_modes;
+	u8 reserved[5];
 };
 
 /*

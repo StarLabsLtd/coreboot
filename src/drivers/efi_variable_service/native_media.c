@@ -143,13 +143,6 @@ static uint64_t commit_native_store(void *context, const void *data, size_t size
 	return authvar_media_commit(&store->media, &store->io, data, size, append, record);
 }
 
-#if CONFIG(ASS_FIXED_KEYS)
-static uint64_t reject_seed_write(void *context, const void *data, size_t size,
-	const struct payload_mm_authvar_write_plan *append, const void *record)
-{
-	return PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-}
-#endif
 
 bool ass_native_store_resume(struct ass_native_store *store, struct authvar_owner *owner,
 	const struct region_device *region, void *scratch, bool (*write_enabled)(void))
@@ -171,37 +164,17 @@ uint64_t ass_native_store_open(struct ass_native_store *store, struct authvar_ow
 	    !ass_native_media_bind(&store->binding, &store->io, region, scratch,
 		store->media.block_size, write_enabled))
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
-	uint64_t status = authvar_media_initialize(&store->media, &store->io);
-	if (status)
-		return status;
 #if CONFIG(ASS_FIXED_KEYS)
 	if (fixed) {
-		struct authvar_media *media = &store->media;
-		uint8_t *candidate = media->candidate + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+		uint64_t status = authvar_fixed_validate(NULL, fixed);
 
-		if (payload_mm_authvar_default_store_compose(media->image, media->candidate,
-		    media->image_size, media->block_size) ==
-		    PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID)
-			return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
-		/* Never turn an existing mutable installation into a factory store. */
-		if (media->plan.fv_header_size == PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE &&
-		    !memcmp(candidate, media->store, media->store_size)) {
-			status = authvar_fixed_seed(fixed, candidate, media->store_size,
-				payload_mm_authvar_default_store_records_end());
-			if (status)
-				return status;
-			status = authvar_owner_init(owner, candidate, media->store_size,
-				maximum_data_size, reject_seed_write, NULL, workspace,
-				workspace_size, secure_boot, fixed, NULL);
-			if (status || owner->restart_required)
-				return status ? status : PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION;
-			status = authvar_media_commit(media, &store->io, candidate,
-				media->store_size, NULL, NULL);
-			if (status)
-				return status;
-		}
+		if (status)
+			return status;
 	}
 #endif
+	uint64_t status = authvar_media_initialize(&store->media, &store->io, fixed != NULL);
+	if (status)
+		return status;
 	return authvar_owner_init(owner, store->media.store, store->media.store_size,
 		maximum_data_size, commit_native_store, store, workspace, workspace_size,
 		secure_boot, fixed, NULL);

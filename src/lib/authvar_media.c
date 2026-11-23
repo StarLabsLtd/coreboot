@@ -433,7 +433,7 @@ fail:
 }
 
 uint64_t authvar_media_initialize(struct authvar_media *media,
-	const struct authvar_media_io *io)
+	const struct authvar_media_io *io, bool fixed)
 {
 	struct payload_mm_authvar_fv_geometry geometry;
 	enum payload_mm_authvar_default_store_source source;
@@ -452,7 +452,7 @@ uint64_t authvar_media_initialize(struct authvar_media *media,
 	if (error(status))
 		return status;
 	source = payload_mm_authvar_default_store_compose(media->image,
-		media->candidate, media->image_size, media->block_size);
+		media->candidate, media->image_size, media->block_size, fixed);
 	if (source == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID)
 		return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
 	if (source == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED ||
@@ -474,10 +474,9 @@ uint64_t authvar_media_initialize(struct authvar_media *media,
 	for (size_t i = 28U; i < media->store_size; i++)
 		empty &= media->store[i] == 0xffU;
 	if (empty) {
-		source = payload_mm_authvar_default_store_compose(media->image,
-			media->candidate, media->image_size, media->block_size);
-		if (source == PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_INVALID ||
-		    media->plan.fv_header_size != PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE)
+		if (media->plan.fv_header_size != PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE ||
+		    !payload_mm_authvar_default_store_format_empty(media->candidate,
+			media->image_size, media->block_size, fixed))
 			return PAYLOAD_MM_AUTHVAR_STATUS_COMPROMISED_DATA;
 		return authvar_media_commit(media, io,
 			media->candidate + media->plan.fv_header_size,

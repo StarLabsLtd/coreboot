@@ -555,19 +555,26 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	pk = payload_mm_authvar_mode_find(snapshot->index,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_PK);
-	if (snapshot->facts.setup_mode == (pk != NULL))
+	if (snapshot->facts.firmware_modes &&
+	    (decision->target != PAYLOAD_MM_AUTHVAR_TARGET_PRIVATE ||
+	     decision->intents & mode_intents || snapshot->facts.setup_mode ||
+	     !snapshot->facts.secure_boot || !snapshot->facts.vendor_keys))
+		return PAYLOAD_MM_VERIFY_REJECTED;
+	if (!snapshot->facts.firmware_modes &&
+	    snapshot->facts.setup_mode == (pk != NULL))
 		return PAYLOAD_MM_VERIFY_CHANGED;
 	secure_boot_enable = payload_mm_authvar_mode_find(snapshot->index,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE);
-	if (!payload_mm_authvar_mode_value(snapshot->index,
+	if (!snapshot->facts.firmware_modes &&
+	    (!payload_mm_authvar_mode_value(snapshot->index,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_VENDOR_KEYS_NV,
 		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
 		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_BOOTSERVICE_ACCESS |
 		PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH,
 		&vendor_keys_nv_data) ||
-	    snapshot->facts.vendor_keys != !!vendor_keys_nv_data)
+	     snapshot->facts.vendor_keys != !!vendor_keys_nv_data))
 		return PAYLOAD_MM_VERIFY_CHANGED;
-	if (secure_boot_enable &&
+	if (!snapshot->facts.firmware_modes && secure_boot_enable &&
 	    !payload_mm_authvar_mode_enabled(snapshot->index,
 		PAYLOAD_MM_AUTHVAR_MODE_KEY_SECURE_BOOT_ENABLE,
 		(PAYLOAD_MM_AUTHVAR_ATTRIBUTE_NON_VOLATILE |
@@ -629,7 +636,7 @@ enum payload_mm_verify_status payload_mm_authvar_bundle_plan(
 	    !payload_mm_authvar_store_find(snapshot->index, request->vendor_guid,
 		request->name, request->name_size))
 		return PAYLOAD_MM_VERIFY_CHANGED;
-	final_pk = pk != NULL;
+	final_pk = snapshot->facts.firmware_modes || pk != NULL;
 	if (decision->target == PAYLOAD_MM_AUTHVAR_TARGET_PK)
 		final_pk = decision->mutation.kind == PAYLOAD_MM_AUTHVAR_MUTATION_WRITE;
 	if (!!(decision->intents & PAYLOAD_MM_AUTHVAR_INTENT_ENTER_USER_MODE) !=

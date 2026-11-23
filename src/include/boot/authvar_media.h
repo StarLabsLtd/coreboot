@@ -35,7 +35,7 @@ struct authvar_media_io {
 
 /* I/O callbacks are borrowed for the call, never retained across address changes. */
 uint64_t authvar_media_initialize(struct authvar_media *media,
-	const struct authvar_media_io *io);
+	const struct authvar_media_io *io, bool fixed);
 uint64_t authvar_media_commit(struct authvar_media *media,
 	const struct authvar_media_io *io, const void *store, size_t size,
 	const struct payload_mm_authvar_write_plan *append, const void *record);

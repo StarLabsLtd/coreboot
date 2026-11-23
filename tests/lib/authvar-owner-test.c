@@ -78,7 +78,7 @@ static void signed_pk_delete(void **unused)
 
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	assert_true(payload_mm_authvar_record_encode(&platform_key, &span, 1,
 		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
 		store + offset, store_size - offset, &length));
@@ -142,7 +142,7 @@ static void restore_deleted_secure_boot_preference(void **unused)
 
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	assert_true(payload_mm_authvar_record_encode(&platform_key, &span, 1,
 		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_TRUSTED_ZERO,
 		store + offset, store_size - offset, &length));
@@ -227,7 +227,7 @@ static void check_uefi_properties_at_runtime(void **unused)
 
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
 	assert_int_equal(authvar_owner_ready(&service.owner, NULL), 0);
@@ -306,7 +306,7 @@ static void factory_defaults_are_sealed_at_handoff(void **unused)
 
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
 	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
@@ -370,7 +370,7 @@ static void admit_existing_store(void **unused)
 
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 1024,
 		commit, &media, service.workspace, sizeof(service.workspace), true,
 		NULL, NULL), PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS);
@@ -1207,7 +1207,7 @@ static void signed_capsule_source_is_rechecked(void **unused)
 	};
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	struct authvar_owner *owner = &service.owner;
 	assert_int_equal(authvar_owner_init(owner, media.store, media.size, 1024,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
@@ -1667,58 +1667,52 @@ static void fixed_factory_store_opens_and_reopens(void **unused)
 	assert_int_equal(read_le32(message->data + 4), 0x8000000eU);
 	message = fixed_mailbox_call(arena, shared, fixed_guid, 5, 12 + 64 * 1024);
 	assert_int_equal(read_le32(message->data + 4), 0);
-	assert_true(read_le32(message->data + 8) >= fixed->dbx_append.size);
+	assert_int_equal(read_le32(message->data + 8), fixed->factory_dbx.size);
 }
 
-static void fixed_dbx_update_requires_restart(void **unused)
+static void fixed_dbx_is_not_persisted(void **unused)
 {
 	static _Alignas(16) uint8_t arena[4 * 1024 * 1024];
 	static struct test_nor nor;
-	static uint8_t before[LITE_NOR_SIZE], corrupted[64 * 1024];
+	static uint8_t before[LITE_NOR_SIZE];
 	const struct authvar_fixed_policy *fixed = ass_native_fixed_policy();
-	struct payload_mm_authvar_auth2_view baseline;
-	struct authvar_fixed_policy prior;
 	bool restart, allowed;
 
 	assert_non_null(fixed);
-	assert_int_equal(payload_mm_authvar_auth2_parse(fixed->dbx_baseline.data,
-		fixed->dbx_baseline.size, &baseline), PAYLOAD_MM_AUTHVAR_FORMAT_OK);
-	assert_true(baseline.payload.size >= 28);
-	const size_t first_list = read_le32(baseline.payload.data + 16);
-	assert_true(first_list >= 28 && first_list <= baseline.payload.size);
-	/* Model a valid older store: the first list adds no new revocations. */
-	prior = *fixed;
-	prior.dbx_append = (struct payload_mm_authvar_span) {
-		baseline.payload.data, first_list,
-	};
 	memset(nor.bytes, 0xff, sizeof(nor.bytes));
 	region_device_init(&nor.region, &nor_ops, 0, sizeof(nor.bytes));
 	allow_program = true;
 	assert_int_equal(ass_native_smm_open(arena, sizeof(arena), &nor.region, NOR_BLOCK,
-		0x10000, nor_write_enabled, true, &prior, &restart), 0);
-	assert_false(restart);
+		0x10000, nor_write_enabled, true, NULL, &restart), 0);
 	memcpy(before, nor.bytes, sizeof(before));
-	assert_true(fixed->dbx_update.size && fixed->dbx_update.size <= sizeof(corrupted));
-	memcpy(corrupted, fixed->dbx_update.data, fixed->dbx_update.size);
-	corrupted[fixed->dbx_update.size - 1] ^= 1;
-	struct authvar_fixed_policy tampered = *fixed;
-	tampered.dbx_update.data = corrupted;
-	assert_int_equal(ass_native_smm_open(arena, sizeof(arena), &nor.region, NOR_BLOCK,
-		0x10000, nor_write_enabled, true, &tampered, &restart),
-		PAYLOAD_MM_AUTHVAR_STATUS_SECURITY_VIOLATION);
-	assert_false(restart);
-	assert_false(ass_native_smm_boot_access(arena, &allowed));
-	assert_memory_equal(before, nor.bytes, sizeof(before));
-	assert_int_equal(ass_native_smm_open(arena, sizeof(arena), &nor.region, NOR_BLOCK,
-		0x10000, nor_write_enabled, true, fixed, &restart), 0);
-	assert_true(restart);
-	assert_false(ass_native_smm_boot_access(arena, &allowed));
+
 	allow_program = false;
 	assert_int_equal(ass_native_smm_open(arena, sizeof(arena), &nor.region, NOR_BLOCK,
 		0x10000, nor_write_enabled, true, fixed, &restart), 0);
 	assert_false(restart);
 	assert_true(ass_native_smm_boot_access(arena, &allowed));
 	assert_true(allowed);
+	static const uint16_t name[] = u"dbx";
+	_Alignas(16) uint8_t request[sizeof(struct smm_variable_header32) +
+		sizeof(struct smm_variable_access32) + sizeof(name)] = { 0 };
+	struct smm_variable_header32 *message = (void *)request;
+	struct smm_variable_access32 *access = (void *)message->data;
+
+	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
+	access->guid = (EFI_GUID) {
+		0xd719b2cb, 0x3d3a, 0x4596,
+		{ 0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f },
+	};
+	access->name_size = sizeof(name);
+	memcpy((uint8_t *)access + sizeof(*access), name, sizeof(name));
+	assert_true(ass_native_smm_variable(arena, request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000008U);
+	message->function = SMM_VARIABLE_FUNCTION_GET_VARIABLE;
+	assert_true(ass_native_smm_variable(arena, request, sizeof(request)));
+	assert_int_equal(message->return_status, 0x80000005U);
+	assert_int_equal(access->data_size, fixed->factory_dbx.size);
+	assert_int_equal(access->attributes, 0x27U);
+	assert_memory_equal(before, nor.bytes, sizeof(before));
 }
 #endif
 
@@ -1744,7 +1738,7 @@ static void reopen_orphan_certdb(void **unused)
 	uint32_t encoded;
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
 	assert_int_equal(payload_mm_authvar_certdb_compose(empty, sizeof(empty),
@@ -1828,7 +1822,7 @@ static void setup_replacement_preserves_timestamp(void **unused)
 	};
 	memset(erased, 0xff, sizeof(erased));
 	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
-		sizeof(volume), 4096), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+		sizeof(volume), 4096, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
 	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 2048,
 		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
 	message->function = SMM_VARIABLE_FUNCTION_SET_VARIABLE;
@@ -1894,7 +1888,7 @@ int main(void)
 		cmocka_unit_test(fixed_certificate_asset_requires_canonical_lists),
 #ifdef ASS_FIXED_ASSET_TEST
 		cmocka_unit_test(fixed_factory_store_opens_and_reopens),
-		cmocka_unit_test(fixed_dbx_update_requires_restart),
+		cmocka_unit_test(fixed_dbx_is_not_persisted),
 #endif
 	};
 

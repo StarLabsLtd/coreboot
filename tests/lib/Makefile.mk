@@ -21,10 +21,9 @@ authvar-owner-test-cflags += -Itests/lib/authvar-owner-include \
 	-Isrc/lib -Isrc/lib/payload_mm_crypto -DPAYLOAD_MM_AUTHVAR_CRYPTO \
 	-DMBEDTLS_CONFIG_FILE=\"payload_mm_mbedtls_config.h\" \
 	-DMBEDTLS_TEST_SW_INET_PTON -Wl,--wrap=mbedtls_rsa_parse_pubkey
-ifneq ($(ASS_FIXED_TEST_ASSETS),)
+ifneq ($(ASS_FIXED_TEST_BUILD),)
 authvar-owner-test-srcs += src/drivers/efi_variable_service/native_fixed.c
-authvar-owner-test-cflags += -DASS_FIXED_ASSET_TEST -I$(ASS_FIXED_TEST_BUILD) \
-	-Wl,$(ASS_FIXED_TEST_ASSETS)
+authvar-owner-test-cflags += -DASS_FIXED_ASSET_TEST -I$(ASS_FIXED_TEST_BUILD)
 endif
 authvar-empty-list-test-srcs += tests/lib/authvar-empty-list-test.c
 authvar-empty-list-test-srcs += src/lib/payload_mm_authvar_format.c
