@@ -305,7 +305,8 @@ bool cse_is_me_operational(void)
 bool cse_is_me_state_requested_enabled(void)
 {
 	const unsigned int me_state_default = CONFIG(CSE_DEFAULT_CFR_OPTION_STATE_DISABLED);
-	const unsigned int me_state = get_uint_option("me_state", me_state_default);
+	const unsigned int me_state =
+		get_uint_option_checked("me_state", me_state_default, OPTION_BOOL);
 
 	return me_state == 0;
 }
@@ -328,7 +329,7 @@ bool cse_is_me_enabled(void)
 
 bool cse_get_s0ix_enable_state(bool fallback)
 {
-	const bool enable = get_uint_option("s0ix_enable", fallback);
+	const bool enable = get_uint_option_checked("s0ix_enable", fallback, OPTION_BOOL);
 
 	if (!enable)
 		return false;
@@ -1356,7 +1357,8 @@ void cse_enable_ptt(bool state)
  */
 static bool me_state_change_prepare(void)
 {
-	unsigned int cmos_me_state_counter = get_uint_option("me_state_counter", UINT_MAX);
+	unsigned int cmos_me_state_counter =
+		get_uint_option_checked("me_state_counter", UINT_MAX, OPTION_RANGE(0, UINT_MAX));
 
 	if (cmos_me_state_counter == UINT_MAX)
 		return true;
@@ -1386,7 +1388,7 @@ static bool me_state_change_prepare(void)
 
 static void cse_set_state(struct device *dev)
 {
-	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD))
+	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD) || CONFIG(OPTION_BACKEND_NONE))
 		return;
 
 	/* (CS)ME Disable Command */
@@ -1449,7 +1451,8 @@ static void cse_set_state(struct device *dev)
 	 * Check if the CMOS value "me_state" exists, if it doesn't, then
 	 * don't do anything.
 	 */
-	const unsigned int cmos_me_state = get_uint_option("me_state", UINT_MAX);
+	const unsigned int cmos_me_state =
+		get_uint_option_checked("me_state", UINT_MAX, OPTION_BOOL);
 
 	if (cmos_me_state == UINT_MAX)
 		return;
@@ -1472,8 +1475,8 @@ static void cse_set_state(struct device *dev)
 		disable_me = false;
 	} else {
 		printk(BIOS_DEBUG, "ME is %s.\n", cmos_me_state ? "disabled" : "enabled");
-		unsigned int cmos_me_state_counter = get_uint_option("me_state_counter",
-								 UINT_MAX);
+		unsigned int cmos_me_state_counter = get_uint_option_checked(
+			"me_state_counter", UINT_MAX, OPTION_RANGE(0, UINT_MAX));
 		/* set me_state_counter to 0 */
 		if ((cmos_me_state_counter != UINT_MAX && cmos_me_state_counter != 0))
 			set_uint_option("me_state_counter", 0);
@@ -1590,7 +1593,7 @@ void cse_late_finalize(void)
 
 static void intel_cse_get_rw_version(void)
 {
-	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD))
+	if (CONFIG(SOC_INTEL_CSE_LITE_SYNC_BY_PAYLOAD) || CONFIG(OPTION_BACKEND_NONE))
 		return;
 
 	struct cse_specific_info *info = cbmem_find(CBMEM_ID_CSE_INFO);
