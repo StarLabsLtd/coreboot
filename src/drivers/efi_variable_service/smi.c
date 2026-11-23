@@ -8,8 +8,10 @@
 #include <device/pci_ops.h>
 #include <efi_variable_service.h>
 #include <fmap_config.h>
+#if !CONFIG(SOC_AMD_PHOENIX_OPENSIL)
 #include <intelblocks/fast_spi.h>
 #include <soc/pci_devs.h>
+#endif
 #include <string.h>
 
 #include "hob.h"
@@ -44,7 +46,11 @@ struct mm_entry_context {
 static enum service_state current_state;
 static struct efi_variable_service_state *service;
 static bool registration_open;
+#if CONFIG(SOC_AMD_PHOENIX_OPENSIL)
+static const struct region_device *service_flash;
+#else
 static uintptr_t sealed_spi_bar;
+#endif
 static struct region_device variable_store_device;
 static struct efi_private_store variable_store;
 static uint8_t variable_store_buffer[MAX_UNSAFE(CONFIG_SMMSTORE_BLOCK_SIZE,
@@ -56,6 +62,15 @@ static void *native_arena;
 static struct ass_mm_capsule native_capsule;
 #endif
 
+static bool write_access_allowed(void)
+{
+#if CONFIG(SOC_AMD_PHOENIX_OPENSIL)
+	return service_flash && efi_variable_service_write_device() == service_flash;
+#else
+	return fast_spi_wpd_status();
+#endif
+}
+
 static uint32_t capsule_read(uint32_t offset, uint32_t size)
 {
 	if (!size || size > EFI_CAPSULE_BLOCK_SIZE || offset >= CONFIG_ROM_SIZE ||
@@ -66,7 +81,10 @@ static uint32_t capsule_read(uint32_t offset, uint32_t size)
 	    offset + size > FMAP_SECTION_SRK_PIN_V1_START)
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 #endif
-	return rdev_readat(boot_device_ro(), variable_store_buffer, offset, size) == size ?
+	const struct region_device *flash = CONFIG(SOC_AMD_PHOENIX_OPENSIL) ?
+		efi_variable_service_read_device() : boot_device_ro();
+
+	return flash && rdev_readat(flash, variable_store_buffer, offset, size) == size ?
 		EFI_VARIABLE_SERVICE_RET_SUCCESS : EFI_VARIABLE_SERVICE_RET_FAILURE;
 }
 
@@ -77,7 +95,14 @@ static uint32_t capsule_resolve(const char name[16], struct efi_capsule_range *r
 	memcpy(terminated, name, 16);
 	terminated[16] = 0;
 	if (!strcmp(terminated, "BIOS")) {
+#if CONFIG(SOC_AMD_PHOENIX_OPENSIL)
+		const struct region bios = efi_variable_service_bios_region();
+
+		range->offset = region_offset(&bios);
+		range->size = region_sz(&bios);
+#else
 		range->offset = fast_spi_get_bios_region(&range->size);
+#endif
 	} else if (!strcmp(terminated, "FMAP")) {
 		range->offset = FMAP_SECTION_FMAP_START;
 		range->size = FMAP_SECTION_FMAP_SIZE;
@@ -94,10 +119,15 @@ static uint32_t capsule_resolve(const char name[16], struct efi_capsule_range *r
 static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range *ranges,
 				uint32_t count, uint8_t *image, uint32_t check_only)
 {
+	if (!write_access_allowed())
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+#if CONFIG(SOC_AMD_PHOENIX_OPENSIL)
+	return efi_variable_service_program_capsule(service_flash, offset, ranges, count, image,
+				capsule_readback, check_only) ? EFI_VARIABLE_SERVICE_RET_FAILURE :
+				EFI_VARIABLE_SERVICE_RET_SUCCESS;
+#else
 	bool allow_erase = true;
 
-	if (!fast_spi_wpd_status())
-		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	_Static_assert(FMAP_SECTION_SMMSTORE_START % EFI_CAPSULE_BLOCK_SIZE == 0 &&
 		       FMAP_SECTION_SMMSTORE_SIZE % EFI_CAPSULE_BLOCK_SIZE == 0,
 		       "Authenticated variable store must occupy whole capsule erase blocks");
@@ -122,6 +152,7 @@ static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range 
 	return efi_capsule_program_block(boot_device_rw(), offset, EFI_CAPSULE_BLOCK_SIZE,
 					ranges, count, image, capsule_readback, allow_erase) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
+#endif
 }
 
 #if CONFIG(VBOOT_SLOTS_RW_AB)
@@ -131,7 +162,7 @@ static uint32_t capsule_commit(uint32_t slot)
 {
 	struct vb2_context ctx = { 0 };
 
-	if (!fast_spi_wpd_status() || slot > 2 || (!slot && !capsule_boot_slot) ||
+	if (!write_access_allowed() || slot > 2 || (!slot && !capsule_boot_slot) ||
 	    (slot && slot != (capsule_boot_slot == 1 ? 2 : 1)))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	read_vbnv_flash(ctx.nvdata);
@@ -219,7 +250,7 @@ static uint32_t private_read(uint32_t offset, uint32_t size)
 
 static uint32_t private_write(uint32_t offset, uint32_t size)
 {
-	if (!fast_spi_wpd_status())
+	if (!write_access_allowed())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	return efi_private_store_write(&variable_store, offset, variable_store_buffer, size) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
@@ -227,7 +258,7 @@ static uint32_t private_write(uint32_t offset, uint32_t size)
 
 static uint32_t private_erase(uint32_t offset, uint32_t size)
 {
-	if (!fast_spi_wpd_status())
+	if (!write_access_allowed())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	return efi_private_store_erase(&variable_store, offset, size) ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
@@ -267,9 +298,17 @@ static int prepare_private_store(void)
 	    (service->store_block_size != CONFIG_SMMSTORE_BLOCK_SIZE &&
 	     !(CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000 &&
 	       !smm_efi_variable_service_is_s3_resume() && service->store_block_size == 0x10000)) ||
-	    region_create_untrusted(&region, service->store_offset, service->store_size) ||
-	    boot_device_rw_subregion(&region, &variable_store_device))
+	    region_create_untrusted(&region, service->store_offset, service->store_size))
 		return -1;
+#if CONFIG(SOC_AMD_PHOENIX_OPENSIL)
+	service_flash = efi_variable_service_write_device();
+	if (!service_flash || rdev_chain(&variable_store_device, service_flash,
+				       region_offset(&region), region_sz(&region)))
+		return -1;
+#else
+	if (boot_device_rw_subregion(&region, &variable_store_device))
+		return -1;
+#endif
 
 	if (efi_private_store_init(&variable_store, &variable_store_device,
 				   service->store_block_size, (uintptr_t)variable_store_buffer,
@@ -331,6 +370,7 @@ static int get_service(void)
 	return 0;
 }
 
+#if !CONFIG(SOC_AMD_PHOENIX_OPENSIL)
 bool efi_variable_service_spi_bar_valid(uintptr_t bar)
 {
 	/* Before trusted finalization, PCI resource assignment may still change BAR0. */
@@ -375,6 +415,7 @@ static int update_spi_bar(void)
 	resource->base = bar;
 	return 0;
 }
+#endif
 
 static int initialize_service(void)
 {
@@ -507,8 +548,13 @@ static int service_ready(void)
 	current_state = SERVICE_FAILED;
 	if (get_service())
 		return -1;
+#if CONFIG(SOC_AMD_PHOENIX_OPENSIL)
+	if (efi_variable_service_bind_spi(service))
+		return -1;
+#else
 	if (update_spi_bar())
 		return -1;
+#endif
 	if (prepare_private_store())
 		return -1;
 	if (!smm_efi_variable_service_is_s3_resume() && CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000) {
@@ -554,7 +600,7 @@ static int service_ready(void)
 #endif
 	if (smm_efi_variable_service_is_s3_resume()) {
 		if (!ass_native_smm_resume(owner_arena, arena_size - metadata,
-		    &variable_store_device, service->store_block_size, fast_spi_wpd_status, fixed))
+		    &variable_store_device, service->store_block_size, write_access_allowed, fixed))
 			return -1;
 	} else {
 		bool restart;
@@ -562,7 +608,7 @@ static int service_ready(void)
 
 		if (ass_native_smm_open(owner_arena, arena_size - metadata,
 		    &variable_store_device, service->store_block_size, 0x10000,
-		    fast_spi_wpd_status, secure_boot, fixed, &restart))
+		    write_access_allowed, secure_boot, fixed, &restart))
 			return -1;
 		if (restart)
 			return EFI_VARIABLE_SERVICE_REBOOT_REQUIRED;

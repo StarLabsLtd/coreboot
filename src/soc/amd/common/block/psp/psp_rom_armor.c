@@ -111,12 +111,16 @@ const struct region_device_ops rom_armor_apm_ops = {
 const struct region_device rom_armor_apm_call_rw =
 	REGION_DEV_INIT(&rom_armor_apm_ops, 0, CONFIG_ROM_SIZE);
 
-void psp_rom_armor_init(bool allow_capsule_update)
+void psp_rom_armor_init(bool enforce, bool allow_capsule_update)
 {
 	enum rom_armor_apm_result ret;
 	struct rom_armor_params_init params = {
 		.capsule_update = allow_capsule_update,
+		.allow_unprotected_flash = !enforce,
 	};
+	/* Preserve the existing non-ASS policy of skipping initialization when off. */
+	if (!enforce && !CONFIG(ASS))
+		return;
 	ret = call_smm(APM_CNT_ROM_ARMOR, ROM_ARMOR_APM_CMD_INIT, &params);
 	if (ret == ROM_ARMOR_RET_SUCCESS)
 		return;

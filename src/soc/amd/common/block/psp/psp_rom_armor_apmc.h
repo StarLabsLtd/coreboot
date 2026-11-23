@@ -29,6 +29,7 @@ void psp_rom_armor_invalidate_mmap(size_t offset, size_t length);
 /* Parameter structures for ROM Armor operations */
 struct rom_armor_params_init {
 	bool capsule_update;	/* 1 for capsule update/recovery mode, 0 otherwise */
+	bool allow_unprotected_flash;
 };
 
 struct rom_armor_params_read {

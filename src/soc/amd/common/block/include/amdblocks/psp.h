@@ -115,22 +115,25 @@ extern struct region_device rom_armor_smm_rw;
 
 /* SMM-only ASS writer, available after checked registration, ownership and sealing. */
 const struct region_device *psp_rom_armor_smm_device(void);
+/* Boot-selected flash backend, available only after registration and sealing. */
+const struct region_device *psp_smm_flash_device(void);
 /* Close the raw APMC path irrevocably and report whether the ASS writer is ready. */
 bool psp_rom_armor_seal(void);
 
 /**
  * psp_rom_armor_init - Initialize PSP ROM Armor
  *
- * Must be called from RAMSTAGE to enable ROM Armor.
+ * Must be called from RAMSTAGE to bind the boot-selected flash policy.
  * Calls into SMM to set up the ROM Armor command buffer and to prepare the
- * PSP mailbox communication. Enables the ROM Armor feature on the PSP and
+ * PSP mailbox communication. With enforcement enabled, activates ROM Armor and
  * disables the SPIBAR.
- * After this call access to the SPI flash must use PSP mailbox communication
+ * With enforcement enabled, access to SPI flash must use PSP mailbox communication
  * in SMM. PSP will only grant access to regions marked as writable.
  *
+ * @param enforce Whether to enforce ROM Armor or bind explicit direct access
  * @param allow_capsule_update Whether to allow capsule updates
  */
-void psp_rom_armor_init(bool allow_capsule_update);
+void psp_rom_armor_init(bool enforce, bool allow_capsule_update);
 
 /* SMM handler for ROM Armor operations - called from APMC handler */
 uint32_t rom_armor_exec(uint8_t command, void *param);

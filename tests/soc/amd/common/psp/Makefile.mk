@@ -72,3 +72,7 @@ $(call copy-test,boot-done-legacy-test,boot-done-ass-test)
 boot-done-ass-test-config += CONFIG_ASS=1
 $(call copy-test,boot-done-locks-test,boot-done-ass-locks-test)
 boot-done-ass-locks-test-config += CONFIG_ASS=1
+
+tests-y += rom-armor-runtime-option-test
+$(call copy-test,rom-armor-admission-test,rom-armor-runtime-option-test)
+rom-armor-runtime-option-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION=1

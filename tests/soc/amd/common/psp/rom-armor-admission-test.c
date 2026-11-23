@@ -8,6 +8,7 @@
 #include <cpu/x86/cache.h>
 #include <cpu/x86/smm.h>
 #include <stdio.h>
+#include <spi_flash.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <tests/test.h>
@@ -18,7 +19,10 @@
 static int info_transport_status, enter_transport_status, hsti_transport_status;
 static int pre_hsti_transport_status;
 static uint32_t info_command_status, enter_command_status, hsti_command_status;
-static uint32_t pre_hsti_command_status;
+static uint32_t pre_hsti_command_status, pre_hsti_state;
+static struct spi_flash direct_chip = { .size = CONFIG_ROM_SIZE };
+static struct region_device direct_device;
+static unsigned int direct_probes;
 static uint32_t flash_size = CONFIG_ROM_SIZE;
 static uint32_t hsti_state = HSTI_STATE_ROM_ARMOR_ENFORCED;
 static unsigned int info_calls, enter_calls, hsti_calls, write_calls, erase_calls;
@@ -95,7 +99,7 @@ int send_psp_command(uint32_t command, void *buffer)
 			return hsti_transport_status;
 		}
 		hsti->header.status = pre_hsti_command_status;
-		hsti->state = 0;
+		hsti->state = pre_hsti_state;
 		return pre_hsti_transport_status;
 	}
 	case MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION: {
@@ -230,11 +234,85 @@ void clflush_region(const uintptr_t start, const size_t size)
 	cache_flushes++;
 }
 
+const struct region_device *boot_device_rw(void)
+{
+	direct_probes++;
+	region_device_init(&direct_device, NULL, 0, CONFIG_ROM_SIZE);
+	return &direct_device;
+}
+
+const struct spi_flash *boot_device_spi_flash(void)
+{
+	return &direct_chip;
+}
+
+static uint32_t direct_init(void)
+{
+	const struct rom_armor_params_init params = { .allow_unprotected_flash = true };
+
+	return rom_armor_exec(ROM_ARMOR_APM_CMD_INIT, (void *)&params);
+}
+
+static void direct_writer_requires_policy_registration_and_sealing(void **unused)
+{
+	const bool enabled = CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION);
+
+	assert_null(psp_smm_flash_device());
+	assert_int_equal(direct_init(), enabled ? ROM_ARMOR_RET_SUCCESS : ROM_ARMOR_RET_FAILURE);
+	assert_int_equal(direct_probes, enabled ? 1 : 0);
+	assert_null(psp_smm_flash_device());
+	assert_int_equal(psp_notify_smm(), 0);
+	assert_null(psp_smm_flash_device());
+	assert_int_equal(psp_rom_armor_seal(), enabled);
+	assert_ptr_equal(psp_smm_flash_device(), enabled ? &direct_device : NULL);
+	assert_null(psp_rom_armor_smm_device());
+	assert_int_equal(enter_calls, 0);
+	assert_int_equal(direct_init(), ROM_ARMOR_RET_SHUTDOWN);
+}
+
+static void direct_writer_rejects_unknown_hsti(void **unused)
+{
+	pre_hsti_transport_status = -PSPSTS_CMD_TIMEOUT;
+	assert_int_equal(direct_init(), ROM_ARMOR_RET_FAILURE);
+	assert_int_equal(direct_probes, 0);
+	assert_int_equal(psp_notify_smm(), 0);
+	assert_false(psp_rom_armor_seal());
+	assert_null(psp_smm_flash_device());
+}
+
+static void direct_writer_rejects_enforced_hsti(void **unused)
+{
+	pre_hsti_state = HSTI_STATE_ROM_ARMOR_ENFORCED;
+	assert_int_equal(direct_init(), ROM_ARMOR_RET_FAILURE);
+	assert_int_equal(direct_probes, 0);
+	assert_null(psp_smm_flash_device());
+}
+
+static void direct_writer_rejects_wrong_chip_size(void **unused)
+{
+	direct_chip.size = CONFIG_ROM_SIZE / 2;
+	assert_int_equal(direct_init(), ROM_ARMOR_RET_FAILURE);
+	assert_int_equal(psp_notify_smm(), 0);
+	assert_false(psp_rom_armor_seal());
+	assert_null(psp_smm_flash_device());
+}
+
+static void failed_protected_init_cannot_select_direct_writer(void **unused);
+
 static uint32_t public_init(bool capsule_update)
 {
 	struct rom_armor_params_init params = { .capsule_update = capsule_update };
 
 	return rom_armor_exec(ROM_ARMOR_APM_CMD_INIT, &params);
+}
+
+static void failed_protected_init_cannot_select_direct_writer(void **unused)
+{
+	enter_transport_status = -PSPSTS_CMD_TIMEOUT;
+	assert_int_equal(public_init(false), ROM_ARMOR_RET_FAILURE);
+	assert_int_equal(direct_init(), ROM_ARMOR_RET_FAILURE);
+	assert_int_equal(direct_probes, 0);
+	assert_null(psp_smm_flash_device());
 }
 
 static void check_raw_closed(void)
@@ -600,6 +678,11 @@ int main(void)
 {
 	const struct CMUnitTest cases[] = {
 		cmocka_unit_test(writer_matches_registered_owner),
+		cmocka_unit_test(direct_writer_requires_policy_registration_and_sealing),
+		cmocka_unit_test(direct_writer_rejects_unknown_hsti),
+		cmocka_unit_test(direct_writer_rejects_enforced_hsti),
+		cmocka_unit_test(direct_writer_rejects_wrong_chip_size),
+		cmocka_unit_test(failed_protected_init_cannot_select_direct_writer),
 		cmocka_unit_test(seal_closes_uninitialized_path),
 		cmocka_unit_test(public_shutdown_closes_raw_path),
 		cmocka_unit_test(registration_transport_failure),

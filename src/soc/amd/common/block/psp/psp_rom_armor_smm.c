@@ -5,6 +5,7 @@
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <stdint.h>
+#include <spi_flash.h>
 #include <string.h>
 #include <types.h>
 #include "psp_def.h"
@@ -216,15 +217,26 @@ struct region_device rom_armor_smm_rw =
 
 static bool shutdown;
 static bool initialized;
+static bool init_attempted;
+static const struct region_device *direct_flash;
 
 const struct region_device *psp_rom_armor_smm_device(void)
 {
-	if (!CONFIG(ASS) || !initialized || !psp_smm_info_registered() || !shutdown ||
+	if (!CONFIG(ASS) || !initialized || direct_flash || !psp_smm_info_registered() ||
+	    !shutdown ||
 	    region_device_sz(&rom_armor_smm_rw) != CONFIG_ROM_SIZE ||
 	    !psp_rom_armor_spi_transaction_available())
 		return NULL;
 
 	return &rom_armor_smm_rw;
+}
+
+const struct region_device *psp_smm_flash_device(void)
+{
+	if (!direct_flash)
+		return psp_rom_armor_smm_device();
+	return CONFIG(ASS) && initialized && psp_smm_info_registered() && shutdown ?
+		direct_flash : NULL;
 }
 
 static void close_raw_apmc(void)
@@ -238,7 +250,7 @@ static void close_raw_apmc(void)
 bool psp_rom_armor_seal(void)
 {
 	close_raw_apmc();
-	return psp_rom_armor_smm_device() != NULL;
+	return psp_smm_flash_device() != NULL;
 }
 
 /* Called from the APMC SMI handler with parameters passed via CPU registers. */
@@ -261,15 +273,38 @@ uint32_t rom_armor_exec(uint8_t command, void *param)
 
 	switch (command) {
 	case ROM_ARMOR_APM_CMD_INIT: {
-		struct rom_armor_params_init *params = param;
+		const struct rom_armor_params_init params =
+			*(const struct rom_armor_params_init *)param;
 
-		if (initialized)
+		if (initialized || (CONFIG(ASS) && init_attempted))
 			return ROM_ARMOR_RET_FAILURE;
+		init_attempted = true;
+
+		if (params.allow_unprotected_flash) {
+			const struct spi_flash *chip;
+			const struct region_device *flash;
+			uint32_t hsti;
+
+			if (!CONFIG(ASS) ||
+			    !CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR_RUNTIME_OPTION) ||
+			    psp_get_hsti_state(&hsti) != CB_SUCCESS ||
+			    (hsti & HSTI_STATE_ROM_ARMOR_ENFORCED))
+				return ROM_ARMOR_RET_FAILURE;
+			flash = boot_device_rw();
+			chip = boot_device_spi_flash();
+			if (!flash || !chip || chip->size != CONFIG_ROM_SIZE ||
+			    region_device_sz(flash) != CONFIG_ROM_SIZE)
+				return ROM_ARMOR_RET_FAILURE;
+			direct_flash = flash;
+			initialized = true;
+			printk(BIOS_INFO, "PSP: ROM Armor disabled by boot option\n");
+			return ROM_ARMOR_RET_SUCCESS;
+		}
 
 		printk(BIOS_DEBUG, "%s: Init command received (capsule_update=%d)\n",
-		       __func__, params->capsule_update);
+		       __func__, params.capsule_update);
 
-		if (psp_rom_armor_enter_smm_mode(params->capsule_update, &flash_size) != 0) {
+		if (psp_rom_armor_enter_smm_mode(params.capsule_update, &flash_size) != 0) {
 			printk(BIOS_ERR, "%s: Failed to enter SMM mode\n", __func__);
 			return ROM_ARMOR_RET_FAILURE;
 		}

@@ -125,3 +125,12 @@ opal-s3-resources-test-stage := ramstage
 opal-s3-resources-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_HAVE_ACPI_RESUME=1 \
 	CONFIG_SMM_PCI_RESOURCE_STORE=1 CONFIG_SMM_PCI_RESOURCE_STORE_NUM_SLOTS=2
 opal-s3-resources-test-cflags += -Wno-address-of-packed-member
+tests-y += efi-variable-service-amd-test
+efi-variable-service-amd-test-srcs += tests/drivers/efi-variable-service-amd.c \
+	src/drivers/efi_variable_service/capsule_store.c src/commonlib/region.c \
+	tests/stubs/console.c
+efi-variable-service-amd-test-stage := smm
+efi-variable-service-amd-test-config += CONFIG_ASS=1 CONFIG_ROM_SIZE=0x2000000 \
+	CONFIG_SOC_AMD_PHOENIX_OPENSIL=1 CONFIG_EARLY_RESERVED_DRAM_BASE=0x10000000
+efi-variable-service-amd-test-cflags += -I tests/drivers/efi-variable-service-amd-include \
+	-I src/soc/amd/common/block/include -I src/soc/amd/phoenix/include

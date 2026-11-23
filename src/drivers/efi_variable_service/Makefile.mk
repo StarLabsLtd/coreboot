@@ -4,6 +4,9 @@ ass-native := $(strip $(CONFIG_ASS_NATIVE) $(ASS_NATIVE_LINK_CHECK))
 
 ifeq ($(CONFIG_ASS),y)
 
+ramstage-$(CONFIG_SOC_AMD_PHOENIX_OPENSIL) += hob_amd.c
+smm-$(CONFIG_SOC_AMD_PHOENIX_OPENSIL) += platform_amd.c
+
 ass-owner := $(obj)/ass/owner
 .PHONY: ass-owner-check
 $(ass-owner): ass-owner-check
