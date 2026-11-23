@@ -11,3 +11,10 @@ efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Pi/
 efivars-test-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdeModulePkg/Include/
+tests-y += designware-smm-i2c-test
+designware-smm-i2c-test-srcs += tests/drivers/designware-smm-i2c-test.c \
+	src/commonlib/region.c tests/stubs/console.c
+designware-smm-i2c-test-stage := smm
+designware-smm-i2c-test-config += CONFIG_HAVE_MONOTONIC_TIMER=1 \
+	CONFIG_DRIVERS_I2C_DESIGNWARE_CLOCK_MHZ=100
+designware-smm-i2c-test-cflags += -I src/soc/intel/common/block/include
