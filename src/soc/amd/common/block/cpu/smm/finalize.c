@@ -8,6 +8,7 @@
 #include <console/console.h>
 #include <cpu/x86/mp.h>
 #include <cpu/x86/msr.h>
+#include <efi_variable_service.h>
 #include <types.h>
 
 static void late_smm_lock(void *unused)
@@ -43,6 +44,14 @@ static void soc_finalize(void *unused)
 		} else {
 			acpi_enable_sci();
 		}
+	}
+
+	if (CONFIG(ASS)) {
+		/* Recheck the capsule source range after device resource allocation. */
+		if (!acpi_is_wakeup_s3() && !efi_variable_service_ram_ready())
+			die("EFI variable service source RAM is reserved\n");
+		if (apm_control(APM_CNT_FINALIZE) != CB_SUCCESS)
+			die("EFI variable service finalization failed\n");
 	}
 
 	post_code(POSTCODE_OS_BOOT);
