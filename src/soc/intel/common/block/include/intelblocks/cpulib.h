@@ -5,6 +5,9 @@
 
 #include <types.h>
 
+/* BSP-only semantic policy measurements after SMM finalization. */
+void intel_measure_boot_policy(void);
+
 /*
  * Set PERF_CTL MSR (0x199) P_Req with
  * Turbo Ratio which is the Maximum Ratio.
