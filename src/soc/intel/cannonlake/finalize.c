@@ -87,7 +87,7 @@ static void soc_finalize(void *unused)
 	printk(BIOS_DEBUG, "Finalizing chipset.\n");
 
 	pch_finalize();
-	apm_control(APM_CNT_FINALIZE);
+	cse_finalize_in_smm();
 	if (soc_disable_heci1_at_pre_boot() &&
 			CONFIG(SOC_INTEL_COMMON_BLOCK_HECI1_DISABLE_USING_PMC_IPC))
 		heci1_disable();

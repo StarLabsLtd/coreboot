@@ -6,6 +6,7 @@
 #include <cpu/x86/smm.h>
 #include <device/mmio.h>
 #include <device/pci.h>
+#include <intelblocks/cse.h>
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/pcr.h>
 #include <intelblocks/pmclib.h>
@@ -76,7 +77,7 @@ static void soc_finalize(void *unused)
 	printk(BIOS_DEBUG, "Finalizing chipset.\n");
 
 	pch_finalize();
-	apm_control(APM_CNT_FINALIZE);
+	cse_finalize_in_smm();
 
 	/* Indicate finalize step with post code */
 	post_code(POSTCODE_OS_BOOT);
