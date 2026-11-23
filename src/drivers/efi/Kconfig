@@ -71,6 +71,7 @@ config DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
 config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 	bool "Allow embedded drivers in update capsules"
 	depends on PAYLOAD_EDK2 && DRIVERS_EFI_UPDATE_CAPSULES
+	depends on !SMMSTORE_SRK_PIN
 	help
 	  Allow the EDK2 payload's capsule processing to load embedded drivers
 	  from capsules (PcdCapsuleEmbeddedDriverSupport).
