@@ -521,6 +521,7 @@ static void fill_fsps_sata_params(FSP_S_CONFIG *s_cfg,
 	 *  The default values can be changed from devicetree.
 	 */
 	for (size_t i = 0; i < ARRAY_SIZE(config->sata_ports_enable_dito_config); i++) {
+		s_cfg->SataPortsEnableDitoConfig[i] = config->sata_ports_enable_dito_config[i];
 		if (config->sata_ports_enable_dito_config[i]) {
 			s_cfg->SataPortsDmVal[i] = config->sata_ports_dm_val[i];
 			s_cfg->SataPortsDitoVal[i] = config->sata_ports_dito_val[i];
