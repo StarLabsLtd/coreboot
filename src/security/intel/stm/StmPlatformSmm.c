@@ -67,32 +67,10 @@ int load_stm_image(uintptr_t mseg)
 	return status;
 }
 
-struct descriptor {
-	uint16_t limit;
-	uintptr_t base;
-} __packed;
-
-static void read_gdtr(struct descriptor *gdtr)
+static void setup_smm_descriptor(void *smbase, int32_t apic_id, int32_t entry32_off,
+				 uintptr_t gdt_base, size_t gdt_size)
 {
-	__asm__ __volatile__("sgdt %0" : "=m"(*gdtr));
-}
-
-void setup_smm_descriptor(void *smbase, int32_t apic_id, int32_t entry32_off)
-{
-	struct descriptor gdtr;
-	void *smbase_processor;
-	//msr_t smbase_msr;
-
-	TXT_PROCESSOR_SMM_DESCRIPTOR *psd;
-
-	smbase_processor =  (void *)SMM_DEFAULT_BASE;//we are here
-	psd = smbase + SMM_PSD_OFFSET;
-
-	printk(BIOS_DEBUG,
-	"STM: Smm Descriptor setup: Smbase: %p Smbase_processor: %p Psd: %p\n",
-		smbase,
-		smbase_processor,
-		psd);
+	TXT_PROCESSOR_SMM_DESCRIPTOR *psd = smbase + SMM_PSD_OFFSET;
 
 	memset(psd, 0, sizeof(TXT_PROCESSOR_SMM_DESCRIPTOR));
 
@@ -115,17 +93,8 @@ void setup_smm_descriptor(void *smbase, int32_t apic_id, int32_t entry32_off)
 	psd->smm_other_segment = GDT_DATA_SEG;
 	psd->smm_tr = GDT_TASK_STATE_SEG;
 
-	// At this point the coreboot smm_stub is relative to the default
-	// smbase and not the one for the smi handler in tseg.  So we have
-	// to adjust the gdtr.base
-
-	read_gdtr(&gdtr);
-
-	gdtr.base -= (uintptr_t)smbase_processor;
-	gdtr.base += (uintptr_t)smbase;
-
-	psd->smm_gdt_ptr = gdtr.base;
-	psd->smm_gdt_size = gdtr.limit + 1; // the stm will subtract, so add
+	psd->smm_gdt_ptr = gdt_base;
+	psd->smm_gdt_size = gdt_size;
 	printk(BIOS_DEBUG, "STM: Smm Descriptor setup complete - Smbase: %p Psd: %p\n",
 		smbase, psd);
 }
@@ -137,7 +106,7 @@ extern uint8_t *stm_resource_heap;
 static int stm_load_status = 0;
 
 void stm_setup(uintptr_t mseg, int cpu, uintptr_t smbase,
-			uintptr_t base_smbase, uint32_t offset32)
+			uint32_t offset32, uintptr_t gdt_base, size_t gdt_size)
 {
 	msr_t InitMseg;
 	msr_t MsegChk;
@@ -184,7 +153,7 @@ void stm_setup(uintptr_t mseg, int cpu, uintptr_t smbase,
 			cpu, MsegChk.hi, MsegChk.lo);
 
 		// setup the descriptor for this cpu
-		setup_smm_descriptor((void *)smbase, cpu, offset32);
+		setup_smm_descriptor((void *)smbase, cpu, offset32, gdt_base, gdt_size);
 
 	} else {
 		printk(BIOS_DEBUG,
