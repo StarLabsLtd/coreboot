@@ -37,8 +37,7 @@ void mainboard_azalia_program_runtime_verbs(uint8_t *base, uint32_t viddid)
 
 void lb_board(struct lb_header *header)
 {
-	if (!CONFIG(PAYLOAD_EDIIE) ||
-	    !get_uint_option_checked("firmware_enable_amp", 1, OPTION_BOOL))
+	if (!CONFIG(PAYLOAD_EDIIE))
 		return;
 
 	struct lb_hda_speaker_amp *amp = (void *)lb_new_record(header);

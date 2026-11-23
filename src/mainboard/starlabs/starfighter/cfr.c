@@ -75,7 +75,7 @@ void mainboard_get_pcie_pm_options(const struct pcie_rp_config *rp_cfg,
 #endif
 }
 
-#if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
+#if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL) && !CONFIG(PAYLOAD_EDIIE)
 static const struct sm_object firmware_enable_amp = SM_DECLARE_BOOL({
 	.flags		= CFR_OPTFLAG_RUNTIME,
 	.opt_name	= "firmware_enable_amp",
@@ -92,7 +92,7 @@ static struct sm_obj_form audio_group = {
 	.ui_name = "Audio",
 	.obj_list = (const struct sm_object *[]) {
 		&hda_subsystem_id,
-		#if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL)
+		#if CONFIG(BOARD_STARLABS_STARFIGHTER_MTL) && !CONFIG(PAYLOAD_EDIIE)
 		&firmware_enable_amp,
 		#endif
 		NULL
