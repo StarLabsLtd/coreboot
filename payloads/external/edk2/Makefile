@@ -171,8 +171,18 @@ BUILD_STR += -D CAPSULE_EMBED_FMP_DXE=TRUE
 endif
 
 CAPSULE_GUID := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
+FIRMWARE_GUID := $(subst ",,$(CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 CAPSULE_REGIONS := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
-CAPSULE_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
+COREBOOT_LOCALVERSION := $(call strip_quotes,$(CONFIG_LOCALVERSION))
+CAPSULE_LOCALVERSION := $(COREBOOT_LOCALVERSION)
+ifneq ($(EDK2_RELEASE_POLICY_FILE),)
+include $(EDK2_RELEASE_POLICY_FILE)
+endif
+ifeq ($(CAPSULE_LAYOUT_TRANSITION),1)
+ifeq ($(EDK2_CAPSULE_PAYLOAD_REGION),)
+$(error Layout-transition capsules require a protected firmware layout)
+endif
+endif
 CAPSULE_SIGNER_PRIVATE_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_SIGNER_PRIVATE_CERT))
 CAPSULE_OTHER_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_OTHER_PUBLIC_CERT))
 CAPSULE_TRUSTED_PUBLIC_CERT := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_TRUSTED_PUBLIC_CERT))
@@ -199,8 +209,14 @@ EDK2_APPEND_RMAP_MANIFEST = $(firstword $(wildcard \
 	$(EDK2_PATH)/BaseTools/Scripts/AppendRmapManifest.py \
 ))
 
-# If FmpDxe is built, edk2 also places it in the top-level X64 output dir.
-EDK2_FMP_DXE = $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/X64/FmpDxe.efi
+EDK2_BUILD_ARCH := X64
+EDK2_BUILD_DIR = $(WORKSPACE)/Build/UefiPayloadPkg$(EDK2_BUILD_ARCH)/$(RELEASE_STR)_GCC
+EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
+EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
+EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
+CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
+CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
+CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
 #
 # One or more downstream edk2 repositories support the following additional options:
@@ -464,20 +480,39 @@ distclean:
 
 .PHONY: coreboot_capsule capsule_keys
 
-coreboot_capsule: $(EDK2_PATH)
+coreboot_capsule: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH)
 	test -n "$(COREBOOT_ROM)"
 	test -n "$(COREBOOT_CAPSULE_OUT)"
 	test -f "$(COREBOOT_ROM)"
+	set -e; \
+	if [ "$(EDK2_CAPSULE_PAYLOAD_REGION)" != "" ]; then \
+		test -n "$(COREBOOT_FMAP_LAYOUT)"; \
+		test -n "$(CBFSTOOL)"; \
+		test "$(CBFS_ARCH)" = "x86"; \
+		test -f "$(COREBOOT_FMAP_LAYOUT)"; \
+		test -x "$(CBFSTOOL)"; \
+	fi
 	test -x "$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule"
 	test -f "$(CAPSULE_SIGNER_PRIVATE_CERT_PATH)"
 	test -f "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)"
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"
-	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom"; \
+	rmap_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rmap.rom.$$$$"; \
+	capsule_tmp="$(COREBOOT_CAPSULE_OUT).$$$$"; \
+	firmware_rom="$${COREBOOT_CAPSULE_OUT%.cap}.rom.$$$$"; \
+	payload="$${COREBOOT_CAPSULE_OUT%.cap}.payload.$$$$"; \
+	cleanup() { rm -f "$$rmap_rom" "$$capsule_tmp" "$$firmware_rom" "$$payload"; }; \
+	trap cleanup EXIT; \
 	set -e; \
-	if [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
-		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$(COREBOOT_ROM)"; \
+	cp "$(COREBOOT_ROM)" "$$firmware_rom"; \
+	if [ "$(CAPSULE_LAYOUT_TRANSITION)" = "1" ]; then \
+		cp "$$firmware_rom" "$$rmap_rom"; \
+	elif [ "$(CONFIG_VBOOT)" = "y" ]; then \
+		test -n "$(EDK2_APPEND_RMAP_MANIFEST)"; \
+		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
+	elif [ -f "$(EDK2_APPEND_RMAP_MANIFEST)" ]; then \
+		python3 "$(EDK2_APPEND_RMAP_MANIFEST)" -o "$$rmap_rom" $(foreach r,$(CAPSULE_REGIONS),-r $(r)) "$$firmware_rom"; \
 	else \
-		cp "$(COREBOOT_ROM)" "$$rmap_rom"; \
+		cp "$$firmware_rom" "$$rmap_rom"; \
 	fi; \
 	embedded_driver_args=(); \
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
@@ -498,7 +533,7 @@ coreboot_capsule: $(EDK2_PATH)
 	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_INITIATE_RESET)" = "y" ]; then \
 		capflags+=( --capflag InitiateReset ); \
 	fi; \
-	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$(COREBOOT_CAPSULE_OUT)" \
+	"$(EDK2_PATH)/BaseTools/BinWrappers/PosixLike/GenerateCapsule" -e -o "$$capsule_tmp" \
 		--guid "$(CAPSULE_GUID)" \
 		"$${capflags[@]}" \
 		--fw-version $$fw_version --lsv $$lsv \
@@ -506,4 +541,22 @@ coreboot_capsule: $(EDK2_PATH)
 		--other-public-cert "$(CAPSULE_OTHER_PUBLIC_CERT_PATH)" \
 		--trusted-public-cert "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)" \
 		"$${embedded_driver_args[@]}" \
-		"$$rmap_rom"
+		"$$rmap_rom"; \
+	if [ "$(EDK2_CAPSULE_PAYLOAD_REGION)" != "" ]; then \
+		"$(CBFSTOOL)" "$$firmware_rom" extract -r "$(EDK2_CAPSULE_PAYLOAD_REGION)" \
+			-m "$(CBFS_ARCH)" -n "$(CBFS_PAYLOAD_NAME)" -f "$$payload"; \
+	fi; \
+	embedded_driver_count=0; \
+	if [ "$(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE)" = "y" ]; then \
+		embedded_driver_count=1; \
+	fi; \
+	python3 "$(CAPSULE_VALIDATOR)" \
+		--capsule "$$capsule_tmp" \
+		--firmware-volume "$(EDK2_DXE_FV)" \
+		--guid "$(CAPSULE_GUID)" \
+		--embedded-drivers "$$embedded_driver_count" \
+		--fmp-module-dir "$(EDK2_FMP_MODULE_DIR)" \
+		$(if $(EDK2_CAPSULE_PAYLOAD_REGION),--firmware-rom "$$firmware_rom" --layout-fmap "$(COREBOOT_FMAP_LAYOUT)" --payload "$$payload" $(if $(filter 1,$(CAPSULE_LAYOUT_TRANSITION)),--firmware-guid "$(FIRMWARE_GUID)",$(foreach r,$(CAPSULE_REGIONS),--rmap-region "$(r)"))); \
+	mv -f "$$capsule_tmp" "$(COREBOOT_CAPSULE_OUT)"; \
+	trap - EXIT; \
+	rm -f "$$rmap_rom" "$$firmware_rom" "$$payload"
