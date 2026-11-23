@@ -42,12 +42,14 @@
  * far.
  *
  * There can be multiple CapsuleUpdateData* variables (CapsuleUpdateData,
- * CapsuleUpdateData1, etc.) in which case their SG lists are chained together
- * after sanity checks.
+ * CapsuleUpdateData1, etc.) in which case their SG lists are processed independently.
  */
 
 /* This should be more than enough. */
 #define MAX_CAPSULES 32
+
+/* Allow a 256 MiB capsule split into 4 KiB blocks, with a continuation per block. */
+#define MAX_SG_DESCRIPTORS (2 * (256 * MiB / (4 * KiB)) + 1)
 
 /* 4 should be enough, but 8 won't hurt. */
 #define CAPSULE_ALIGNMENT 8
@@ -55,13 +57,12 @@
 /*
  * A helper structure which bundles physical block address with its data.  It's
  * necessary because 32-bit code can't easily access anything beyond 4 GiB
- * boundary and this structure allows reading the data, passing it around and,
- * if necessary, updating it.
+ * boundary and this structure allows reading the data, passing it around.
  *
  * Usage:
  *  1) Set .self to physical address
  *  2) Check block's address with is_good_block()
- *  3) Use load_block() to fetch or store_block() to update data
+ *  3) Use load_block() to fetch the descriptor
  */
 struct block_descr {
 	/* Where the data comes from. */
@@ -136,6 +137,13 @@ static bool is_final_block(const struct block_descr *block)
 	return (block->len == 0 && block->addr == 0);
 }
 
+static bool pae_needs_mapping(uint64_t base, uint64_t end)
+{
+	const uint64_t window_base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
+
+	return end > 4ULL * GiB || (end > window_base && base < window_base + 2 * MiB);
+}
+
 static void *map_range(uint64_t base, uint32_t len)
 {
 	static uint64_t last_mapping_base = UINT64_MAX;
@@ -156,12 +164,10 @@ static void *map_range(uint64_t base, uint32_t len)
 	   paging_disable_pae() at the end. */
 	_Static_assert(IS_ALIGNED(CONFIG_ECAM_MMCONF_BASE_ADDRESS, 2 * MiB));
 	uintptr_t window_base = CONFIG_ECAM_MMCONF_BASE_ADDRESS;
-	size_t window_size = 2 * MiB;
 
 	printk(BIOS_SPEW, "capsules: mapping %#010x bytes at %#010llx.\n", len, base);
 
-	if (base + len <= 4ULL * GiB &&
-	    (base + len <= window_base || base >= window_base + window_size)) {
+	if (!pae_needs_mapping(base, base + len)) {
 		/* Don't bother with the mapping, the whole range must be
 		   already accessible without it. */
 		printk(BIOS_SPEW, "capsules: no need to map anything.\n");
@@ -200,13 +206,12 @@ static void load_block(struct block_descr *block)
 	block->addr = *addr;
 }
 
-static void store_block(const struct block_descr *block)
+static EFI_CAPSULE_HEADER load_capsule_header(uint64_t addr)
 {
-	volatile uint64_t *len = map_range(block->self, sizeof(uint64_t));
-	*len = block->len;
+	EFI_CAPSULE_HEADER header;
 
-	volatile uint64_t *addr = map_range(block->self + sizeof(uint64_t), sizeof(uint64_t));
-	*addr = block->addr;
+	memcpy(&header, map_range(addr, sizeof(header)), sizeof(header));
+	return header;
 }
 
 static void advance_block(struct block_descr *block)
@@ -256,25 +261,23 @@ static bool is_good_capsule(const EFI_CAPSULE_HEADER *capsule)
 
 static bool is_in_unused_ram(uint64_t base, uint64_t len)
 {
-	if (len == 0) {
-		printk(BIOS_ERR,
-		       "capsules: %s() was passed an empty range: %#010llx:%#010llx.\n",
-		       __func__, base, len);
-		return false;
-	}
-	if (base + len < base) {
+	if (!base || !len || len > UINT64_MAX - base) {
 		printk(BIOS_ERR,
 		       "capsules: %s() was passed an invalid range: %#010llx:%#010llx.\n",
 		       __func__, base, len);
 		return false;
 	}
 
+	const uint64_t end = base + len;
+	if (ENV_X86_64 && end > (uint64_t)CONFIG_CPU_PT_ROM_MAP_GB * GiB)
+		return false;
+
 	const struct range_entry *r;
 	memranges_each_entry(r, &memory_map) {
 		if (range_entry_tag(r) != BM_MEM_RAM)
 			continue;
 
-		if (base >= range_entry_base(r) && base + len <= range_entry_end(r))
+		if (base >= range_entry_base(r) && end <= range_entry_end(r))
 			return true;
 	}
 
@@ -288,7 +291,7 @@ static bool is_good_block(struct block_descr *block)
 		return false;
 	}
 
-	if (!is_in_unused_ram(block->self, sizeof(*block))) {
+	if (!is_in_unused_ram(block->self, sizeof(EFI_CAPSULE_BLOCK_DESCRIPTOR))) {
 		printk(BIOS_ERR, "capsules: SG block is not in unused memory.\n");
 		return false;
 	}
@@ -310,6 +313,14 @@ static bool is_good_capsule_head(struct block_descr *block)
 
 	if (!is_in_unused_ram(block->addr, block->len)) {
 		printk(BIOS_ERR, "capsules: capsule header is not in unused memory.\n");
+		return false;
+	}
+
+	/* A remapped header must fit in one PAE window. */
+	const size_t header_size = sizeof(EFI_CAPSULE_HEADER);
+	if (!ENV_X86_64 && pae_needs_mapping(block->addr, block->addr + header_size) &&
+	    header_size > 2 * MiB - block->addr % (2 * MiB)) {
+		printk(BIOS_ERR, "capsules: capsule header crosses a PAE window.\n");
 		return false;
 	}
 
@@ -341,10 +352,9 @@ static bool is_good_capsule_block(struct block_descr *block, uint32_t size_left)
 	return true;
 }
 
-/* Checks a single SG list for sanity.  Returns its end-of-list descriptor or
-   an empty one on error. */
-static struct block_descr check_capsule_block(struct block_descr first_block,
-					      uint64_t *total_data_size)
+/* Validate one SG list and account for its data only if it is complete. */
+static bool check_capsule_block(struct block_descr first_block, unsigned int *capsule_count,
+				uint64_t *total_data_size)
 {
 	struct block_descr block = first_block;
 	if (!is_good_block(&block)) {
@@ -354,42 +364,28 @@ static struct block_descr check_capsule_block(struct block_descr first_block,
 
 	load_block(&block);
 
+	unsigned int descriptors = 1;
+	unsigned int count = *capsule_count;
 	uint64_t data_size = 0;
 	while (!is_final_block(&block)) {
-		/*
-		 * This results in dropping of this capsule block if any of
-		 * contained capsule headers looks weird.  An alternative is to
-		 * cut the capsule block upon finding a bad header.  Maybe
-		 * could even jump over a broken capsule, temporarily trusting
-		 * size field in its header because invalid value should not
-		 * break parsing anyway, and then cut it out of the sequence of
-		 * blocks.  EDK doesn't bother, so only noting the possibility.
-		 */
 		if (!is_good_capsule_head(&block)) {
 			printk(BIOS_ERR, "capsules: bad capsule header @ %#010llx.\n",
 			       block.addr);
 			goto error;
 		}
 
-		const EFI_CAPSULE_HEADER *capsule_hdr =
-			map_range(block.addr, sizeof(*capsule_hdr));
-		if (!is_good_capsule(capsule_hdr)) {
+		const EFI_CAPSULE_HEADER header = load_capsule_header(block.addr);
+		if (!is_good_capsule(&header)) {
 			printk(BIOS_ERR, "capsules: bad capsule header @ %#010llx.\n",
 			       block.addr);
 			goto error;
 		}
 
-		uint64_t capsule_size =
-			ALIGN_UP((uint64_t)capsule_hdr->CapsuleImageSize, CAPSULE_ALIGNMENT);
-		if (data_size + capsule_size < data_size) { /* overflow detection */
-			printk(BIOS_ERR,
-			       "capsules: capsules block size is too large (%#llx + %#llx) for uint64.\n",
-			       data_size, capsule_size);
-			goto error;
-		}
-		data_size += capsule_size;
+		if (count < MAX_CAPSULES)
+			data_size += ALIGN_UP((uint64_t)header.CapsuleImageSize, CAPSULE_ALIGNMENT);
+		count++;
 
-		uint32_t size_left = capsule_hdr->CapsuleImageSize;
+		uint32_t size_left = header.CapsuleImageSize;
 		while (size_left != 0) {
 			/* is_good_block() holds here whether it's the first iteration or
 			   not. */
@@ -405,6 +401,8 @@ static struct block_descr check_capsule_block(struct block_descr first_block,
 				goto error;
 			}
 
+			if (++descriptors > MAX_SG_DESCRIPTORS)
+				goto error;
 			load_block(&block);
 			if (!is_final_block(&block) && !is_data_block(&block)) {
 				/* Advance to the next page of block descriptors. */
@@ -414,6 +412,8 @@ static struct block_descr check_capsule_block(struct block_descr first_block,
 					goto error;
 				}
 
+				if (++descriptors > MAX_SG_DESCRIPTORS)
+					goto error;
 				load_block(&block);
 				/* Not expecting a continuation to be followed by another
 				   continuation or an end-of-list. */
@@ -426,19 +426,14 @@ static struct block_descr check_capsule_block(struct block_descr first_block,
 		}
 	}
 
-	/* Increase the size only on successful parsing of the capsule block. */
-	if (*total_data_size + data_size < *total_data_size) { /* overflow detection */
-		printk(BIOS_ERR,
-		       "capsules: total capsule's size is too large (%#llx + %#llx) for uint64.\n",
-		       *total_data_size, data_size);
-		goto error;
-	}
+	/* The descriptor limit bounds the count. Only publishable sizes are summed. */
+	*capsule_count = count;
 	*total_data_size += data_size;
 
-	return block;
+	return true;
 
 error:
-	return (struct block_descr){ .self = 0 };
+	return false;
 }
 
 /* Fills an array with pointers to capsule blocks.  Returns number of
@@ -448,7 +443,7 @@ static int discover_capsule_blocks(struct region_device *rdev,
 				   int max_blocks)
 {
 	int block_count = 0;
-	for (int i = 0; block_count < max_blocks; ++i) {
+	for (int i = 0; i < max_blocks; ++i) {
 		char var_name[32];
 		if (i == 0)
 			strcpy(var_name, "CapsuleUpdateData");
@@ -469,13 +464,6 @@ static int discover_capsule_blocks(struct region_device *rdev,
 			return -1;
 		}
 
-		/*
-		 * EDK2 checks for duplicates probably because we'll get into
-		 * trouble with chaining if there are any, so do the check.
-		 *
-		 * This, however, won't handle all possible situations which
-		 * lead to loops or processing the same capsule more than once.
-		 */
 		int j;
 		for (j = 0; j < block_count; ++j) {
 			if (blocks[j].self == block.self)
@@ -494,55 +482,11 @@ static int discover_capsule_blocks(struct region_device *rdev,
 	return block_count;
 }
 
-/*
- * This function connects tail of one block of descriptors with the head of the
- * next one and returns pointer to the head of the whole chain.  While at it:
- *  - validate structures and pointers for sanity
- *  - compute total amount of memory needed for coalesced capsules
- *
- * Returns block that starts at 0 on error.
- */
-static struct block_descr verify_and_chain_blocks(struct block_descr *blocks,
-						  int block_count,
-						  uint64_t *total_data_size)
-{
-	/* This won't be blocks[0] if there is something wrong with the first capsule block. */
-	struct block_descr head = {0};
-
-	/* End-of-list descriptor of the last chained block. */
-	struct block_descr tail = {0};
-
-	*total_data_size = 0;
-
-	for (int i = 0; i < block_count; ++i) {
-		struct block_descr last_block = check_capsule_block(blocks[i], total_data_size);
-		if (last_block.self == 0) {
-			/* Fail hard instead?  EDK just keeps going, as if capsule
-			   blocks are always independent. */
-			printk(BIOS_WARNING,
-			       "capsules: skipping damaged capsule block #%d @ %#010llx.\n",
-			       i, blocks[i].self);
-			continue;
-		}
-
-		if (head.self == 0) {
-			head = blocks[i];
-		} else {
-			tail.addr = blocks[i].self;
-			store_block(&tail);
-		}
-
-		tail = last_block;
-	}
-
-	return head;
-}
-
 /* Marks structures and data of SG lists as BM_MEM_RESERVED so we don't step on
    them when looking for usable memory. */
-static void reserve_capsules(struct block_descr block_chain)
+static bool reserve_capsules(struct block_descr block)
 {
-	struct block_descr block = block_chain;
+	unsigned int descriptors = 1;
 
 	/* This is the first block of a continuous sequence of blocks. */
 	struct block_descr seq_start = {0};
@@ -551,7 +495,9 @@ static void reserve_capsules(struct block_descr block_chain)
 	   memranges_insert() on each of a bunch of adjacent 16-byte blocks. */
 
 	load_block(&block);
-	for (; !is_final_block(&block); advance_block(&block), load_block(&block)) {
+	while (!is_final_block(&block)) {
+		if (++descriptors > MAX_SG_DESCRIPTORS)
+			return false;
 		if (seq_start.self == 0)
 			seq_start = block;
 
@@ -571,18 +517,20 @@ static void reserve_capsules(struct block_descr block_chain)
 			/* Will be set on the next iteration if there is one. */
 			seq_start.self = 0;
 		}
+		advance_block(&block);
+		load_block(&block);
 	}
 
-	/* If continuations never show up in a row as checked by
-	   check_capsule_block(), seq_start must be non-NULL here. */
-	memranges_insert(&memory_map,
-			 seq_start.self,
+	if (!seq_start.self)
+		seq_start = block;
+	memranges_insert(&memory_map, seq_start.self,
 			 block.self - seq_start.self + sizeof(EFI_CAPSULE_BLOCK_DESCRIPTOR),
 			 BM_MEM_RESERVED);
+	return true;
 }
 
 /*
- * Find a buffer below 4 GiB for coalesced capsules.
+ * Find a directly accessible buffer below 4 GiB for coalesced capsules.
  *
  * Keeping it simple and allocating a single buffer.  However, there is
  * no requirement to put all the capsules together, only that each of
@@ -594,6 +542,9 @@ static void reserve_capsules(struct block_descr block_chain)
 static struct memory_range pick_buffer(uint64_t total_data_size)
 {
 	struct memory_range buffer = {0};
+	uint64_t limit = 4ULL * GiB;
+	if (ENV_X86_64)
+		limit = MIN(limit, (uint64_t)CONFIG_CPU_PT_ROM_MAP_GB * GiB);
 
 	/* 4 * KiB is the alignment set by memranges_init(). */
 	total_data_size = ALIGN_UP(total_data_size, 4 * KiB);
@@ -604,13 +555,10 @@ static struct memory_range pick_buffer(uint64_t total_data_size)
 			continue;
 
 		resource_t base = range_entry_base(r);
-		if (base >= 4ULL * GiB)
+		if (base >= limit)
 			break;
 
-		/* Possibly reduce size to not deal with ranges that cross 4 GiB boundary. */
-		resource_t size = range_entry_size(r);
-		if (base + size > 4ULL * GiB)
-			size -= base + size - 4ULL * GiB;
+		resource_t size = MIN(range_entry_end(r), limit) - base;
 
 		if (size >= total_data_size) {
 			/*
@@ -626,41 +574,47 @@ static struct memory_range pick_buffer(uint64_t total_data_size)
 	return buffer;
 }
 
-/* Puts capsules into continuous physical memory. */
-static void coalesce_capsules(struct block_descr block_chain, uint8_t *target)
+/* Coalesce from SG lists that remain unchanged after validation and reservation. */
+static bool coalesce_capsules(struct block_descr block, uint32_t *used)
 {
-	struct block_descr block = block_chain;
-	uint8_t *capsule_start = NULL;
+	unsigned int descriptors = 0;
+	uint32_t offset = *used;
+	uint32_t aligned_size = 0;
 	uint32_t capsule_size = 0;
 	uint32_t size_left = 0;
 
-	/* No safety checks in this function, as all of them were done earlier. */
-
 	load_block(&block);
 	for (; !is_final_block(&block); advance_block(&block), load_block(&block)) {
+		if (++descriptors >= MAX_SG_DESCRIPTORS)
+			return false;
 		/* Advance over a continuation. */
 		if (!is_data_block(&block))
 			continue;
 
 		/* This must be the first block of a capsule. */
 		if (size_left == 0) {
-			const EFI_CAPSULE_HEADER *capsule_hdr =
-				map_range(block.addr, sizeof(*capsule_hdr));
-			capsule_size = capsule_hdr->CapsuleImageSize;
-			capsule_start = target;
-
+			const EFI_CAPSULE_HEADER header = load_capsule_header(block.addr);
+			capsule_size = header.CapsuleImageSize;
+			const uint64_t size = ALIGN_UP((uint64_t)capsule_size, CAPSULE_ALIGNMENT);
+			if (!capsule_size || size > coalesce_buffer.len - *used)
+				return false;
+			aligned_size = size;
 			size_left = capsule_size;
 		}
+
+		if (block.len > size_left)
+			return false;
 
 		uint64_t addr = block.addr;
 		uint64_t data_left = block.len;
 		while (data_left != 0) {
-			uint64_t piece_len = MIN(data_left, 2 * MiB - (addr % 2 * MiB));
+			uint64_t piece_len = MIN(data_left, 2 * MiB - (addr % (2 * MiB)));
 			void *data = map_range(addr, piece_len);
+			void *target = (void *)(uintptr_t)(coalesce_buffer.base + offset);
 
 			memcpy(target, data, piece_len);
 
-			target += piece_len;
+			offset += piece_len;
 			addr += piece_len;
 			data_left -= piece_len;
 		}
@@ -669,28 +623,16 @@ static void coalesce_capsules(struct block_descr block_chain, uint8_t *target)
 
 		/* This must be the last block of a capsule, record it. */
 		if (size_left == 0) {
-			/* If we can just ignore corrupted capsules, then we can simply
-			   drop those which don't fit. */
-			if (uefi_capsule_count == MAX_CAPSULES) {
-				printk(BIOS_WARNING,
-				       "capsules: ignoring all capsules after #%d.\n",
-				       MAX_CAPSULES);
-				break;
-			}
-
-			uefi_capsules[uefi_capsule_count].base = (uintptr_t)capsule_start;
+			uefi_capsules[uefi_capsule_count].base = coalesce_buffer.base + *used;
 			uefi_capsules[uefi_capsule_count].len = capsule_size;
-			uefi_capsule_count++;
-
-			/* This is to align start of the next capsule (assumes that
-			   initial value of target was suitably aligned). */
-			if (!IS_ALIGNED(capsule_size, CAPSULE_ALIGNMENT))
-				target += ALIGN_UP(capsule_size, CAPSULE_ALIGNMENT) -
-					  capsule_size;
+			*used += aligned_size;
+			offset = *used;
+			if (++uefi_capsule_count == MAX_CAPSULES)
+				return true;
 		}
 	}
 
-	printk(BIOS_INFO, "capsules: found %d capsule(s).\n", uefi_capsule_count);
+	return size_left == 0;
 }
 
 void efi_parse_capsules(void)
@@ -718,10 +660,28 @@ void efi_parse_capsules(void)
 		return;
 	}
 
+	void *cbmem_current;
+	size_t cbmem_size;
+	if (cbmem_get_region(&cbmem_current, &cbmem_size)) {
+		printk(BIOS_ERR, "capsules: cannot locate CBMEM.\n");
+		return;
+	}
+	const uint64_t cbmem_base = (uintptr_t)cbmem_current;
+	if (!cbmem_size || cbmem_size > UINT64_MAX - cbmem_base ||
+	    cbmem_base + cbmem_size > ALIGN_DOWN(UINT64_MAX, 4 * KiB)) {
+		printk(BIOS_ERR, "capsules: invalid CBMEM range.\n");
+		return;
+	}
+
 	memranges_init(&memory_map, IORESOURCE_MEM | IORESOURCE_FIXED | IORESOURCE_STORED |
 		       IORESOURCE_ASSIGNED | IORESOURCE_CACHEABLE, IORESOURCE_MEM |
 		       IORESOURCE_FIXED | IORESOURCE_STORED | IORESOURCE_ASSIGNED |
 		       IORESOURCE_CACHEABLE, BM_MEM_RAM);
+	memranges_add_resources(&memory_map, IORESOURCE_RESERVE, IORESOURCE_RESERVE,
+				BM_MEM_RESERVED);
+	memranges_add_resources(&memory_map, IORESOURCE_SOFT_RESERVE, IORESOURCE_SOFT_RESERVE,
+				BM_MEM_SOFT_RESERVED);
+	memranges_create_hole(&memory_map, cbmem_base, cbmem_size);
 
 	if (ENV_X86_32)
 		init_pae_pagetables(&pae_page_tables);
@@ -744,34 +704,32 @@ void efi_parse_capsules(void)
 		       "capsules: hit limit on capsule blocks, some might be ignored.\n");
 	}
 
-	/* Chaining is done to not pass around and update an array of pointers. */
-	uint64_t total_data_size;
-	struct block_descr block_chain =
-		verify_and_chain_blocks(blocks, block_count, &total_data_size);
-	if (block_chain.self == 0) {
-		printk(BIOS_ERR, "capsules: no valid capsules to process.\n");
+	uint64_t total_data_size = 0;
+	unsigned int capsule_count = 0;
+	int valid_count = 0;
+	for (int i = 0; i < block_count; i++) {
+		if (check_capsule_block(blocks[i], &capsule_count, &total_data_size))
+			blocks[valid_count++] = blocks[i];
+		else
+			printk(BIOS_WARNING, "capsules: skipping damaged capsule block #%d.\n", i);
+	}
+	if (!total_data_size || total_data_size > ALIGN_DOWN(UINT32_MAX, 4 * KiB)) {
+		printk(BIOS_ERR, "capsules: no usable capsule data to process.\n");
 		goto exit;
 	}
+	if (capsule_count > MAX_CAPSULES)
+		printk(BIOS_WARNING, "capsules: ignoring all capsules after #%d.\n", MAX_CAPSULES);
 
-	printk(BIOS_DEBUG, "capsules: chained capsule blocks.\n");
-
-	/* Reserve all blocks and the data they point to to avoid checking for
-	   overlaps when looking for a buffer. */
-	reserve_capsules(block_chain);
+	/* Keep source descriptors and data out of the destination buffer. */
+	for (int i = 0; i < valid_count; i++)
+		if (!reserve_capsules(blocks[i]))
+			goto exit;
 
 	printk(BIOS_DEBUG, "capsules: reserved capsule blocks.\n");
 
-	/* Also reserve memory range for cbmem.  Since it will still grow in
-	   size by an unknown amount, try to account for that by reserving at
-	   least 4 MiB more. */
-	void *cbmem_current;
-	size_t cbmem_size;
-	cbmem_get_region(&cbmem_current, &cbmem_size);
-	uintptr_t cbmem_future_base = ALIGN_DOWN((uintptr_t)cbmem_current - 4 * MiB, MiB);
-	memranges_insert(&memory_map,
-			 cbmem_future_base,
-			 (uintptr_t)cbmem_current + cbmem_size - cbmem_future_base,
-			 BM_MEM_RESERVED);
+	/* Leave at least 4 MiB below CBMEM for further allocations when possible. */
+	const uint64_t cbmem_future_base = ALIGN_DOWN(cbmem_base - MIN(cbmem_base, 4 * MiB), MiB);
+	memranges_create_hole(&memory_map, cbmem_future_base, cbmem_base - cbmem_future_base);
 
 	coalesce_buffer = pick_buffer(total_data_size);
 	if (coalesce_buffer.base == 0) {
@@ -781,7 +739,15 @@ void efi_parse_capsules(void)
 	} else {
 		printk(BIOS_DEBUG, "capsules: coalescing capsules data @ %#010x.\n",
 		       coalesce_buffer.base);
-		coalesce_capsules(block_chain, (void *)(uintptr_t)coalesce_buffer.base);
+		uint32_t used = 0;
+		for (int i = 0; i < valid_count && uefi_capsule_count < MAX_CAPSULES; i++) {
+			if (!coalesce_capsules(blocks[i], &used)) {
+				uefi_capsule_count = 0;
+				coalesce_buffer = (struct memory_range){0};
+				goto exit;
+			}
+		}
+		printk(BIOS_INFO, "capsules: found %d capsule(s).\n", uefi_capsule_count);
 	}
 	if (uefi_capsule_count > 0)
 		set_boot_mode(LB_BOOT_MODE_FLASH_UPDATE);

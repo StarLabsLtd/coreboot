@@ -8,6 +8,20 @@ $(call copy-test,crb-test,crb-ptt-test)
 crb-test-config += CONFIG_HAVE_INTEL_PTT=0
 crb-ptt-test-config += CONFIG_HAVE_INTEL_PTT=1
 
+tests-y += efi-capsules-x86-32-test efi-capsules-x86-64-test
+$(foreach test,efi-capsules-x86-32-test efi-capsules-x86-64-test,\
+	$(eval $(test)-srcs += tests/drivers/efi-capsules.c src/lib/memrange.c \
+		tests/stubs/console.c tests/stubs/die.c)\
+	$(eval $(test)-config += CONFIG_CPU_PT_ROM_MAP_GB=4 \
+		CONFIG_PLATFORM_HAS_DRAM_CLEAR=1 \
+		CONFIG_DRIVERS_EFI_UPDATE_CAPSULES=1 \
+		CONFIG_DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT=0 \
+		CONFIG_ECAM_MMCONF_BASE_ADDRESS=0xe0000000 CONFIG_RAMPAYLOAD=0)\
+	$(eval $(test)-cflags += -I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+		-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/X64))
+efi-capsules-x86-32-test-cflags += -D__ARCH_x86_32__
+efi-capsules-x86-64-test-cflags += -D__ARCH_x86_64__
+
 tests-y += efivars-test
 
 efivars-test-srcs += tests/drivers/efivars.c
