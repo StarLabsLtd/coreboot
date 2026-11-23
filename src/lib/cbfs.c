@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <boot_device.h>
+#include <bootmem.h>
 #include <cbfs.h>
 #include <cbmem.h>
 #include <commonlib/bsd/cbfs_private.h>
@@ -547,8 +548,9 @@ static enum cb_err check_or_query_type(const union cbfs_mdata *mdata, enum cbfs_
 	return CB_ERR;
 }
 
-void *_cbfs_alloc(const char *name, cbfs_allocator_t allocator, void *arg,
-		  size_t *size_out, bool force_ro, enum cbfs_type *type)
+static void *cbfs_alloc_file(const char *name, cbfs_allocator_t allocator, void *arg,
+			size_t *size_out, bool force_ro, enum cbfs_type *type,
+			bool measure_payload)
 {
 	struct region_device rdev;
 	bool preload_successful = false;
@@ -563,8 +565,14 @@ void *_cbfs_alloc(const char *name, cbfs_allocator_t allocator, void *arg,
 	if (check_or_query_type(&mdata, type) != CB_SUCCESS)
 		return NULL;
 
+	/* Release tooling measures SELF bytes; only segments may be compressed. */
+	if (measure_payload &&
+	    cbfs_find_attr(&mdata, CBFS_FILE_ATTR_TAG_COMPRESSION,
+			   sizeof(struct cbfs_file_attr_compression)))
+		return NULL;
+
 	/* Update the rdev with the preload content */
-	if (!force_ro && get_preload_rdev(&rdev, name) == CB_SUCCESS)
+	if (!measure_payload && !force_ro && get_preload_rdev(&rdev, name) == CB_SUCCESS)
 		preload_successful = true;
 
 	void *ret = do_alloc(&mdata, &rdev, allocator, arg, size_out, false);
@@ -574,7 +582,57 @@ void *_cbfs_alloc(const char *name, cbfs_allocator_t allocator, void *arg,
 	if (preload_successful)
 		cbfs_unmap(rdev_mmap_full(&rdev));
 
+#if ENV_RAMSTAGE && CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE)
+	if (measure_payload && ret) {
+		const struct cbfs_boot_device *rw = vboot_get_cbfs_boot_device();
+		const bool from_rw = rw && region_is_subregion(region_device_region(&rw->rdev),
+							      region_device_region(&rdev));
+		struct vb2_hash hash;
+		uint8_t evidence[1 + VB2_SHA256_DIGEST_SIZE];
+
+		if (vb2_hash_calculate(vboot_hwcrypto_allowed(), ret, *size_out,
+				       VB2_HASH_SHA256, &hash))
+			die("Required boot payload hash failed\n");
+		evidence[0] = from_rw;
+		memcpy(evidence + 1, hash.raw, VB2_SHA256_DIGEST_SIZE);
+		if (vb2_hash_calculate(false, evidence, sizeof(evidence), VB2_HASH_SHA256, &hash) ||
+		    tpm_extend_pcr_required(CONFIG_PCR_SRTM, VB2_HASH_SHA256, hash.raw,
+				   VB2_SHA256_DIGEST_SIZE, "VBOOT: payload origin and digest")
+		    != TPM_SUCCESS)
+			die("Required boot payload measurement failed\n");
+	}
+#endif
+
 	return ret;
+}
+
+void *_cbfs_alloc(const char *name, cbfs_allocator_t allocator, void *arg,
+		  size_t *size_out, bool force_ro, enum cbfs_type *type)
+{
+	return cbfs_alloc_file(name, allocator, arg, size_out, force_ro, type, false);
+}
+
+#if ENV_RAMSTAGE && CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE)
+static void *boot_payload_buffer(void *arg, size_t size, const union cbfs_mdata *mdata)
+{
+	if (!size || size > SIZE_MAX - 4095)
+		return NULL;
+	return bootmem_allocate_buffer(size);
+}
+#endif
+
+void *cbfs_map_boot_payload(const char *name, enum cbfs_type *type, size_t *measured_size)
+{
+	*measured_size = 0;
+#if ENV_RAMSTAGE && CONFIG(DAVE_MODE) && CONFIG(PAYLOAD_EDIIE)
+	if (!(vboot_get_context()->flags & VB2_CONTEXT_S3_RESUME)) {
+		/* Measure and load the same RAM snapshot, not a live flash mapping. */
+		*type = CBFS_TYPE_SELF;
+		return cbfs_alloc_file(name, boot_payload_buffer, NULL, measured_size,
+				       false, type, true);
+	}
+#endif
+	return cbfs_type_map(name, NULL, type);
 }
 
 void *_cbfs_unverified_area_alloc(const char *area, const char *name,

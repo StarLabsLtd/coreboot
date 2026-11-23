@@ -87,6 +87,9 @@ static inline size_t cbfs_unverified_area_load(const char *area, const char *nam
 static inline void *cbfs_map(const char *name, size_t *size_out);
 static inline void *cbfs_ro_map(const char *name, size_t *size_out);
 static inline void *cbfs_type_map(const char *name, size_t *size_out, enum cbfs_type *type);
+
+/* Map the boot payload, measuring its content and origin in native DAVE. */
+void *cbfs_map_boot_payload(const char *name, enum cbfs_type *type, size_t *measured_size);
 static inline void *cbfs_ro_type_map(const char *name, size_t *size_out, enum cbfs_type *type);
 static inline void *cbfs_unverified_area_map(const char *area, const char *name,
 					      size_t *size_out);
