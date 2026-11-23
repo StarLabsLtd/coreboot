@@ -67,15 +67,33 @@ bios_size=$(CONFIG_C_ENV_BOOTBLOCK_SIZE)
 $(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template $(obj)/config.h
 	sed -e "s,##APOB_BASE##,$(CONFIG_PSP_APOB_DRAM_ADDRESS)," \
 	    -e "s,##BIOS_ENTRY_BASE##,$(bios_base)," \
-	    -e "s,##BIOS_ENTRY_SIZE##,$(bios_size) ," \
+	    -e "s,##BIOS_ENTRY_SIZE##,$(bios_size)," \
 		$(opensil_config_sed) $< > $@
 
 $(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(obj)/config.h $(objutil)/kconfig/conf
+ifeq ($(CONFIG_SOC_AMD_OPENSIL_PHOENIX_POC),y)
+	mkdir -p $(OBJPATH)/opensil/config; \
+	cd $(opensil_dir); \
+		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
+		KBUILD_DEFCONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
+		KCONFIG_AUTOHEADER=$@ \
+		KCONFIG_AUTOCONFIG=$(OBJPATH)/opensil_auto.conf \
+		KCONFIG_DEPENDENCIES=$(OBJPATH)/opensil_auto.conf.cmd \
+		KCONFIG_SPLITCONFIG=$(OBJPATH)/opensil/config/ \
+		KCONFIG_RUSTCCFG=$(OBJPATH)/opensil_config.rustcfg \
+		DOTCONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
+		KCONFIG_NEGATIVES=1 \
+		KCONFIG_WERROR=1 \
+		KCONFIG_WARN_UNKNOWN_SYMBOLS=1 \
+		KCONFIG_PACKAGE=openSIL.Config \
+		$(abspath $(objutil)/kconfig/conf) --defconfig $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig
+else
 	cd $(opensil_dir); \
 		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
 		KCONFIG_AUTOHEADER=$@ \
 		$(PYTHON) util/kconfig/lib/genconfig.py \
 			--config-out $(OBJPATH)/$(OPENSIL_CONFIG) Kconfig
+endif
 
 # meson handles ccache on its own
 OPENSIL_COMPILER=$(filter-out $(CCACHE), $(CC_ramstage))
