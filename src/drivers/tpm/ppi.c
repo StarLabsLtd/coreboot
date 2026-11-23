@@ -177,7 +177,6 @@ static void tpm_ppi_func2_cb(void *arg)
 
 	acpigen_write_store_op_to_namestr(LOCAL2_OP, "^CMDR");
 	acpigen_write_store_op_to_namestr(ZERO_OP, "^OARG");
-	acpigen_write_store_op_to_namestr(ZERO_OP, "^USER");
 
 	acpigen_write_return_integer(PPI2_RET_SUCCESS);
 	acpigen_pop_len();
