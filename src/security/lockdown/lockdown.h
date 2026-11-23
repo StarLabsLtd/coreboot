@@ -9,7 +9,8 @@
 static inline bool enable_smm_bios_protection(void)
 {
 	if (CONFIG(BOOTMEDIA_SMM_BWP_RUNTIME_OPTION))
-		return get_uint_option("bios_lock", CONFIG(BOOTMEDIA_SMM_BWP));
+		return get_uint_option_checked("bios_lock", CONFIG(BOOTMEDIA_SMM_BWP),
+					       OPTION_BOOL);
 	return CONFIG(BOOTMEDIA_SMM_BWP);
 }
 
