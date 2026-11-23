@@ -50,6 +50,23 @@ config VBOOT_CBFS_INTEGRATION
 	  It also requires CBFS_VERIFICATION to be enabled, so that CBFS files
 	  contents are correctly verified.
 
+config VBOOT_PRESERVE_FALLBACK_ROLLBACK_FLOOR
+	bool
+	depends on VBOOT_SLOTS_RW_AB && !VBOOT_CBFS_INTEGRATION
+	help
+	  Advance the TPM rollback floor only when both firmware slots
+	  authenticate at or above the new floor. Boards using full-body A/B
+	  verification can enable this to keep an older fallback eligible
+	  while updating the slots independently.
+
+config VBOOT_VBNV_FLASH_REDUNDANT
+	bool "Keep redundant flash VBNV records"
+	depends on VBOOT_VBNV_FLASH && VBOOT_SLOTS_RW_AB
+	help
+	  Keep committed VBNV records in two erase-aligned banks so interrupted
+	  trial updates and journal rollover retain the previous valid state.
+	  RW_NVRAM must contain at least two 4 KiB erase blocks.
+
 config VBOOT_VBNV_CMOS
 	bool
 	default n
@@ -203,7 +220,6 @@ config VBOOT_WIPEOUT_SUPPORTED
 config VBOOT_FWID_MODEL
 	string "Firmware ID model"
 	default "Google_\$(CONFIG_MAINBOARD_PART_NUMBER)" if CHROMEOS
-	default "STARLABS_\$(CONFIG_MAINBOARD_PART_NUMBER)" if VENDOR_STARLABS
 	default "\$(CONFIG_MAINBOARD_VENDOR)_\$(CONFIG_MAINBOARD_PART_NUMBER)"
 	help
 	  This is the first part of the FWID written to various regions of a
@@ -536,7 +552,7 @@ config VBOOT_KEYBLOCK
 	default "\$(VBOOT_SOURCE)/tests/devkeys/firmware.keyblock"
 
 config VBOOT_KEYBLOCK_VERSION
-	int "Keyblock version number"
+	int "Firmware preamble version" if !STARLABS_VBOOT_RELEASE_POLICY
 	default 1
 
 config VBOOT_KEYBLOCK_PREAMBLE_FLAGS

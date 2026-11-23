@@ -55,6 +55,10 @@ void verstage_main(void);
 void verstage_mainboard_early_init(void);
 void verstage_mainboard_init(void);
 
+/* A/B rollback floors must retain an authenticated older fallback. */
+vb2_error_t vboot_verify_firmware(struct vb2_context *ctx);
+void vboot_update_firmware_floor(struct vb2_context *ctx);
+
 /* Check boot modes */
 #if CONFIG(VBOOT) && !ENV_SMM
 int vboot_developer_mode_enabled(void);
