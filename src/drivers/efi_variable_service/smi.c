@@ -804,18 +804,21 @@ enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value)
 		if (access->name[i] != (uint8_t)name[i])
 			return CB_EFI_ACCESS_ERROR;
 	}
-	if (variable->return_status == EFI_NOT_FOUND)
+	/* The fixed-width MM reply encodes errors with the IA32 status bit. */
+	EFI_STATUS status = variable->return_status;
+	if (status & BIT(31))
+		status = EFIERR(status & ~BIT(31));
+	if (status == EFI_NOT_FOUND)
 		return CB_EFI_OPTION_NOT_FOUND;
-	if (variable->return_status && variable->return_status != EFI_BUFFER_TOO_SMALL)
+	if (status && status != EFI_BUFFER_TOO_SMALL)
 		return CB_EFI_ACCESS_ERROR;
-	if ((!variable->return_status && access->data_size > sizeof(*value)) ||
-	    (variable->return_status == EFI_BUFFER_TOO_SMALL &&
-	     access->data_size <= sizeof(*value)))
+	if ((!status && access->data_size > sizeof(*value)) ||
+	    (status == EFI_BUFFER_TOO_SMALL && access->data_size <= sizeof(*value)))
 		return CB_EFI_ACCESS_ERROR;
 	/* The legacy reader sees only flash-backed variables, not volatile MM state. */
 	if (!(access->attributes & EFI_VARIABLE_NON_VOLATILE))
 		return CB_ERR_NOT_IMPLEMENTED;
-	if (variable->return_status == EFI_BUFFER_TOO_SMALL)
+	if (status == EFI_BUFFER_TOO_SMALL)
 		return CB_EFI_BUFFER_TOO_SMALL;
 	if (access->data_size != sizeof(*value))
 		return CB_EFI_ACCESS_ERROR;

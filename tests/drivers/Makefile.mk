@@ -67,6 +67,18 @@ $(foreach test,efi-variable-service-init-test efi-variable-service-4k-test,\
 efi-variable-service-init-test-config += CONFIG_SMMSTORE_BLOCK_SIZE=0x10000
 efi-variable-service-4k-test-config += CONFIG_SMMSTORE_BLOCK_SIZE=0x1000
 
+tests-y += efi-variable-service-native-option-test
+efi-variable-service-native-option-test-srcs += tests/drivers/efi-variable-service-native-option.c \
+	src/drivers/efi/option.c
+efi-variable-service-native-option-test-stage := smm
+efi-variable-service-native-option-test-config += CONFIG_ASS=1 CONFIG_ASS_NATIVE=1 \
+	CONFIG_ARCH_SMM_X86_64=1 CONFIG_SOC_AMD_PHOENIX_OPENSIL=1 CONFIG_ROM_SIZE=0x2000000 \
+	CONFIG_SMMSTORE_BLOCK_SIZE=0x1000 CONFIG_USE_UEFI_VARIABLE_STORE=1 CONFIG_OPTION_BACKEND_NONE=0
+efi-variable-service-native-option-test-cflags += -DASS_NATIVE_LINK_CHECK \
+	-I tests/drivers/efi-variable-service-include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/X64
+
 tests-y += efi-variable-service-resume-test
 efi-variable-service-resume-test-srcs += tests/drivers/efi-variable-service-resume.c \
 	tests/stubs/console.c
