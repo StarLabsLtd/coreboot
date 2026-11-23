@@ -621,7 +621,7 @@ void cse_late_finalize(void);
  * Allow SoC to implement heci1 disable override due to PSF registers being
  * different across SoC generation.
  */
-void soc_disable_heci1_using_pcr(void);
+int soc_disable_heci1_using_pcr(void);
 
 /*
  * SoC override API to identify if ISH Firmware existed inside CSE FPT.

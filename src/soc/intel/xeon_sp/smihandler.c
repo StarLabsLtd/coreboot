@@ -54,7 +54,7 @@ void smm_soc_exit(void)
 /*
  * Specific SOC SMI handler during ramstage finalize phase
  */
-void smihandler_soc_at_finalize(void)
+int smihandler_soc_at_finalize(void)
 {
 	const volatile struct smm_pci_resource_info *res_store;
 	size_t res_count, found = 0;
@@ -76,6 +76,8 @@ void smihandler_soc_at_finalize(void)
 	printk(BIOS_DEBUG, "Locked SMM_FEATURE_CONTROL on %zd sockets\n", found);
 	if (!found)
 		printk(BIOS_ERR, "Failed to lock SMM_FEATURE_CONTROL\n");
+
+	return found ? 0 : -1;
 }
 
 /*
