@@ -3,6 +3,7 @@
 #include <option.h>
 #include <soc/ramstage.h>
 
+#include "option_values.h"
 #include "vpd.h"
 
 void mainboard_silicon_init_params(FSP_S_CONFIG *params)
@@ -45,13 +46,8 @@ void mainboard_silicon_init_params(FSP_S_CONFIG *params)
 			params->C1StateUnDemotion = 0;
 			params->C1StateAutoDemotion = 0;
 		}
-		params->PkgCStateLimit = get_uint_option_checked(
-			"pkg_c_state_limit", 255,
-			OPTION_ENUM(0, 1, 2, 3, 4, 5, 6, 7, 8, 254, 255));
-		params->PchPmPciePllSsc = get_uint_option_checked(
-			"pch_pcie_pll_ssc", 255,
-			OPTION_ENUM(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-				    17, 18, 19, 20, 255));
+		params->PkgCStateLimit = atlas_pkg_c_state_limit();
+		params->PchPmPciePllSsc = atlas_pcie_ssc();
 		params->EnergyEfficientTurbo =
 			get_uint_option_checked("energy_eff_turbo", 0, OPTION_BOOL);
 		params->TurboMode = get_uint_option_checked("turbo_mode", 1, OPTION_BOOL);
