@@ -36,6 +36,19 @@ uint32_t smmstore_srk_exec(uint8_t command, void *buffer);
 #endif
 
 
+/* A successful begin must be paired with end, including after media errors. */
+#if ENV_SMM && CONFIG(SOC_INTEL_COMMON_BLOCK_SMM)
+bool smmstore_begin_write(bool *restore);
+void smmstore_end_write(bool restore);
+#else
+static inline bool smmstore_begin_write(bool *restore)
+{
+	*restore = false;
+	return true;
+}
+
+static inline void smmstore_end_write(bool restore) {}
+#endif
 
 /*
  * Used by capsule updates as a standalone command or modifier to v2 commands.

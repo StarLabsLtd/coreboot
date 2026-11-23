@@ -31,7 +31,7 @@ uint32_t smmstore_exec(uint8_t command, void *param)
 	static void *com_buffer;
 #endif
 
-	/* Fixed-MM updates use the signature-enforcing owner, never raw mutations. */
+	/* ASS updates use the signature-enforcing owner. */
 	if (CONFIG(ASS)) {
 		if (command & SMMSTORE_CMD_USE_FULL_FLASH)
 			/* Existing cold/S3 handoff may revoke a route that is never opened. */

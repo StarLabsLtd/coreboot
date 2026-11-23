@@ -956,7 +956,7 @@ BOOT_STATE_INIT_ENTRY(BS_DEV_INIT, BS_ON_EXIT, parse_capsules, NULL);
 static void enable_capsule_smi(void *unused)
 {
 	/* The protected update service does not grant raw full-flash access. */
-	if (CONFIG(DRIVERS_EFI_CAPSULE_DISK_ONLY) && CONFIG(ASS))
+	if (CONFIG(ASS))
 		return;
 
 	uint32_t ret;

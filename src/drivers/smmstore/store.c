@@ -155,16 +155,20 @@ uint32_t smmstore_srk_exec(uint8_t command, void *buffer)
 
 	struct srk_pin_record readback;
 	const uint16_t committed = 0;
+	const size_t body_size = offsetof(struct srk_pin_record, committed);
+	bool restore;
 	memset(&record, 0xff, sizeof(record));
 	memcpy(record.magic, pin_magic, sizeof(pin_magic));
 	memcpy(record.name, requested, sizeof(record.name));
-	if (rdev_writeat(&store, &record, 0, offsetof(struct srk_pin_record, committed)) !=
-	    offsetof(struct srk_pin_record, committed) ||
+	if (!smmstore_begin_write(&restore))
+		return SMMSTORE_RET_FAILURE;
+	const bool failed = rdev_writeat(&store, &record, 0, body_size) != body_size ||
 	    rdev_readat(&store, &readback, 0, sizeof(readback)) != sizeof(readback) ||
 	    memcmp(&readback, &record, sizeof(record)) ||
-	    rdev_writeat(&store, &committed, offsetof(struct srk_pin_record, committed),
-			 sizeof(committed)) != sizeof(committed) ||
-	    rdev_readat(&store, &readback, 0, sizeof(readback)) != sizeof(readback))
+	    rdev_writeat(&store, &committed, body_size, sizeof(committed)) != sizeof(committed) ||
+	    rdev_readat(&store, &readback, 0, sizeof(readback)) != sizeof(readback);
+	smmstore_end_write(restore);
+	if (failed)
 		return SMMSTORE_RET_FAILURE;
 	record.committed = committed;
 	return memcmp(&readback, &record, sizeof(record)) ?
@@ -463,7 +467,12 @@ int smmstore_rawwrite_region(uint32_t block_id, uint32_t offset, uint32_t bufsiz
 	printk(BIOS_DEBUG, "smm store: writing %p block %d, offset=0x%x, size=%x\n",
 	       ptr, block_id, offset, bufsize);
 
-	ssize_t ret = rdev_writeat(&store, ptr, 0, bufsize);
+	bool restore;
+	ssize_t ret = -1;
+	if (smmstore_begin_write(&restore)) {
+		ret = rdev_writeat(&store, ptr, 0, bufsize);
+		smmstore_end_write(restore);
+	}
 	rdev_munmap(&com_buf, ptr);
 	if (ret != bufsize)
 		return -1;
@@ -491,7 +500,11 @@ int smmstore_rawclear_region(uint32_t block_id)
 		return -1;
 #endif
 
+	bool restore;
+	if (!smmstore_begin_write(&restore))
+		return -1;
 	ssize_t ret = rdev_eraseat(&store, block_id * SMM_BLOCK_SIZE, SMM_BLOCK_SIZE);
+	smmstore_end_write(restore);
 	if (ret != SMM_BLOCK_SIZE) {
 		printk(BIOS_ERR, "smm store: erasing block failed\n");
 		return -1;

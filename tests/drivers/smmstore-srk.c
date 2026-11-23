@@ -3,12 +3,15 @@
 #include <boot_device.h>
 #include <commonlib/region.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/save_state.h>
 #include <fmap.h>
 #include <fmap_config.h>
 #include <intelblocks/fast_spi.h>
 #include <smmstore.h>
+#include <southbridge/intel/common/insmm_sts.h>
 #include <string.h>
 #include <tests/test.h>
+#include <soc/intel/common/block/smm/spi_write.h>
 
 static struct region_device flash;
 static uint8_t bytes[FMAP_SECTION_FLASH_SIZE];
@@ -17,6 +20,76 @@ static const uint8_t name[34] = { 0, 0x0b, 0x53, 0x52, 0x4b };
 static bool s3_resume, eiss, short_write, short_read;
 static size_t store_offset, store_size;
 static unsigned int writes, erases;
+
+static bool wpd, insmm, fail_open, fail_close;
+static unsigned int opens, closes;
+static uint32_t eax, ebx;
+
+bool fast_spi_wpd_status(void)
+{
+	return wpd;
+}
+
+void fast_spi_disable_wp(void)
+{
+	assert_true(insmm);
+	opens++;
+	wpd = !fail_open;
+}
+
+void fast_spi_enable_wp(void)
+{
+	assert_true(insmm);
+	closes++;
+	wpd = fail_close;
+}
+
+void set_insmm_sts(bool enable)
+{
+	insmm = enable;
+}
+
+void smmstore_drain_sync_smi(void) {}
+
+void die(const char *message, ...)
+{
+	assert_string_equal(message, "SMMSTORE: cannot restore SPI write protection.");
+	mock_assert(false, message, __FILE__, __LINE__);
+	__builtin_unreachable();
+}
+
+static int test_node(uint8_t command)
+{
+	assert_int_equal(command, APM_CNT_SMMSTORE);
+	return 0;
+}
+
+static int get_reg(enum cpu_reg reg, int node, void *out, uint8_t length)
+{
+	assert_int_equal(length, sizeof(uint32_t));
+	assert_true(reg == RAX || reg == RBX);
+	memcpy(out, reg == RAX ? &eax : &ebx, length);
+	return 0;
+}
+
+static int set_reg(enum cpu_reg reg, int node, void *in, uint8_t length)
+{
+	assert_int_equal(reg, RAX);
+	assert_int_equal(length, sizeof(uint8_t));
+	eax = *(uint8_t *)in;
+	return 0;
+}
+
+static uint32_t smi_command(uint8_t command, uint32_t param)
+{
+	static const struct smm_save_state_ops ops = {
+		.apmc_node = test_node, .get_reg = get_reg, .set_reg = set_reg,
+	};
+	eax = command << 8 | APM_CNT_SMMSTORE;
+	ebx = param;
+	southbridge_smi_store(&ops);
+	return eax;
+}
 
 static ssize_t flash_readat(const struct region_device *rdev, void *buffer,
 			    size_t offset, size_t size)
@@ -31,6 +104,7 @@ static ssize_t flash_writeat(const struct region_device *rdev, const void *buffe
 			     size_t offset, size_t size)
 {
 	const uint8_t *src = buffer;
+	assert_true(wpd);
 	writes++;
 	if (short_write)
 		size--;
@@ -41,6 +115,7 @@ static ssize_t flash_writeat(const struct region_device *rdev, const void *buffe
 
 static ssize_t flash_eraseat(const struct region_device *rdev, size_t offset, size_t size)
 {
+	assert_true(wpd);
 	erases++;
 	memset(bytes + offset, 0xff, size);
 	return size;
@@ -97,7 +172,8 @@ void smm_get_smmstore_com_buffer(uintptr_t *base, size_t *size)
 
 static uint32_t pin_command(uint8_t command)
 {
-	return smmstore_exec(command, communication_buffer);
+	/* SRK commands take their data from the published communication buffer. */
+	return smi_command(command, 1);
 }
 
 static int setup(void **state)
@@ -106,6 +182,8 @@ static int setup(void **state)
 	memset(bytes, 0xff, sizeof(bytes));
 	memset(communication_buffer, 0, sizeof(communication_buffer));
 	s3_resume = short_write = short_read = false;
+	wpd = insmm = fail_open = fail_close = false;
+	opens = closes = 0;
 	store_offset = FMAP_SECTION_SMMSTORE_START;
 	store_size = FMAP_SECTION_SMMSTORE_SIZE;
 	eiss = true;
@@ -118,7 +196,18 @@ static void raw_ranges(void **state)
 	struct smmstore_params_raw_write write = { .bufsize = 1 };
 	struct smmstore_params_raw_clear clear;
 
-	assert_int_equal(smmstore_exec(SMMSTORE_CMD_USE_FULL_FLASH, (void *)1), 0);
+	if (CONFIG(ASS)) {
+		assert_int_equal(smi_command(SMMSTORE_CMD_USE_FULL_FLASH, 1),
+			SMMSTORE_RET_UNSUPPORTED);
+		assert_int_equal(smi_command(SMMSTORE_CMD_RAW_WRITE, 1), SMMSTORE_RET_FAILURE);
+		assert_int_equal(smi_command(SMMSTORE_CMD_RAW_CLEAR, 1), SMMSTORE_RET_FAILURE);
+		assert_int_equal(smi_command(SMMSTORE_CMD_USE_FULL_FLASH |
+			SMMSTORE_CMD_RAW_WRITE, 1), SMMSTORE_RET_UNSUPPORTED);
+		assert_int_equal(opens, 0);
+		return;
+	}
+	assert_int_equal(smi_command(SMMSTORE_CMD_USE_FULL_FLASH, 1), 0);
+	assert_int_equal(opens, 0);
 	for (unsigned int mode = 0; mode <= SMMSTORE_CMD_USE_FULL_FLASH;
 	     mode += SMMSTORE_CMD_USE_FULL_FLASH) {
 		for (unsigned int block = 0; block < 4; block++) {
@@ -150,6 +239,7 @@ static void raw_physical_offset(void **state)
 	assert_int_equal(smmstore_exec(SMMSTORE_CMD_RAW_WRITE, &write), SMMSTORE_RET_FAILURE);
 	assert_int_equal(smmstore_exec(SMMSTORE_CMD_RAW_CLEAR, &clear), SMMSTORE_RET_FAILURE);
 	assert_int_equal(writes + erases, 0);
+	assert_int_equal(opens, 0);
 }
 
 static void short_io(void **state)
@@ -177,6 +267,7 @@ static void provisioning(void **state)
 	if (!CONFIG(SMMSTORE_SRK_PROVISION)) {
 		assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_DENIED);
 		assert_int_equal(writes, 0);
+		assert_int_equal(opens, 0);
 		return;
 	}
 	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_SUCCESS);
@@ -197,9 +288,38 @@ static void provisioning(void **state)
 	communication_buffer[2] ^= 1;
 	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_DENIED);
 	assert_int_equal(writes, 2);
+	assert_int_equal(opens, 1);
+	assert_int_equal(closes, opens);
+	assert_false(wpd || insmm);
 }
 
 #if CONFIG(SMMSTORE_SRK_PROVISION)
+static void gate_failures(void **state)
+{
+	memcpy(communication_buffer, name, sizeof(name));
+	fail_open = true;
+	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_FAILURE);
+	assert_int_equal(writes, 0);
+	assert_int_equal(closes, 1);
+	assert_false(wpd || insmm);
+	fail_open = false;
+	fail_close = true;
+	expect_assert_failure(pin_command(SMMSTORE_CMD_SRK_CREATE));
+	assert_int_equal(closes, 2);
+	assert_true(wpd);
+	assert_false(insmm);
+}
+
+static void preserve_open_gate(void **state)
+{
+	wpd = true;
+	memcpy(communication_buffer, name, sizeof(name));
+	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_SUCCESS);
+	assert_int_equal(writes, 2);
+	assert_int_equal(opens + closes, 0);
+	assert_true(wpd);
+}
+
 static void torn_provisioning(void **state)
 {
 	memcpy(communication_buffer, name, sizeof(name));
@@ -222,6 +342,9 @@ static void torn_provisioning(void **state)
 	memcpy(communication_buffer, name, sizeof(name));
 	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_FAILURE);
 	assert_int_equal(writes + erases, 0);
+	assert_int_equal(opens, 1);
+	assert_int_equal(closes, opens);
+	assert_false(wpd || insmm);
 }
 #endif
 
@@ -244,6 +367,7 @@ static void close_boundary(void **state)
 	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_CREATE), SMMSTORE_RET_DENIED);
 	assert_int_equal(pin_command(SMMSTORE_CMD_SRK_READ), SMMSTORE_RET_FAILURE);
 	assert_int_equal(writes + erases, 0);
+	assert_int_equal(opens, 0);
 }
 
 int main(void)
@@ -254,6 +378,8 @@ int main(void)
 		cmocka_unit_test_setup(short_io, setup),
 		cmocka_unit_test_setup(provisioning, setup),
 #if CONFIG(SMMSTORE_SRK_PROVISION)
+		cmocka_unit_test_setup(gate_failures, setup),
+		cmocka_unit_test_setup(preserve_open_gate, setup),
 		cmocka_unit_test_setup(torn_provisioning, setup),
 #endif
 		cmocka_unit_test_setup(close_boundary, setup),

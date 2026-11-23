@@ -5,6 +5,10 @@
 
 #include <types.h>
 
-void set_insmm_sts(const bool enable_writes);
+#if CONFIG(HAVE_INSMM_STS)
+void set_insmm_sts(bool enable_writes);
+#else
+static inline void set_insmm_sts(bool enable_writes) {}
+#endif
 
 #endif /* SOUTHBRIDGE_INTEL_INSMM_STS_H */
