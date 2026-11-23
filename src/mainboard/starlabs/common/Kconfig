@@ -77,9 +77,20 @@ menu "Star Labs Settings"
 
 config DAVE_MODE
 	bool "Enable DAVE mode"
+	depends on PAYLOAD_EDIIE && BOARD_STARLABS_STARFIGHTER_MTL
+	depends on VBOOT && !VBOOT_MOCK_SECDATA && !VBOOT_SLOTS_RW_AB
+	depends on !VBOOT_CBFS_INTEGRATION && ASS && EDIIE_SECURE_BOOT_FIXED_KEYS
+	depends on SMMSTORE && BOOTMEDIA_SMM_BWP && SOC_INTEL_COMMON_BLOCK_SMM
+	depends on PCR_BOOT_MODE = 1 && PCR_HWID = 1 && PCR_SRTM = 2 && PCR_FW_VER = 10
+	depends on TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
 	select SECURITY_FAIL_CLOSED
+	select TPM_PREBOOT_AUTH_PHASE
+	select SMMSTORE_SRK_PIN
+	select DISABLE_ACPI_HIBERNATE
 	help
 	  DAVE mode is the secure, locked-down variant.
+	  Native edIIe currently measures the verified RW firmware body;
+	  CBFS metadata verification is not a supported alternative.
 
 config BOOTMEDIA_SMM_BWP
 	bool
@@ -251,7 +262,7 @@ config STARLABS_TOUCHPAD_CST
 	select STARLABS_TOUCHPAD
 
 config TCG_OPAL_S3_UNLOCK
-	default y
+	default y if HAVE_ACPI_RESUME
 
 config MB_COMMON_DIR
 	string
