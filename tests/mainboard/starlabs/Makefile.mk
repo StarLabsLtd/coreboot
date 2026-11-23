@@ -38,3 +38,10 @@ straps-mtl-test-cflags += -I src/soc/intel/common/block/include \
 	-I src/soc/intel/meteorlake/include -I src/mainboard/starlabs/starfighter/include
 straps-mtl-test-config += CONFIG_SOC_INTEL_METEORLAKE=1
 
+tests-y += phoenix-apcb-test
+phoenix-apcb-test-srcs += tests/mainboard/starlabs/phoenix-apcb-test.c
+phoenix-apcb-test-srcs += src/soc/amd/common/block/psp/psp.c src/commonlib/region.c tests/stubs/console.c
+phoenix-apcb-test-cflags += -Isrc/soc/amd/common/block/include -Isrc/soc/amd/phoenix/include
+phoenix-apcb-test-cflags += -Isrc/soc/amd/common/block/psp -Itests/include/tests/lib
+phoenix-apcb-test-config += CONFIG_ROM_SIZE=0x1000000 CONFIG_AMD_FWM_POSITION=0x20000
+phoenix-apcb-test-config += CONFIG_PSP_APOB_DRAM_ADDRESS=0x10001000 CONFIG_HAVE_ACPI_RESUME=0

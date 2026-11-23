@@ -11,10 +11,10 @@
 #define PLATFORM_FLAGS (BIT(29) | BIT(25))
 
 static uint32_t mailbox, written_command;
-static uint16_t completion_status;
-static uintptr_t written_buffer;
+static uint32_t completion_word;
+static uint64_t written_buffer;
 static unsigned int command_writes;
-static bool complete_command;
+static bool complete_command, change_after_completion;
 
 uint64_t psp_get_base(void)
 {
@@ -25,25 +25,29 @@ uint32_t psp_read32(uint64_t base, uint32_t offset)
 {
 	assert_int_equal(base, MAILBOX_BASE);
 	assert_int_equal(offset, CONFIG_PSPV2_MBOX_CMD_OFFSET);
-	return mailbox;
+	uint32_t sample = mailbox;
+	if (change_after_completion && command_writes)
+		mailbox = 0;
+	return sample;
 }
 
 void psp_write32(uint64_t base, uint32_t offset, uint32_t value)
 {
 	assert_int_equal(base, MAILBOX_BASE);
+	if (offset == CONFIG_PSPV2_MBOX_CMD_OFFSET + 4) {
+		written_buffer = (written_buffer & 0xffffffff00000000ULL) | value;
+		return;
+	}
+	if (offset == CONFIG_PSPV2_MBOX_CMD_OFFSET + 8) {
+		written_buffer = (written_buffer & UINT32_MAX) | ((uint64_t)value << 32);
+		return;
+	}
 	assert_int_equal(offset, CONFIG_PSPV2_MBOX_CMD_OFFSET);
 	written_command = value;
 	command_writes++;
 	/* Model completion by clearing the command and reporting delivery status. */
 	mailbox = complete_command ?
-		(value & (PLATFORM_FLAGS | RECOVERY)) | READY | completion_status : value;
-}
-
-void psp_write64(uint64_t base, uint32_t offset, uint64_t value)
-{
-	assert_int_equal(base, MAILBOX_BASE);
-	assert_int_equal(offset, CONFIG_PSPV2_MBOX_CMD_OFFSET + 4);
-	written_buffer = value;
+		(value & (PLATFORM_FLAGS | RECOVERY)) | completion_word : value;
 }
 
 void timer_monotonic_get(struct mono_time *time)
@@ -60,8 +64,9 @@ static void reset_mailbox(uint32_t flags, uint16_t status)
 	written_command = 0;
 	written_buffer = 0;
 	command_writes = 0;
-	completion_status = status;
+	completion_word = READY | status;
 	complete_command = true;
+	change_after_completion = false;
 }
 
 static void request_fields(void **state)
@@ -77,7 +82,7 @@ static void request_fields(void **state)
 		expected |= RECOVERY;
 	assert_int_equal(written_command, expected);
 	assert_int_equal(command_writes, 1);
-	assert_ptr_equal((void *)written_buffer, &buffer);
+	assert_ptr_equal((void *)(uintptr_t)written_buffer, &buffer);
 }
 
 static void delivery_error(void **state)
@@ -102,6 +107,24 @@ static void recovery_mode_requires_support(void **state)
 	assert_int_equal(command_writes, recovery ? 1 : 0);
 }
 
+static void current_recovery_mode(void **state)
+{
+	bool recovery;
+
+	reset_mailbox(0, 0);
+	assert_int_equal(psp_get_recovery_mode(&recovery), CB_SUCCESS);
+	assert_false(recovery);
+	mailbox |= RECOVERY;
+	assert_int_equal(psp_get_recovery_mode(&recovery), CB_SUCCESS);
+	assert_true(recovery);
+	const uint32_t invalid[] = { 0, UINT32_MAX, READY | BIT(28), READY | BIT(16) };
+	for (size_t i = 0; i < ARRAY_SIZE(invalid); i++) {
+		mailbox = invalid[i];
+		assert_int_equal(psp_get_recovery_mode(&recovery), CB_ERR);
+	}
+	assert_int_equal(command_writes, 0);
+}
+
 static void not_ready_does_not_submit(void **state)
 {
 	struct mbox_default_buffer buffer = {0};
@@ -123,8 +146,37 @@ static void submitted_timeout_keeps_command_ownership(void **state)
 	assert_int_equal(send_psp_command(MBOX_BIOS_CMD_BOOT_DONE, &buffer),
 			 -PSPSTS_CMD_TIMEOUT);
 	assert_int_equal(command_writes, 1);
-	assert_ptr_equal((void *)written_buffer, &buffer);
+	assert_ptr_equal((void *)(uintptr_t)written_buffer, &buffer);
 	assert_int_equal(mailbox, MBOX_BIOS_CMD_BOOT_DONE << 16);
+}
+
+static void spi_completion(void **state)
+{
+	struct mbox_default_buffer buffer = {0};
+	const uint32_t command = MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION;
+
+	reset_mailbox(0, 0x1004);
+	change_after_completion = CONFIG(ASS);
+	assert_int_equal(send_psp_command(command, &buffer),
+			 CONFIG(ASS) ? -PSPSTS_SPI_COMMAND_ERROR : -PSPSTS_SEND_ERROR);
+	assert_int_equal(command_writes, 1);
+
+	reset_mailbox(0, 0);
+	completion_word = 0x1004; /* Command cleared, Ready still clear. */
+	assert_int_equal(send_psp_command(command, &buffer), -PSPSTS_CMD_TIMEOUT);
+
+	if (CONFIG(ASS)) {
+		const uint32_t flags[] = { BIT(28), BIT(29), RECOVERY, BIT(25) };
+
+		for (size_t i = 0; i < ARRAY_SIZE(flags); i++) {
+			reset_mailbox(0, 0x1004);
+			completion_word |= flags[i];
+			assert_int_equal(send_psp_command(command, &buffer), -PSPSTS_SEND_ERROR);
+			reset_mailbox(0, 0);
+			completion_word |= flags[i];
+			assert_int_equal(send_psp_command(command, &buffer), -PSPSTS_SEND_ERROR);
+		}
+	}
 }
 
 int main(void)
@@ -132,7 +184,9 @@ int main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(request_fields),
 		cmocka_unit_test(delivery_error),
+		cmocka_unit_test(spi_completion),
 		cmocka_unit_test(recovery_mode_requires_support),
+		cmocka_unit_test(current_recovery_mode),
 		cmocka_unit_test(not_ready_does_not_submit),
 		cmocka_unit_test(submitted_timeout_keeps_command_ownership),
 	};
