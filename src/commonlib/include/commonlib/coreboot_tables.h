@@ -102,6 +102,7 @@ enum {
 	LB_TAG_EC_BATTERY_DESCRIPTOR	= 0x005a,
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x005b,
 	LB_TAG_CAPSULE_SMMSTORE		= 0x005c,
+	LB_TAG_HDA_SPEAKER_AMP		= 0x005d,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -113,6 +114,20 @@ enum {
 
 /* All table entry base addresses and sizes must be 4-byte aligned. */
 #define LB_ENTRY_ALIGN 4
+
+/* Optional codec-internal speaker amplifier control for preboot PCM. */
+struct lb_hda_speaker_amp {
+	uint32_t tag;
+	uint32_t size;
+	uint32_t codec_id;
+	uint16_t segment;
+	uint16_t bdf;
+	uint8_t codec_address;
+	uint8_t gpio;
+	uint8_t eapd_node;
+	uint8_t active_high;
+	uint32_t reserved;
+};
 
 /* Since coreboot is usually compiled 32bit, gcc will align 64bit
  * types to 32bit boundaries. If the coreboot table is dumped on a
