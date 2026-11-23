@@ -91,6 +91,15 @@ static void migrate_power_state(int is_recovery)
 		return;
 	}
 	memcpy(ps_cbmem, &power_state, sizeof(*ps_cbmem));
+	if (CONFIG(EDIIE_S4_LAYOUT_REQUIRED) && !is_recovery) {
+		const enum boot_mode_t *saved = cbmem_find(CBMEM_ID_BOOT_MODE);
+		enum boot_mode_t mode = saved ? *saved : LB_BOOT_MODE_NORMAL;
+
+		if (power_state.prev_sleep_state == ACPI_S4)
+			mode = LB_BOOT_MODE_S4_RESUME;
+		/* Allocate on normal boots too so later ACPI addresses stay stable. */
+		set_boot_mode(mode);
+	}
 }
 CBMEM_CREATION_HOOK(migrate_power_state);
 
