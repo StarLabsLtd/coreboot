@@ -497,11 +497,16 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 
 	for (port = 0; port < APOLLOLAKE_USB2_PORT_MAX; port++) {
 		if (cfg->usb_config_override) {
-			if (!cfg->usb2_port[port].enable)
+			const struct usb_port_config *usb = &cfg->usb2_port[port];
+
+			if (!usb->configured)
 				continue;
 
-			silconfig->PortUsb20Enable[port] = 1;
-			silconfig->PortUs20bOverCurrentPin[port] = cfg->usb2_port[port].oc_pin;
+			silconfig->PortUsb20Enable[port] = usb->enable;
+			if (!usb->enable)
+				continue;
+
+			silconfig->PortUs20bOverCurrentPin[port] = usb->oc_pin;
 		}
 
 		if (cfg->usb2eye[port].Usb20PerPortTxPeHalf != 0)
@@ -535,11 +540,16 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 
 	if (cfg->usb_config_override) {
 		for (port = 0; port < APOLLOLAKE_USB3_PORT_MAX; port++) {
-			if (!cfg->usb3_port[port].enable)
+			const struct usb_port_config *usb = &cfg->usb3_port[port];
+
+			if (!usb->configured)
 				continue;
 
-			silconfig->PortUsb30Enable[port] = 1;
-			silconfig->PortUs30bOverCurrentPin[port] = cfg->usb3_port[port].oc_pin;
+			silconfig->PortUsb30Enable[port] = usb->enable;
+			if (!usb->enable)
+				continue;
+
+			silconfig->PortUs30bOverCurrentPin[port] = usb->oc_pin;
 		}
 	}
 #endif

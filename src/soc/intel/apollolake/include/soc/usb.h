@@ -9,6 +9,7 @@
 #define APOLLOLAKE_USB3_PORT_MAX 6
 
 struct usb_port_config {
+	uint8_t configured;
 	uint8_t enable;
 	uint8_t oc_pin;
 };
@@ -32,11 +33,13 @@ enum {
 };
 
 #define PORT_EN(pin) {   \
+	.configured = 1, \
 	.enable = 1,     \
 	.oc_pin = (pin), \
 }
 
 #define PORT_DIS {         \
+	.configured = 1,   \
 	.enable = 0,       \
 	.oc_pin = OC_SKIP, \
 }
