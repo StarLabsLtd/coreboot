@@ -6,8 +6,13 @@
 /* clang-format off */
 const struct pad_config early_gpio_table[] = {
 	/* Debug Connector */
+#if CONFIG(EDK2_DEBUG)
 	PAD_CFG_NF(GPP_H10, NONE, DEEP, NF2),				/* RXD */
 	PAD_CFG_NF(GPP_H11, NONE, DEEP, NF2),				/* TXD */
+#else
+	PAD_NC_LOCK(GPP_H10, NONE, LOCK_CONFIG),
+	PAD_NC_LOCK(GPP_H11, NONE, LOCK_CONFIG),
+#endif
 
 	/* Board ID */
 	PAD_CFG_GPI_LOCK(GPP_F12, NONE, LOCK_CONFIG),
