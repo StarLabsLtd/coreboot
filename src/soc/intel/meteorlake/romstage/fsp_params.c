@@ -17,6 +17,7 @@
 #include <intelbasecode/ramtop.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
+#include <intelblocks/igd_options.h>
 #include <intelblocks/pcie_rp.h>
 #include <option.h>
 #include <soc/cpu.h>
@@ -129,9 +130,7 @@ static void fill_fspm_igd_params(FSP_M_CONFIG *m_cfg,
 			     is_devfn_enabled(PCI_DEVFN_IGD);
 	if (m_cfg->InternalGfx) {
 		/* IGD is enabled, set IGD stolen size to 128MB. */
-		m_cfg->IgdDvmt50PreAlloc =
-			get_uint_option_checked("igd_dvmt_prealloc", IGD_SM_128MB,
-						OPTION_RANGE(IGD_SM_32MB, IGD_SM_160MB));
+		m_cfg->IgdDvmt50PreAlloc = get_igd_dvmt_option(IGD_SM_128MB, IGD_SM_160MB);
 		/* DP port config */
 		m_cfg->DdiPortAConfig = config->ddi_port_A_config;
 		m_cfg->DdiPortBConfig = config->ddi_port_B_config;

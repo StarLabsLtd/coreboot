@@ -6,6 +6,7 @@
 #include <fsp/util.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/cse.h>
+#include <intelblocks/igd_options.h>
 #include <intelblocks/pcie_rp.h>
 #include <option.h>
 #include <soc/iomap.h>
@@ -27,10 +28,7 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg,
 
 	if (m_cfg->InternalGfx) {
 		/* IGD is enabled, set IGD stolen size to 60MB. */
-		m_cfg->IgdDvmt50PreAlloc = get_uint_option_checked(
-			"igd_dvmt_prealloc", IGD_SM_60MB,
-			OPTION_ENUM(IGD_SM_32MB, IGD_SM_60MB, IGD_SM_64MB, IGD_SM_96MB,
-				    IGD_SM_128MB, IGD_SM_160MB));
+		m_cfg->IgdDvmt50PreAlloc = get_igd_dvmt_option(IGD_SM_60MB, IGD_SM_160MB);
 		m_cfg->ApertureSize =
 			get_uint_option_checked("igd_aperture_size", IGD_AP_SZ_256MB,
 						OPTION_RANGE(IGD_AP_SZ_128MB, IGD_AP_SZ_512MB));
