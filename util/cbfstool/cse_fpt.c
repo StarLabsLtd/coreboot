@@ -99,15 +99,20 @@ static int read_fpt_entries(struct buffer *buff)
 	size_t i;
 	struct fpt_entry *e;
 	const size_t entries = fpt.hdr_ops->get_entry_count(fpt.hdr);
-	const size_t fpt_entries_size = sizeof(struct fpt_entry) * entries;
 
-	if (buffer_size(buff) < fpt_entries_size) {
-		ERROR("Not enough bytes(actual=0x%zx, expected=0x%zx) for FPT entries!\n",
-		      buffer_size(buff), fpt_entries_size);
+	if (entries > buffer_size(buff) / sizeof(*e)) {
+		ERROR("Not enough bytes for %zu FPT entries.\n", entries);
 		return -1;
 	}
 
-	e = fpt.entries = malloc(fpt_entries_size);
+	if (entries == 0)
+		return 0;
+
+	e = fpt.entries = malloc(entries * sizeof(*e));
+	if (!e) {
+		ERROR("Could not allocate FPT entries.\n");
+		return -1;
+	}
 
 	for (i = 0; i < entries; i++, e++) {
 		READ_MEMBER(buff, e->name);
@@ -177,7 +182,7 @@ static bool is_partition_code(const struct fpt_entry *e)
 
 static void print_fpt_entry(const struct fpt_entry *e)
 {
-	printf("%-25s0x%-23x0x%-23x%c,%c (0x%.8x)\n",
+	printf("%-25.4s0x%-23x0x%-23x%c,%c (0x%.8x)\n",
 	       e->name, e->offset, e->length,
 	       is_partition_code(e) ? 'C' : 'D',
 	       is_partition_valid(e) ? 'V' : 'I',
@@ -206,7 +211,8 @@ static bool partition_name_match(const struct fpt_entry *e, const char *name)
 	if (!name)
 		return false;
 
-	return !memcmp(e->name, name, sizeof(e->name));
+	size_t len = strnlen((const char *)e->name, sizeof(e->name));
+	return strlen(name) == len && !memcmp(e->name, name, len);
 }
 
 static const struct fpt_entry *get_partition_entry(const char *name)
@@ -266,7 +272,7 @@ static char *get_file_path(const struct fpt_entry *e)
 	if (!filepath)
 		return NULL;
 
-	snprintf(filepath, filename_len, "%s%s%s",
+	snprintf(filepath, filename_len, "%s%s%.4s",
 			params.output_dir ? : "",
 			params.output_dir ? "/" : "",
 			e->name);
@@ -276,12 +282,20 @@ static char *get_file_path(const struct fpt_entry *e)
 
 static int write_partition_to_file(const struct fpt_entry *e)
 {
-	size_t end_offset = e->offset + e->length - 1;
+	size_t size = buffer_size(&fpt.input_buff);
 	struct buffer part_buffer;
 	char *filepath;
 
-	if (end_offset > buffer_size(&fpt.input_buff)) {
+	if (e->offset > size || e->length > size - e->offset) {
 		ERROR("Offset out of bounds for the partition!\n");
+		return -1;
+	}
+
+	size_t len = strnlen((const char *)e->name, sizeof(e->name));
+	if (!len || memchr(e->name, '/', len) || memchr(e->name, '\\', len) ||
+	    (len == 1 && e->name[0] == '.') ||
+	    (len == 2 && !memcmp(e->name, "..", len))) {
+		ERROR("Invalid partition name for extraction.\n");
 		return -1;
 	}
 
@@ -294,11 +308,9 @@ static int write_partition_to_file(const struct fpt_entry *e)
 	printf("Dumping %.4s in %s\n", e->name, filepath);
 
 	buffer_splice(&part_buffer, &fpt.input_buff, e->offset, e->length);
-	buffer_write_file(&part_buffer, filepath);
-
+	int ret = buffer_write_file(&part_buffer, filepath);
 	free(filepath);
-
-	return 0;
+	return ret;
 }
 
 static int cmd_dump(void)

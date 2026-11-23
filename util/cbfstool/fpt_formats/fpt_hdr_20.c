@@ -17,6 +17,9 @@ struct fpt_hdr {
 
 static bool match_version(struct buffer *buff)
 {
+	if (buffer_size(buff) < sizeof(struct fpt_hdr))
+		return false;
+
 	const uint8_t *data = buffer_get(buff);
 	uint8_t version = read_at_le8(data, offsetof(struct fpt_hdr, hdr_version));
 
@@ -56,6 +59,9 @@ static bool validate_fpt_hdr(const struct fpt_hdr *h)
 
 static fpt_hdr_ptr read_fpt_hdr(struct buffer *buff)
 {
+	if (buffer_size(buff) < sizeof(struct fpt_hdr))
+		return NULL;
+
 	struct fpt_hdr *h = malloc(sizeof(*h));
 	if (!h)
 		return NULL;
