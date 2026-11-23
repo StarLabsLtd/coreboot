@@ -162,7 +162,7 @@ void *smm_get_current_save_state(unsigned int cpu)
 {
 	unsigned int generation = __atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE);
 
-	if (cpu >= CONFIG_MAX_CPUS ||
+	if (!(generation & 1) || cpu >= CONFIG_MAX_CPUS ||
 	    __atomic_load_n(&cpu_smi_generation[cpu], __ATOMIC_ACQUIRE) != generation)
 		return NULL;
 
