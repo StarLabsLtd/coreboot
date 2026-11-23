@@ -54,7 +54,7 @@ void variant_devtree_update(void)
 
 	/* Update touchscreen device */
 	switch (get_uint_option_checked("touchscreen", TS_TYPE_AUTO_SELECT,
-					OPTION_RANGE(0, 5))) {
+					OPTION_RANGE(TS_TYPE_ELAN0001, TS_TYPE_WDHT0002))) {
 	case TS_TYPE_ELAN0001:
 		ts_gtch7503->enabled = 0;
 		ts_gdix0000->enabled = 0;
