@@ -1,0 +1,143 @@
+# Authorised SMM Service (ASS)
+
+`CONFIG_ASS` enables the Authorised SMM Service. `CONFIG_SMM_ASS_SIZE`
+reserves its SMRAM allocation.
+
+This interface runs an EFI authenticated-variable implementation from a fixed,
+coreboot-owned SMRAM region. The payload can submit requests but cannot register
+SMM code or choose an executable address.
+
+## Service image
+
+Prepare the payload before building the ROM. For Star Labs EDK2,
+select `origin/starlabs2` or an explicit release tag in `EDK2_TAG_OR_REV`
+and run `make prepare-edk2-source` after configuration. For edIIe, run
+`sh payloads/external/ediie/prepare-source.sh` for `starlabs2`, or
+pass a full `refs/tags/<tag>` release ref. Preparation resolves the ref
+and records the selected commit; normal builds verify that checkout.
+For an unpublished local revision, place the clean checkout at
+`payloads/external/ediie/ediie` (a symlink to the checkout also works).
+Before configuring, run
+`sh payloads/external/ediie/prepare-source.sh --local payloads/external/ediie/ediie`.
+Local preparation records the revision without fetching or moving it.
+Kconfig and the build both read that checkout.
+
+The Star Labs example configurations select this branch. Set
+`STARLABS_CAPSULE_KEY_DIR` to the absolute directory containing the selected
+capsule signer and public chain before building those examples. GLK/GLKR
+stitching inputs use `STARLABS_IFWI_INPUT_DIR`. Board firmware paths remain
+explicit configuration inputs; these directories are not part of the checkout.
+
+coreboot links the variable owner into its native SMM handler. EDK2 and
+edIIe use the same fixed-width mailbox on Intel SMM32 and Phoenix SMM64.
+Native ASS does not support vboot A/B ROM packaging.
+
+For variable-managed Secure Boot, the native owner trusts built-in setup
+during boot services. The owner's ReadyToBoot or runtime state closes that window;
+neither a new caller nor an S3 resume reopens it. With `CONFIG_ASS_FIXED_KEYS`, the executing firmware supplies PK, KEK and db.
+Authenticated dbx updates persist across firmware slot changes.
+
+Both key modes allow BDS to publish volatile factory-default variables
+before EndOfDxe. These variables describe the defaults; they are not the
+active PK, KEK or signature databases. The native owner denies changes to
+the defaults after EndOfDxe, including deletion.
+
+EDK2's legacy RequestToLock command uses the native variable-policy registry.
+EndOfDxe closes registration; it does not close the built-in setup window.
+An existing registry entry satisfies a duplicate lock request only if it
+already prevents writing the named variable.
+
+An EDK2 payload uses `ASS=TRUE` and the coreboot MM communication
+bridge. Capsule authentication uses the build-selected public certificate.
+Supply its absolute path when configuring capsule updates.
+
+During platform finalization SMM opens the variable store through the
+admitted writer. Intel seals the SPI controller BAR. Phoenix requires a
+protected PSP ROM Armor 3 handoff, early SMM locking and the verified
+openSIL capsule RAM range. Ordinary public
+SMMSTORE writes, erases and full-flash arming are denied while the service owns
+the store; raw reads remain available. The protected capsule owner alone can
+request bounded programming after authenticating signed metadata and image
+blocks. Its callbacks preserve the live variable store and applicable immutable
+regions; there is no separately armed public full-flash path.
+
+The BIOS Lock option remains available with this service. When enabled,
+finalization checks effective EISS, BIOS Lock and interface-lock bits and closed
+writes before returning to the payload. Failure stops boot. When disabled,
+direct OS flash access is intentionally available; the service still authorizes
+its own requests but cannot protect against writes that bypass it.
+
+The service reserves 4 MiB inside TSEG, in addition to the normal handler,
+per-CPU stacks, stage cache, IED and optional OPAL state. Supported configurable Intel client
+platforms reserve 16 MiB when enabled. GLK/GLKR retain their FSP's 8 MiB TSEG
+and remain outside the build-qualified board opt-ins.
+
+Capsule verification and programming retain fixed 64 KiB blocks, independently
+of the SMMSTORE logical block size. ASS defaults to 4 KiB logical blocks;
+non-ASS defaults are unchanged.
+
+### Existing 64 KiB stores
+
+On the first cold boot, coreboot detects the existing primary or FTW spare
+geometry and opens the native owner with that geometry. Only after the
+owner has recovered FTW and reports ready does native SMM convert the store.
+It preserves the old variable bytes, including authentication metadata, and
+expands the variable area into the former 64 KiB workspace. For a 512 KiB
+store, the resulting layout is 252 KiB variables, 4 KiB FTW workspace and
+256 KiB spare. The spare starts at the same offset in both layouts.
+
+The conversion stages and verifies the new primary image in that spare before
+committing a small CRC-protected migration record in its last 4 KiB block.
+Primary programming begins only after the record is read back. A later cold
+boot resumes a committed conversion before starting a variable engine. The
+spare image and record remain until primary readback and validation succeed;
+cleanup also handles interruption of its final erase. A completed conversion
+requests a reboot after SMM has restored write protection, so an engine never
+continues serving requests under changed geometry. S3 never initiates migration.
+No separate flash region, per-variable migration write or version floor is used.
+
+Downgrading to the tested legacy 64 KiB releases is allowed to reset the store:
+the expanded variable-area size makes their initializer reject and reformat it.
+Settings and enrolled keys are lost on that downgrade. A 4 KiB map with the old
+variable-area size is deliberately not produced: some legacy engines accept
+that combination but translate subsequent writes incorrectly. This does not
+promise downgrade compatibility with experimental 64 KiB ASS builds or arbitrary
+third-party firmware.
+
+The SMM loader checks the reservation and handler fit. On Intel S3 resume,
+ramstage validates the retained layout and mailbox. SMM rebinds the private
+store only after checking the controller, store geometry and retained
+runtime owner. Boot-time variable access stays closed.
+
+## Payload handoff
+
+The packed coreboot table record is 24 bytes: tag and record size at offsets 0
+and 4, a 16-bit revision at offset 8, an 8-bit APMC command and flags at
+offsets 10 and 11, a 64-bit communication-buffer address at offset 12 and a
+32-bit buffer size at offset 20. It deliberately contains no service image,
+SMRAM destination or entrypoint.
+
+The first page of the shared buffer contains the request state and MM completion
+status. The standard page-aligned MM communication message begins at offset
+`0x1000`. The payload writes one bounded request, issues the advertised APMC
+command and reads the response from the same allocation. coreboot rejects an
+unsupported revision, invalid state or message larger than the fixed capacity.
+
+## OPAL S3 ownership
+
+Only coreboot-enumerated NVMe devices with assigned memory resources are eligible
+for S3 enrollment. The native owner checks that trusted snapshot before accepting
+a secret. With the native ASS service enabled, enrollment also requires the retained
+trusted-boot window to remain open. The first external image, ReadyToBoot or
+ExitBootServices closes that window; clearing credentials does not reopen it.
+Unlocked builds without the fixed service retain their previous lifecycle policy
+and are not covered by this authorization guarantee.
+
+The payload connects trusted consoles and native NVMe drivers before external
+images. Its coreboot transport forwards only pending credentials; other LockBox
+backends retain full snapshots. Late-discovered devices may boot but are not
+enrolled for S3 unlock. Resume checks the enrolled device identity, restores the
+authorized BAR with decode/DMA disabled, and validates the resulting base after
+D0 before any controller MMIO. VID/DID/class matching is resource ownership
+validation, not unique physical-device authentication. These checks do not
+establish timeout-time DMA isolation or prove enrolled-drive recovery on hardware.

@@ -5,12 +5,11 @@ ESRT/FMP capsule mechanism.
 
 This document covers generating a *signed* capsule during the coreboot build.
 
-At present, capsule generation requires a compatible EDK2 tree with the
-corresponding payload-side changes. Upstream support is being tracked in:
-
-https://github.com/tianocore/edk2/pull/12053
-
-Older EDK2 trees may be missing pieces required by this integration.
+Capsule generation requires an EDK2 payload with coreboot FMP support and
+a `GenerateCapsule` that emits the 32-byte target-bound MSS1 header.
+[EDK2 PR 12053](https://github.com/tianocore/edk2/pull/12053) documents the
+payload-side FMP and RMAP work. Its generator and upstream EDK2 emit the
+legacy 16-byte MSS1 header, which is insufficient for this build.
 
 ## Build-time capsule generation
 
