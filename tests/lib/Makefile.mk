@@ -298,3 +298,19 @@ ux_locales-test-mocks += _cbfs_alloc \
 			vb2api_get_locale_id \
 			vboot_get_context
 ux_locales-test-config += CONFIG_VBOOT=1
+root_bridge_info-test-stage := ramstage
+root_bridge_info-test-srcs += tests/lib/root_bridge_info-test.c
+root_bridge_info-test-srcs += src/device/device_util.c
+root_bridge_info-test-srcs += tests/stubs/console.c
+root_bridge_info-test-config += CONFIG_PCI=1
+tests-y += root_bridge_info-test
+tests-y += payload_resource_handoff-test
+payload_resource_handoff-test-stage := ramstage
+payload_resource_handoff-test-srcs += tests/lib/payload_resource_handoff-test.c
+payload_resource_handoff-test-srcs += src/lib/payload_resource_handoff.c
+payload_resource_handoff-test-srcs += src/lib/crc_byte.c
+payload_resource_handoff-test-srcs += src/commonlib/bsd/ipchksum.c
+payload_resource_handoff-test-srcs += src/device/device_util.c
+payload_resource_handoff-test-srcs += tests/stubs/console.c
+payload_resource_handoff-test-cflags += -I tests/include/tests/lib/fmap
+payload_resource_handoff-test-config += CONFIG_PAYLOAD_EDIIE=1 CONFIG_PCI=1 \
