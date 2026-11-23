@@ -1,0 +1,14 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+if PAYLOAD_EDIIE
+
+config EDIIE_COREBOOT_CAPSULE_PROFILE
+	bool
+	default y
+
+source "payloads/external/ediie/ediie/Kconfig"
+
+config EDIIE_SECURE_BOOT_FIXED_KEYS
+	select ASS_FIXED_KEYS
+
+endif

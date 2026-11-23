@@ -2,6 +2,9 @@
 
 if VENDOR_STARLABS
 
+config EDIIE_BOOT_TIMEOUT
+	default 0 if PAYLOAD_EDIIE
+
 config BMP_LOGO
 	default y if PAYLOAD_EDK2 && EDK2_BOOTSPLASH_FILE != ""
 

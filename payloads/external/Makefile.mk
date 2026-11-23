@@ -1,5 +1,9 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+ifeq ($(CONFIG_PAYLOAD_EDIIE),y)
+include payloads/external/ediie/Makefile.mk
+endif
+
 ifeq ($(CONFIG_PAYLOAD_EDK2),y)
 edk2-generated-payload := $(obj)/$(if $(filter y,$(CONFIG_EDK2_UNIVERSAL_PAYLOAD)),UniversalPayload.fit,UEFIPAYLOAD.fd)
 ifeq ($(call strip_quotes,$(CONFIG_PAYLOAD_FILE)),)

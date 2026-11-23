@@ -13,6 +13,7 @@ LINTDIR="$(
 . "${LINTDIR}/helper_functions.sh"
 
 EXCLUDE='^3rdparty/\|util/crossgcc/xgcc\|coreboot\|COREBOOT\|CorebootPayload\|CorebootModule\|minnowboard.org/Coreboot\|.*\.patch$\|CorebootBdsLib\|^payloads/external'
+# Fixed MM uses the case-sensitive EDK2 platform and output paths.
 
 # # Check last commit message if the code is in a git repo
 if [ "${IN_GIT_TREE}" -eq 1 ]; then
