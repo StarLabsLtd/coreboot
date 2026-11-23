@@ -5,6 +5,7 @@
 #include <cpu/x86/smm.h>
 #include <smm_call.h>
 #include <stdint.h>
+#include <reset.h>
 
 static void apmc_log(const char *fn, u8 cmd)
 {
