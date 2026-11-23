@@ -2,6 +2,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <inttypes.h>
+#include <limits.h>
 #include <libgen.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -841,88 +842,71 @@ static int cbfs_payload_decompress(struct cbfs_payload_segment *segments,
 		struct buffer *buff, int num_seg)
 {
 	struct buffer new_buffer;
-	struct buffer seg_buffer;
-	size_t new_buff_sz;
-	char *in_ptr;
-	char *out_ptr;
-	size_t new_offset;
-	decomp_func_ptr decompress;
-
-	new_offset = num_seg * sizeof(*segments);
-	new_buff_sz = num_seg * sizeof(*segments);
-
-	/* Find out and allocate the amount of memory occupied
-	 * by the binary data */
-	for (int i = 0; i < num_seg; i++)
-		new_buff_sz += segments[i].mem_len;
-
-	if (buffer_create(&new_buffer, new_buff_sz, "decompressed_buff"))
-		return -1;
-
-	in_ptr = buffer_get(buff) + new_offset;
-	out_ptr = buffer_get(&new_buffer) + new_offset;
+	const size_t table_size = num_seg * sizeof(*segments);
+	size_t new_buff_sz = 0;
+	size_t new_offset = 0;
 
 	for (int i = 0; i < num_seg; i++) {
-		struct buffer tbuff;
-		size_t decomp_size;
+		const struct cbfs_payload_segment *seg = &segments[i];
+		size_t size;
 
-		/* Segments BSS and ENTRY do not have binary data. */
-		if (segments[i].type == PAYLOAD_SEGMENT_BSS ||
-				segments[i].type == PAYLOAD_SEGMENT_ENTRY) {
+		if (seg->type == PAYLOAD_SEGMENT_BSS || seg->type == PAYLOAD_SEGMENT_ENTRY)
 			continue;
-		} else if (segments[i].type == PAYLOAD_SEGMENT_DEPRECATED_PARAMS) {
-			memcpy(out_ptr, in_ptr, segments[i].len);
-			segments[i].offset = new_offset;
-			new_offset += segments[i].len;
-			in_ptr += segments[i].len;
-			out_ptr += segments[i].len;
-			segments[i].compression = CBFS_COMPRESS_NONE;
-			continue;
-		}
 
-		/* The payload uses an unknown compression algorithm. */
-		decompress = decompression_function(segments[i].compression);
-		if (decompress == NULL) {
-			ERROR("Unknown decompression algorithm: %u\n",
-					segments[i].compression);
+		if (seg->offset < table_size || seg->offset > buffer_size(buff) ||
+		    seg->len > buffer_size(buff) - seg->offset) {
+			ERROR("Payload segment %d extends outside the payload data.\n", i);
 			return -1;
 		}
-
-		if (buffer_create(&tbuff, segments[i].mem_len, "segment")) {
-			buffer_delete(&new_buffer);
+		if (seg->type == PAYLOAD_SEGMENT_DEPRECATED_PARAMS) {
+			size = seg->len;
+		} else {
+			if (seg->len > INT_MAX || seg->mem_len > INT_MAX) {
+				ERROR("Payload segment %d is too large to decompress.\n", i);
+				return -1;
+			}
+			size = seg->mem_len;
+		}
+		if (size > UINT32_MAX - new_buff_sz) {
+			ERROR("Decompressed payload is too large.\n");
 			return -1;
 		}
-
-		if (decompress(in_ptr, segments[i].len, buffer_get(&tbuff),
-					(int) buffer_size(&tbuff),
-					&decomp_size)) {
-			ERROR("Couldn't decompress payload segment %u\n", i);
-			buffer_delete(&new_buffer);
-			buffer_delete(&tbuff);
-			return -1;
-		}
-
-		memcpy(out_ptr, buffer_get(&tbuff), decomp_size);
-
-		in_ptr += segments[i].len;
-
-		/* Update the offset of the segment. */
-		segments[i].offset = new_offset;
-		/* True decompressed size is just the data size. No metadata */
-		segments[i].len = decomp_size;
-		/* Segment is not compressed. */
-		segments[i].compression = CBFS_COMPRESS_NONE;
-
-		/* Update the offset and output buffer pointer. */
-		new_offset += decomp_size;
-		out_ptr += decomp_size;
-
-		buffer_delete(&tbuff);
+		new_buff_sz += size;
 	}
 
-	buffer_splice(&seg_buffer, &new_buffer, 0, 0);
-	xdr_segs(&seg_buffer, segments, num_seg);
+	/* BSS and ENTRY can describe a payload with no file data. */
+	if (buffer_create(&new_buffer, MAX(new_buff_sz, 1), "decompressed payload"))
+		return -1;
 
+	for (int i = 0; i < num_seg; i++) {
+		struct cbfs_payload_segment *seg = &segments[i];
+		size_t decomp_size = seg->len;
+
+		if (seg->type == PAYLOAD_SEGMENT_BSS || seg->type == PAYLOAD_SEGMENT_ENTRY)
+			continue;
+
+		char *in_ptr = buff->data + seg->offset;
+		char *out_ptr = new_buffer.data + new_offset;
+		if (seg->type == PAYLOAD_SEGMENT_DEPRECATED_PARAMS) {
+			memcpy(out_ptr, in_ptr, seg->len);
+		} else {
+			decomp_func_ptr decompress = decompression_function(seg->compression);
+			if (!decompress ||
+			    decompress(in_ptr, seg->len, out_ptr, seg->mem_len, &decomp_size) ||
+			    decomp_size > seg->mem_len) {
+				ERROR("Couldn't decompress payload segment %d\n", i);
+				buffer_delete(&new_buffer);
+				return -1;
+			}
+		}
+
+		seg->offset = new_offset;
+		seg->len = decomp_size;
+		seg->compression = CBFS_COMPRESS_NONE;
+		new_offset += decomp_size;
+	}
+
+	buffer_set_size(&new_buffer, new_offset);
 	buffer_delete(buff);
 	*buff = new_buffer;
 
@@ -1087,6 +1071,11 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 
 		struct cbfs_payload_segment *seg;
 
+		if ((size_t)segments >= buffer_size(buff) / sizeof(*seg) ||
+		    (size_t)segments >= UINT32_MAX / sizeof(*seg)) {
+			ERROR("Payload segment table has no entry point.\n");
+			goto out;
+		}
 		seg = buffer_get(buff);
 		payload_type = read_be32(&seg[segments].type);
 
@@ -1113,12 +1102,12 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 	}
 
 	segs = malloc(segments * sizeof(*segs));
+	if (!segs)
+		goto out;
 
-	/* Decode xdr segments */
-	for (int i = 0; i < segments; i++) {
-		struct cbfs_payload_segment *serialized_seg = buffer_get(buff);
-		xdr_get_seg(&segs[i], &serialized_seg[i]);
-	}
+	struct cbfs_payload_segment *serialized_segs = buffer_get(buff);
+	for (int i = 0; i < segments; i++)
+		cbfs_decode_payload_segment(&segs[i], &serialized_segs[i]);
 
 	if (cbfs_payload_decompress(segs, buff, segments)) {
 		ERROR("Failed to decompress payload.\n");
@@ -1141,7 +1130,7 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 		size_t empty_sz = 0;
 
 		memset(&shdr, 0, sizeof(shdr));
-		char *name = NULL;
+		const char *name;
 
 		if (segs[i].type == PAYLOAD_SEGMENT_CODE) {
 			shdr.sh_type = SHT_PROGBITS;
@@ -1149,7 +1138,7 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			shdr.sh_addr = segs[i].load_addr;
 			shdr.sh_size = segs[i].len;
 			empty_sz = segs[i].mem_len - segs[i].len;
-			name = strdup(".text");
+			name = ".text";
 			buffer_splice(&tbuff, buff, segs[i].offset,
 				       segs[i].len);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_DATA) {
@@ -1158,21 +1147,21 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			shdr.sh_addr = segs[i].load_addr;
 			shdr.sh_size = segs[i].len;
 			empty_sz = segs[i].mem_len - segs[i].len;
-			name = strdup(".data");
+			name = ".data";
 			buffer_splice(&tbuff, buff, segs[i].offset,
 				       segs[i].len);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_BSS) {
 			shdr.sh_type = SHT_NOBITS;
 			shdr.sh_flags = SHF_ALLOC | SHF_WRITE;
 			shdr.sh_addr = segs[i].load_addr;
-			shdr.sh_size = segs[i].len;
-			name = strdup(".bss");
+			shdr.sh_size = segs[i].mem_len;
+			name = ".bss";
 			buffer_splice(&tbuff, buff, 0, 0);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_DEPRECATED_PARAMS) {
 			shdr.sh_type = SHT_NOTE;
 			shdr.sh_flags = 0;
 			shdr.sh_size = segs[i].len;
-			name = strdup(".note.pinfo");
+			name = ".note.pinfo";
 			buffer_splice(&tbuff, buff, segs[i].offset,
 				       segs[i].len);
 		} else if (segs[i].type == PAYLOAD_SEGMENT_ENTRY) {
@@ -1182,17 +1171,10 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			goto out;
 		}
 
-		if (!name) {
-			ERROR("out of memory\n");
-			goto out;
-		}
-
 		if (elf_writer_add_section(ew, &shdr, &tbuff, name)) {
 			ERROR("Unable to add ELF section: %s\n", name);
-			free(name);
 			goto out;
 		}
-		free(name);
 
 		if (empty_sz != 0) {
 			struct buffer b;
@@ -1203,17 +1185,10 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
 			shdr.sh_flags = SHF_WRITE | SHF_ALLOC;
 			shdr.sh_addr = segs[i].load_addr + segs[i].len;
 			shdr.sh_size = empty_sz;
-			name = strdup(".empty");
-			if (!name) {
-				ERROR("out of memory\n");
+			if (elf_writer_add_section(ew, &shdr, &b, ".empty")) {
+				ERROR("Unable to add ELF section: .empty\n");
 				goto out;
 			}
-			if (elf_writer_add_section(ew, &shdr, &b, name)) {
-				ERROR("Unable to add ELF section: %s\n", name);
-				free(name);
-				goto out;
-			}
-			free(name);
 		}
 	}
 
@@ -1247,33 +1222,36 @@ int cbfs_export_entry(struct cbfs_image *image, const char *entry_name,
 	unsigned int decompressed_size = 0;
 	unsigned int compression = cbfs_file_get_compression_info(entry,
 		&decompressed_size);
-	unsigned int buffer_len;
-	decomp_func_ptr decompress;
+	unsigned int buffer_len = decompressed_size;
+	size_t actual_size;
 
-	if (do_processing) {
-		decompress = decompression_function(compression);
-		if (!decompress) {
-			ERROR("looking up decompression routine failed\n");
-			return -1;
-		}
-		buffer_len = decompressed_size;
-	} else {
-		/* Force nop decompression */
-		decompress = decompression_function(CBFS_COMPRESS_NONE);
+	if (!do_processing) {
+		compression = CBFS_COMPRESS_NONE;
 		buffer_len = compressed_size;
 	}
 
-	LOG("Found file %.30s at 0x%x, type %.12s, compressed %d, size %d\n",
+	if (compressed_size > INT_MAX || buffer_len > INT_MAX) {
+		ERROR("File %s is too large to extract.\n", entry_name);
+		return -1;
+	}
+
+	decomp_func_ptr decompress = decompression_function(compression);
+	if (!decompress) {
+		ERROR("No decompression routine for %s.\n", entry_name);
+		return -1;
+	}
+
+	LOG("Found file %.30s at 0x%x, type %.12s, compressed %u, size %u\n",
 	    entry_name, cbfs_get_entry_addr(image, entry),
 	    get_cbfs_entry_type_name(be32toh(entry->type)), compressed_size,
 	    decompressed_size);
 
-	buffer_init(&buffer, strdup("(cbfs_export_entry)"), NULL, 0);
-	buffer.data = malloc(buffer_len);
-	buffer.size = buffer_len;
+	if (buffer_create(&buffer, MAX(buffer_len, 1), entry_name))
+		return -1;
+	buffer_set_size(&buffer, buffer_len);
 
 	if (decompress(CBFS_SUBHEADER(entry), compressed_size,
-		       buffer.data, buffer.size, NULL)) {
+		       buffer.data, buffer_len, &actual_size) || actual_size != buffer_len) {
 		ERROR("decompression failed for %s\n", entry_name);
 		buffer_delete(&buffer);
 		return -1;

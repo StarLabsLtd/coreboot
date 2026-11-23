@@ -73,8 +73,6 @@ uint32_t get_cbfs_compression(const char *name, uint32_t unknown);
 /* cbfs-mkpayload.c */
 void xdr_segs(struct buffer *output,
 	      struct cbfs_payload_segment *segs, int nseg);
-void xdr_get_seg(struct cbfs_payload_segment *out,
-		struct cbfs_payload_segment *in);
 
 /* platform_fixups.c */
 typedef int (*platform_fixup_func)(struct buffer *buffer, size_t offset);
