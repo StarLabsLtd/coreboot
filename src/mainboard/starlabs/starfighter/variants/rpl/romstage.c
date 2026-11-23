@@ -164,7 +164,7 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	mupd->FspmConfig.VtdDisable = !vtd;
 
 	/* Enable/Disable Wireless (RP05) based on CMOS settings */
-	if (get_uint_option("wifi", 1) == 0)
+	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0)
 		mupd->FspmConfig.PcieRpEnableMask &= ~(1 << 4);
 
 	mupd->FspmConfig.DmiMaxLinkSpeed = 4;

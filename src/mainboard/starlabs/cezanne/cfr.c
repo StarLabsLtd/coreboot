@@ -5,20 +5,6 @@
 #include <ec/starlabs/merlin/cfr.h>
 #include <variants.h>
 
-enum {
-	STARLABS_CFR_ASPM_DISABLE = 1,
-	STARLABS_CFR_ASPM_L0S,
-	STARLABS_CFR_ASPM_L1,
-	STARLABS_CFR_ASPM_L0S_L1,
-	STARLABS_CFR_ASPM_AUTO,
-};
-
-enum {
-	STARLABS_CFR_L1SS_DISABLED = 1,
-	STARLABS_CFR_L1SS_L1_1,
-	STARLABS_CFR_L1SS_L1_2,
-};
-
 static void cezanne_update_pcie_clk_pm(struct sm_object *new_obj)
 {
 	if (!CONFIG(PCIEXP_CLK_PM))
@@ -133,8 +119,14 @@ static struct sm_obj_form battery_group = {
 		#if CONFIG(EC_STARLABS_CHARGING_SPEED)
 		&charging_speed,
 		#endif
+		#if CONFIG(EC_STARLABS_CHARGING_POLICY)
+		&charging_policy,
+		#endif
 		#if CONFIG(EC_STARLABS_MAX_CHARGE)
 		&max_charge,
+		#endif
+		#if CONFIG(EC_STARLABS_POWER_REPORTING)
+		&power_reporting,
 		#endif
 		#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 		&power_on_ac,

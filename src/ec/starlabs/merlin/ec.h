@@ -122,6 +122,11 @@ enum ec_acpi_result {
 #define SPEED_0_5C		0x01
 #define SPEED_0_2C		0x02
 
+/* Charging Policy */
+#define CHARGING_POLICY_AUTO		0x00
+#define CHARGING_POLICY_CHARGING	0xaa
+#define CHARGING_POLICY_PERFORMANCE	0xbb
+
 /* Lid Switch */
 #define SWITCH_NORMAL		0x00
 #define SWITCH_SLEEP_ONLY	0x01
@@ -134,6 +139,19 @@ enum ec_acpi_result {
 
 /* Adapter auto power-on */
 #define ADAPTER_AUTO_POWER_ON_DEFAULT	CONFIG(SYSTEM_TYPE_MINIPC)
+
+/* Power reporting */
+#define POWER_REPORTING_TRUTHFUL	0x00
+#define POWER_REPORTING_QUIET		0x01
+
+enum automatic_start {
+	AUTOMATIC_START_ALWAYS = 0,
+	AUTOMATIC_START_AFTER_FAILURE = 1,
+	AUTOMATIC_START_NEVER = 2,
+};
+
+#define AUTOMATIC_START_DEFAULT	(CONFIG(SYSTEM_TYPE_MINIPC) ? AUTOMATIC_START_ALWAYS : \
+				 AUTOMATIC_START_NEVER)
 
 uint16_t ec_get_version(void);
 

@@ -13,17 +13,10 @@ uint16_t ec_get_version(void)
 	return (ec_read(ECRAM_MAJOR_VERSION) << 8) | ec_read(ECRAM_MINOR_VERSION);
 }
 
-static uint8_t get_ec_value_from_option(const char *name, uint8_t fallback, const uint8_t *lut,
-					size_t lut_size)
+static uint8_t get_ec_value_from_option(const char *name, uint8_t fallback,
+					const unsigned int *lut, size_t lut_size)
 {
-	const uint8_t value = get_uint_option(name, fallback);
-
-	/* Check if the value exists in the LUT array */
-	for (size_t i = 0; i < lut_size; i++)
-		if (lut[i] == value)
-			return value;
-
-	return fallback;
+	return get_uint_option_checked(name, fallback, OPTION_ENUM_VALUES(lut, lut_size));
 }
 
 static uint16_t ec_get_chip_id(unsigned int port)
@@ -78,7 +71,7 @@ static void merlin_init(struct device *dev)
 	 * Default:	30 Seconds
 	 *
 	 */
-	const uint8_t kbl_timeout[] = {SEC_30, MIN_1, MIN_3, MIN_5, NEVER};
+	const unsigned int kbl_timeout[] = {SEC_30, MIN_1, MIN_3, MIN_5, NEVER};
 
 	ec_write(ECRAM_KBL_TIMEOUT,
 		 get_ec_value_from_option("kbl_timeout", 0, kbl_timeout,
@@ -93,7 +86,7 @@ static void merlin_init(struct device *dev)
 	 * Default:	Disabled
 	 *
 	 */
-	const uint8_t fn_ctrl_swap[] = {FN_CTRL, CTRL_FN};
+	const unsigned int fn_ctrl_swap[] = {FN_CTRL, CTRL_FN};
 
 	ec_write(ECRAM_FN_CTRL_REVERSE,
 		 get_ec_value_from_option("fn_ctrl_swap", 0, fn_ctrl_swap,
@@ -108,7 +101,7 @@ static void merlin_init(struct device *dev)
 	 * Default:	100%
 	 *
 	 */
-	const uint8_t max_charge[] = {CHARGE_100, CHARGE_80, CHARGE_60};
+	const unsigned int max_charge[] = {CHARGE_100, CHARGE_80, CHARGE_60};
 
 	if (CONFIG(EC_STARLABS_MAX_CHARGE))
 		ec_write(ECRAM_MAX_CHARGE,
@@ -124,7 +117,7 @@ static void merlin_init(struct device *dev)
 	 * Default:	Normal
 	 *
 	 */
-	const uint8_t fan_mode[] = {FAN_NORMAL, FAN_AGGRESSIVE, FAN_QUIET};
+	const unsigned int fan_mode[] = {FAN_NORMAL, FAN_AGGRESSIVE, FAN_QUIET};
 
 	if (CONFIG(EC_STARLABS_FAN))
 		ec_write(ECRAM_FAN_MODE,
@@ -139,7 +132,7 @@ static void merlin_init(struct device *dev)
 	 * Default:	Locked
 	 *
 	 */
-	const uint8_t fn_lock_state[] = {UNLOCKED, LOCKED};
+	const unsigned int fn_lock_state[] = {UNLOCKED, LOCKED};
 
 	ec_write(ECRAM_FN_LOCK_STATE,
 		 get_ec_value_from_option(
@@ -154,7 +147,7 @@ static void merlin_init(struct device *dev)
 	 * Default:	Enabled
 	 *
 	 */
-	const uint8_t trackpad_state[] = {TRACKPAD_ENABLED, TRACKPAD_DISABLED};
+	const unsigned int trackpad_state[] = {TRACKPAD_ENABLED, TRACKPAD_DISABLED};
 
 	ec_write(ECRAM_TRACKPAD_STATE,
 		 get_ec_value_from_option(
@@ -169,7 +162,7 @@ static void merlin_init(struct device *dev)
 	 * Default:	Low
 	 *
 	 */
-	const uint8_t kbl_brightness[] = {KBL_ON, KBL_OFF, KBL_LOW, KBL_HIGH};
+	const unsigned int kbl_brightness[] = {KBL_ON, KBL_OFF, KBL_LOW, KBL_HIGH};
 
 	const uint8_t kbl_brightness_fallback =
 		CONFIG(EC_STARLABS_KBL_LEVELS) ? KBL_LOW : KBL_ON;

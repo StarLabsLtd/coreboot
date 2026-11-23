@@ -5,6 +5,7 @@
  */
 
 #include <drivers/option/cfr_frontend.h>
+#include <starlabs/efi_option_smi.h>
 #include "ec.h"
 
 /*
@@ -52,6 +53,26 @@ static const struct sm_object max_charge = SM_DECLARE_ENUM({
 });
 
 /*
+ * Power Reporting
+ */
+static const struct sm_object power_reporting = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_POWER_REPORTING) ? CFR_OPTFLAG_RUNTIME : 0,
+	.opt_name	= "power_reporting",
+	.ui_name	= "Power Reporting",
+	.ui_helptext	= "Control battery discharge reporting while external power is connected.",
+	.default_value	= POWER_REPORTING_TRUTHFUL,
+	.runtime_apply = {
+		.method = CONFIG(EC_STARLABS_POWER_REPORTING) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id = STARLABS_EFIOPT_ID_POWER_REPORTING,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "Truthful",	POWER_REPORTING_TRUTHFUL	},
+			{ "Quiet",	POWER_REPORTING_QUIET		},
+			SM_ENUM_VALUE_END				},
+});
+
+/*
  * Fan Mode
  */
 static const struct sm_object fan_mode = SM_DECLARE_ENUM({
@@ -81,6 +102,28 @@ static const struct sm_object charging_speed = SM_DECLARE_ENUM({
 			{ "0.5C",		SPEED_0_5C	},
 			{ "0.2C",		SPEED_0_2C	},
 			SM_ENUM_VALUE_END			},
+});
+
+/*
+ * Charging Policy
+ */
+static const struct sm_object charging_policy = SM_DECLARE_ENUM({
+	.flags		= CONFIG(EC_STARLABS_CHARGING_POLICY) ? CFR_OPTFLAG_RUNTIME : 0,
+	.opt_name	= "charging_policy",
+	.ui_name	= "Charging Priority",
+	.ui_helptext	= "Choose whether battery charging or system performance gets"
+			  " priority when external power is limited.",
+	.default_value	= CHARGING_POLICY_AUTO,
+	.runtime_apply = {
+		.method	= CONFIG(EC_STARLABS_CHARGING_POLICY) ?
+			  CFR_RUNTIME_APPLY_APM_CNT : CFR_RUNTIME_APPLY_NONE,
+		.id	= STARLABS_EFIOPT_ID_CHARGING_POLICY,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "Automatic", 	CHARGING_POLICY_AUTO		},
+			{ "Charging", 		CHARGING_POLICY_CHARGING	},
+			{ "Performance", 	CHARGING_POLICY_PERFORMANCE	},
+			SM_ENUM_VALUE_END				},
 });
 
 /*
@@ -127,14 +170,35 @@ static const struct sm_object charge_led = SM_DECLARE_ENUM({
 	.values		= led_brightness,
 });
 
-#if CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
+#if CONFIG(STARLABS_AUTOMATIC_START)
+/*
+ * Automatic power-on policy
+ */
+static const struct sm_object automatic_start = SM_DECLARE_ENUM({
+	.flags		= CFR_OPTFLAG_RUNTIME,
+	.opt_name	= "automatic_start",
+	.ui_name	= "Automatic Start",
+	.ui_helptext	= "Choose when the system starts without pressing the power button.",
+	.default_value	= AUTOMATIC_START_DEFAULT,
+	.runtime_apply = {
+		.method	= CFR_RUNTIME_APPLY_APM_CNT,
+		.id	= STARLABS_EFIOPT_ID_AUTOMATIC_START,
+	},
+	.values		= (const struct sm_enum_value[]) {
+			{ "On AC Connect",          AUTOMATIC_START_ALWAYS        },
+			{ "After Power Loss",       AUTOMATIC_START_AFTER_FAILURE },
+			{ "Never",                  AUTOMATIC_START_NEVER         },
+			SM_ENUM_VALUE_END
+	},
+});
+#elif CONFIG(EC_STARLABS_ADAPTER_AUTO_POWER_ON)
 /*
  * Power on when adapter is connected
  */
 static const struct sm_object power_on_ac = SM_DECLARE_BOOL({
 	.opt_name	= "power_on_ac",
-	.ui_name	= "Power On AC Connect",
-	.ui_helptext	= "Power on automatically when a charger is connected.",
+	.ui_name	= "Start When Charger Connected",
+	.ui_helptext	= "Start automatically when a charger is connected.",
 	.default_value	= ADAPTER_AUTO_POWER_ON_DEFAULT,
 });
 #endif
