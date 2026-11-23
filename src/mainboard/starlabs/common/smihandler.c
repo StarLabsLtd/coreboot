@@ -9,6 +9,11 @@
 #endif
 #include <ec/acpi/ec.h>
 #include <ec/starlabs/merlin/ec.h>
+#if CONFIG(ASS)
+#include <efi_variable_service.h>
+#endif
+#if CONFIG(STARLABS_ACPI_EFI_OPTION_SMI)
+#include <acpi/acpi_gnvs.h>
 #if CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI)
 #include <cpu/intel/msr.h>
 #include <cpu/x86/msr.h>
@@ -26,6 +31,7 @@
 #endif
 #include <option.h>
 #include <starlabs/efi_option_smi.h>
+#include <starlabs/smi.h>
 #include <types.h>
 #include "ecdefs.h"
 
@@ -601,7 +607,11 @@ int starlabs_efi_option_smi(u8 data)
 		}
 
 		const bool wp_enabled = chipset_disable_wp();
-		dnvs->status = set_uint_option(opt->name, value);
+#if CONFIG(ASS)
+		ret = efi_variable_service_set_uint(opt->name, value);
+#else
+		ret = set_uint_option(opt->name, value);
+#endif
 		if (wp_enabled)
 			chipset_enable_wp();
 		if (ret == CB_SUCCESS)
