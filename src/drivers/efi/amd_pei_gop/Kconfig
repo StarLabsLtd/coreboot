@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRIVERS_AMD_PEI_GOP
+	bool
+	depends on ARCH_RAMSTAGE_X86_64 && SOC_AMD_PHOENIX_OPENSIL
+	select UDK_2017_BINDING
+
+config DRIVERS_AMD_PEI_GOP_FILE
+	string "AMD IA32 GOP PEIM file"
+	depends on DRIVERS_AMD_PEI_GOP
+	help
+	  Path to the compatible AMD IA32 PEI graphics driver. The driver
+	  runs through a bounded PI host after PCI resources are assigned.
+
+config DRIVERS_AMD_PEI_GOP_ATOM_FILE
+	string "AMD ATOMBIOS data file"
+	depends on DRIVERS_AMD_PEI_GOP
+	help
+	  Path to the board-compatible ATOMBIOS image used for graphics
+	  initialization and the operating-system VBIOS handoff.
