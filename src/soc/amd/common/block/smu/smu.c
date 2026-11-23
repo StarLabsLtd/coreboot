@@ -9,26 +9,26 @@
 #include <types.h>
 
 /* returns SMU_MESG_RESP_OK, SMU_MESG_RESP_TIMEOUT or a negative number */
-static int32_t smu_poll_response(bool print_command_duration)
+static int32_t smu_poll_response(const struct smu_mailbox *mailbox,
+		bool print_command_duration, unsigned int timeout_us)
 {
 	struct stopwatch sw;
-	const long timeout_ms = 10 * MSECS_PER_SEC;
 	int32_t result;
 
-	stopwatch_init_msecs_expire(&sw, timeout_ms);
+	stopwatch_init_usecs_expire(&sw, timeout_us);
 
 	while (1) {
-		result = smn_read32(SMN_SMU_MESG_RESP);
+		result = smn_read32(mailbox->response);
 		if (result)
 			break;
 
 		if (stopwatch_expired(&sw)) {
 			printk(BIOS_ERR, "SMU timeout: resp=%08x msgid=%08x\n",
-			       smn_read32(SMN_SMU_MESG_RESP),
-			       smn_read32(SMN_SMU_MESG_ID));
+			       smn_read32(mailbox->response),
+			       smn_read32(mailbox->command));
 			for (size_t i = 0; i < SMU_NUM_ARGS; i++)
 				printk(BIOS_ERR, "SMU arg%zu=%08x\n", i,
-				       smn_read32(SMN_SMU_MESG_ARG(i)));
+				       smn_read32(mailbox->arguments + i * sizeof(uint32_t)));
 			return SMU_MESG_RESP_TIMEOUT;
 		}
 		thread_yield();
@@ -44,44 +44,67 @@ static int32_t smu_poll_response(bool print_command_duration)
  * Send a message and bi-directional payload to the SMU. SMU response, if any, is returned via
  * *arg.
  */
-int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload *arg)
+int32_t send_smu_message_raw_timeout_at(const struct smu_mailbox *mailbox,
+		uint32_t message_id, struct smu_payload *arg, unsigned int timeout_us)
 {
-	int32_t response;
 	size_t i;
+	int32_t response;
 
 	/* Wait until the SMU can process a new request; an old failed response is harmless. */
-	if (smu_poll_response(false) == SMU_MESG_RESP_TIMEOUT)
-		return SMU_MESG_RESP_TIMEOUT;
+	response = smu_poll_response(mailbox, false, timeout_us);
+	if (response == SMU_MESG_RESP_TIMEOUT || response == -1)
+		return response;
 
 	/* Clear response register */
-	smn_write32(SMN_SMU_MESG_RESP, 0);
+	smn_write32(mailbox->response, 0);
+	if (smn_read32(mailbox->response) != 0)
+		return -1;
 
 	/* Populate arguments */
 	for (i = 0; i < SMU_NUM_ARGS; i++)
-		smn_write32(SMN_SMU_MESG_ARG(i), arg->msg[i]);
+		smn_write32(mailbox->arguments + i * sizeof(uint32_t), arg->msg[i]);
 
 	/* Send message to SMU */
-	smn_write32(SMN_SMU_MESG_ID, message_id);
+	smn_write32(mailbox->command, message_id);
 
 	/* Wait until the SMU has processed the message */
-	response = smu_poll_response(true);
-	if (response == SMU_MESG_RESP_TIMEOUT)
-		return SMU_MESG_RESP_TIMEOUT;
+	response = smu_poll_response(mailbox, true, timeout_us);
+	if (response == SMU_MESG_RESP_TIMEOUT || response == -1)
+		return response;
 
 	/* Copy returned values, even when the response isn't SMU_MESG_RESP_OK */
 	for (i = 0; i < SMU_NUM_ARGS; i++)
-		arg->msg[i] = smn_read32(SMN_SMU_MESG_ARG(i));
+		arg->msg[i] = smn_read32(mailbox->arguments + i * sizeof(uint32_t));
 
 	return response;
 }
 
-enum cb_err send_smu_message(enum smu_message_id message_id, struct smu_payload *arg)
+static const struct smu_mailbox bios_mailbox = {
+	.command = SMN_SMU_MESG_ID,
+	.response = SMN_SMU_MESG_RESP,
+	.arguments = SMN_SMU_MESG_ARGS_BASE,
+};
+
+int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload *arg)
+{
+	return send_smu_message_raw_timeout_at(&bios_mailbox, message_id, arg,
+					     10 * USECS_PER_SEC);
+}
+
+enum cb_err send_smu_message_timeout(enum smu_message_id message_id,
+				    struct smu_payload *arg, unsigned int timeout_us)
 {
 	struct smu_payload response = *arg;
 
-	if (send_smu_message_raw(message_id, &response) != SMU_MESG_RESP_OK)
+	if (send_smu_message_raw_timeout_at(&bios_mailbox, message_id, &response,
+					  timeout_us) != SMU_MESG_RESP_OK)
 		return CB_ERR;
 
 	*arg = response;
 	return CB_SUCCESS;
+}
+
+enum cb_err send_smu_message(enum smu_message_id message_id, struct smu_payload *arg)
+{
+	return send_smu_message_timeout(message_id, arg, 10 * USECS_PER_SEC);
 }
