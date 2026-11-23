@@ -30,4 +30,6 @@ subdirs-$(CONFIG_VENDOR_STARLABS) += smbios
 CPPFLAGS_common += -I$(src)/mainboard/starlabs/common/include
 
 ramstage-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += gnvs.c
-smm-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += smihandler.c
+ramstage-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
+smm-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
+smm-$(CONFIG_STARLABS_SMM_OPTION_HANDLER) += smihandler.c

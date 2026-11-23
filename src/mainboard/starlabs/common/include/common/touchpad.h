@@ -3,7 +3,8 @@
 #ifndef _STARLABS_CMN_TOUCHPAD_H_
 #define _STARLABS_CMN_TOUCHPAD_H_
 
-#include <stdint.h>
+#include <types.h>
+#include <starlabs/efi_option_smi.h>
 
 #if CONFIG(STARLABS_TOUCHPAD_CST)
 #define STARLABS_TOUCHPAD_HAPTICS_MIN			1
@@ -127,5 +128,9 @@ struct starlabs_touchpad_op_ctx {
 	uint8_t value;
 	uint8_t level;
 };
+
+#if ENV_SMM
+enum cb_err starlabs_touchpad_runtime_apply(enum starlabs_efiopt_id id, uint32_t value);
+#endif
 
 #endif /* _STARLABS_CMN_TOUCHPAD_H_ */
