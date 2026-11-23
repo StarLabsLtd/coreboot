@@ -10,6 +10,15 @@ static void starlabs_configure_mainboard(void *unused)
 	const struct pad_config *pads;
 	size_t num;
 
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_LOCK_GPIO_PADS)) {
+		pads = variant_early_gpio_table(&num);
+		/* Complete the early table's lock requests before FSP-S. */
+		for (size_t i = 0; i < num; i++) {
+			if (pads[i].lock_action)
+				gpio_configure_pads(&pads[i], 1);
+		}
+	}
+
 	pads = variant_gpio_table(&num);
 	gpio_configure_pads(pads, num);
 }

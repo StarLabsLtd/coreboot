@@ -14,35 +14,20 @@
 
 static uint8_t get_memory_config_straps(void)
 {
-	/*
-	 * The hardware supports a number of different memory configurations
-	 * which are selected using four ID bits ID3 (GPP_F15), ID2 (GPP_F14),
-	 * ID1 (GPP_F13) and ID0 (GPP_F12).
-	 *
-	 *
-	 * +------+-----+-----+-----+-----+
-	 * |      | ID3 | ID2 | ID1 | ID0 |
-	 * +------+-----+-----+-----+-----+
-	 * | 16GB |  0  |  0  |  0  |  0  |
-	 * +------+-----+-----+-----+-----+
-	 * | 32GB |  1  |  0  |  0  |  0  |
-	 * +------+-----+-----+-----+-----+
-	 * | 64GB |  1  |  1  |  0  |  1  |
-	 * +------+-----+-----+-----+-----+
-	 *
-	 * We return the value of these bits so that the index into the SPD
-	 * table can be .spd[] values can be configured correctly in the
-	 * memory configuration structure.
-	 */
-
-	gpio_t spd_id[] = {
+	const gpio_t spd_id[] = {
 		GPP_F15,
 		GPP_F14,
 		GPP_F13,
 		GPP_F12,
 	};
 
-	return (uint8_t)gpio_base2_value(spd_id, ARRAY_SIZE(spd_id));
+	uint8_t strap = 0;
+
+	/* The early GPIO table already configured these inputs. */
+	for (size_t i = 0; i < ARRAY_SIZE(spd_id); i++)
+		strap |= gpio_get(spd_id[i]) << i;
+
+	return strap;
 }
 
 static uint8_t strap_to_memcfg_index(uint8_t strap)
@@ -158,10 +143,6 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 	};
 
 	memcfg_init(mupd, &mem_config, &lpddr5_spd_info, half_populated);
-
-
-	const uint8_t vtd = get_uint_option("vtd", 1);
-	mupd->FspmConfig.VtdDisable = !vtd;
 
 	/* Enable/Disable Wireless (RP05) based on CMOS settings */
 	if (get_uint_option_checked("wifi", 1, OPTION_BOOL) == 0)
