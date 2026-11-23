@@ -39,7 +39,7 @@ config SMM_TSEG_SIZE
 
 config MAX_CPUS
 	int
-	default 32 if SMM_TSEG
+	default 128 if SMM_TSEG
 	default 4
 
 endif
