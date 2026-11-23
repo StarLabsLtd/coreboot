@@ -495,6 +495,9 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 #if !CONFIG(SOC_INTEL_GEMINILAKE) /* GLK FSP does not have these fields in FspsUpd.h yet */
 	uint8_t port;
 
+	if (cfg->usb_config_override)
+		silconfig->UsbPerPortCtl = 1;
+
 	for (port = 0; port < APOLLOLAKE_USB2_PORT_MAX; port++) {
 		if (cfg->usb_config_override) {
 			const struct usb_port_config *usb = &cfg->usb2_port[port];
@@ -784,7 +787,8 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	cfg->lpss_s0ix_enable = cse_get_s0ix_enable_state(silconfig->LPSS_S0ixEnable);
 	silconfig->LPSS_S0ixEnable = cfg->lpss_s0ix_enable;
 
-	silconfig->DspEnable = cse_get_audio_dsp_enable(silconfig->DspEnable);
+	silconfig->DspEnable = !cfg->disable_audio_dsp &&
+			      cse_get_audio_dsp_enable(silconfig->DspEnable);
 }
 
 struct chip_operations soc_intel_apollolake_ops = {
