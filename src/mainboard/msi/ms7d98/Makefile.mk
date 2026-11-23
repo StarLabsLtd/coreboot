@@ -4,3 +4,5 @@ bootblock-y += bootblock.c
 romstage-y += romstage_fsp_params.c
 ramstage-y += ramstage.c
 ramstage-$(CONFIG_DRIVERS_OPTION_CFR) += cfr.c
+
+CPPFLAGS_common += -I$(src)/mainboard/$(MAINBOARDDIR)/include

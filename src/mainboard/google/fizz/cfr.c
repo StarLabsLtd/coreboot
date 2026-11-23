@@ -4,18 +4,18 @@
 #include <drivers/intel/oc_mailbox/cfr.h>
 #include <drivers/option/cfr_frontend.h>
 #include <intelblocks/cfr.h>
+#include <mainboard/rapl_options.h>
 #include <soc/cfr.h>
 #include "board.h"
 
 static const struct sm_object tdp_pl1_override = SM_DECLARE_NUMBER({
 	.opt_name	= "tdp_pl1_override",
 	.ui_name	= "CPU PL1 power limit (W)",
-	.ui_helptext	= "Long-duration CPU package power limit.\n"
-			  "Default: 15 W. Range: 15-35 W.",
+	.ui_helptext	= "Long-duration CPU package power limit.",
 	.default_value	= 15,
-	.min		= 15,
-	.max		= 35,
-	.step		= 1,
+	.min		= RAPL_PL1_MIN,
+	.max		= RAPL_PL1_MAX,
+	.step		= RAPL_PL1_STEP,
 	.display_flags	= 0,
 });
 
@@ -28,12 +28,11 @@ static const struct sm_object tdp_pl2_override = SM_DECLARE_NUMBER({
 	.opt_name	= "tdp_pl2_override",
 	.ui_name	= "CPU PL2 power limit (W)",
 	.ui_helptext	= "Short-duration CPU package power limit.\n"
-			  "Default: 29 W (U22 SKUs) or 44 W (U42 SKUs). Range: 29-51 W.\n"
 			  "Must be >= PL1 (enforced at boot).",
 	.default_value	= 29,
-	.min		= 29,
-	.max		= 51,
-	.step		= 1,
+	.min		= RAPL_PL2_MIN,
+	.max		= RAPL_PL2_MAX,
+	.step		= RAPL_PL2_STEP,
 	.display_flags	= 0,
 }, WITH_CALLBACK(update_tdp_pl2_default));
 

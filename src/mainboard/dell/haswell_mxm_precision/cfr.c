@@ -4,19 +4,18 @@
 #include <cpu/intel/haswell/cfr.h>
 #include <drivers/intel/oc_mailbox/cfr.h>
 #include <drivers/option/cfr_frontend.h>
+#include <mainboard/rapl_options.h>
 #include <southbridge/intel/lynxpoint/cfr.h>
 
 static const struct sm_object tdp_pl1_override = SM_DECLARE_NUMBER({
 	.opt_name	= "tdp_pl1_override",
 	.ui_name	= "CPU PL1 power limit (W)",
 	.ui_helptext	= "Long-duration CPU package power limit.\n"
-			  "Info: Intel recommends setting PL1 to match the CPU's TDP.\n"
-			  "Default: 47 W.\n"
-			  "Range: 37-57 W.",
+			  "Info: Intel recommends setting PL1 to match the CPU's TDP.",
 	.default_value	= 47,
-	.min		= 37,
-	.max		= 57,
-	.step		= 1,
+	.min		= RAPL_PL1_MIN,
+	.max		= RAPL_PL1_MAX,
+	.step		= RAPL_PL1_STEP,
 	.display_flags	= 0,
 });
 
@@ -25,15 +24,13 @@ static const struct sm_object tdp_pl2_override = SM_DECLARE_NUMBER({
 	.ui_name	= "CPU PL2 power limit (W)",
 	.ui_helptext	= "Short-duration CPU package power limit.\n"
 			  "Info: Intel recommends setting PL2 to 1.25 x PL1.\n"
-			  "Some OEMs disable this limitation by setting PL2 to 4096 W.\n"
+			  "The maximum setting disables this limit.\n"
 			  "In that case, maximum power draw is only limited by IccMax and thermal budget.\n"
-			  "Default: 59 W.\n"
-			  "Range: 37-4096 W.\n"
-			  "Must be >= PL1 (enforced at boot).",
+			  "When enabled, the limit must be >= PL1 (enforced at boot).",
 	.default_value	= 59,
-	.min		= 37,
-	.max		= 4096,
-	.step		= 1,
+	.min		= RAPL_PL2_MIN,
+	.max		= RAPL_PL2_MAX,
+	.step		= RAPL_PL2_STEP,
 	.display_flags	= 0,
 });
 
