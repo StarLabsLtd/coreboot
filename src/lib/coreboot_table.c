@@ -26,6 +26,7 @@
 #include <inttypes.h>
 #include <spi_flash.h>
 #include <smmstore.h>
+#include <efi_variable_service.h>
 #include <types.h>
 #include <version.h>
 
@@ -36,6 +37,29 @@
 __weak enum cb_err fill_lb_pcie(struct lb_pcie *pcie)
 {
 	return CB_ERR_NOT_IMPLEMENTED;
+}
+
+__weak enum cb_err fill_lb_ec_battery(struct lb_ec_battery_descriptor *descriptor)
+{
+	return CB_ERR_NOT_IMPLEMENTED;
+}
+
+enum cb_err lb_add_ec_battery_descriptor(struct lb_header *header,
+				       const struct lb_ec_battery_descriptor *descriptor)
+{
+	if (!header || !descriptor || descriptor->tag != LB_TAG_EC_BATTERY_DESCRIPTOR ||
+	    descriptor->size != sizeof(*descriptor) ||
+	    descriptor->revision != LB_EC_BATTERY_DESCRIPTOR_REVISION ||
+	    descriptor->header_size != sizeof(*descriptor) ||
+	    descriptor->profile != LB_EC_BATTERY_PROFILE_MERLIN ||
+	    descriptor->transport != LB_EC_BATTERY_TRANSPORT_ACPI_IO8 ||
+	    !descriptor->data_port || !descriptor->status_port ||
+	    descriptor->data_port == UINT16_MAX || descriptor->status_port == UINT16_MAX ||
+	    descriptor->data_port == descriptor->status_port || descriptor->reserved)
+		return CB_ERR_ARG;
+
+	memcpy(lb_new_record(header), descriptor, sizeof(*descriptor));
+	return CB_SUCCESS;
 }
 
 static struct lb_header *lb_table_init(unsigned long addr)
@@ -520,6 +544,9 @@ static void lb_add_acpi_rsdp(struct lb_header *head)
 
 static void lb_add_boot_mode(struct lb_header *header)
 {
+	if (CONFIG(EDIIE_S4_LAYOUT_REQUIRED) && !cbmem_find(CBMEM_ID_BOOT_MODE))
+		return;
+
 	struct lb_boot_mode *mode = (struct lb_boot_mode *)lb_new_record(header);
 	memset(mode, 0, sizeof(*mode));
 
@@ -605,6 +632,14 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 		lb_pcie(head);
 
 	/* Record our various random string information */
+	struct lb_ec_battery_descriptor ec_battery = { 0 };
+	enum cb_err ec_status = fill_lb_ec_battery(&ec_battery);
+
+	if (ec_status != CB_ERR_NOT_IMPLEMENTED &&
+	    (ec_status != CB_SUCCESS ||
+	     lb_add_ec_battery_descriptor(head, &ec_battery) != CB_SUCCESS))
+		die("EC battery descriptor is invalid\n");
+
 	lb_strings(head);
 	if (CONFIG(PLATFORM_USES_FSP2_0))
 		lb_string_platform_blob_version(head);
@@ -638,6 +673,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* SMMSTORE */
 	if (CONFIG(SMMSTORE))
 		lb_smmstorev2(head);
+	if (CONFIG(ASS))
+		lb_efi_variable_service(head);
 
 	/* Non-PCI SDHCI controller list for payloads */
 	lb_sdhci_nonpci(head);
@@ -647,6 +684,10 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 		lb_efi_fw_info(head);
 
 	/* Add board-specific table entries, if any. */
+	if (CONFIG(PAYLOAD_RESOURCE_HANDOFF) &&
+	    lb_add_payload_resource_handoff(head) != CB_SUCCESS)
+		die("Payload resource handoff is not trustworthy\n");
+
 	lb_board(head);
 
 	/* Possibly add UEFI capsules. */
@@ -666,6 +707,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 
 	/* Add architecture records. */
 	lb_arch_add_records(head);
+	if (CONFIG(PAYLOAD_LOCAL_APIC_TIMER_INFO))
+		lb_add_local_apic_timer(head);
 
 	/* Add all cbmem entries into the coreboot tables. */
 	cbmem_add_records_to_cbtable(head);
