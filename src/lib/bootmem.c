@@ -2,6 +2,7 @@
 
 #include <console/console.h>
 #include <bootmem.h>
+#include <smmstore.h>
 #include <cbmem.h>
 #include <device/resource.h>
 #include <drivers/efi/capsules.h>
@@ -125,6 +126,8 @@ static void bootmem_init(void)
 
 	bootmem_arch_add_ranges();
 	bootmem_platform_add_ranges();
+	if (CONFIG(SMMSTORE))
+		smmstore_add_bootmem();
 }
 
 void bootmem_add_range(uint64_t start, uint64_t size,

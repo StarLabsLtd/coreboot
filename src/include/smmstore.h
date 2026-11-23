@@ -3,6 +3,7 @@
 #ifndef _SMMSTORE_H_
 #define _SMMSTORE_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -98,11 +99,15 @@ int smmstore_rawwrite_region(uint32_t block_id, uint32_t offset, uint32_t bufsiz
 int smmstore_rawclear_region(uint32_t block_id);
 #if ENV_RAMSTAGE
 int smmstore_get_info(struct smmstore_params_info *info);
+int smmstore_init_com_buffer(uintptr_t *base, size_t *size);
+int smmstore_get_com_buffer(uintptr_t *base, size_t *size);
+void smmstore_add_bootmem(void);
 #endif
 struct region_device;
 int smmstore_lookup_region(struct region_device *rstore);
 /* Returns 0 if normal parsing should continue, 1 otherwise */
 int smmstore_preprocess_cmd(uint8_t *cmd, void *param);
+bool smmstore_full_flash_requested(void);
 
 /* Advertise SMMSTORE support */
 struct lb_header;
