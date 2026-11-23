@@ -9,8 +9,8 @@
 
 static enum cmos_power_profile get_power_profile(enum cmos_power_profile fallback)
 {
-	const unsigned int power_profile = get_uint_option("power_profile", fallback);
-	return power_profile < NUM_POWER_PROFILES ? power_profile : fallback;
+	return get_uint_option_checked("power_profile", fallback,
+				       OPTION_RANGE(0, NUM_POWER_PROFILES - 1));
 }
 
 static uint16_t round_up_to_5(uint16_t value)
