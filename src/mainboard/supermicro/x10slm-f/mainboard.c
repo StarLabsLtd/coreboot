@@ -30,7 +30,7 @@ static void hide_ast2400(void)
 
 static void mainboard_enable(struct device *dev)
 {
-	if (get_uint_option("hide_ast2400", false))
+	if (get_uint_option_checked("hide_ast2400", false, OPTION_BOOL))
 		hide_ast2400();
 }
 
