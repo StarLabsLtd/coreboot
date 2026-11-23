@@ -1717,7 +1717,7 @@ void google_chromeec_init(void)
 		return;
 
 	/* Enable automatic fan control */
-	if (get_uint_option("auto_fan_control", google_chromeec_has_fan())) {
+	if (get_uint_option_checked("auto_fan_control", google_chromeec_has_fan(), OPTION_BOOL)) {
 		ec_cmd_thermal_auto_fan_ctrl(PLAT_EC);
 	}
 
@@ -1726,11 +1726,15 @@ void google_chromeec_init(void)
 		return;
 
 	/* Set keyboard backlight */
-	int backlight_level = get_uint_option("ec_kb_backlight", -1);
+	int backlight_level =
+		get_uint_option_checked("ec_kb_backlight", -1, OPTION_ENUM(0, 25, 50, 100));
 	if (backlight_level != -1 && google_chromeec_has_kbbacklight())
 		google_chromeec_kbbacklight(backlight_level);
 
-	int rgb_color = get_uint_option("ec_rgb_kb_color", -1);
+	int rgb_color =
+		get_uint_option_checked("ec_rgb_kb_color", -1,
+					OPTION_RANGE(GOOGLE_CHROMEEC_RGBKBD_COLOR_OFF,
+						     GOOGLE_CHROMEEC_RGBKBD_COLOR_WHITE));
 	if (rgb_color != -1 && google_chromeec_has_rgbkbd())
 		google_chromeec_rgbkbd_set_color((enum google_chromeec_rgbkbd_color)rgb_color);
 
