@@ -3,8 +3,10 @@
 # force the shell to bash - the edksetup.sh script doesn't work with dash
 export SHELL := env bash
 
+EDK2_MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 project_name = edk2
 export WORKSPACE := $(CURDIR)/workspace
+EDK2_SOURCE_STATE ?= $(WORKSPACE)/.coreboot-source
 
 strip_quotes = $(subst ",,$(1))
 
@@ -61,9 +63,10 @@ endif
 # OPTION			= DEFAULT_VALUE
 #
 # BOOTSPLASH_IMAGE		= FALSE
-# Skip when EDK2_CBFS_ASSETS (logo goes to CBFS as efi/logo.bmp).
-ifneq ($(CONFIG_EDK2_CBFS_ASSETS),y)
-ifneq ($(CONFIG_EDK2_BOOTSPLASH_FILE),)
+EDK2_FALLBACK_LOGO := $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE))
+# CBFS assets and a retained coreboot splash need no payload logo copy.
+ifeq ($(filter y,$(CONFIG_BOOT_SPLASH_HANDOFF) $(CONFIG_EDK2_CBFS_ASSETS)),)
+ifneq ($(EDK2_FALLBACK_LOGO),)
 BUILD_STR += -D BOOTSPLASH_IMAGE=TRUE
 endif
 endif
@@ -99,9 +102,11 @@ BUILD_STR += -D DISABLE_SERIAL_TERMINAL=TRUE
 endif
 # VARIABLE_SUPPORT		= EMU
 # MAX_VARIABLE_SIZE		= 0x10000
+ifneq ($(CONFIG_ASS),y)
 ifeq ($(CONFIG_SMMSTORE),y)
 BUILD_STR += -D VARIABLE_SUPPORT=SMMSTORE
 BUILD_STR += --pcd gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize=0x8000
+endif
 endif
 # PCIE_BASE_ADDRESS		= 0
 ifneq ($(CONFIG_ECAM_MMCONF_LENGTH),)
@@ -215,6 +220,7 @@ EDK2_FMP_DXE = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDxe.efi
 EDK2_FMP_MODULE_DIR = $(EDK2_BUILD_DIR)/$(EDK2_BUILD_ARCH)/FmpDevicePkg/FmpDxe
 EDK2_DXE_FV = $(EDK2_BUILD_DIR)/FV/DXEFV.Fv
 CAPSULE_VALIDATOR = ../../../util/efi_capsule/validate_capsule.py
+EDK2_PREPARE_SOURCE = $(EDK2_MAKEFILE_DIR)prepare-source.sh
 CBFS_PREFIX := $(call strip_quotes,$(CONFIG_CBFS_PREFIX))
 CBFS_PAYLOAD_NAME := $(if $(CBFS_PREFIX),$(CBFS_PREFIX)/)payload
 
@@ -291,59 +297,65 @@ ifneq ($(CONFIG_EDK2_CUSTOM_BUILD_PARAMS),)
 BUILD_STR += $(CONFIG_EDK2_CUSTOM_BUILD_PARAMS)
 endif
 
+BUILD_STR += $(EDK2_RELEASE_BUILD_ARGS)
+
+ifeq ($(CONFIG_ASS),y)
+BUILD_STR += -D ASS=TRUE -D VARIABLE_SUPPORT=SPI
+endif
+ifeq ($(CONFIG_EDK2_TPM2_MEASUREMENT_REQUIRED),y)
+BUILD_STR += -D TPM2_MEASUREMENT_REQUIRED=TRUE
+endif
+
 all: UefiPayloadPkg
 
 $(WORKSPACE):
 	mkdir $(WORKSPACE)
 
-$(EDK2_PLATFORMS_PATH): $(WORKSPACE)
-	if [ ! -d "$(EDK2_PLATFORMS_PATH)" ]; then \
-		git clone --recurse-submodules $(CONFIG_EDK2_PLATFORMS_REPOSITORY) $(EDK2_PLATFORMS_PATH) -j5; \
-	fi
-	cd $(EDK2_PLATFORMS_PATH); \
-		if ! git rev-parse --verify -q $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)^{object} >/dev/null; then \
-			echo "    $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) is not a valid git reference"; \
-			exit 1; \
-		fi; \
-		if git status --ignore-submodules=dirty | grep -q "nothing to commit, working tree clean"; then \
-			echo "    Checking out edk2-platforms revision $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_PLATFORMS_TAG_OR_REV) -f; \
-		else \
-			echo "    Working directory not clean; will not overwrite"; \
-		fi; \
-		git submodule update --init --checkout
-
-$(EDK2_PATH): $(WORKSPACE)
-	if [ ! -d "$(EDK2_PATH)" ]; then \
-		git clone --recurse-submodules $(CONFIG_EDK2_REPOSITORY) $(EDK2_PATH) -j5; \
-	fi
-	cd $(EDK2_PATH); \
-		git checkout MdeModulePkg/Logo/Logo.bmp > /dev/null 2>&1 || true; \
-		echo "    Fetching new commits from $(CONFIG_EDK2_REPOSITORY)"; \
-		git fetch origin 2>/dev/null; \
-		if ! git rev-parse --verify -q $(CONFIG_EDK2_TAG_OR_REV)^{object} >/dev/null; then \
-			echo "    $(CONFIG_EDK2_TAG_OR_REV) is not a valid git reference"; \
-			exit 1; \
-		fi; \
-		if git status --ignore-submodules=dirty | grep -q -e clean -e "nothing added"; then \
-			echo "    Checking out $(project_name) revision $(CONFIG_EDK2_TAG_OR_REV)"; \
-			git checkout --detach $(CONFIG_EDK2_TAG_OR_REV) -f; \
-			git submodule update --checkout --recursive; \
-		else \
-			echo "    Working directory not clean; will not overwrite"; \
-		fi; \
-		git submodule update --init --checkout --recursive
-
-logo: $(EDK2_PATH)
-ifneq ($(CONFIG_EDK2_CBFS_ASSETS),y)
-	case "$(CONFIG_EDK2_BOOTSPLASH_FILE)" in \
-		"") ;; \
-		/*) convert -background None $(CONFIG_EDK2_BOOTSPLASH_FILE) \
-			BMP3:$(EDK2_PATH)/MdeModulePkg/Logo/Logo.bmp;; \
-		*) convert -background None $(top)/$(CONFIG_EDK2_BOOTSPLASH_FILE) \
-			BMP3:$(EDK2_PATH)/MdeModulePkg/Logo/Logo.bmp;; \
-	esac
+.PHONY: prepare-source
+prepare-source: | $(WORKSPACE)
+	test -n "$(EDK2_PATH_REPO_ROOT)" || \
+		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PATH)" "$(EDK2_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
+		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)"
+ifneq ($(EDK2_PLATFORMS_PATH),)
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PLATFORMS_PATH)" "$(EDK2_PLATFORMS_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))"
 endif
+	@set -e; \
+	state=$$(mktemp "$(EDK2_SOURCE_STATE).XXXXXX"); \
+	trap 'rm -f "$$state"' EXIT; \
+	{ git -C "$(EDK2_PATH)" rev-parse HEAD; \
+	  $(if $(EDK2_PLATFORMS_PATH),git -C "$(EDK2_PLATFORMS_PATH)" rev-parse HEAD,:) ; } > "$$state"; \
+	if ! cmp -s "$$state" "$(EDK2_SOURCE_STATE)"; then mv "$$state" "$(EDK2_SOURCE_STATE)"; fi
+
+ifneq ($(EDK2_PLATFORMS_PATH),)
+$(EDK2_PLATFORMS_PATH):
+	sh "$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_PLATFORMS_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))" "" verify
+endif
+
+$(EDK2_PATH):
+	test -n "$(EDK2_PATH_REPO_ROOT)" || \
+		{ echo "Invalid EDK2 repository URL; use file:// for local repositories"; exit 1; }
+	sh "$(EDK2_PREPARE_SOURCE)" "$@" "$(EDK2_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
+		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)" verify
+
+.PHONY: verify-source
+verify-source:
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PATH)" "$(EDK2_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))" \
+		"$(if $(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE)),MdeModulePkg/Logo/Logo.bmp)" verify
+ifneq ($(EDK2_PLATFORMS_PATH),)
+	sh "$(EDK2_PREPARE_SOURCE)" "$(EDK2_PLATFORMS_PATH)" "$(EDK2_PLATFORMS_REPOSITORY)" \
+		"$(call strip_quotes,$(CONFIG_EDK2_PLATFORMS_TAG_OR_REV))" "" verify
+endif
+	@set -e; \
+	{ git -C "$(EDK2_PATH)" rev-parse HEAD; \
+	  $(if $(EDK2_PLATFORMS_PATH),git -C "$(EDK2_PLATFORMS_PATH)" rev-parse HEAD,:) ; } | \
+		cmp -s "$(EDK2_SOURCE_STATE)" - || \
+		{ echo "EDK2 source receipt does not match the prepared checkout" >&2; exit 1; }
 
 ipxe_rom: $(EDK2_PATH)
 ifeq ($(CONFIG_EDK2_IPXE),y)
@@ -368,7 +380,7 @@ checktools:
 		( echo "        Not found!"; echo "ERROR: Please install nasm."; exit 1 )
 
 	# Only check imagemagick when needed to convert bootsplash
-	if [ -n "$(call strip_quotes,$(CONFIG_EDK2_BOOTSPLASH_FILE))" ]; then \
+	if [ -n "$(EDK2_FALLBACK_LOGO)" ]; then \
 		echo -n "EDK2: Checking imagemagick:"; \
 		convert -size 1x1 xc: test.png &> /dev/null 2>&1 || true; \
 		if [ -f test.png ]; then \
@@ -381,7 +393,8 @@ checktools:
 	fi
 
 ifeq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
-capsule_keys: $(EDK2_PATH)
+# Generate trust data after prep removes the previous workspace outputs.
+capsule_keys: $(EDK2_PATH) clean
 	type openssl > /dev/null 2>&1 || { echo "ERROR: Please install openssl."; exit 1; }; \
 	test -f "$(CAPSULE_TRUSTED_PUBLIC_CERT_PATH)"; \
 	binto_pcd="$(EDK2_PATH)/BaseTools/Scripts/BinToPcd.py"; \
@@ -416,16 +429,35 @@ print:
 		-e 's/s /Build:          Silent/' \
 		-e 's/t /Toolchain:      /'
 
-prep: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) clean checktools logo ipxe_rom
+prep: verify-source $(EDK2_PLATFORMS_PATH) clean checktools ipxe_rom
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
 		unset CC; $(MAKE) -C $(EDK2_PATH)/BaseTools 2>&1; \
 
-$(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
-	prep print
+define edk2_build_setup
+	set -e; \
+	if [ -z "$(filter y,$(CONFIG_BOOT_SPLASH_HANDOFF) $(CONFIG_EDK2_CBFS_ASSETS))" ] && [ -n "$(EDK2_FALLBACK_LOGO)" ]; then \
+		asset="$(EDK2_FALLBACK_LOGO)"; \
+		case "$$asset" in /*) ;; *) asset="$(top)/$$asset";; esac; \
+		dir=$$(cd "$(EDK2_PATH)/MdeModulePkg/Logo" && pwd); \
+		logo="$$dir/Logo.bmp"; \
+		if [ ! -f "$$logo" ] || [ -L "$$logo" ]; then \
+			echo "EDK2: Expected a regular logo file at $$logo" >&2; exit 1; \
+		fi; \
+		work=$$(mktemp -d "$$logo.XXXXXX"); \
+		trap 'if [ -e "$$work/original" ]; then mv -fT "$$work/original" "$$logo" || exit 1; fi; rm -f "$$work/converted"; rmdir "$$work"' EXIT; \
+		convert -background None "$$asset" "BMP3:$$work/converted"; \
+		mv "$$logo" "$$work/original"; \
+		mv "$$work/converted" "$$logo"; \
+	fi; \
 	cd $(WORKSPACE); \
 		source $(EDK2_PATH)/edksetup.sh; \
-		echo -n "EDK2: Building... "; \
+		echo -n "EDK2: Building... "
+endef
+
+$(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
+	prep print
+	$(edk2_build_setup); \
 		build -a IA32 -a X64 -b $(RELEASE_STR) $(BUILD_STR) -D BUILD_ARCH=X64 \
 			-y $(WORKSPACE)/Build/UefiPayloadPkgX64/UEFIPAYLOAD.txt; \
 		if [ ! -f $@ ]; then \
@@ -436,9 +468,7 @@ $(WORKSPACE)/Build/UefiPayloadPkgX64/$(RELEASE_STR)_GCC/FV/UEFIPAYLOAD.fd: \
 
 $(WORKSPACE)/Build/UefiPayloadPkgIA32/UniversalPayload.fit: \
 	prep print
-	cd $(WORKSPACE); \
-		source $(EDK2_PATH)/edksetup.sh; \
-		echo -n "EDK2: Building... "; \
+	$(edk2_build_setup); \
 		bash $(EDK2_PATH)/UefiPayloadPkg/UniversalPayloadBuild.sh -a IA32 -b $(RELEASE_STR) $(BUILD_STR) \
 			-D BUILD_ARCH=IA32 --Fit \
 			--pcd gUefiPayloadPkgTokenSpaceGuid.PcdHandOffFdtEnable=TRUE
@@ -476,7 +506,8 @@ distclean:
 		git -C "$$path" clean -xffd || exit 1; \
 	done
 
-.PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
+.PHONY: $(EDK2_PATH) $(EDK2_PLATFORMS_PATH) checktools \
+	UefiPayloadPkg UniversalPayload clean distclean
 
 .PHONY: coreboot_capsule capsule_keys
 
