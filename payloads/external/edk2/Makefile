@@ -446,7 +446,19 @@ clean:
 	test -d $(WORKSPACE) && (cd $(WORKSPACE); rm -rf Build; rm -f Conf/tools_def.txt Conf/CapsuleFmpPkcs7Pcd.inc) || exit 0
 
 distclean:
-	rm -rf $(WORKSPACE)
+	if [ -L "$(WORKSPACE)" ]; then rm -f "$(WORKSPACE)"; exit; fi; \
+	if [ ! -d "$(WORKSPACE)" ]; then exit 0; fi; \
+	shopt -s dotglob nullglob; \
+	for path in "$(WORKSPACE)"/*; do \
+		if [ -L "$$path" ] || [ -L "$$path/.git" ] || [ ! -d "$$path/.git" ]; then \
+			rm -rf "$$path" || exit 1; \
+			continue; \
+		fi; \
+		git -C "$$path" -c submodule.recurse=false reset --hard && \
+		git -C "$$path" submodule foreach --recursive \
+			'git -c submodule.recurse=false reset --hard && git clean -xffd' && \
+		git -C "$$path" clean -xffd || exit 1; \
+	done
 
 .PHONY: $(EDK2_PATH) checktools logo UefiPayloadPkg UniversalPayload clean distclean
 
