@@ -12,10 +12,16 @@
  * these APIs compile to no-ops so callers do not need preprocessor guards.
  */
 #if CONFIG(TCG_OPAL_S3_UNLOCK)
+int opal_s3_finalize_resources(void);
 int opal_s3_smi_apmc(u8 apmc);
 void opal_s3_smi_sleep(u8 slp_typ);
 void opal_s3_smi_sleep_finalize(u8 slp_typ);
 #else
+static inline int opal_s3_finalize_resources(void)
+{
+	return 0;
+}
+
 static inline int opal_s3_smi_apmc(u8 apmc)
 {
 	(void)apmc;

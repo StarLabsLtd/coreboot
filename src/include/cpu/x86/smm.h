@@ -92,6 +92,8 @@ struct smm_pci_resource_info {
 	struct resource resources[SMM_PCI_RESOURCE_STORE_NUM_RESOURCES];
 };
 
+struct opal_s3_pci_resources;
+
 struct smm_runtime {
 	u32 smbase;
 	u32 smm_size;
@@ -119,6 +121,9 @@ struct smm_runtime {
 #if CONFIG(SMM_OPAL_S3_SCRATCH_CBMEM)
 	uintptr_t opal_s3_scratch_base;
 	size_t opal_s3_scratch_size;
+#endif
+#if CONFIG(TCG_OPAL_S3_UNLOCK)
+	const struct opal_s3_pci_resources *opal_resources_pending;
 #endif
 #if CONFIG(SMM_OPAL_S3_STATE_SMRAM)
 	uintptr_t opal_s3_state_base;

@@ -6,6 +6,7 @@ config TCG_OPAL_S3_UNLOCK
 	depends on HAVE_SMI_HANDLER
 	depends on HAVE_ACPI_RESUME
 	depends on PCI
+	select SMM_PCI_RESOURCE_STORE
 	select SMM_OPAL_S3_SCRATCH_CBMEM
 	select SMM_OPAL_S3_STATE_SMRAM
 	help

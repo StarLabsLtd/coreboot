@@ -29,6 +29,15 @@ smmstore-ass-test-srcs += tests/drivers/smmstore-ass.c src/drivers/smmstore/smi.
 smmstore-ass-test-stage := smm
 smmstore-ass-test-config += CONFIG_ASS=1 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000
 
+tests-y += opal-s3-test
+opal-s3-test-srcs += tests/drivers/opal-s3.c src/commonlib/region.c tests/stubs/console.c
+opal-s3-test-stage := smm
+opal-s3-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_SMM_OPAL_S3_SCRATCH_CBMEM=1 \
+	CONFIG_ASS=1 CONFIG_SMM_PCI_RESOURCE_STORE=1 \
+	CONFIG_SMM_OPAL_S3_STATE_SMRAM=1 CONFIG_SMM_OPAL_S3_STATE_SMRAM_SIZE=0x1000 \
+	CONFIG_ECAM_MMCONF_SUPPORT=1 CONFIG_ECAM_MMCONF_BASE_ADDRESS=0xe0000000 \
+	CONFIG_ECAM_MMCONF_BUS_NUMBER=1 CONFIG_ECAM_MMCONF_LENGTH=0x100000
+
 tests-y += efi-store-migration-test
 efi-store-migration-test-srcs += tests/drivers/efi-store-migration.c \
 	src/drivers/efi/efivars.c src/lib/crc_byte.c src/commonlib/region.c tests/stubs/console.c
@@ -42,6 +51,14 @@ efi-store-migration-reboot-test-srcs += tests/drivers/efi-store-migration-reboot
 efi-store-migration-reboot-test-stage := ramstage
 efi-store-migration-reboot-test-config += CONFIG_ASS=1 CONFIG_HAVE_SMI_HANDLER=1 \
 	CONFIG_SOC_INTEL_COMMON_BLOCK_SMM=1 CONFIG_SECURITY_FAIL_CLOSED=0
+
+tests-y += opal-s3-resources-test
+opal-s3-resources-test-srcs += tests/drivers/opal-s3-resources.c src/commonlib/region.c \
+	tests/stubs/console.c
+opal-s3-resources-test-stage := ramstage
+opal-s3-resources-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_HAVE_ACPI_RESUME=1 \
+	CONFIG_SMM_PCI_RESOURCE_STORE=1 CONFIG_SMM_PCI_RESOURCE_STORE_NUM_SLOTS=2
+opal-s3-resources-test-cflags += -Wno-address-of-packed-member
 
 tests-y += designware-smm-i2c-test
 designware-smm-i2c-test-srcs += tests/drivers/designware-smm-i2c-test.c \
