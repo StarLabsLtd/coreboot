@@ -15,6 +15,7 @@
 #include <device/mmio.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
+#include <drivers/option/cfr_runtime.h>
 #include <elog.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>

@@ -4,6 +4,7 @@
 #define CPU_X86_SMM_H
 
 #include <arch/cpu.h>
+#include <commonlib/cfr.h>
 #include <commonlib/region.h>
 #include <device/pci_type.h>
 #include <device/resource.h>

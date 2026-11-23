@@ -138,6 +138,10 @@ void fch_apmc_smi_handler(void)
 		if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3))
 			handle_smi_rom_armor();
 		break;
+	case APM_CNT_CFR_RUNTIME_APPLY:
+		if (CONFIG(DRIVERS_OPTION_CFR_RUNTIME_APPLY))
+			cfr_runtime_apply_smi();
+		break;
 	case APM_CNT_SMMINFO:
 		psp_notify_smm();
 		break;
