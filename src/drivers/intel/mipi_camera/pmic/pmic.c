@@ -373,7 +373,7 @@ static void pmic_write_resources(const struct device *dev, const char *scope)
  */
 static void pmic_add_power_res_reset_once(struct drivers_intel_mipi_camera_pmic_config *config)
 {
-	static const char * const power_res_dev_states[] = { "_PR0", "_PR3" };
+	static const char * const power_res_dev_states[] = { "_PR0", "_PR2", "_PR3" };
 	const bool has_enable = config->enable_gpio.pin_count > 0;
 	const bool has_reset = config->reset_gpio.pin_count > 0;
 
