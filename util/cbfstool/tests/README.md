@@ -6,6 +6,10 @@ To run the tests do `pytest name_of_the_file.py`. E.g:
 $ pytest elogtool_test.py
 ```
 
+To run the extraction tests without pytest, use `python3 extraction_test.py`.
+They use GNU `as`, `ld`, `objcopy`, and `readelf` with x86 support. Set
+`CBFSTOOL_TEST_BIN_DIR` to test binaries built in a different directory.
+
 ## Dependencies
 
 ### Pytest
