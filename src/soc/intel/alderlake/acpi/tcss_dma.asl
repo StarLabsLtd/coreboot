@@ -103,7 +103,9 @@ Method (_DSW, 3)
 	SD3C = Arg1
 }
 
+#if CONFIG(SOC_INTEL_COMMON_ACPI_TCSS_WAKE)
 Method (_PRW, 0)
 {
 	Return (Package() { 0x6D, 4 })
 }
+#endif
