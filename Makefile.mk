@@ -250,6 +250,8 @@ ramstage-c-ccopts += -fprofile-arcs -ftest-coverage
 endif
 ifneq ($(GIT),)
 ifneq ($(UPDATED_SUBMODULES),1)
+submodule_make_flags := $(filter-out --%,$(firstword $(MAKEFLAGS)))
+ifeq ($(findstring n,$(submodule_make_flags))$(findstring q,$(submodule_make_flags)),)
 $(info Updating git submodules.)
 # try to fetch non-optional submodules if the source is under git
 forgetthis:=$(shell git submodule update --init $(quiet_errors))
@@ -273,6 +275,7 @@ endif
 UPDATED_SUBMODULES:=1
 COREBOOT_EXPORTS += UPDATED_SUBMODULES
 
+endif # neither dry run nor question mode
 endif
 endif # GIT != ""
 
@@ -364,10 +367,11 @@ cbfs-files-processor-nvramtool= \
 # arg2: output
 define cbfs-files-processor-config
 	$(eval $(2): $(1) $(obj)/build.h $(objutil)/kconfig/conf; \
-		+printf "    CREATE     $(2) (from $(1))\n"; \
+		printf "    CREATE     $(2) (from $(1))\n"; \
 		printf "# This image was built using coreboot " > $(2).tmp && \
 		grep "\<COREBOOT_VERSION\>" $(obj)/build.h |cut -d\" -f2 >> $(2).tmp && \
-		$(MAKE) DOTCONFIG=$(1) DEFCONFIG=$(2).tmp2 savedefconfig && \
+		KCONFIG_CONFIG=$(1) $(objutil)/kconfig/conf --savedefconfig=$(2).tmp2 \
+			$(or $(KBUILD_KCONFIG),src/Kconfig) && \
 		cat $(2).tmp2 >> $(2).tmp && \
 		printf "# End of defconfig. Derivable values start here.\n" >> $(2).tmp && \
 		grep "^CONFIG" $(1) | grep -F -v -f $(2).tmp2 >> $(2).tmp && \
@@ -662,24 +666,21 @@ export $(COREBOOT_EXPORTS)
 
 build_h := $(obj)/build.h
 
-# We have to manually export variables that `genbuild_h.sh` uses
-# when we call it through the `$(shell)` function. This is fragile
-# but as variables newly added to `genbuild_h.sh` would just not
-# work, we'd notice that instantly at least.
 build_h_exports := BUILD_TIMELESS KERNELVERSION COREBOOT_EXTRA_VERSION
 
-# Report new `build.ht` as dependency if `build.h` differs.
-build_h_check := \
-	export $(foreach exp,$(build_h_exports),$(exp)="$($(exp))"); \
-	util/genbuild_h/genbuild_h.sh $(xcompile) \
-		>$(build_h)t 2>/dev/null; \
-	cmp -s $(build_h)t $(build_h) >/dev/null 2>&1 || echo $(build_h)t
+# Refresh the identity for every build without writing during Makefile evaluation.
+.PHONY: force-build-h
+force-build-h:
 
-$(build_h): $$(shell $$(build_h_check))
-	@printf "    GEN        build.h\n"
-	mv $< $@
+$(build_h): force-build-h
+	@export $(foreach exp,$(build_h_exports),$(exp)="$($(exp))"); \
+		util/genbuild_h/genbuild_h.sh $(xcompile) >$@.tmp
+	@if ! cmp -s $@.tmp $@; then \
+		printf "    GEN        build.h\n"; \
+		mv $@.tmp $@; \
+	else rm -f $@.tmp; fi
 
-$(obj)/build_info:
+$(obj)/build_info: $(build_h) $(KCONFIG_AUTOHEADER)
 	@echo 'COREBOOT_VERSION: $(call strip_quotes,$(KERNELVERSION))' > $@.tmp
 	@echo 'MAINBOARD_VENDOR: $(call strip_quotes,$(CONFIG_MAINBOARD_VENDOR))' >> $@.tmp
 	@echo 'MAINBOARD_PART_NUMBER: $(call strip_quotes,$(CONFIG_MAINBOARD_PART_NUMBER))' >> $@.tmp
