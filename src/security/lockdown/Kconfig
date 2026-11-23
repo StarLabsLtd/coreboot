@@ -1,11 +1,16 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
+config BOOTMEDIA_LOCK_FORCE_CONTROLLER
+	bool
+
 choice
 	prompt "Boot media protection mechanism"
+	default BOOTMEDIA_LOCK_CONTROLLER if BOOTMEDIA_LOCK_FORCE_CONTROLLER
 	default BOOTMEDIA_LOCK_NONE
 
 config BOOTMEDIA_LOCK_NONE
 	bool "Don't lock boot media sections"
+	depends on !BOOTMEDIA_LOCK_FORCE_CONTROLLER
 
 config BOOTMEDIA_LOCK_CONTROLLER
 	bool "Lock boot media using the controller"
@@ -16,6 +21,7 @@ config BOOTMEDIA_LOCK_CONTROLLER
 
 config BOOTMEDIA_LOCK_CHIP
 	bool "Lock boot media using the chip"
+	depends on !BOOTMEDIA_LOCK_FORCE_CONTROLLER
 	help
 	  Select this if you want the chip to lock specific regions.
 	  This only works on some chips, please check the code or search the
