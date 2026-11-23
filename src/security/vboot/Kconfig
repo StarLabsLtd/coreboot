@@ -203,6 +203,7 @@ config VBOOT_WIPEOUT_SUPPORTED
 config VBOOT_FWID_MODEL
 	string "Firmware ID model"
 	default "Google_\$(CONFIG_MAINBOARD_PART_NUMBER)" if CHROMEOS
+	default "STARLABS_\$(CONFIG_MAINBOARD_PART_NUMBER)" if VENDOR_STARLABS
 	default "\$(CONFIG_MAINBOARD_VENDOR)_\$(CONFIG_MAINBOARD_PART_NUMBER)"
 	help
 	  This is the first part of the FWID written to various regions of a
