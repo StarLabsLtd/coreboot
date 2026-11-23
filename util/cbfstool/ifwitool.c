@@ -804,7 +804,10 @@ static void parse_subpart_dir(struct buffer *subpart_dir_buf,
 	size_t size = buffer_size(input_buf);
 
 	/* Read Subpart_Dir header. */
-	assert(size >= SUBPART_DIR_HEADER_SIZE);
+	if (size < SUBPART_DIR_HEADER_SIZE) {
+		ERROR("Truncated subpart_dir header for %s.\n", name);
+		exit(-1);
+	}
 	offset = read_member(data, offset, sizeof(hdr.marker), &hdr.marker);
 	offset = read_member(data, offset, sizeof(hdr.num_entries),
 			     &hdr.num_entries);
@@ -820,7 +823,10 @@ static void parse_subpart_dir(struct buffer *subpart_dir_buf,
 
 	validate_subpart_dir_without_checksum((struct subpart_dir *)&hdr, name);
 
-	assert(size > subpart_dir_size(&hdr));
+	if (hdr.num_entries > (size - SUBPART_DIR_HEADER_SIZE) / SUBPART_DIR_ENTRY_SIZE) {
+		ERROR("Truncated subpart_dir entries for %s.\n", name);
+		exit(-1);
+	}
 	alloc_buffer(subpart_dir_buf, subpart_dir_size(&hdr), "Subpart Dir");
 	memcpy(buffer_get(subpart_dir_buf), &hdr, SUBPART_DIR_HEADER_SIZE);
 
@@ -1591,12 +1597,19 @@ static enum ifwi_ret ifwi_dir_extract(int type)
 		exit(-1);
 	}
 
+	size_t size = buffer_size(&ifwi_image.subpart_buf[type]);
+	size_t offset = s->e[i].offset;
+	size_t length = s->e[i].length;
 	struct buffer dst;
+	buffer_delete(&subpart_dir_buff);
 
-	DEBUG("Splicing buffer at 0x%x size 0x%x\n", s->e[i].offset,
-	      s->e[i].length);
-	buffer_splice(&dst, &ifwi_image.subpart_buf[type], s->e[i].offset,
-		      s->e[i].length);
+	if (offset > size || length > size - offset) {
+		ERROR("Directory entry %s extends past its subpartition.\n", param.dentry_name);
+		return COMMAND_ERR;
+	}
+
+	DEBUG("Splicing buffer at 0x%zx size 0x%zx\n", offset, length);
+	buffer_splice(&dst, &ifwi_image.subpart_buf[type], offset, length);
 
 	if (buffer_write_file(&dst, param.file_name))
 		return COMMAND_ERR;
