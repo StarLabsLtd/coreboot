@@ -39,12 +39,9 @@ void x4x_early_init(void)
 		pci_write_config32(HOST_BRIDGE, D0F0_DEVEN, BOARD_DEVEN);
 
 		/* Set preallocated IGD size from CMOS, or default to 64 MiB */
-		u8 gfxsize = get_uint_option_checked("gfx_uma_size", 6, OPTION_RANGE(1, 12));
-		if (gfxsize > 12)
-			gfxsize = 6;
+		unsigned int gfxsize = get_uint_option_checked("gfx_uma_size", 6, OPTION_RANGE(0, 12));
 		/* Need at least 4M for cbmem_top alignment */
-		else if (gfxsize < 1)
-			gfxsize = 1;
+		gfxsize = MAX(gfxsize, 1);
 		/* Set GTT size to 2+2M */
 		pci_write_config16(HOST_BRIDGE, D0F0_GGC, 0x0b00 | (gfxsize + 1) << 4);
 	} else { /* Does not feature internal graphics */

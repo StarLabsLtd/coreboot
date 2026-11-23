@@ -57,11 +57,10 @@ void nuvoton_common_init(struct device *dev)
 		 */
 		role = PS2_PORT_ROLE_KEYBOARD;
 		if (CONFIG(HAVE_SHARED_PS2_PORT)) {
-			role = get_uint_option_checked("ps2_port_role", PS2_PORT_ROLE_KEYBOARD,
-						       OPTION_RANGE(PS2_PORT_ROLE_KEYBOARD,
-								    PS2_PORT_ROLE_AUTO));
-			if (role > PS2_PORT_ROLE_AUTO)
-				break; /* Invalid setting; abort */
+			unsigned int configured_role = get_uint_option("ps2_port_role", PS2_PORT_ROLE_KEYBOARD);
+			if (configured_role > PS2_PORT_ROLE_AUTO)
+				break;
+			role = configured_role;
 		}
 		if (role != PS2_PORT_ROLE_KEYBOARD) {
 			enable_ps2_mouse(dev, true);
