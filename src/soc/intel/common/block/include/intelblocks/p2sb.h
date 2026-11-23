@@ -3,6 +3,7 @@
 #ifndef SOC_INTEL_COMMON_BLOCK_P2SB_H
 #define SOC_INTEL_COMMON_BLOCK_P2SB_H
 
+#include <commonlib/bsd/cb_err.h>
 #include <device/device.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -26,7 +27,8 @@ enum {
 
 bool p2sb_unhide(void);
 bool p2sb_hide(void);
-int p2sb_disable_sideband_access(void);
+enum cb_err p2sb_hide_checked(void);
+enum cb_err p2sb_disable_sideband_access(void);
 void p2sb_enable_bar(void);
 void p2sb_configure_hpet(void);
 
