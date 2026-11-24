@@ -865,6 +865,48 @@ static void owner_on_nor(void **unused)
 	assert_int_equal(read_le32(info + 12), 0x8000000aU);
 }
 
+static void import_fixed_mm_long_variable_name(void **unused)
+{
+	static struct {
+		struct authvar_owner owner;
+		_Alignas(16) uint8_t workspace[4 * 1024 * 1024];
+	} service;
+	static uint8_t erased[LITE_NOR_SIZE], volume[LITE_NOR_SIZE];
+	static uint16_t name[0x7f00];
+	struct payload_mm_authvar_fv_geometry geometry;
+	const uint8_t value = 0x42;
+	uint8_t result = 0;
+	size_t size = sizeof(result);
+	uint32_t length;
+
+	for (size_t i = 0; i < ARRAY_SIZE(name) - 1; i++)
+		name[i] = 'x';
+	const struct payload_mm_authvar_record_descriptor record = {
+		.name = name, .name_size = sizeof(name), .attributes = 3,
+		.vendor_guid = { 0xa1, 0x36, 0x74 },
+	};
+	const struct payload_mm_authvar_record_span span = { &value, sizeof(value) };
+	memset(erased, 0xff, sizeof(erased));
+	assert_true(payload_mm_authvar_fv_geometry(&geometry, sizeof(volume), NOR_BLOCK));
+	assert_int_equal(payload_mm_authvar_default_store_compose(erased, volume,
+		sizeof(volume), NOR_BLOCK, false), PAYLOAD_MM_AUTHVAR_DEFAULT_STORE_ERASED);
+
+	uint8_t *store = volume + PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	const size_t store_size = geometry.variable_size - PAYLOAD_MM_AUTHVAR_FV_HEADER_SIZE;
+	struct test_media media = { .store = store, .size = store_size };
+	const size_t offset = payload_mm_authvar_default_store_records_end();
+
+	assert_true(payload_mm_authvar_record_encode(&record, &span, 1,
+		PAYLOAD_MM_AUTHVAR_RECORD_TIMESTAMP_VALIDATED,
+		store + offset, store_size - offset, &length));
+	store[offset + 2] = PAYLOAD_MM_AUTHVAR_STATE_ADDED;
+	assert_int_equal(authvar_owner_init(&service.owner, store, store_size, 0x10000,
+		commit, &media, service.workspace, sizeof(service.workspace), true, NULL, NULL), 0);
+	assert_int_equal(authvar_owner_get(&service.owner, name, record.vendor_guid,
+		NULL, &size, &result), 0);
+	assert_int_equal(result, value);
+}
+
 static void ftw_workspace_pre_erase_read(void **unused)
 {
 	static _Alignas(16) uint8_t arena[sizeof(struct authvar_owner) + 256 * 1024];
@@ -1932,6 +1974,7 @@ int main(void)
 		cmocka_unit_test(factory_defaults_are_sealed_at_handoff),
 		cmocka_unit_test(owner_on_nor),
 		cmocka_unit_test(ftw_workspace_pre_erase_read),
+		cmocka_unit_test(import_fixed_mm_long_variable_name),
 		cmocka_unit_test(native_smm_opens_before_publication),
 		cmocka_unit_test(lite_ass_private_data_budget),
 		cmocka_unit_test(malformed_capsule_never_authorizes_source),
