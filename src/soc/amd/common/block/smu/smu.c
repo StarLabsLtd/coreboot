@@ -50,11 +50,14 @@ int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload 
 	size_t i;
 
 	/* Wait until the SMU can process a new request; an old failed response is harmless. */
-	if (smu_poll_response(false) == SMU_MESG_RESP_TIMEOUT)
-		return SMU_MESG_RESP_TIMEOUT;
+	response = smu_poll_response(false);
+	if (response == SMU_MESG_RESP_TIMEOUT || response == -1)
+		return response;
 
 	/* Clear response register */
 	smn_write32(SMN_SMU_MESG_RESP, 0);
+	if (smn_read32(SMN_SMU_MESG_RESP) != 0)
+		return -1;
 
 	/* Populate arguments */
 	for (i = 0; i < SMU_NUM_ARGS; i++)
@@ -65,8 +68,8 @@ int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload 
 
 	/* Wait until the SMU has processed the message */
 	response = smu_poll_response(true);
-	if (response == SMU_MESG_RESP_TIMEOUT)
-		return SMU_MESG_RESP_TIMEOUT;
+	if (response == SMU_MESG_RESP_TIMEOUT || response == -1)
+		return response;
 
 	/* Copy returned values, even when the response isn't SMU_MESG_RESP_OK */
 	for (i = 0; i < SMU_NUM_ARGS; i++)
