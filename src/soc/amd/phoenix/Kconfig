@@ -114,6 +114,8 @@ config SOC_AMD_PHOENIX_OPENSIL
 	  AMD Phoenix support using OpenSIL (Proof of Concept)
 
 if SOC_AMD_PHOENIX_BASE
+config CPU_PT_ROM_MAP_GB
+	default 1024 if SOC_AMD_COMMON_BLOCK_SPI_MMAP_USE_ROM3
 
 config CHIPSET_DEVICETREE
 	string
