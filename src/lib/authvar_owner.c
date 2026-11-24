@@ -892,7 +892,7 @@ static uint64_t publish_candidate(struct authvar_owner *local, uint8_t bank, uin
 		local->failed = true;
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 	}
-	if (!fixed) {
+	if (!fixed && !CONFIG(PAYLOAD_EDK2)) {
 		status = image_policy_snapshot_values(&local->index, local->modes,
 			values, &current_snapshot_size);
 		if (status_error(status))

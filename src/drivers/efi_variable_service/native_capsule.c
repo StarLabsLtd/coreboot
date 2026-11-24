@@ -552,11 +552,31 @@ uint32_t ass_native_capsule_continue(struct ass_capsule_transaction *transaction
 	return capsule_result(message, request.revision, status);
 }
 
+uint64_t ass_native_capsule_legacy_floor(struct authvar_owner *owner,
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
+{
+	const uint16_t name[] = u"FmpLsv";
+	uint8_t value[sizeof(uint32_t)];
+	size_t size = sizeof(value);
+	uint32_t attributes;
+	uint64_t status = authvar_owner_get(owner, name, image_guid, &attributes, &size, value);
+
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
+		*floor = compiled_floor;
+		return 0;
+	}
+	if (status)
+		return status;
+	if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) || size != sizeof(value))
+		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
+	*floor = MAX(compiled_floor, read_le32(value));
+	return 0;
+}
+
 uint64_t ass_native_capsule_floor(struct authvar_owner *owner,
 	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
 {
 	const uint16_t state_name[] = { 'F', 'm', 'p', 'S', 't', 'a', 't', 'e', 0 };
-	const uint16_t lsv_name[] = { 'F', 'm', 'p', 'L', 's', 'v', 0 };
 	/* FMP controller state persists as four validity bytes and four LE32 values. */
 	uint8_t state[20];
 	size_t size = sizeof(state);
@@ -576,16 +596,7 @@ uint64_t ass_native_capsule_floor(struct authvar_owner *owner,
 		if (state[1])
 			stored_floor = read_le32(state + 8);
 	} else if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
-		size = sizeof(uint32_t);
-		status = authvar_owner_get(owner, lsv_name, image_guid, &attributes, &size, state);
-		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
-			if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) ||
-			    size != sizeof(uint32_t))
-				return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
-			stored_floor = read_le32(state);
-		} else if (status != PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
-			return status;
-		}
+		return ass_native_capsule_legacy_floor(owner, image_guid, compiled_floor, floor);
 	} else {
 		return status;
 	}

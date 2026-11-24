@@ -41,6 +41,9 @@ ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE),y)
 $(error Star Labs VBOOT A/B capsules must use the FMP provider in the installed payload)
 endif
 ifeq ($(CONFIG_PAYLOAD_EDIIE),y)
+ifneq ($(CONFIG_EDIIE_ASS_LATE_EXIT),y)
+$(error Star Labs VBOOT A/B requires edIIe with late trial acknowledgement)
+endif
 ifneq ($(CONFIG_EDIIE_SECURE_BOOT)$(CONFIG_EDIIE_CAPSULE),yy)
 $(error Star Labs VBOOT A/B requires edIIe Secure Boot and capsule support)
 endif

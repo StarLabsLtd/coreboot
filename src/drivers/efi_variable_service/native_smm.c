@@ -141,9 +141,14 @@ struct ass_capsule_transaction *ass_native_smm_capsule_transaction(void *arena,
 		platform->geometry.compiled_floor, &service->capsule.floor);
 
 	/* EDK2 can repair its FMP variables. INFO and BEGIN still reject an invalid floor. */
-	if (status && !(CONFIG(PAYLOAD_EDK2) &&
+	if (CONFIG(PAYLOAD_EDK2) &&
 	    (status == PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED ||
-	     status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)))
+	     status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) {
+		status = ass_native_capsule_legacy_floor(service->owner,
+			platform->geometry.image_guid, platform->geometry.compiled_floor,
+			&service->capsule.floor);
+	}
+	if (status)
 		return NULL;
 	return &service->capsule;
 }
