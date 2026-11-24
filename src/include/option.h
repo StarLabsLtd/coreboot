@@ -10,7 +10,7 @@
 struct option_constraints {
 	enum { OPTION_NUMBER, OPTION_VALUES } type;
 	union {
-		struct { unsigned int min, max, step; } number;
+		struct { unsigned int min, max, step; bool allow_zero; } number;
 		struct { const unsigned int *values; size_t count; } enumeration;
 	};
 };
@@ -25,12 +25,22 @@ static inline struct option_constraints option_range(uint64_t low, uint64_t high
 		return (struct option_constraints) { .type = OPTION_NUMBER };
 
 	return (struct option_constraints) {
-		.type = OPTION_NUMBER, .number = { low, high, step }
+		.type = OPTION_NUMBER, .number = { .min = low, .max = high, .step = step }
 	};
 }
 
 #define OPTION_RANGE_STEP(low, high, increment) option_range(low, high, increment)
 #define OPTION_RANGE(low, high) OPTION_RANGE_STEP(low, high, 1)
+static inline struct option_constraints option_range_step_or_zero(unsigned int low,
+								  unsigned int high,
+								  unsigned int step)
+{
+	struct option_constraints rule = OPTION_RANGE_STEP(low, high, step);
+
+	rule.number.allow_zero = true;
+	return rule;
+}
+
 #define OPTION_BOOL OPTION_RANGE(0, 1)
 #define OPTION_ENUM_VALUES(array, length) ((struct option_constraints) { \
 	.type = OPTION_VALUES, .enumeration = { (array), (length) } })
@@ -41,9 +51,9 @@ static inline bool option_value_valid(unsigned int value, struct option_constrai
 {
 	switch (rule.type) {
 	case OPTION_NUMBER:
-		return rule.number.step && value >= rule.number.min &&
-			value <= rule.number.max &&
-			(value - rule.number.min) % rule.number.step == 0;
+		return rule.number.step && ((!value && rule.number.allow_zero) ||
+			(value >= rule.number.min && value <= rule.number.max &&
+			 (value - rule.number.min) % rule.number.step == 0));
 	case OPTION_VALUES:
 		for (size_t i = 0; i < rule.enumeration.count; i++)
 			if (value == rule.enumeration.values[i])

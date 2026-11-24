@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/coreboot_tables.h>
+#include <cpu/intel/rapl_options.h>
 #include <cpu/intel/haswell/cfr.h>
 #include <drivers/intel/oc_mailbox/cfr.h>
 #include <drivers/option/cfr_frontend.h>
@@ -58,6 +59,11 @@ static struct sm_obj_form *sm_root[] = {
 #endif
 	NULL
 };
+
+const struct sm_obj_number *mainboard_cfr_rapl_option(enum rapl_limit limit)
+{
+	return limit == RAPL_PL2 ? &tdp_pl2_override.sm_number : &tdp_pl1_override.sm_number;
+}
 
 void mb_cfr_setup_menu(struct lb_cfr *cfr_root)
 {

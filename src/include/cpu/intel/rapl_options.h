@@ -3,6 +3,7 @@
 #ifndef CPU_INTEL_RAPL_OPTIONS_H
 #define CPU_INTEL_RAPL_OPTIONS_H
 
+#include <drivers/option/cfr_frontend.h>
 #include <option.h>
 
 enum rapl_limit {
@@ -12,10 +13,17 @@ enum rapl_limit {
 
 static inline struct option_constraints rapl_default_range(enum rapl_limit limit);
 
+/* Return the numeric object used in the board's CFR menu. */
+const struct sm_obj_number *mainboard_cfr_rapl_option(enum rapl_limit limit);
+
+#if ENV_RAMSTAGE && CONFIG(DRIVERS_OPTION_CFR)
+struct option_constraints get_rapl_override_range(enum rapl_limit limit);
+#else
 static inline struct option_constraints get_rapl_override_range(enum rapl_limit limit)
 {
 	return rapl_default_range(limit);
 }
+#endif
 
 static inline struct option_constraints rapl_pl1_range(void)
 {
