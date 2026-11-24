@@ -49,6 +49,9 @@ ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
 ifneq ($(CONFIG_VBOOT_VBNV_FLASH):$(CONFIG_VBOOT_VBNV_CMOS),y:)
 $(error Native ASS vboot A/B requires flash as the primary VBNV backend)
 endif
+ifneq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
+$(error Native ASS vboot A/B requires the capsule owner for boot acknowledgement)
+endif
 endif
 include $(src)/lib/authvar_sources.mk
 smm-y += native_smm.c native_media.c native_variables.c native_capsule.c native_capsule_source.c
