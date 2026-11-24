@@ -208,6 +208,10 @@ static enum cb_err fast_spi_do_dma_transfer(void *buffer, uint32_t size, uint32_
 		}
 	} while (!stopwatch_expired(&timer));
 
+	/* A completed transfer no longer needs bus mastering, even on error. */
+	if (status.fields.complete && !(pci_command & PCI_COMMAND_MASTER))
+		pci_and_config16(FAST_SPI_DEV, PCI_COMMAND, ~PCI_COMMAND_MASTER);
+
 	if (status.fields.error) {
 		printk(BIOS_ERR, "Fast-SPI: error(s) detected, 0x%08x\n", status.data);
 		goto out;
@@ -234,10 +238,6 @@ static enum cb_err fast_spi_do_dma_transfer(void *buffer, uint32_t size, uint32_
 	status.data = 0;
 	status.fields.complete = 1;
 	fast_spi_write(FAST_SPI_DMA_STATUS, status.data);
-
-	/* Restore PCI command if it was changed. */
-	if (!(pci_command & PCI_COMMAND_MASTER))
-		pci_write_config16(FAST_SPI_DEV, PCI_COMMAND, pci_command);
 
 	ret = CB_SUCCESS;
 
