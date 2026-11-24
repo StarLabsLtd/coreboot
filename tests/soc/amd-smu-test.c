@@ -74,11 +74,21 @@ static void successful_exchange(void **state)
 
 	/* An old failed command does not prevent a new request. */
 	response = 0xfe;
-	assert_int_equal(send_smu_message(SMC_MSG_S3ENTRY, &payload),
+	assert_int_equal(send_smu_message_timeout(SMC_MSG_S3ENTRY, &payload, 100),
 			 CB_SUCCESS);
 	assert_int_equal(writes, SMU_NUM_ARGS + 2);
 	for (size_t i = 0; i < SMU_NUM_ARGS; i++)
 		assert_int_equal(payload.msg[i], i + 2);
+}
+
+static void not_ready(void **state)
+{
+	struct smu_payload payload = {0};
+
+	response = 0;
+	assert_int_equal(send_smu_message_timeout(SMC_MSG_S3ENTRY, &payload, 100), CB_ERR);
+	assert_int_equal(writes, 0);
+	assert_true(elapsed >= 100 && elapsed <= 110);
 }
 
 static void inaccessible_mailbox(void **state)
@@ -86,7 +96,7 @@ static void inaccessible_mailbox(void **state)
 	struct smu_payload payload = {0};
 
 	response = UINT32_MAX;
-	assert_int_equal(send_smu_message(SMC_MSG_S3ENTRY, &payload), CB_ERR);
+	assert_int_equal(send_smu_message_timeout(SMC_MSG_S3ENTRY, &payload, 100), CB_ERR);
 	assert_int_equal(writes, 0);
 }
 
@@ -95,7 +105,7 @@ static void clear_failure(void **state)
 	struct smu_payload payload = {0};
 
 	clear_stuck = true;
-	assert_int_equal(send_smu_message(SMC_MSG_S3ENTRY, &payload), CB_ERR);
+	assert_int_equal(send_smu_message_timeout(SMC_MSG_S3ENTRY, &payload, 100), CB_ERR);
 	assert_int_equal(writes, 1);
 }
 
@@ -104,7 +114,7 @@ static void command_failure(void **state)
 	struct smu_payload payload = {.msg = {7}};
 
 	command_response = 0xfe;
-	assert_int_equal(send_smu_message(SMC_MSG_S3ENTRY, &payload), CB_ERR);
+	assert_int_equal(send_smu_message_timeout(SMC_MSG_S3ENTRY, &payload, 100), CB_ERR);
 	assert_int_equal(payload.msg[0], 7);
 }
 
@@ -117,14 +127,25 @@ static void raw_command_failure(void **state)
 	assert_int_equal(payload.msg[0], 8);
 }
 
+static void command_timeout(void **state)
+{
+	struct smu_payload payload = {0};
+
+	command_response = 0;
+	assert_int_equal(send_smu_message_timeout(SMC_MSG_S3ENTRY, &payload, 100), CB_ERR);
+	assert_true(elapsed >= 100 && elapsed <= 115);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup(successful_exchange, setup),
+		cmocka_unit_test_setup(not_ready, setup),
 		cmocka_unit_test_setup(inaccessible_mailbox, setup),
 		cmocka_unit_test_setup(clear_failure, setup),
 		cmocka_unit_test_setup(command_failure, setup),
 		cmocka_unit_test_setup(raw_command_failure, setup),
+		cmocka_unit_test_setup(command_timeout, setup),
 	};
 	return cb_run_group_tests(tests, NULL, NULL);
 }

@@ -9,13 +9,12 @@
 #include <types.h>
 
 /* returns SMU_MESG_RESP_OK, SMU_MESG_RESP_TIMEOUT or a negative number */
-static int32_t smu_poll_response(bool print_command_duration)
+static int32_t smu_poll_response(bool print_command_duration, unsigned int timeout_us)
 {
 	struct stopwatch sw;
-	const long timeout_ms = 10 * MSECS_PER_SEC;
 	int32_t result;
 
-	stopwatch_init_msecs_expire(&sw, timeout_ms);
+	stopwatch_init_usecs_expire(&sw, timeout_us);
 
 	while (1) {
 		result = smn_read32(SMN_SMU_MESG_RESP);
@@ -44,13 +43,14 @@ static int32_t smu_poll_response(bool print_command_duration)
  * Send a message and bi-directional payload to the SMU. SMU response, if any, is returned via
  * *arg.
  */
-int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload *arg)
+static int32_t send_smu_message_raw_timeout(enum smu_message_id message_id,
+					  struct smu_payload *arg, unsigned int timeout_us)
 {
-	int32_t response;
 	size_t i;
+	int32_t response;
 
 	/* Wait until the SMU can process a new request; an old failed response is harmless. */
-	response = smu_poll_response(false);
+	response = smu_poll_response(false, timeout_us);
 	if (response == SMU_MESG_RESP_TIMEOUT || response == -1)
 		return response;
 
@@ -67,7 +67,7 @@ int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload 
 	smn_write32(SMN_SMU_MESG_ID, message_id);
 
 	/* Wait until the SMU has processed the message */
-	response = smu_poll_response(true);
+	response = smu_poll_response(true, timeout_us);
 	if (response == SMU_MESG_RESP_TIMEOUT || response == -1)
 		return response;
 
@@ -78,13 +78,24 @@ int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload 
 	return response;
 }
 
-enum cb_err send_smu_message(enum smu_message_id message_id, struct smu_payload *arg)
+int32_t send_smu_message_raw(enum smu_message_id message_id, struct smu_payload *arg)
+{
+	return send_smu_message_raw_timeout(message_id, arg, 10 * USECS_PER_SEC);
+}
+
+enum cb_err send_smu_message_timeout(enum smu_message_id message_id,
+				    struct smu_payload *arg, unsigned int timeout_us)
 {
 	struct smu_payload response = *arg;
 
-	if (send_smu_message_raw(message_id, &response) != SMU_MESG_RESP_OK)
+	if (send_smu_message_raw_timeout(message_id, &response, timeout_us) != SMU_MESG_RESP_OK)
 		return CB_ERR;
 
 	*arg = response;
 	return CB_SUCCESS;
+}
+
+enum cb_err send_smu_message(enum smu_message_id message_id, struct smu_payload *arg)
+{
+	return send_smu_message_timeout(message_id, arg, 10 * USECS_PER_SEC);
 }
