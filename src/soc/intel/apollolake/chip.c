@@ -872,7 +872,7 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase)
 		heci_cse_lockdown();
 
 		/* Hide the P2SB device to align with previous behavior. */
-		if (!p2sb_hide())
+		if (!p2sb_hide() && CONFIG(SECURITY_FAIL_CLOSED))
 			die_with_post_code(POSTCODE_HW_INIT_FAILURE,
 				   "Unable to change P2SB visibility\n");
 

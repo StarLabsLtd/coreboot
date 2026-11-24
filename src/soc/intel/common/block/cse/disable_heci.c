@@ -79,7 +79,7 @@ static void heci1_disable_using_sbi(void)
 	p2sb_disable_sideband_access();
 
 	/* hide p2sb device */
-	if (!p2sb_hide())
+	if (!p2sb_hide() && CONFIG(SECURITY_FAIL_CLOSED))
 		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
 				   "Unable to change P2SB visibility\n");
 }

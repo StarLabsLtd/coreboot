@@ -119,7 +119,7 @@ static void chip_final(void *data)
 	set_imc_locks();
 	set_upi_locks();
 
-	if (!p2sb_hide())
+	if (!p2sb_hide() && CONFIG(SECURITY_FAIL_CLOSED))
 		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
 				   "Unable to change P2SB visibility\n");
 	iio_enable_masks();

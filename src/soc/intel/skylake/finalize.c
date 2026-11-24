@@ -65,7 +65,7 @@ static void pch_finalize_script(struct device *dev)
 		heci1_disable();
 
 	/* Hide p2sb device as the OS must not change BAR0. */
-	if (!p2sb_hide())
+	if (!p2sb_hide() && CONFIG(SECURITY_FAIL_CLOSED))
 		die_with_post_code(POSTCODE_HW_INIT_FAILURE,
 				   "Unable to change P2SB visibility\n");
 
