@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
+#include <cpu/intel/rapl_options.h>
 #include <cpu/x86/msr.h>
 #include <device/pci_ops.h>
 #include <drivers/intel/dptf/chip.h>
@@ -136,7 +137,7 @@ void set_power_limits(u8 power_limit_1_time,
 	/* Set long term power limit to TDP */
 	limit.lo = 0;
 	const unsigned int tdp_pl1_override = get_uint_option_checked(
-		"tdp_pl1_override", conf->tdp_pl1_override, OPTION_RANGE(0, 400));
+		"tdp_pl1_override", conf->tdp_pl1_override, rapl_pl1_range());
 	tdp_pl1 = tdp_pl1_override ? (tdp_pl1_override * power_unit) : tdp;
 	/* Validate against hardware limits */
 	if (min_power > 0 && tdp_pl1 < min_power) {
@@ -162,7 +163,7 @@ void set_power_limits(u8 power_limit_1_time,
 	/* Set short term power limit to 1.25 * TDP if no config given */
 	limit.hi = 0;
 	const unsigned int tdp_pl2_override = get_uint_option_checked(
-		"tdp_pl2_override", conf->tdp_pl2_override, OPTION_RANGE(0, 500));
+		"tdp_pl2_override", conf->tdp_pl2_override, rapl_pl2_range());
 	tdp_pl2 = tdp_pl2_override ? (tdp_pl2_override * power_unit) : ((tdp * 125) / 100);
 	/* Ensure PL2 isn't less than PL1 */
 	if (tdp_pl2 < tdp_pl1)

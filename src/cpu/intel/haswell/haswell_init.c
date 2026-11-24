@@ -8,6 +8,7 @@
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mp.h>
 #include <cpu/intel/microcode.h>
+#include <cpu/intel/rapl_options.h>
 #include <cpu/intel/smm_reloc.h>
 #include <cpu/intel/speedstep.h>
 #include <cpu/intel/turbo.h>
@@ -276,9 +277,11 @@ void set_power_limits(u8 power_limit_1_time)
 	power_limit_1_val = power_limit_time_sec_to_msr[power_limit_1_time];
 
 	const unsigned int pl1_override_w =
-		get_uint_option_checked("tdp_pl1_override", 0, OPTION_RANGE(15, 25));
+		get_uint_option_checked(
+			"tdp_pl1_override", 0, rapl_pl1_range());
 	const unsigned int pl2_override_w =
-		get_uint_option_checked("tdp_pl2_override", 0, OPTION_RANGE(15, 30));
+		get_uint_option_checked(
+			"tdp_pl2_override", 0, rapl_pl2_range());
 
 	/* Set long term power limit to TDP if not overridden */
 	limit.lo = 0;
