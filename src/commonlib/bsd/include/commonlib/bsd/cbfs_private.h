@@ -11,6 +11,10 @@
 #include <stdint.h>
 #include <vb2_sha.h>
 
+/* Validate the entire attribute list and distinguish absence from invalid metadata. */
+enum cb_err cbfs_find_attr_checked(const union cbfs_mdata *mdata, uint32_t attr_tag,
+				 size_t size_check, const void **result);
+
 /*
  * This header implements low-level CBFS access APIs that can be shared across different
  * host applications (e.g. coreboot, libpayload, cbfstool). For verification purposes it

@@ -216,6 +216,68 @@ static void expect_lookup_result(enum cb_err res)
 
 /* Tests */
 
+static void test_cbfs_locate_raw(void **state)
+{
+	struct cbfs_test_state *s = *state;
+	struct cbfs_test_file raw = test_file_2, malformed = test_file_int_3;
+	struct cbfs_test_file truncated = test_file_int_2, padded = file_valid_hash;
+	struct cbfs_test_file unaligned = test_file_int_1;
+	struct cbfs_test_file hidden = file_valid_hash;
+	struct cbfs_file_attr_compression *attr;
+	struct cbfs_file_attribute *marker;
+	const struct cbfs_test_file *files[] = {
+		&padded, &raw, &test_file_2, &malformed, &truncated, &unaligned, &hidden,
+	};
+	const size_t padding = sizeof(struct cbfs_file_attribute);
+	size_t offset, size;
+
+	memset((uint8_t *)&padded + be32_to_cpu(padded.header.offset), 0, padding);
+	padded.header.offset = cpu_to_be32(be32_to_cpu(padded.header.offset) + padding);
+	memcpy(raw.filename, "raw", sizeof("raw"));
+	attr = (void *)raw.attrs_and_data;
+	attr->compression = cpu_to_be32(CBFS_COMPRESS_NONE);
+	attr = (void *)malformed.attrs_and_data;
+	attr->len = cpu_to_be32(sizeof(*attr) - sizeof(attr->decompressed_size));
+	attr = (void *)truncated.attrs_and_data;
+	attr->tag = cpu_to_be32(CBFS_FILE_ATTR_TAG_COMPRESSION);
+	truncated.header.attributes_offset = truncated.header.offset;
+	truncated.header.offset = cpu_to_be32(be32_to_cpu(truncated.header.offset) +
+		sizeof(attr->tag) - 1);
+	attr = (void *)unaligned.attrs_and_data;
+	attr->tag = cpu_to_be32(CBFS_FILE_ATTR_TAG_HASH);
+	attr->len = cpu_to_be32(padding + 1);
+	unaligned.header.attributes_offset = unaligned.header.offset;
+	unaligned.header.offset = cpu_to_be32(be32_to_cpu(unaligned.header.offset) + padding + 1);
+	memcpy(hidden.filename, "bad-pad", sizeof("bad-pad"));
+	marker = (void *)((uint8_t *)&hidden + be32_to_cpu(hidden.header.offset));
+	marker->tag = cpu_to_be32(CBFS_FILE_ATTR_TAG_UNUSED);
+	marker->len = cpu_to_be32(padding);
+	memcpy(marker->data, test_file_2.attrs_and_data, sizeof(*attr));
+	hidden.header.offset = cpu_to_be32(be32_to_cpu(hidden.header.offset) + padding +
+		sizeof(*attr));
+
+	assert_int_equal(0, create_cbfs(files, ARRAY_SIZE(files), s->cbfs_buf, s->cbfs_size));
+	assert_int_equal(CB_SUCCESS, cbfs_init_boot_device(&cbd, NULL));
+	expect_lookup_result(CB_SUCCESS);
+	assert_int_equal(CB_SUCCESS, cbfs_locate_boot_raw(TEST_DATA_1_FILENAME, &offset, &size));
+	assert_int_equal(size, TEST_DATA_1_SIZE);
+	assert_int_equal(offset, region_device_offset(&cbd.rdev) +
+			 be32_to_cpu(padded.header.offset));
+	expect_lookup_result(CB_SUCCESS);
+	assert_int_equal(CB_SUCCESS, cbfs_locate_boot_raw("raw", &offset, &size));
+	assert_int_equal(size, TEST_DATA_2_SIZE);
+	expect_lookup_result(CB_SUCCESS);
+	assert_int_equal(CB_ERR, cbfs_locate_boot_raw(TEST_DATA_2_FILENAME, &offset, &size));
+	expect_lookup_result(CB_SUCCESS);
+	assert_int_equal(CB_ERR, cbfs_locate_boot_raw(TEST_DATA_INT_3_FILENAME, &offset, &size));
+	expect_lookup_result(CB_SUCCESS);
+	assert_int_equal(CB_ERR, cbfs_locate_boot_raw(TEST_DATA_INT_2_FILENAME, &offset, &size));
+	expect_lookup_result(CB_SUCCESS);
+	assert_int_equal(CB_ERR, cbfs_locate_boot_raw(TEST_DATA_INT_1_FILENAME, &offset, &size));
+	expect_lookup_result(CB_SUCCESS);
+	assert_int_equal(CB_ERR, cbfs_locate_boot_raw("bad-pad", &offset, &size));
+}
+
 /* Test case for cbfs_map() function. Validate file searching in the correct CBFS */
 static void test_cbfs_map(void **state)
 {
@@ -985,6 +1047,7 @@ int main(void)
 {
 	const struct CMUnitTest cbfs_lookup_aligned_and_unaligned_tests[] = {
 		CBFS_LOOKUP_TEST(test_cbfs_map),
+		CBFS_LOOKUP_TEST(test_cbfs_locate_raw),
 		CBFS_LOOKUP_TEST(test_cbfs_cbmem_alloc),
 
 		CBFS_LOOKUP_TEST(test_cbfs_image_not_aligned),

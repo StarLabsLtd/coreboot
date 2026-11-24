@@ -163,36 +163,75 @@ enum cb_err cbfs_lookup(cbfs_dev_t dev, const char *name, union cbfs_mdata *mdat
 	return cbfs_walk(dev, lookup_walker, &args, metadata_hash, 0);
 }
 
-const void *cbfs_find_attr(const union cbfs_mdata *mdata, uint32_t attr_tag, size_t size_check)
+/* Keep the checked path out of stages that only query individual attributes. */
+static __always_inline enum cb_err find_attr(const union cbfs_mdata *mdata, uint32_t attr_tag,
+					    size_t size_check, const void **result,
+					    bool validate_list)
 {
 	uint32_t offset = be32toh(mdata->h.attributes_offset);
 	uint32_t end = be32toh(mdata->h.offset);
+	const void *found = NULL;
 
 	if (!offset)
-		return NULL;
+		return CB_CBFS_NOT_FOUND;
 
-	while (offset + sizeof(struct cbfs_file_attribute) <= end) {
+	while (offset + sizeof(uint32_t) <= end) {
 		const struct cbfs_file_attribute *attr = (const void *)mdata->raw + offset;
 		const uint32_t tag = be32toh(attr->tag);
-		const uint32_t len = be32toh(attr->len);
+		uint32_t len;
 
-		if (len < sizeof(struct cbfs_file_attribute) || len > end - offset) {
+		if (validate_list &&
+		    (tag == CBFS_FILE_ATTR_TAG_UNUSED || tag == CBFS_FILE_ATTR_TAG_UNUSED2))
+			break;
+		if (end - offset < sizeof(*attr))
+			return CB_ERR;
+		len = be32toh(attr->len);
+		if (len < sizeof(struct cbfs_file_attribute) || len > end - offset ||
+		    (validate_list && !IS_ALIGNED(len, CBFS_ATTRIBUTE_ALIGN))) {
 			ERROR("Attribute %s[%x] invalid length: %u\n",
 			      mdata->h.filename, tag, len);
-			return NULL;
+			return CB_ERR;
 		}
 		if (tag == attr_tag) {
+			if (found)
+				return CB_ERR;
 			if (size_check && len != size_check) {
 				ERROR("Attribute %s[%x] size mismatch: %u != %zu\n",
 				      mdata->h.filename, tag, len, size_check);
-				return NULL;
+				return CB_ERR;
 			}
-			return attr;
+			found = attr;
+			if (!validate_list)
+				break;
 		}
 		offset += len;
 	}
 
-	return NULL;
+	if (validate_list && offset < end) {
+		uint8_t padding = mdata->raw[offset];
+
+		if (padding != 0 && padding != UINT8_MAX)
+			return CB_ERR;
+		for (; offset < end; offset++)
+			if (mdata->raw[offset] != padding)
+				return CB_ERR;
+	}
+	*result = found;
+	return found ? CB_SUCCESS : CB_CBFS_NOT_FOUND;
+}
+
+enum cb_err cbfs_find_attr_checked(const union cbfs_mdata *mdata, uint32_t attr_tag,
+				 size_t size_check, const void **result)
+{
+	return find_attr(mdata, attr_tag, size_check, result, true);
+}
+
+const void *cbfs_find_attr(const union cbfs_mdata *mdata, uint32_t attr_tag, size_t size_check)
+{
+	const void *result;
+
+	return find_attr(mdata, attr_tag, size_check, &result, false) == CB_SUCCESS ?
+		result : NULL;
 }
 
 const struct vb2_hash *cbfs_file_hash(const union cbfs_mdata *mdata)

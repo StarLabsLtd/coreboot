@@ -266,6 +266,24 @@ static void lb_boot_media_params(struct lb_header *header)
 	bmp->fmap_offset = get_fmap_flash_offset();
 }
 
+static void lb_ediie_speech(struct lb_header *header)
+{
+	struct lb_ediie_speech *speech;
+	size_t offset, size;
+
+	if (cbfs_locate_boot_raw(LB_EDIIE_SPEECH_NAME, &offset, &size) != CB_SUCCESS ||
+	    !size || size > LB_EDIIE_SPEECH_MAX_BYTES ||
+	    offset > UINT32_MAX || size - 1 > UINT32_MAX - offset)
+		return;
+	speech = (void *)lb_new_record(header);
+	*speech = (struct lb_ediie_speech){
+		.tag = LB_TAG_EDIIE_SPEECH,
+		.size = sizeof(*speech),
+		.flash_offset = offset,
+		.source_size = size,
+	};
+}
+
 static void lb_mmc_info(struct lb_header *header)
 {
 	struct lb_mmc_info *rec;
@@ -667,6 +685,8 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	/* Add SPI flash description if available */
 	if (CONFIG(BOOT_DEVICE_SPI_FLASH))
 		lb_spi_flash(head);
+	if (CONFIG(PAYLOAD_EDIIE) && CONFIG(EDIIE_SCREEN_READER))
+		lb_ediie_speech(head);
 
 	add_cbmem_pointers(head);
 

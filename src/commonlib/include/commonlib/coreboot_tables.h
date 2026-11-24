@@ -103,6 +103,7 @@ enum {
 	LB_TAG_PAYLOAD_RESOURCE_HANDOFF	= 0x005b,
 	LB_TAG_CAPSULE_SMMSTORE		= 0x005c,
 	LB_TAG_HDA_SPEAKER_AMP		= 0x005d,
+	LB_TAG_EDIIE_SPEECH		= 0x0063,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -110,6 +111,16 @@ enum {
 	LB_TAG_OPTION_DEFAULTS		= 0x00cb,
 	LB_TAG_OPTION_CHECKSUM		= 0x00cc,
 	LB_TAG_BOOT_MODE		= 0x00cd,
+};
+
+#define LB_EDIIE_SPEECH_NAME "ediie/speech"
+#define LB_EDIIE_SPEECH_MAX_BYTES (2 * 1024 * 1024)
+
+struct lb_ediie_speech {
+	uint32_t tag;
+	uint32_t size;
+	uint32_t flash_offset;
+	uint32_t source_size;
 };
 
 /* All table entry base addresses and sizes must be 4-byte aligned. */

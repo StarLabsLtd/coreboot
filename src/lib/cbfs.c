@@ -635,6 +635,36 @@ void *cbfs_map_boot_payload(const char *name, enum cbfs_type *type, size_t *meas
 	return cbfs_type_map(name, NULL, type);
 }
 
+enum cb_err cbfs_locate_boot_raw(const char *name, size_t *offset, size_t *size)
+{
+	union cbfs_mdata mdata;
+	struct region_device rdev;
+	enum cbfs_type type = CBFS_TYPE_RAW;
+	const struct cbfs_file_attr_compression *cattr;
+	const void *attr;
+	enum cb_err status;
+
+	status = _cbfs_boot_lookup(name, false, &mdata, &rdev);
+	if (status != CB_SUCCESS)
+		return status;
+	if (check_or_query_type(&mdata, &type) != CB_SUCCESS)
+		return CB_ERR;
+	status = cbfs_find_attr_checked(&mdata, CBFS_FILE_ATTR_TAG_COMPRESSION, sizeof(*cattr),
+					&attr);
+	if (status == CB_SUCCESS) {
+		cattr = attr;
+		if (be32toh(cattr->compression) != CBFS_COMPRESS_NONE ||
+		    be32toh(cattr->decompressed_size) != region_device_sz(&rdev))
+			return CB_ERR;
+	} else if (status != CB_CBFS_NOT_FOUND) {
+		return status;
+	}
+
+	*offset = region_device_offset(&rdev);
+	*size = region_device_sz(&rdev);
+	return CB_SUCCESS;
+}
+
 void *_cbfs_unverified_area_alloc(const char *area, const char *name,
 				  cbfs_allocator_t allocator, void *arg, size_t *size_out,
 				  enum cbfs_type *type)

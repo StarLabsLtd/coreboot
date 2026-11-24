@@ -23,6 +23,14 @@ EDIIE_OUTPUT := $(obj)/ediie
 EDIIE_PAYLOAD := $(EDIIE_OUTPUT)/native/ediie-coreboot-image.elf
 override CONFIG_PAYLOAD_FILE := $(EDIIE_PAYLOAD)
 
+cbfs-files-$(CONFIG_EDIIE_SCREEN_READER) += ediie/speech
+ediie/speech-file := $(EDIIE_OUTPUT)/native/spoken-drivers.bin
+ediie/speech-type := raw
+ediie/speech-compression := none
+
+# coreboot-stage generates the speech bundle alongside the payload.
+$(EDIIE_OUTPUT)/native/spoken-drivers.bin: $(EDIIE_PAYLOAD)
+
 ifeq ($(CONFIG_EDIIE_SECURE_BOOT_FIXED_KEYS),y)
 .PHONY: ediie-fixed-policy-check
 ediie-fixed-policy-check:
@@ -69,6 +77,15 @@ else
 		EDIIE_NATIVE_LD="$(EDIIE_NATIVE_LD)" \
 		OBJCOPY="$(OBJCOPY_x86_64)" NM="$(NM_x86_64)" \
 		READELF="$(READELF_x86_64)"
+ifeq ($(CONFIG_EDIIE_SCREEN_READER),y)
+	@set -e; size=$$(wc -c < "$(EDIIE_OUTPUT)/native/spoken-drivers.bin"); \
+		limit=$$(( $$(sed -n 's/^#define LB_EDIIE_SPEECH_MAX_BYTES //p' \
+			src/commonlib/include/commonlib/coreboot_tables.h) )); \
+		if [ "$$size" -eq 0 ] || [ "$$size" -gt "$$limit" ]; then \
+			echo "edIIe speech bundle is $$size bytes; expected 1 to $$limit" >&2; \
+			exit 1; \
+		fi
+endif
 ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT_SLOTS_RW_AB),yy)
 	@grep -qx 'CONFIG_EDIIE_NATIVE_SYSTEM_FMP=y' "$(EDIIE_OUTPUT)/.config" && \
 		grep -qx 'CONFIG_EDIIE_NATIVE_CAPSULE_DISK_SCANNER=y' "$(EDIIE_OUTPUT)/.config" || { \

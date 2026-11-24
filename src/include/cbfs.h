@@ -90,6 +90,9 @@ static inline void *cbfs_type_map(const char *name, size_t *size_out, enum cbfs_
 
 /* Map the boot payload, measuring its content and origin in native DAVE. */
 void *cbfs_map_boot_payload(const char *name, enum cbfs_type *type, size_t *measured_size);
+
+/* Locate the stored bytes of an uncompressed raw file without mapping its data. */
+enum cb_err cbfs_locate_boot_raw(const char *name, size_t *offset, size_t *size);
 static inline void *cbfs_ro_type_map(const char *name, size_t *size_out, enum cbfs_type *type);
 static inline void *cbfs_unverified_area_map(const char *area, const char *name,
 					      size_t *size_out);
