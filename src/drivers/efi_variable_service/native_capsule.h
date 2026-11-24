@@ -11,8 +11,8 @@ struct ass_capsule_source;
 struct payload_mm_crypto_owner;
 struct payload_mm_crypto_span;
 
-uint64_t ass_native_capsule_legacy_floor(struct authvar_owner *owner,
-	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor);
+uint64_t ass_native_capsule_boot_floor(struct authvar_owner *owner,
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor, bool repair_metadata);
 uint64_t ass_native_capsule_floor(struct authvar_owner *owner,
 	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor);
 

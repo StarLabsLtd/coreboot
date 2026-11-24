@@ -52,6 +52,14 @@ endif
 ifneq ($(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES),y)
 $(error Native ASS vboot A/B requires the capsule owner for boot acknowledgement)
 endif
+ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
+$(error Native ASS vboot A/B acknowledges boot success at the payload handoff)
+endif
+ifeq ($(CONFIG_PAYLOAD_EDIIE),y)
+ifneq ($(CONFIG_EDIIE_ASS_LATE_EXIT),y)
+$(error Native ASS vboot A/B requires edIIe with late trial acknowledgement)
+endif
+endif
 endif
 include $(src)/lib/authvar_sources.mk
 smm-y += native_smm.c native_media.c native_variables.c native_capsule.c native_capsule_source.c

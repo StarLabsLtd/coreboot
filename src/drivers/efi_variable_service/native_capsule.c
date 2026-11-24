@@ -552,7 +552,7 @@ uint32_t ass_native_capsule_continue(struct ass_capsule_transaction *transaction
 	return capsule_result(message, request.revision, status);
 }
 
-uint64_t ass_native_capsule_legacy_floor(struct authvar_owner *owner,
+static uint64_t legacy_floor(struct authvar_owner *owner,
 	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
 {
 	const uint16_t name[] = u"FmpLsv";
@@ -573,35 +573,60 @@ uint64_t ass_native_capsule_legacy_floor(struct authvar_owner *owner,
 	return 0;
 }
 
-uint64_t ass_native_capsule_floor(struct authvar_owner *owner,
-	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
+static uint64_t capsule_floor(struct authvar_owner *owner, const uint8_t image_guid[16],
+	uint32_t compiled_floor, uint32_t *floor, bool repair_metadata)
 {
-	const uint16_t state_name[] = { 'F', 'm', 'p', 'S', 't', 'a', 't', 'e', 0 };
 	/* FMP controller state persists as four validity bytes and four LE32 values. */
 	uint8_t state[20];
 	size_t size = sizeof(state);
-	uint32_t stored_floor = 0;
-	uint32_t attributes = 0;
+	uint32_t stored_floor = compiled_floor;
+	uint32_t attributes;
 
 	if (!owner || !image_guid || !floor)
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	if (owner->runtime)
 		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
-	uint64_t status = authvar_owner_get(owner, state_name, image_guid, &attributes, &size, state);
-	if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
-		if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) ||
-		    size != sizeof(state) || state[0] > 1 || state[1] > 1 ||
-		    state[2] > 1 || state[3] > 1)
+	uint64_t status = authvar_owner_get(owner, u"FmpState", image_guid,
+		&attributes, &size, state);
+	if (!status) {
+		const bool valid_record = (attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) &&
+			size == sizeof(state);
+
+		if (valid_record && state[1])
+			stored_floor = MAX(stored_floor, read_le32(state + 8));
+		if (valid_record && state[0] <= 1 && state[1] <= 1 &&
+		    state[2] <= 1 && state[3] <= 1) {
+			*floor = stored_floor;
+			return 0;
+		}
+		if (!repair_metadata)
 			return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
-		if (state[1])
-			stored_floor = read_le32(state + 8);
-	} else if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
-		return ass_native_capsule_legacy_floor(owner, image_guid, compiled_floor, floor);
-	} else {
+	} else if (status != PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
+		   !(repair_metadata && status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) {
 		return status;
 	}
-	*floor = MAX(compiled_floor, stored_floor);
-	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+
+	status = legacy_floor(owner, image_guid, stored_floor, floor);
+	if (repair_metadata && (status == PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED ||
+	    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) {
+		*floor = stored_floor;
+		return 0;
+	}
+	return status;
+}
+
+uint64_t ass_native_capsule_floor(struct authvar_owner *owner,
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
+{
+	return capsule_floor(owner, image_guid, compiled_floor, floor, false);
+}
+
+uint64_t ass_native_capsule_boot_floor(struct authvar_owner *owner,
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor, bool repair_metadata)
+{
+	/* EDK2 repairs FMP metadata after SMM starts. Capsule admission still requires
+	 * valid metadata, and must never drop a recoverable floor observed at boot. */
+	return capsule_floor(owner, image_guid, compiled_floor, floor, repair_metadata);
 }
 
 uint32_t ass_native_capsule_info(struct authvar_owner *owner,
