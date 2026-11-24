@@ -141,12 +141,22 @@ fail:
 static struct prog global_payload =
 	PROG_INIT(PROG_PAYLOAD, CONFIG_CBFS_PREFIX "/payload");
 
+__weak bool platform_skip_payload_preload(void)
+{
+	return false;
+}
+
 void payload_preload(void)
 {
-	if (!CONFIG(CBFS_PRELOAD))
+	if (!CONFIG(CBFS_PRELOAD) || platform_skip_payload_preload())
 		return;
 
 	cbfs_preload(global_payload.name);
+}
+
+__weak bool platform_load_payload(struct prog *payload)
+{
+	return false;
 }
 
 void payload_load(void)
@@ -156,7 +166,7 @@ void payload_load(void)
 
 	timestamp_add_now(TS_LOAD_PAYLOAD);
 
-	if (prog_locate_hook(payload))
+	if (prog_locate_hook(payload) || platform_load_payload(payload))
 		goto out;
 
 	payload->cbfs_type = CBFS_TYPE_QUERY;

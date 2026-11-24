@@ -577,6 +577,25 @@ void *_cbfs_alloc(const char *name, cbfs_allocator_t allocator, void *arg,
 	return ret;
 }
 
+void *cbfs_alloc_snapshot(const char *name, enum cbfs_type type, cbfs_allocator_t allocator,
+			  void *arg, size_t *size, struct region *source)
+{
+	struct region_device rdev;
+	union cbfs_mdata mdata;
+
+	if (!allocator || _cbfs_boot_lookup(name, false, &mdata, &rdev) ||
+	    check_or_query_type(&mdata, &type) != CB_SUCCESS ||
+	    cbfs_find_attr(&mdata, CBFS_FILE_ATTR_TAG_COMPRESSION,
+			   sizeof(struct cbfs_file_attr_compression)))
+		return NULL;
+
+	void *buffer = do_alloc(&mdata, &rdev, allocator, arg, size, false);
+	if (buffer)
+		*source = *region_device_region(&rdev);
+
+	return buffer;
+}
+
 void *_cbfs_unverified_area_alloc(const char *area, const char *name,
 				  cbfs_allocator_t allocator, void *arg, size_t *size_out,
 				  enum cbfs_type *type)

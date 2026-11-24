@@ -168,6 +168,11 @@ int payload_arch_usable_ram_quirk(uint64_t start, uint64_t size);
  */
 void payload_preload(void);
 /* Load payload into memory in preparation to run. */
+/* Skip preload when a platform loader requires a direct CBFS read. */
+bool platform_skip_payload_preload(void);
+
+/* Return true after loading and setting the entry for the selected payload. */
+bool platform_load_payload(struct prog *payload);
 void payload_load(void);
 
 /* Run the loaded payload. */
@@ -187,6 +192,7 @@ bool selfload(struct prog *payload);
 /* Like selfload_check() but with the payload data already mapped to memory. */
 bool selfload_mapped(struct prog *payload, void *mapping,
 		     enum bootmem_type dest_type);
+bool selfload_bounded(struct prog *payload, void *mapping, size_t size);
 
 /* Load a FIT payload. The payload data must already be mapped to memory. */
 void fit_payload(struct prog *payload, void *data);

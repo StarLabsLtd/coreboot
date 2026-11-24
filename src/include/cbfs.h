@@ -75,6 +75,10 @@
  */
 typedef void *(*cbfs_allocator_t)(void *arg, size_t size, const union cbfs_mdata *mdata);
 
+/* Copy an uncompressed file directly from its resolved CBFS region into RAM. */
+void *cbfs_alloc_snapshot(const char *name, enum cbfs_type type, cbfs_allocator_t allocator,
+			  void *arg, size_t *size, struct region *source);
+
 static inline size_t cbfs_load(const char *name, void *buf, size_t size);
 static inline size_t cbfs_ro_load(const char *name, void *buf, size_t size);
 static inline size_t cbfs_type_load(const char *name, void *buf, size_t size,

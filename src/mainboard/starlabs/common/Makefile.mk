@@ -138,6 +138,7 @@ CPPFLAGS_common += -I$(src)/mainboard/starlabs/common/include
 
 ramstage-$(CONFIG_STARLABS_ACPI_EFI_OPTION_SMI) += gnvs.c
 verstage-$(CONFIG_STARLABS_DAVE_VBOOT_MEASUREMENTS) += dave_vboot.c
+ramstage-$(CONFIG_STARLABS_DAVE_VBOOT_MEASUREMENTS) += dave_payload.c
 ramstage-$(CONFIG_STARLABS_TPM_PREBOOT_AUTH_PHASE) += preboot_auth.c
 ramstage-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
 smm-$(CONFIG_STARLABS_AUTOMATIC_START) += automatic_start.c
