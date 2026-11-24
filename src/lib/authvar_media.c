@@ -75,14 +75,26 @@ static uint64_t erase(struct authvar_media *media, const struct authvar_media_io
 	while (size) {
 		uint64_t status;
 		bool blank = true;
+		size_t prefix = 0;
 
-		status = io->read(io->context, offset, media->verify, media->block_size);
-		if (error(status))
-			return status;
-		for (size_t i = 0; i < media->block_size; i++) {
-			if (media->verify[i] != 0xffU) {
-				blank = false;
-				break;
+		/* An initialized FTW workspace starts with a programmed GUID byte. */
+		if (offset == media->plan.geometry.working_offset) {
+			status = io->read(io->context, offset, media->verify, 1);
+			if (error(status))
+				return status;
+			blank = media->verify[0] == 0xffU;
+			prefix = 1;
+		}
+		if (blank && prefix < media->block_size) {
+			status = io->read(io->context, offset + prefix,
+				media->verify + prefix, media->block_size - prefix);
+			if (error(status))
+				return status;
+			for (size_t i = prefix; i < media->block_size; i++) {
+				if (media->verify[i] != 0xffU) {
+					blank = false;
+					break;
+				}
 			}
 		}
 		if (!blank) {

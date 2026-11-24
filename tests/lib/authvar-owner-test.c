@@ -707,6 +707,9 @@ enum { NOR_BLOCK = 4096, NOR_SIZE = 3 * NOR_BLOCK, LITE_NOR_SIZE = 512 * 1024 };
 struct test_nor {
 	struct region_device region;
 	uint8_t bytes[LITE_NOR_SIZE];
+	size_t watched_block;
+	size_t watched_read_bytes;
+	size_t watched_erase_read_bytes;
 	bool fail_write;
 	bool partial_write;
 };
@@ -714,9 +717,12 @@ struct test_nor {
 static ssize_t nor_read(const struct region_device *region, void *data, size_t offset,
 	size_t size)
 {
-	const struct test_nor *nor = container_of(region, struct test_nor, region);
+	struct test_nor *nor = container_of(region, struct test_nor, region);
 
 	assert_true(offset <= region_device_sz(region) && size <= region_device_sz(region) - offset);
+	if (nor->watched_block && offset >= nor->watched_block &&
+	    offset - nor->watched_block < NOR_BLOCK)
+		nor->watched_read_bytes += size;
 	memcpy(data, nor->bytes + offset, size);
 	return size;
 }
@@ -747,6 +753,8 @@ static ssize_t nor_erase(const struct region_device *region, size_t offset, size
 	assert_true(offset <= region_device_sz(region) && size <= region_device_sz(region) - offset);
 	assert_int_equal(offset % NOR_BLOCK, 0);
 	assert_int_equal(size % NOR_BLOCK, 0);
+	if (nor->watched_block && offset == nor->watched_block)
+		nor->watched_erase_read_bytes = nor->watched_read_bytes;
 	memset(nor->bytes + offset, 0xff, size);
 	return size;
 }
@@ -855,6 +863,43 @@ static void owner_on_nor(void **unused)
 	write_le32(info, 2);
 	assert_int_equal(ass_native_capsule_info(memory.owner, &geometry, info, 28), 0);
 	assert_int_equal(read_le32(info + 12), 0x8000000aU);
+}
+
+static void ftw_workspace_pre_erase_read(void **unused)
+{
+	static _Alignas(16) uint8_t arena[sizeof(struct authvar_owner) + 256 * 1024];
+	static struct test_nor nor;
+	struct ass_native_store store;
+	struct ass_native_store_memory memory;
+
+	assert_true(ass_native_store_layout(&store, &memory, arena, sizeof(arena),
+		NOR_SIZE, NOR_BLOCK));
+	memset(nor.bytes, 0xff, NOR_SIZE);
+	region_device_init(&nor.region, &nor_ops, 0, NOR_SIZE);
+	allow_program = true;
+	assert_int_equal(ass_native_store_open(&store, memory.owner, &nor.region, memory.scratch,
+		nor_write_enabled, memory.workspace, memory.workspace_size, 1024, true, NULL), 0);
+
+	for (unsigned int erased_first = 0; erased_first < 2; erased_first++) {
+		const struct payload_mm_authvar_fv_geometry *geometry = &store.media.plan.geometry;
+		uint8_t *working = nor.bytes + geometry->working_offset;
+		uint8_t *spare = nor.bytes + geometry->spare_offset;
+
+		/* Interrupt a workspace rebuild after staging and invalidating the old copy. */
+		memcpy(spare, working, geometry->working_size);
+		working[20] &= 0xfcU;
+		if (erased_first)
+			working[0] = 0xffU;
+		nor.watched_block = geometry->working_offset;
+		nor.watched_read_bytes = 0;
+		nor.watched_erase_read_bytes = 0;
+		assert_int_equal(ass_native_store_open(&store, memory.owner, &nor.region,
+			memory.scratch, nor_write_enabled, memory.workspace, memory.workspace_size,
+			1024, true, NULL), 0);
+		/* The initial snapshot reads the block before either pre-erase path. */
+		assert_int_equal(nor.watched_erase_read_bytes,
+			NOR_BLOCK + (erased_first ? NOR_BLOCK : 1));
+	}
 }
 
 static void native_smm_opens_before_publication(void **unused)
@@ -1877,6 +1922,7 @@ int main(void)
 		cmocka_unit_test(check_uefi_properties_at_runtime),
 		cmocka_unit_test(factory_defaults_are_sealed_at_handoff),
 		cmocka_unit_test(owner_on_nor),
+		cmocka_unit_test(ftw_workspace_pre_erase_read),
 		cmocka_unit_test(native_smm_opens_before_publication),
 		cmocka_unit_test(lite_ass_private_data_budget),
 		cmocka_unit_test(malformed_capsule_never_authorizes_source),
