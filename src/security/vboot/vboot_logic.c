@@ -119,6 +119,17 @@ static vb2_error_t handle_digest_result(void *slot_hash, size_t slot_hash_sz)
 	return VB2_SUCCESS;
 }
 
+__weak vb2_error_t vboot_body_block(const struct vb2_context *ctx, const void *data,
+				    size_t size, size_t offset, size_t total)
+{
+	return VB2_SUCCESS;
+}
+
+__weak vb2_error_t vboot_body_verified(const struct vb2_context *ctx)
+{
+	return VB2_SUCCESS;
+}
+
 static vb2_error_t hash_body(struct vb2_context *ctx,
 			     struct region_device *fw_body)
 {
@@ -159,11 +170,15 @@ static vb2_error_t hash_body(struct vb2_context *ctx,
 			block_size = remaining;
 
 		temp_ts = timestamp_get();
-		if (rdev_readat(fw_body, block, offset, block_size) < 0)
+		if (rdev_readat(fw_body, block, offset, block_size) != (ssize_t)block_size)
 			return VB2_ERROR_UNKNOWN;
 		load_ts += timestamp_get() - temp_ts;
 
 		rc = vb2api_extend_hash(ctx, block, block_size);
+		if (rc)
+			return rc;
+
+		rc = vboot_body_block(ctx, block, block_size, offset, region_device_sz(fw_body));
 		if (rc)
 			return rc;
 
@@ -180,6 +195,10 @@ static vb2_error_t hash_body(struct vb2_context *ctx,
 		return rc;
 
 	timestamp_add_now(TS_HASH_BODY_END);
+
+	rc = vboot_body_verified(ctx);
+	if (rc)
+		return rc;
 
 	return handle_digest_result(hash_digest, hash_digest_sz);
 }

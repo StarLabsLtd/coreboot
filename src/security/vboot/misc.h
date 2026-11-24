@@ -28,6 +28,11 @@ static inline bool vboot_is_gbb_flag_set(enum vb2_gbb_flag flag)
 	return !!(vb2api_gbb_get_flags(vboot_get_context()) & flag);
 }
 
+/* Observe the signed body stream. The completion hook runs only after verification. */
+vb2_error_t vboot_body_block(const struct vb2_context *ctx, const void *data,
+			    size_t size, size_t offset, size_t total);
+vb2_error_t vboot_body_verified(const struct vb2_context *ctx);
+
 /*
  * Locates firmware as a region device. Returns 0 on success, -1 on failure.
  */

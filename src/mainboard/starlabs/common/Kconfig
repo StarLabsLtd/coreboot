@@ -82,6 +82,13 @@ config STARLABS_TPM_PREBOOT_AUTH_PHASE
 	def_bool DAVE_MODE && TPM2 && TPM_MEASURED_BOOT && TPM_HASH_SHA256 && TPM_LOG_TPM2
 	select TPM_PREBOOT_AUTH_PHASE
 
+config STARLABS_DAVE_VBOOT_MEASUREMENTS
+	bool "Measure firmware and payload for DAVE release approval"
+	depends on STARLABS_TPM_PREBOOT_AUTH_PHASE && VBOOT && !VBOOT_CBFS_INTEGRATION
+	help
+	  Extend PCR 2 with the verified RW body and the SELF payload evidence
+	  used by the DAVE release policy.
+
 config SMMSTORE_SRK_PIN
 	default y if DAVE_MODE && BOARD_STARLABS_STARFIGHTER_MTL && !VBOOT && \
 		SMMSTORE && BOOTMEDIA_SMM_BWP && SOC_INTEL_COMMON_BLOCK_SMM
