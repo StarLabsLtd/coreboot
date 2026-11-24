@@ -109,6 +109,14 @@ config VGA_ROM_RUN
 	  more complete BIOS interrupt services available than coreboot,
 	  which some option ROMs require in order to function correctly.
 
+config RUN_AMD_PEI_GOP
+	bool "Run the AMD PEI GOP driver"
+	depends on DRIVERS_AMD_PEI_GOP
+	select HAVE_LINEAR_FRAMEBUFFER
+	help
+	  Initialize graphics with the AMD IA32 PEIM and pass a linear
+	  framebuffer to the payload.
+
 config RUN_FSP_GOP
 	bool "Run a GOP driver"
 	depends on HAVE_FSP_GOP && !MAINBOARD_NO_FSP_GOP
