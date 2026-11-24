@@ -3,6 +3,7 @@
 #ifndef BOOT_PAYLOAD_MM_AUTHVAR_ROUTE_H
 #define BOOT_PAYLOAD_MM_AUTHVAR_ROUTE_H
 
+#include <boot/payload_mm_authvar_store.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -14,7 +15,8 @@
 #define PAYLOAD_MM_AUTHVAR_ATTRIBUTE_TIME_AUTH 0x00000020U
 #define PAYLOAD_MM_AUTHVAR_ATTRIBUTE_APPEND 0x00000040U
 #define PAYLOAD_MM_AUTHVAR_ROUTE_MAX_AUTHORITIES 2U
-#define PAYLOAD_MM_AUTHVAR_ROUTE_MAX_NAME_SIZE 4096U
+#define PAYLOAD_MM_AUTHVAR_ROUTE_MAX_NAME_SIZE \
+	(PAYLOAD_MM_AUTHVAR_STORE_DEFAULT_MAX_NAME_SIZE - sizeof(uint16_t))
 
 enum payload_mm_authvar_route_result {
 	PAYLOAD_MM_AUTHVAR_ROUTE_OK = 0,

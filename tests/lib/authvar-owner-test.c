@@ -874,7 +874,7 @@ static void import_fixed_mm_long_variable_name(void **unused)
 	static uint8_t erased[LITE_NOR_SIZE], volume[LITE_NOR_SIZE];
 	static uint16_t name[0x7f00];
 	struct payload_mm_authvar_fv_geometry geometry;
-	const uint8_t value = 0x42;
+	const uint8_t value = 0x42, replacement = 0x43;
 	uint8_t result = 0;
 	size_t size = sizeof(result);
 	uint32_t length;
@@ -905,6 +905,15 @@ static void import_fixed_mm_long_variable_name(void **unused)
 	assert_int_equal(authvar_owner_get(&service.owner, name, record.vendor_guid,
 		NULL, &size, &result), 0);
 	assert_int_equal(result, value);
+	assert_int_equal(authvar_owner_set(&service.owner, name, record.vendor_guid,
+		record.attributes, sizeof(replacement), &replacement, false, NULL, NULL), 0);
+	assert_int_equal(authvar_owner_get(&service.owner, name, record.vendor_guid,
+		NULL, &size, &result), 0);
+	assert_int_equal(result, replacement);
+	assert_int_equal(authvar_owner_set(&service.owner, name, record.vendor_guid,
+		0, 0, NULL, false, NULL, NULL), 0);
+	assert_int_equal(authvar_owner_get(&service.owner, name, record.vendor_guid,
+		NULL, &size, &result), PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND);
 }
 
 static void ftw_workspace_pre_erase_read(void **unused)
