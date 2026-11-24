@@ -25,6 +25,7 @@ ramstage-y	+= cpu.c
 ramstage-y	+= fch.c
 ramstage-$(CONFIG_SOC_AMD_PHOENIX_FSP) += fsp_s_params.c
 ramstage-y	+= graphics.c
+ramstage-$(CONFIG_RUN_AMD_PEI_GOP) += graphics_opensil.c
 ramstage-y	+= mca.c
 ramstage-y	+= memmap.c
 ramstage-$(CONFIG_SOC_AMD_PHOENIX_OPENSIL) += pci_irq_routing.c
