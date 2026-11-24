@@ -72,14 +72,14 @@ $(OBJPATH)/$(OPENSIL_CONFIG): $(opensil_dir)/../opensil_config.template $(obj)/c
 
 $(OBJPATH)/$(OPENSIL_CONFIG).h: $(OBJPATH)/$(OPENSIL_CONFIG) $(obj)/config.h $(objutil)/kconfig/conf
 ifeq ($(CONFIG_SOC_AMD_OPENSIL_PHOENIX_POC),y)
-	mkdir -p $(OBJPATH)/opensil/config; \
+	mkdir -p $(OBJPATH)/opensil-config; \
 	cd $(opensil_dir); \
 		KCONFIG_CONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
 		KBUILD_DEFCONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
 		KCONFIG_AUTOHEADER=$@ \
 		KCONFIG_AUTOCONFIG=$(OBJPATH)/opensil_auto.conf \
 		KCONFIG_DEPENDENCIES=$(OBJPATH)/opensil_auto.conf.cmd \
-		KCONFIG_SPLITCONFIG=$(OBJPATH)/opensil/config/ \
+		KCONFIG_SPLITCONFIG=$(OBJPATH)/opensil-config/ \
 		KCONFIG_RUSTCCFG=$(OBJPATH)/opensil_config.rustcfg \
 		DOTCONFIG=$(OBJPATH)/$(OPENSIL_CONFIG) \
 		KCONFIG_NEGATIVES=1 \
@@ -113,7 +113,7 @@ $(OBJPATH)/meson_crosscompile: $(opensil_dir)/../meson_cross.template  $(obj)/co
 		$< > $@
 
 # Don't set a meson buildtype as opensil is broken when compiler optimizations are enabled
-$(OBJPATH)/opensil: $(OBJPATH)/meson_crosscompile $(obj)/config.h $(top)/src/vendorcode/amd/opensil/configure.py
+$(OBJPATH)/opensil/build.ninja: $(OBJPATH)/meson_crosscompile $(obj)/config.h $(top)/src/vendorcode/amd/opensil/configure.py
 	cd $(opensil_dir); $(PYTHON) $(top)/src/vendorcode/amd/opensil/configure.py \
 		--cross-file $< --build-dir $(OBJPATH)/opensil \
 		--config-dir $(OBJPATH) --config-name $(OPENSIL_CONFIG)
@@ -123,7 +123,7 @@ $(OBJPATH)/opensil: $(OBJPATH)/meson_crosscompile $(obj)/config.h $(top)/src/ven
 .PHONY: opensil-library-check
 opensil-library-check:
 
-$(OBJPATH)/opensil/lib$(opensil_target_name).a: $(OBJPATH)/opensil opensil-library-check
+$(OBJPATH)/opensil/lib$(opensil_target_name).a: $(OBJPATH)/opensil/build.ninja opensil-library-check
 	+meson compile -C $(OBJPATH)/opensil $(opensil_target_name)
 
 $(OBJPATH)/opensil.a: $(OBJPATH)/opensil/lib$(opensil_target_name).a
