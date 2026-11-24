@@ -149,9 +149,14 @@ int psp_rom_armor_spi_transaction(const struct mbox_rom_armor_flash_command *cmd
 
 	/* Send command to PSP */
 	cmd_status = send_psp_command(MBOX_BIOS_CMD_ARMOR_SPI_TRANSACTION, buffer);
-	if (cmd_status || buffer->header.status) {
-		psp_print_cmd_status(cmd_status, &buffer->header);
-		return cmd_status ? cmd_status : buffer->header.status;
+	if (cmd_status) {
+		psp_print_cmd_status(cmd_status, NULL);
+		return cmd_status;
+	}
+
+	if (buffer->header.status) {
+		psp_print_cmd_status(-PSPSTS_SEND_ERROR, &buffer->header);
+		return -PSPSTS_SEND_ERROR;
 	}
 
 	return 0;
