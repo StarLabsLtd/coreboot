@@ -234,6 +234,9 @@ void opensil_mpio_per_device_config(struct device *dev)
 				},
 			},
 		};
+		/* The openSIL encoding starts with disable at zero. */
+		if (config->clk_req != CLK_REQ_DEFAULT)
+			port.Port.ClkReq = config->clk_req - CLK_DISABLE;
 		port.Port.MiscControls.SbLink = config->sb_link;
 
 		if (pcidev_get_ssid(dev)) {
