@@ -60,7 +60,11 @@ static uint8_t rd_mbox_recovery(uint64_t base)
 
 static void wr_mbox_buffer_ptr(uint64_t base, void *buffer)
 {
-	psp_write64(base, PSP_MAILBOX_BUFFER_OFFSET, (uintptr_t)buffer);
+	const uint64_t address = (uintptr_t)buffer;
+
+	/* The pointer occupies two dword registers, with only dword alignment. */
+	psp_write32(base, PSP_MAILBOX_BUFFER_OFFSET, (uint32_t)address);
+	psp_write32(base, PSP_MAILBOX_BUFFER_OFFSET + 4, address >> 32);
 }
 
 static int wait_command(uint64_t base, bool wait_for_ready)
