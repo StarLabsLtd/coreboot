@@ -406,7 +406,8 @@ void load_and_init_hsphy(void)
 	}
 
 	/* Ensure BAR, BME and memory space are enabled */
-	if ((pci_read_config16(dev, PCI_COMMAND) & pci_cmd_bme_mem) != pci_cmd_bme_mem)
+	const uint16_t pci_command = pci_read_config16(dev, PCI_COMMAND);
+	if ((pci_command & pci_cmd_bme_mem) != pci_cmd_bme_mem)
 		pci_or_config16(dev, PCI_COMMAND, pci_cmd_bme_mem);
 
 
@@ -418,6 +419,8 @@ void load_and_init_hsphy(void)
 
 	/* Try to get HSPHY payload from CSME and cache it if possible. */
 	if (!heci_get_hsphy_payload(hsphy_buf, &buf_size, hsphy_hash, &hash_type, &status)) {
+		/* The reply confirms that CSE has finished writing the payload. */
+		pci_and_config16(dev, PCI_COMMAND, ~(pci_cmd_bme_mem & ~pci_command));
 		if (verify_hsphy_hash(hsphy_buf, buf_size, hsphy_hash, hash_type)) {
 			upload_hsphy_to_cpu_pcie(hsphy_buf, buf_size);
 			if (CONFIG(INCLUDE_HSPHY_IN_FMAP))
