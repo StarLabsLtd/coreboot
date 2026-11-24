@@ -115,6 +115,7 @@ static ssize_t psp_rom_armor_spi_writeat(const struct region_device *rd, const v
 		memcpy(transfer_buffer, current_buffer, cmd.size);
 
 		int ret = psp_rom_armor_spi_transaction(&cmd);
+		psp_rom_armor_invalidate_mmap(cmd.offset, cmd.size);
 		if (ret < 0) {
 			printk(BIOS_ERR, "ROM Armor rdev_ops: Write transaction failed\n");
 			return -1;
@@ -177,6 +178,7 @@ static ssize_t psp_rom_armor_spi_eraseat(const struct region_device *rd,
 		}
 
 		int ret = psp_rom_armor_spi_transaction(&cmd);
+		psp_rom_armor_invalidate_mmap(cmd.offset, cmd.size);
 		if (ret < 0) {
 			printk(BIOS_ERR, "ROM Armor rdev_ops: Erase transaction failed: %d\n", ret);
 			return ret;
