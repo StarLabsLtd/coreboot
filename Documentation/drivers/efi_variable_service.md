@@ -22,11 +22,11 @@ Before configuring, run
 Local preparation records the revision without fetching or moving it.
 Kconfig and the build both read that checkout.
 
-edIIe and custom EDK2 payloads select the native ASS backend. coreboot links the variable owner
-into its SMM handler, opens the existing SMMSTORE media through private
-callbacks, and serves the payload mailbox without a separate service FV.
-On vboot A/B builds, native ASS acknowledges the running slot at
-ExitBootServices.
+edIIe and custom EDK2 payloads select the native ASS backend. coreboot links
+the variable owner into its SMM handler, opens the existing SMMSTORE media
+through private callbacks, and serves the payload mailbox without a separate
+service FV. On vboot A/B builds, native ASS requires flash-backed VBNV.
+The capsule owner acknowledges the running slot at ExitBootServices.
 
 For variable-managed Secure Boot, the native owner trusts built-in setup
 under the same boot-phase policy as Fixed MM. This is not a separate physical

@@ -45,6 +45,11 @@ smm-$(CONFIG_ASS) += smi.c private_store.c capsule_store.c
 
 ifeq ($(CONFIG_ASS),y)
 ifneq ($(ass-native),)
+ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
+ifneq ($(CONFIG_VBOOT_VBNV_FLASH):$(CONFIG_VBOOT_VBNV_CMOS),y:)
+$(error Native ASS vboot A/B requires flash as the primary VBNV backend)
+endif
+endif
 include $(src)/lib/authvar_sources.mk
 smm-y += native_smm.c native_media.c native_variables.c native_capsule.c native_capsule_source.c
 smm-y += $(addprefix ../../../,$(authvar_sources))

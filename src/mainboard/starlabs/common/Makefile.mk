@@ -37,6 +37,20 @@ ifneq ($(words $(filter y,$(CONFIG_ASS_NATIVE) \
 	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES))),2)
 $(error Star Labs VBOOT A/B requires the native ASS capsule owner for boot acknowledgement)
 endif
+ifeq ($(CONFIG_DRIVERS_EFI_CAPSULE_EMBED_FMP_DXE),y)
+$(error Star Labs VBOOT A/B capsules must use the FMP provider in the installed payload)
+endif
+ifeq ($(CONFIG_PAYLOAD_EDIIE),y)
+ifneq ($(CONFIG_EDIIE_SECURE_BOOT)$(CONFIG_EDIIE_CAPSULE),yy)
+$(error Star Labs VBOOT A/B requires edIIe Secure Boot and capsule support)
+endif
+starlabs-ab-regions := $(call strip_quotes,$(CONFIG_DRIVERS_EFI_CAPSULE_REGIONS))
+ifneq ($(starlabs-ab-regions),EC)
+ifneq ($(starlabs-ab-regions),FW_MAIN_A RW_FWID_A VBLOCK_A FW_MAIN_B RW_FWID_B VBLOCK_B)
+$(error Star Labs A/B VBOOT capsules must contain EC only or both signed RW slot tuples)
+endif
+endif
+endif
 ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT A/B acknowledges boot success at the payload handoff)
 endif

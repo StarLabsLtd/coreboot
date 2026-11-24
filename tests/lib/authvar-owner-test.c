@@ -1311,8 +1311,17 @@ static void signed_capsule_source_is_rechecked(void **unused)
 		&platform, begin, sizeof(begin), image, &reply_size), 0);
 	assert_int_equal(read_le32(begin + 12), 0x8000000f);
 	assert_int_equal(read_le32(begin + 8), 0);
+	assert_int_equal(reply_size, 36);
 	assert_int_equal(program_calls, 0);
 	assert_false(source.authorized);
+	write_le32(begin + 28, 31);
+	reply_size = sizeof(begin);
+	assert_int_equal(ass_native_capsule_dispatch(&transaction, &source, owner, &crypto,
+		&platform, begin, sizeof(begin), image, &reply_size), 0);
+	assert_int_equal(read_le32(begin + 12), 0x80000002);
+	assert_int_equal(read_le32(begin + 8), 0);
+	assert_int_equal(reply_size, 36);
+	write_le32(begin + 28, 32);
 	write_le64(begin + 16, 0x100000);
 	static _Alignas(8) uint8_t shared[EFI_VARIABLE_SERVICE_BUFFER_SIZE];
 	_Alignas(8) uint8_t scratch[sizeof(*wire) + sizeof(begin)];

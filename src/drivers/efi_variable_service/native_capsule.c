@@ -644,6 +644,14 @@ uint32_t ass_native_capsule_dispatch(struct ass_capsule_transaction *transaction
 	if (!transaction || !source || !owner || !platform ||
 	    !ass_capsule_wire_payload(message, size, &request, &payload, &payload_size))
 		return 0x80000002U;
+	if (request.command == ASS_CAPSULE_BEGIN) {
+		if (payload_size <= 20 || read_le32(payload + 16) != payload_size - 20 ||
+		    request.transaction)
+			return capsule_result(message, request.revision,
+				PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
+		/* A compact reply with no token lets the caller release its source. */
+		*response_size = payload - (uint8_t *)message + 20;
+	}
 	if (request.command == ASS_CAPSULE_INFO || request.command == ASS_CAPSULE_BEGIN) {
 		const uint64_t status = ass_native_capsule_floor(owner,
 			platform->geometry.image_guid, platform->geometry.compiled_floor, &floor);
@@ -667,12 +675,11 @@ uint32_t ass_native_capsule_dispatch(struct ass_capsule_transaction *transaction
 			image, platform->program, platform->commit);
 	if (request.command != ASS_CAPSULE_BEGIN)
 		return capsule_result(message, request.revision, PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
-	if (transaction->active || request.transaction)
+	if (transaction->active)
 		return capsule_result(message, request.revision, PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED);
 	if (platform->boot_slot && !platform->commit)
 		return capsule_result(message, request.revision, PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED);
-	if (payload_size <= 20 || read_le32(payload + 16) != payload_size - 20 ||
-	    read_le32(payload + 12) != sizeof(struct capsule_signed_header) ||
+	if (read_le32(payload + 12) != sizeof(struct capsule_signed_header) ||
 	    !platform->map_source)
 		return capsule_result(message, request.revision, PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER);
 
@@ -694,9 +701,7 @@ uint32_t ass_native_capsule_dispatch(struct ass_capsule_transaction *transaction
 		platform->count, transaction->floor, image, platform->program, platform->boot_slot);
 	if (status)
 		ass_capsule_source_close(source);
-	else {
+	else
 		write_le32((uint8_t *)message + 8, ass_native_capsule_activate(transaction));
-		*response_size = payload - (uint8_t *)message + 20;
-	}
 	return capsule_result(message, request.revision, status);
 }

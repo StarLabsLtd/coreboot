@@ -8,6 +8,7 @@
 #include <cbmem.h>
 #include <console/console.h>
 #include <cpu/x86/pae.h>
+#include <drivers/efi/capsule_regions.h>
 #include <drivers/efi/efivars.h>
 #include <drivers/efi/capsules.h>
 #include <fmap.h>
@@ -814,7 +815,7 @@ exit:
 static bool capsule_regions(struct lb_capsule_smmstore_region *regions,
 	uint32_t *count)
 {
-	const char *names = CONFIG_DRIVERS_EFI_CAPSULE_REGIONS;
+	const char *names = efi_capsule_region_names();
 	struct region store;
 	const uint32_t block_size = CONFIG_SMMSTORE_BLOCK_SIZE;
 

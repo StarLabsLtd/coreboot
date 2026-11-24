@@ -17,8 +17,8 @@ config ASS
 	  variable and capsule service in a fixed SMRAM region. The payload can
 	  submit requests through a bounded shared buffer, but cannot supply
 	  executable code or choose the service address.
-	  edIIe and Star Labs EDK2 use the native coreboot service. Other payloads require
-	  the fixed Standalone MM build by default.
+	  edIIe and custom EDK2 payloads use the native coreboot service.
+	  Other payloads require the fixed Standalone MM build by default.
 
 if ASS
 

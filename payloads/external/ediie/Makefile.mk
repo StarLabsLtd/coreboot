@@ -69,4 +69,9 @@ else
 		EDIIE_NATIVE_LD="$(EDIIE_NATIVE_LD)" \
 		OBJCOPY="$(OBJCOPY_x86_64)" NM="$(NM_x86_64)" \
 		READELF="$(READELF_x86_64)"
+ifeq ($(CONFIG_STARLABS_VBOOT_RELEASE_POLICY)$(CONFIG_VBOOT_SLOTS_RW_AB),yy)
+	@grep -qx 'CONFIG_EDIIE_NATIVE_SYSTEM_FMP=y' "$(EDIIE_OUTPUT)/.config" && \
+		grep -qx 'CONFIG_EDIIE_NATIVE_CAPSULE_DISK_SCANNER=y' "$(EDIIE_OUTPUT)/.config" || { \
+		echo 'Star Labs VBOOT A/B requires edIIe system FMP and capsule-on-disk' >&2; exit 1; }
+endif
 endif
