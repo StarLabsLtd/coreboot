@@ -99,6 +99,7 @@ const struct ass_capsule_platform *ass_native_smm_capsule_platform(
 		.geometry = {
 			.flash_size = info->flash_size, .block_size = info->block_size,
 			.compiled_floor = info->lowest_supported_version,
+			.allow_unrelated_fmap_changes = CONFIG(PAYLOAD_EDK2) && !boot_slot,
 			.read_flash = read_flash,
 		},
 		.fmap = { FMAP_SECTION_FMAP_START, FMAP_SECTION_FMAP_SIZE },

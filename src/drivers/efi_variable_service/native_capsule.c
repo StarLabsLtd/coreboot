@@ -422,10 +422,14 @@ uint64_t ass_native_capsule_begin(struct ass_capsule_plan *plan,
 	fmap = candidate_fmap;
 	status = ass_native_capsule_select_ranges(source, geometry, fmap, store, names,
 		ranges, count, &mask);
-	if (!status && geometry->read_flash)
+	if (!status && geometry->read_flash) {
 		status = compare_flash_maps(source, geometry, live_fmap, fmap);
-	else if (!status && live_fmap.offset != fmap.offset)
+		/* Fixed MM used the bounds of the selected regions on single-slot updates. */
+		if (status == CAPSULE_LAYOUT_MISMATCH && geometry->allow_unrelated_fmap_changes)
+			status = 0;
+	} else if (!status && live_fmap.offset != fmap.offset) {
 		status = CAPSULE_LAYOUT_MISMATCH;
+	}
 	if (boot_slot) {
 		if (status)
 			return status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ?

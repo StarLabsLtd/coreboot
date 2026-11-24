@@ -1207,6 +1207,12 @@ static void signed_capsule_source_is_rechecked(void **unused)
 	assert_int_equal(ass_native_capsule_begin(&fallback, &source, &geometry, fmap, store,
 		bios, allowed, ranges, ARRAY_SIZE(ranges), 42, image, record_layout_preflight, 0), 0);
 	assert_int_equal(fallback.ranges[0].offset, bios.offset);
+	program_calls = 0;
+	geometry.allow_unrelated_fmap_changes = true;
+	assert_int_equal(ass_native_capsule_begin(&fallback, &source, &geometry, fmap, store,
+		bios, allowed, ranges, ARRAY_SIZE(ranges), 42, image, record_capsule_program, 0), 0);
+	assert_int_equal(fallback.ranges[0].offset, ranges[1].offset);
+	geometry.allow_unrelated_fmap_changes = false;
 	live_fmap_bytes[22] = body[54];
 	program_calls = 0;
 
