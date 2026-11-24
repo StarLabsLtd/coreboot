@@ -22,12 +22,11 @@ Before configuring, run
 Local preparation records the revision without fetching or moving it.
 Kconfig and the build both read that checkout.
 
-edIIe selects the native ASS backend. coreboot links the variable owner
+edIIe and custom EDK2 payloads select the native ASS backend. coreboot links the variable owner
 into its SMM handler, opens the existing SMMSTORE media through private
 callbacks, and serves the payload mailbox without a separate service FV.
-EDK2 still defaults to the legacy Fixed MM backend. Use
-`ASS_NATIVE_LINK_CHECK=1` to validate the native backend with EDK2.
-Native ASS does not support vboot A/B ROM packaging.
+On vboot A/B builds, native ASS acknowledges the running slot at
+ExitBootServices.
 
 For variable-managed Secure Boot, the native owner trusts built-in setup
 under the same boot-phase policy as Fixed MM. This is not a separate physical

@@ -48,9 +48,6 @@ ifneq ($(ass-native),)
 include $(src)/lib/authvar_sources.mk
 smm-y += native_smm.c native_media.c native_variables.c native_capsule.c native_capsule_source.c
 smm-y += $(addprefix ../../../,$(authvar_sources))
-ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
-$(error Native ASS vboot A/B is not qualified for ROM packaging)
-endif
 smm-c-ccopts += -DASS_NATIVE_LINK_CHECK
 ramstage-c-ccopts += -DASS_NATIVE_LINK_CHECK
 

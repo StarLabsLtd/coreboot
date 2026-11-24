@@ -33,9 +33,9 @@ ifneq ($(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT requires post-lockdown recovery clearing)
 endif
 ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
-ifneq ($(words $(filter y,$(CONFIG_ASS) $(CONFIG_PAYLOAD_EDK2) \
-	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES))),3)
-$(error Star Labs VBOOT A/B requires the EDK2 ASS capsule owner for boot acknowledgement)
+ifneq ($(words $(filter y,$(CONFIG_ASS_NATIVE) \
+	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES))),2)
+$(error Star Labs VBOOT A/B requires the native ASS capsule owner for boot acknowledgement)
 endif
 ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT A/B acknowledges boot success at the payload handoff)
