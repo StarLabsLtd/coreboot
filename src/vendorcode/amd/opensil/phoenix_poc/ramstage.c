@@ -3,6 +3,7 @@
 #include <CCX/CcxClass-api.h>
 #include <CCX/Common/CcxApic.h>
 #include <FCH/Common/FchCommon.h>
+#include <FCH/FchIsa-api.h>
 #include <FCH/FchUsb-api.h>
 #include <FCH/Tacoma/FchCore/FchUsb/FchUsbOemTc.h>
 #include <PROM/PromClass-api.h>
@@ -371,6 +372,21 @@ static void configure_fch_acpi(SIL_CONTEXT *SilContext)
 	FCH_DEV_ENABLE(hid, 31);
 }
 
+static void configure_spi_dtpm(SIL_CONTEXT *SilContext)
+{
+	const struct soc_amd_phoenix_config *config = config_of_soc();
+
+	if (!config->spi_dtpm)
+		return;
+
+	FCHISA_INPUT_BLK *fch_isa = SilFindStructure(SilContext, SilId_FchIsa, 0);
+	if (!fch_isa)
+		die("openSIL: FCH ISA input block not found\n");
+
+	/* The openSIL ISA interface encodes discrete TPM as 0x00. */
+	fch_isa->SpiConfig.SystemTpmConfig = 0x00;
+}
+
 void setup_opensil(void)
 {
 	SIL_CONTEXT SilContext;
@@ -392,6 +408,7 @@ void setup_opensil(void)
 	setup_rc_manager_default(&SilContext);
 	configure_usb(&SilContext);
 	configure_ccx(&SilContext);
+	configure_spi_dtpm(&SilContext);
 	configure_fch_acpi(&SilContext);
 }
 

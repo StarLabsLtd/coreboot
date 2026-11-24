@@ -157,6 +157,7 @@ struct soc_amd_phoenix_config {
 	} usb3_force_gen1;
 
 	struct ddi_descriptor ddi[DDI_DESCRIPTOR_COUNT];
+	bool spi_dtpm;
 #endif
 };
 
