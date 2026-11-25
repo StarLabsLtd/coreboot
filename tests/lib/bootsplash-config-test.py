@@ -15,6 +15,24 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class SplashConfigTest(unittest.TestCase):
+    def resolve_splash_config(self, path, payload, overrides):
+        config = path / "config"
+        settings = {
+            "VENDOR_STARLABS": "y",
+            "BOARD_STARLABS_LITE_ADL": "y",
+            f"PAYLOAD_{payload}": "y",
+            **overrides,
+        }
+        config.write_text("".join(f"CONFIG_{key}={value}\n"
+                                  for key, value in settings.items()))
+        result = subprocess.run(
+            ["make", "--no-print-directory", "-C", str(ROOT),
+             f"obj={path / 'build'}", f"DOTCONFIG={config}", "UPDATED_SUBMODULES=1",
+             "olddefconfig"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        return dict(line.split("=", 1) for line in config.read_text().splitlines()
+                    if line.startswith("CONFIG_") and "=" in line)
+
     def test_source_density_follows_the_selected_input(self):
         cases = (
             ({}, (2, 2)),
@@ -25,29 +43,37 @@ class SplashConfigTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory(prefix="bootsplash-config-") as directory:
             path = pathlib.Path(directory)
-            config = path / "config"
             for overrides, expected in cases:
                 with self.subTest(overrides=overrides):
-                    settings = {
-                        "VENDOR_STARLABS": "y",
-                        "BOARD_STARLABS_LITE_ADL": "y",
-                        "PAYLOAD_EDK2": "y",
-                        **overrides,
-                    }
-                    config.write_text("".join(
-                        f"CONFIG_{key}={value}\n" for key, value in settings.items()))
-                    result = subprocess.run(
-                        ["make", "--no-print-directory", "-C", str(ROOT),
-                         f"obj={path / 'build'}", f"DOTCONFIG={config}", "olddefconfig"],
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-                    self.assertEqual(result.returncode, 0, result.stdout)
-                    values = dict(line.split("=", 1) for line in config.read_text().splitlines()
-                                  if line.startswith("CONFIG_") and "=" in line)
+                    values = self.resolve_splash_config(path, "EDK2", overrides)
                     actual = tuple(int(values[f"CONFIG_{key}"]) for key in (
                         "BMP_LOGO_SOURCE_SCALE", "EDK2_BOOTSPLASH_SOURCE_SCALE"))
                     self.assertEqual(actual, expected)
                     self.assertEqual(values["CONFIG_BOOT_SPLASH_HANDOFF"], "y")
 
+    def test_ediie_uses_coreboot_bmp_settings(self):
+        stock_hidpi = '"3rdparty/blobs/mainboard/starlabs/Logo-HiDPI.bmp"'
+        stock_logo = '"3rdparty/blobs/mainboard/starlabs/Logo.bmp"'
+        with tempfile.TemporaryDirectory(prefix="bootsplash-config-") as directory:
+            path = pathlib.Path(directory)
+            for overrides, filename, density, handoff in (
+                    ({}, stock_hidpi, "2", "y"),
+                    ({"BOOT_SPLASH_HANDOFF": "n"}, stock_logo, "1", None),
+                    ({"USE_BLOBS": "n", "BMP_LOGO": "y",
+                      "BMP_LOGO_FILE_NAME": '"custom.bmp"'}, '"custom.bmp"', "1", "y")):
+                with self.subTest(overrides=overrides):
+                    values = self.resolve_splash_config(path, "EDIIE", overrides)
+                    self.assertEqual(values["CONFIG_PAYLOAD_EDIIE"], "y")
+                    self.assertEqual(values.get("CONFIG_BOOT_SPLASH_HANDOFF"), handoff)
+                    self.assertEqual(values["CONFIG_BMP_LOGO_FILE_NAME"], filename)
+                    self.assertEqual(values["CONFIG_BMP_LOGO_SOURCE_SCALE"], density)
+
+            for option in ("BMP_LOGO", "USE_BLOBS"):
+                with self.subTest(disabled=option):
+                    values = self.resolve_splash_config(path, "EDIIE", {option: "n"})
+                    self.assertEqual(values["CONFIG_PAYLOAD_EDIIE"], "y")
+                    self.assertNotIn("CONFIG_BMP_LOGO", values)
+                    self.assertNotIn("CONFIG_BOOT_SPLASH_HANDOFF", values)
 
     @unittest.skipUnless(shutil.which("convert"), "ImageMagick is required")
     def test_fsp_conversion_requires_complete_double_density_pixels(self):
