@@ -90,6 +90,9 @@ enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value);
 /* Finalization may request a cold reboot after a completed store conversion. */
 #define EFI_VARIABLE_SERVICE_REBOOT_REQUIRED 1
 int efi_variable_service_finalize(void);
+
+bool efi_variable_service_spi_begin(bool *restore);
+void efi_variable_service_spi_end(bool restore);
 bool efi_variable_service_boot_access_allowed(void);
 bool efi_variable_service_spi_bar_valid(uintptr_t bar);
 void lb_efi_variable_service(struct lb_header *header);

@@ -96,7 +96,7 @@ static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range 
 {
 	bool allow_erase = true;
 
-	if (!fast_spi_wpd_status())
+	if (!CONFIG(ASS_NATIVE) && !fast_spi_wpd_status())
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	_Static_assert(FMAP_SECTION_SMMSTORE_START % EFI_CAPSULE_BLOCK_SIZE == 0 &&
 		       FMAP_SECTION_SMMSTORE_SIZE % EFI_CAPSULE_BLOCK_SIZE == 0,
@@ -119,8 +119,16 @@ static uint32_t capsule_program(uint32_t offset, const struct efi_capsule_range 
 	/* Preflight immutable blocks before the first destructive operation. */
 	if (check_only && allow_erase)
 		return EFI_VARIABLE_SERVICE_RET_SUCCESS;
-	return efi_capsule_program_block(boot_device_rw(), offset, EFI_CAPSULE_BLOCK_SIZE,
-					ranges, count, image, capsule_readback, allow_erase) ?
+	bool restore = false;
+
+	if (CONFIG(ASS_NATIVE) && allow_erase &&
+	    !efi_variable_service_spi_begin(&restore))
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+	int ret = efi_capsule_program_block(boot_device_rw(), offset, EFI_CAPSULE_BLOCK_SIZE,
+					   ranges, count, image, capsule_readback, allow_erase);
+	if (CONFIG(ASS_NATIVE))
+		efi_variable_service_spi_end(restore);
+	return ret ?
 		EFI_VARIABLE_SERVICE_RET_FAILURE : EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 
@@ -131,7 +139,8 @@ static uint32_t capsule_commit(uint32_t slot)
 {
 	struct vb2_context ctx = { 0 };
 
-	if (!fast_spi_wpd_status() || slot > 2 || (!slot && !capsule_boot_slot) ||
+	if ((!CONFIG(ASS_NATIVE) && !fast_spi_wpd_status()) || slot > 2 ||
+	    (!slot && !capsule_boot_slot) ||
 	    (slot && slot != (capsule_boot_slot == 1 ? 2 : 1)))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	read_vbnv_flash(ctx.nvdata);
@@ -151,7 +160,15 @@ static uint32_t capsule_commit(uint32_t slot)
 		if (vb2_nv_get(&ctx, VB2_NV_TRY_NEXT) == capsule_boot_slot - 1)
 			vb2_nv_set(&ctx, VB2_NV_TRY_COUNT, 0);
 	}
-	return save_vbnv_flash(ctx.nvdata) ? EFI_VARIABLE_SERVICE_RET_FAILURE :
+	bool restore = false;
+
+	if (CONFIG(ASS_NATIVE) && !efi_variable_service_spi_begin(&restore))
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+	int ret = save_vbnv_flash(ctx.nvdata);
+
+	if (CONFIG(ASS_NATIVE))
+		efi_variable_service_spi_end(restore);
+	return ret ? EFI_VARIABLE_SERVICE_RET_FAILURE :
 		EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
 

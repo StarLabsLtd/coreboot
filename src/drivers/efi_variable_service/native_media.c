@@ -6,9 +6,24 @@
 #include <boot/payload_mm_authvar_service.h>
 #include <commonlib/helpers.h>
 #include <commonlib/payload_mm_authvar_fv.h>
+#include <efi_variable_service.h>
 #include <string.h>
 
 #include "native_media.h"
+
+static bool begin_write(struct ass_native_media_binding *binding, bool *restore)
+{
+	if (CONFIG(ASS_NATIVE) && CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI))
+		return efi_variable_service_spi_begin(restore);
+
+	return binding->write_enabled();
+}
+
+static void end_write(bool restore)
+{
+	if (CONFIG(ASS_NATIVE) && CONFIG(SOC_INTEL_COMMON_BLOCK_FAST_SPI))
+		efi_variable_service_spi_end(restore);
+}
 
 static uint64_t media_transfer(struct ass_native_media_binding *binding,
 	uint32_t offset, const void *source, void *destination, size_t size)
@@ -17,10 +32,11 @@ static uint64_t media_transfer(struct ass_native_media_binding *binding,
 	uint8_t *scratch = (void *)store->buffer_start;
 	const size_t length = region_device_sz(store->device);
 	size_t completed = 0;
+	bool restore = false;
 	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 
 	if (offset > length || size > length - offset ||
-	    (source && !binding->write_enabled()))
+	    (source && !begin_write(binding, &restore)))
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
 
 	/* Media recovery reads full images; the private adapter admits one block at a time. */
@@ -44,6 +60,8 @@ static uint64_t media_transfer(struct ass_native_media_binding *binding,
 		}
 		completed += chunk;
 	}
+	if (source)
+		end_write(restore);
 	for (volatile uint8_t *p = scratch; p < scratch + store->block_size; p++)
 		*p = 0;
 	return status;
@@ -70,13 +88,20 @@ static uint64_t native_erase(void *context, uint32_t offset, size_t size)
 	const size_t length = region_device_sz(store->device);
 	const size_t block = store->block_size;
 
-	if (!binding->write_enabled() || offset > length || size > length - offset ||
-	    offset % block || size % block)
+	bool restore = false;
+	uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+
+	if (offset > length || size > length - offset || offset % block || size % block ||
+	    !begin_write(binding, &restore))
 		return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
-	for (size_t i = 0; i < size; i += block)
-		if (efi_private_store_erase(store, offset + i, block))
-			return PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
-	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+	for (size_t i = 0; i < size; i += block) {
+		if (efi_private_store_erase(store, offset + i, block)) {
+			status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+			break;
+		}
+	}
+	end_write(restore);
+	return status;
 }
 
 bool ass_native_media_bind(struct ass_native_media_binding *binding,

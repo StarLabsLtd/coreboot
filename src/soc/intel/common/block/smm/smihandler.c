@@ -340,12 +340,44 @@ static void southbridge_smi_store(
 	}
 }
 
+bool efi_variable_service_spi_begin(bool *restore)
+{
+	*restore = !fast_spi_wpd_status();
+	if (*restore) {
+		set_insmm_sts(true);
+		smmstore_drain_sync_smi();
+		fast_spi_disable_wp();
+	}
+	if (fast_spi_wpd_status())
+		return true;
+	efi_variable_service_spi_end(*restore);
+	return false;
+}
+
+void efi_variable_service_spi_end(bool restore)
+{
+	if (!restore)
+		return;
+	smmstore_drain_sync_smi();
+	fast_spi_enable_wp();
+	set_insmm_sts(false);
+	if (fast_spi_wpd_status())
+		die("EFI variable service: cannot restore SPI write protection.");
+}
+
 static void southbridge_smi_efi_variable_service(
 	const struct smm_save_state_ops *save_state_ops)
 {
 	int node = save_state_ops->apmc_node(APM_CNT_EFI_VARIABLE_SERVICE);
 	if (node < 0)
 		return;
+
+	if (CONFIG(ASS_NATIVE)) {
+		uint32_t ret = efi_variable_service_communicate();
+
+		save_state_ops->set_reg(RAX, node, &ret, sizeof(ret));
+		return;
+	}
 
 	const bool wp_enabled = !fast_spi_wpd_status();
 	if (wp_enabled) {
