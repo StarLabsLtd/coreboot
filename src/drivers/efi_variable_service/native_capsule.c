@@ -340,6 +340,62 @@ static uint64_t check_bios_range(struct ass_capsule_source *source, uint32_t fla
 	return PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 }
 
+static uint64_t select_inactive_slot(struct ass_capsule_plan *candidate,
+	struct ass_capsule_source *source, const struct ass_capsule_geometry *geometry,
+	const char (*names)[16], const struct ass_capsule_range *ranges, size_t count,
+	uint32_t *mask, uint32_t boot_slot)
+{
+	static const char slot_names[][16] = {
+		"FW_MAIN_A", "RW_FWID_A", "VBLOCK_A", "FW_MAIN_B", "RW_FWID_B", "VBLOCK_B",
+	};
+	const size_t manifest = sizeof(struct capsule_signed_header) + geometry->flash_size;
+	uint32_t exact = 0;
+	struct efi_capsule_range active[3];
+
+	for (size_t i = 0; i < count; i++)
+		if (*mask == (1U << i) && !strcmp(names[i], "EC"))
+			return 0;
+	for (size_t i = 0; i < ARRAY_SIZE(slot_names); i++) {
+		char name[16];
+		size_t j;
+
+		if (!ass_capsule_source_read(source, manifest + i * sizeof(name), name,
+		    sizeof(name)) || memcmp(name, slot_names[i], sizeof(name)))
+			return CAPSULE_LAYOUT_MISMATCH;
+		for (j = 0; j < count; j++)
+			if ((*mask & (1U << j)) && !memcmp(names[j], name, sizeof(name)))
+				break;
+		if (j == count)
+			return CAPSULE_LAYOUT_MISMATCH;
+		exact |= 1U << j;
+		const uint32_t target = boot_slot == 1 ? 2 : 1;
+		if ((i / 3) == target - 1)
+			candidate->ranges[candidate->count++] = (struct efi_capsule_range) {
+				.offset = ranges[j].offset, .size = ranges[j].size,
+			};
+		else if (boot_slot != 3)
+			active[i % 3] = (struct efi_capsule_range) {
+				.offset = ranges[j].offset, .size = ranges[j].size,
+			};
+	}
+	if (exact != *mask)
+		return CAPSULE_LAYOUT_MISMATCH;
+	for (size_t i = 0; i < candidate->count; i++) {
+		const struct efi_capsule_range *range = &candidate->ranges[i];
+		const uint64_t start = ALIGN_DOWN((uint64_t)range->offset, geometry->block_size);
+		const uint64_t end = ALIGN_UP((uint64_t)range->offset + range->size,
+			geometry->block_size);
+
+		for (size_t j = 0; boot_slot != 3 && j < ARRAY_SIZE(active); j++)
+			if (start < (uint64_t)active[j].offset + active[j].size &&
+			    active[j].offset < end)
+				return CAPSULE_LAYOUT_MISMATCH;
+	}
+	candidate->trial_slot = boot_slot == 1 ? 2 : 1;
+	*mask = 0;
+	return 0;
+}
+
 uint64_t ass_native_capsule_begin(struct ass_capsule_plan *plan,
 	struct ass_capsule_source *source,
 	const struct ass_capsule_geometry *geometry, struct ass_capsule_range fmap,
@@ -351,7 +407,7 @@ uint64_t ass_native_capsule_begin(struct ass_capsule_plan *plan,
 	struct ass_capsule_plan candidate = { 0 };
 	uint32_t mask;
 
-	if (!plan || !geometry || !image || !program || boot_slot ||
+	if (!plan || !geometry || !image || !program || boot_slot > 3 ||
 	    geometry->block_size != ASS_CAPSULE_SOURCE_BLOCK ||
 	    geometry->flash_size % geometry->block_size)
 		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
@@ -373,6 +429,15 @@ uint64_t ass_native_capsule_begin(struct ass_capsule_plan *plan,
 			status = 0;
 	} else if (!status && live_fmap.offset != fmap.offset) {
 		status = CAPSULE_LAYOUT_MISMATCH;
+	}
+	if (boot_slot) {
+		if (status)
+			return status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND ?
+				CAPSULE_LAYOUT_MISMATCH : status;
+		status = select_inactive_slot(&candidate, source, geometry, names, ranges,
+			count, &mask, boot_slot);
+		if (status)
+			return status;
 	}
 	if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND || status == CAPSULE_LAYOUT_MISMATCH) {
 		status = check_fmap_range(source, geometry, fmap.offset, fmap.size,
@@ -467,8 +532,20 @@ uint32_t ass_native_capsule_continue(struct ass_capsule_transaction *transaction
 		ass_native_capsule_close(transaction, source);
 		status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
 	} else if (request.command == ASS_CAPSULE_PROGRAM && payload_size == sizeof(uint32_t)) {
-		status = ass_native_capsule_program(&transaction->plan, source, read_le32(payload),
-			image, program);
+		struct ass_capsule_plan *plan = &transaction->plan;
+
+		if (plan->trial_slot && !commit) {
+			ass_native_capsule_close(transaction, source);
+			status = PAYLOAD_MM_AUTHVAR_STATUS_UNSUPPORTED;
+		} else {
+			status = ass_native_capsule_program(plan, source, read_le32(payload),
+				image, program);
+			if (!status && plan->trial_slot && plan->next == plan->blocks &&
+			    commit(plan->trial_slot)) {
+				ass_native_capsule_close(transaction, source);
+				status = PAYLOAD_MM_AUTHVAR_STATUS_DEVICE_ERROR;
+			}
+		}
 	} else {
 		status = PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
 	}
