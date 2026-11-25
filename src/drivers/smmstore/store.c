@@ -267,6 +267,10 @@ int smmstore_lookup_region(struct region_device *rstore)
 	static int ret;
 	static struct region_device rdev;
 
+	/* A ramstage option read can predate the switch to ROM Armor. */
+	if (ENV_RAMSTAGE && CONFIG(ASS_NATIVE) && CONFIG(SOC_AMD_PHOENIX_OPENSIL))
+		return lookup_store(rstore, NULL);
+
 	if (!done) {
 		done = 1;
 

@@ -864,24 +864,24 @@ static void owner_on_nor(void **unused)
 	assert_int_equal(ass_native_capsule_info(memory.owner, &geometry, info, 28), 0);
 	assert_int_equal(read_le32(info + 12), 0x8000000aU);
 	/* EDK2 interprets any nonzero LsvValid byte as true when reading the floor. */
-	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor, true), 0);
+	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor), 0);
 	assert_int_equal(floor, 12);
 	/* An unrelated validity byte must not discard a recoverable stored floor. */
 	floor_record[1] = 1;
 	floor_record[2] = 2;
 	assert_int_equal(authvar_owner_set(memory.owner, state, guid, nv, sizeof(floor_record),
 		floor_record, false, NULL, NULL), 0);
-	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor, true), 0);
+	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor), 0);
 	assert_int_equal(floor, 12);
 	assert_int_equal(authvar_owner_set(memory.owner, state, guid, nv, 1,
 		floor_record, false, NULL, NULL), 0);
-	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor, true), 0);
+	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor), 0);
 	assert_int_equal(floor, 10);
 	assert_int_equal(authvar_owner_set(memory.owner, state, guid, 0, 0, NULL,
 		false, NULL, NULL), 0);
 	assert_int_equal(authvar_owner_set(memory.owner, lsv, guid, nv, 1,
 		floor_record, false, NULL, NULL), 0);
-	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor, true), 0);
+	assert_int_equal(ass_native_capsule_boot_floor(memory.owner, guid, 7, &floor), 0);
 	assert_int_equal(floor, 7);
 }
 

@@ -5,10 +5,13 @@ config ASS
 	depends on HAVE_SMI_HANDLER
 	depends on SMM_TSEG
 	depends on SMMSTORE
-	depends on ARCH_SMM_X86_32
 	depends on DRIVERS_EFI_VARIABLE_STORE
-	depends on SOC_INTEL_COMMON_BLOCK_SMM
-	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
+	depends on (SOC_INTEL_COMMON_BLOCK_SMM && SOC_INTEL_COMMON_BLOCK_FAST_SPI && \
+		ARCH_SMM_X86_32) || \
+		(SOC_AMD_COMMON_BLOCK_SMM && SOC_AMD_PHOENIX_OPENSIL && ARCH_SMM_X86_64 && \
+		SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3 && SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK && \
+		!SOC_AMD_COMMON_LATE_SMM_LOCKING && !HAVE_ACPI_RESUME)
+	select SOC_AMD_COMMON_BLOCK_PSP_SMM_LOCK if SOC_AMD_PHOENIX_OPENSIL
 	depends on !CONSOLE_SPI_FLASH
 	select SPI_FLASH_SMM if BOOT_DEVICE_SPI_FLASH_RW_NOMMAP
 	help
@@ -20,7 +23,8 @@ config ASS
 	  mailbox contract. The existing Fixed MM backend remains available.
 
 config ASS_NATIVE
-	bool "Use the native ASS backend"
+	bool "Use the native ASS backend" if !SOC_AMD_PHOENIX_OPENSIL
+	default y if SOC_AMD_PHOENIX_OPENSIL
 	depends on ASS
 	help
 	  Use the firmware variable and capsule owner in SMM.

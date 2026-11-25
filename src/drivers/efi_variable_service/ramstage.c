@@ -43,8 +43,15 @@ static bool prepare_native_handoff(struct native_handoff *handoff, void *buffer)
 	struct region store;
 	uintptr_t smram_base;
 	size_t smram_size;
-	const uintptr_t ram_end = (uintptr_t)cbmem_top();
+	uintptr_t ram_end = (uintptr_t)cbmem_top();
 
+	if (CONFIG(SOC_AMD_PHOENIX_OPENSIL)) {
+		struct efi_variable_service_platform platform;
+
+		if (efi_variable_service_get_platform_info(&platform))
+			return false;
+		ram_end = region_offset(&platform.runtime_ram) + region_sz(&platform.runtime_ram);
+	}
 	smm_region(&smram_base, &smram_size);
 	if (!smram_size || ram_end <= 1 * MiB || ram_end > smram_base ||
 	    ram_end > UINT32_MAX || smmstore_get_info(&info) ||
@@ -72,7 +79,8 @@ static bool prepare_native_handoff(struct native_handoff *handoff, void *buffer)
 			.hob_base = (uintptr_t)&handoff->spi,
 			.hob_size = sizeof(*handoff) - offsetof(struct native_handoff, spi),
 			.service_info = (uintptr_t)&handoff->store,
-			.spi_mmio_resource = (uintptr_t)&handoff->spi,
+			.spi_mmio_resource = CONFIG(SOC_AMD_PHOENIX_OPENSIL) ?
+				0 : (uintptr_t)&handoff->spi,
 			.store_offset = region_offset(&store), .store_size = region_sz(&store),
 			.store_block_size = info.block_size, .capsule_ram_end = ram_end,
 		},
@@ -145,7 +153,8 @@ void efi_variable_service_load(struct smm_runtime *runtime)
 
 	service_prepared = false;
 	if (smm_subregion(SMM_SUBREGION_EFI_VARIABLE_SERVICE, &base, &region_size) ||
-	    !base || base > UINT32_MAX || region_size < SERVICE_STATE_AREA_SIZE)
+	    !base || base > UINT32_MAX || region_size < SERVICE_STATE_AREA_SIZE ||
+	    region_size > (uint64_t)UINT32_MAX + 1 - base)
 		return;
 	state = (void *)base;
 #ifdef ASS_NATIVE_LINK_CHECK

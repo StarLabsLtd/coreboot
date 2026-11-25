@@ -5,7 +5,9 @@
 #include <drivers/efi/capsule_regions.h>
 #include <efi_variable_service.h>
 #include <fmap.h>
+#if !CONFIG(SOC_AMD_PHOENIX_OPENSIL)
 #include <intelblocks/fast_spi.h>
+#endif
 #include <payload_mm_cms.h>
 #include <string.h>
 
@@ -19,7 +21,8 @@ static uintptr_t ram_end;
 
 static bool read_flash(size_t offset, void *data, size_t size)
 {
-	const struct region_device *flash = boot_device_rw();
+	const struct region_device *flash = CONFIG(SOC_AMD_PHOENIX_OPENSIL) ?
+		efi_variable_service_read_device() : boot_device_rw();
 
 	/* Use the same SPI view as the writer, not cached mapped ROM. */
 	return flash && rdev_readat(flash, data, offset, size) == (ssize_t)size;
@@ -87,8 +90,16 @@ const struct ass_capsule_platform *ass_native_smm_capsule_platform(
 	}
 	if (!count)
 		return NULL;
-	size_t bios_size;
-	const size_t bios_offset = fast_spi_get_bios_region(&bios_size);
+	size_t bios_size, bios_offset;
+
+#if CONFIG(SOC_AMD_PHOENIX_OPENSIL)
+	const struct region bios = efi_variable_service_bios_region();
+
+	bios_offset = region_offset(&bios);
+	bios_size = region_sz(&bios);
+#else
+	bios_offset = fast_spi_get_bios_region(&bios_size);
+#endif
 	if (!bios_size || bios_offset >= CONFIG_ROM_SIZE || bios_size > CONFIG_ROM_SIZE - bios_offset)
 		return NULL;
 	trust = (struct payload_mm_crypto_span) {
@@ -99,7 +110,6 @@ const struct ass_capsule_platform *ass_native_smm_capsule_platform(
 		.geometry = {
 			.flash_size = info->flash_size, .block_size = info->block_size,
 			.compiled_floor = info->lowest_supported_version,
-			.allow_unrelated_fmap_changes = CONFIG(PAYLOAD_EDK2) && !boot_slot,
 			.read_flash = read_flash,
 		},
 		.fmap = { FMAP_SECTION_FMAP_START, FMAP_SECTION_FMAP_SIZE },

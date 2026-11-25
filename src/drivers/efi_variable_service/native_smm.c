@@ -138,7 +138,7 @@ struct ass_capsule_transaction *ass_native_smm_capsule_transaction(void *arena,
 	if (resume)
 		return service->capsule.active ? NULL : &service->capsule;
 	if (ass_native_capsule_boot_floor(service->owner, platform->geometry.image_guid,
-	    platform->geometry.compiled_floor, &service->capsule.floor, CONFIG(PAYLOAD_EDK2)))
+	    platform->geometry.compiled_floor, &service->capsule.floor))
 		return NULL;
 	return &service->capsule;
 }

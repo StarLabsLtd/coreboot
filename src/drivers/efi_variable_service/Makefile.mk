@@ -47,6 +47,8 @@ ass-trust-dep := $(filter /%,$(ass-capsule-trust))
 
 ifeq ($(CONFIG_ASS),y)
 ifneq ($(ass-native),)
+ramstage-$(CONFIG_SOC_AMD_PHOENIX_OPENSIL) += hob_amd.c
+smm-$(CONFIG_SOC_AMD_PHOENIX_OPENSIL) += platform_amd.c
 ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
 ifneq ($(CONFIG_VBOOT_VBNV_FLASH):$(CONFIG_VBOOT_VBNV_CMOS),y:)
 $(error Native ASS vboot A/B requires flash as the primary VBNV backend)

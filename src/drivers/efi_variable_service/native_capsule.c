@@ -622,11 +622,10 @@ uint64_t ass_native_capsule_floor(struct authvar_owner *owner,
 }
 
 uint64_t ass_native_capsule_boot_floor(struct authvar_owner *owner,
-	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor, bool repair_metadata)
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
 {
-	/* EDK2 repairs FMP metadata after SMM starts. Capsule admission still requires
-	 * valid metadata, and must never drop a recoverable floor observed at boot. */
-	return capsule_floor(owner, image_guid, compiled_floor, floor, repair_metadata);
+	/* Retain any recoverable floor. Capsule admission requires valid metadata. */
+	return capsule_floor(owner, image_guid, compiled_floor, floor, true);
 }
 
 uint32_t ass_native_capsule_info(struct authvar_owner *owner,

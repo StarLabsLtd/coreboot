@@ -9,6 +9,8 @@
 
 struct lb_header;
 struct smm_runtime;
+struct region;
+struct region_device;
 
 #define EFI_VARIABLE_SERVICE_REVISION	1
 #define EFI_VARIABLE_SERVICE_APM_CMD	0xe7
@@ -95,6 +97,11 @@ bool efi_variable_service_spi_begin(bool *restore);
 void efi_variable_service_spi_end(bool restore);
 bool efi_variable_service_boot_access_allowed(void);
 bool efi_variable_service_spi_bar_valid(uintptr_t bar);
+const struct region_device *efi_variable_service_write_device(void);
+const struct region_device *efi_variable_service_read_device(void);
+struct region efi_variable_service_bios_region(void);
+bool efi_variable_service_ram_ready(void);
+int efi_variable_service_bind_spi(const struct efi_variable_service_state *service);
 void lb_efi_variable_service(struct lb_header *header);
 
 #endif
