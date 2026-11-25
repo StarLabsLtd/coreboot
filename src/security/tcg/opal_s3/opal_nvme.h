@@ -9,6 +9,8 @@
 struct nvme_sq_entry;
 struct nvme_cq_entry;
 
+#define OPAL_NVME_INVALID_REGISTER_SPAN (-2)
+
 struct opal_nvme {
 	pci_devfn_t dev;
 	u8 *regs;

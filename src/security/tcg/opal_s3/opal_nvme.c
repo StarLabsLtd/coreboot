@@ -145,11 +145,13 @@ static int nvme_admin_cmd(struct opal_nvme *nvme, const struct nvme_sq_entry *cm
 int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_t scratch_size,
 		   u64 mmio_base, size_t mmio_size)
 {
-	u64 regs;
+	u64 bar;
 	u16 pmcap;
 	u8 *p = scratch;
+	u8 *regs;
 	u32 cc;
 	u32 csts;
+	int ret = -1;
 
 	memset(nvme, 0, sizeof(*nvme));
 	nvme->dev = dev;
@@ -188,23 +190,27 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MEMORY);
 
 	/* Recheck after D0: never follow a changed decode into arbitrary MMIO. */
-	if (nvme_read_bar0(dev, &regs) || regs != mmio_base) {
+	if (nvme_read_bar0(dev, &bar) || bar != mmio_base) {
 		printk(BIOS_ERR, "OPAL NVMe: invalid BAR0\n");
-		pci_and_config16(dev, PCI_COMMAND, ~(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER));
-		return -1;
+		goto disable_decode;
 	}
 
-	nvme->regs = (u8 *)(uintptr_t)regs;
-	nvme->cap = read64(nvme->regs + 0x0);
+	regs = (u8 *)(uintptr_t)bar;
+	nvme->cap = read64(regs);
+	/* An unresponsive controller can return all ones while powering up. */
+	if (nvme->cap == UINT64_MAX)
+		goto disable_decode;
+
 	nvme->dstrd_bytes = 4U << ((nvme->cap >> 32) & 0xf);
 	/* The completion doorbell can lie beyond the initial register range. */
 	const size_t register_size = MAX(NVME_REGS_MIN_SIZE,
 					 0x1000U + nvme->dstrd_bytes + sizeof(u32));
-	if (register_size > mmio_size || smm_points_to_smram(nvme->regs, register_size)) {
-		printk(BIOS_ERR, "OPAL NVMe: doorbell overlaps SMRAM or wraps\n");
-		pci_and_config16(dev, PCI_COMMAND, ~(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER));
-		return -1;
+	if (register_size > mmio_size || smm_points_to_smram(regs, register_size)) {
+		printk(BIOS_ERR, "OPAL NVMe: invalid doorbell register span\n");
+		ret = OPAL_NVME_INVALID_REGISTER_SPAN;
+		goto disable_decode;
 	}
+	nvme->regs = regs;
 	/* Do not newly enable bus mastering until the SMRAM check passes. */
 	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 	nvme->sq_db = (u32 *)(nvme->regs + 0x1000 + (0 * nvme->dstrd_bytes));
@@ -267,6 +273,10 @@ int opal_nvme_init(struct opal_nvme *nvme, pci_devfn_t dev, void *scratch, size_
 	nvme->cq_phase = 0;
 
 	return 0;
+
+disable_decode:
+	pci_and_config16(dev, PCI_COMMAND, ~(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER));
+	return ret;
 }
 
 void opal_nvme_deinit(struct opal_nvme *nvme)

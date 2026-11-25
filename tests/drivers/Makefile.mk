@@ -48,6 +48,10 @@ smmstore-fixed-mm-test-config += CONFIG_ASS=1 CONFIG_SMMSTORE_BLOCK_SIZE=0x10000
 
 tests-y += opal-s3-test
 opal-s3-test-srcs += tests/drivers/opal-s3.c src/commonlib/region.c tests/stubs/console.c
+opal-s3-test-srcs += src/vendorcode/tcg/opal/opal_unlock.c \
+	src/vendorcode/intel/tcg_storage_core/tcg_storage_core.c \
+	src/vendorcode/intel/tcg_storage_core/tcg_storage_util.c
+opal-s3-test-mocks += opal_nvme_opal_unlock
 opal-s3-test-stage := smm
 opal-s3-test-config += CONFIG_TCG_OPAL_S3_UNLOCK=1 CONFIG_SMM_OPAL_S3_SCRATCH_CBMEM=1 \
 	CONFIG_ASS=1 CONFIG_SMM_PCI_RESOURCE_STORE=1 \

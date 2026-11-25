@@ -9,6 +9,7 @@ u8 *const pci_mmconf = (void *)config_space;
 static struct smm_pci_resource_info trusted[1];
 static struct opal_s3_state retained;
 static uint8_t scratch[OPAL_S3_SCRATCH_MIN_BYTES] __aligned(4096);
+static u64 nvme_mmio[NVME_REGS_MIN_SIZE / sizeof(u64)] __aligned(4096);
 static bool boot_access;
 static bool resume;
 
@@ -59,9 +60,16 @@ void mdelay(unsigned int milliseconds)
 {
 	fail_msg("Unexpected unlock retry");
 }
+u32 __real_opal_nvme_opal_unlock(pci_devfn_t dev, u16 comid, const u8 *password,
+				u8 length, void *buffer, size_t size, u64 mmio_base, size_t mmio_size);
+
 u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 comid, const u8 *password,
 			  u8 length, void *buffer, size_t size, u64 mmio_base, size_t mmio_size)
 {
+	if (mmio_base == (uintptr_t)nvme_mmio)
+		return __real_opal_nvme_opal_unlock(dev, comid, password, length, buffer, size,
+						    mmio_base, mmio_size);
+
 	assert_int_equal(dev, PCI_DEV(0, 0, 0));
 	assert_int_equal(pci_read_config32(dev, PCI_BASE_ADDRESS_0), 0xe0000000);
 	assert_int_equal(mmio_base, 0xe0000000);
@@ -199,6 +207,41 @@ static void reject_changed_base_before_mmio(void **unused)
 	assert_int_equal(config_space[PCI_COMMAND / 4] &
 			 (PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER), 0);
 }
+
+static void use_nvme_mmio(u64 cap)
+{
+	nvme_mmio[0] = cap;
+	trusted[0].resources[0].base = (uintptr_t)nvme_mmio;
+	trusted[0].resources[0].size = sizeof(nvme_mmio);
+	config_space[PCI_BASE_ADDRESS_0 / 4] = (uintptr_t)nvme_mmio;
+}
+
+static void invalid_doorbell_span_ends_unlock(void **unused)
+{
+	struct opal_s3_smm_ctx ctx = request();
+
+	/* CAP.DSTRD places the completion doorbell beyond the assigned BAR. */
+	use_nvme_mmio(12ULL << 32);
+	assert_int_equal(submit_secret(&ctx), 0);
+	opal_s3_arm_for_s3();
+	assert_int_equal(opal_s3_unlock_if_armed(), 5);
+	assert_int_equal(opal_s3_unlock_if_armed(), 0x11);
+	assert_int_equal(config_space[PCI_COMMAND / 4] &
+			 (PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER), 0);
+}
+
+static void unavailable_controller_can_retry(void **unused)
+{
+	const u8 password = 0x5a;
+
+	use_nvme_mmio(UINT64_MAX);
+	assert_int_equal(__real_opal_nvme_opal_unlock(PCI_DEV(0, 0, 0), 0, &password, 1,
+						     scratch, sizeof(scratch),
+						     (uintptr_t)nvme_mmio, sizeof(nvme_mmio)), 1);
+	assert_int_equal(config_space[PCI_COMMAND / 4] &
+			 (PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER), 0);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -208,6 +251,8 @@ int main(void)
 		cmocka_unit_test_setup(restore_owned_resume_resources, setup),
 		cmocka_unit_test_setup(reject_changed_base_before_mmio, setup),
 		cmocka_unit_test_setup(restore_high_bar, setup),
+		cmocka_unit_test_setup(invalid_doorbell_span_ends_unlock, setup),
+		cmocka_unit_test_setup(unavailable_controller_can_retry, setup),
 	};
 	return cb_run_group_tests(tests, NULL, NULL);
 }

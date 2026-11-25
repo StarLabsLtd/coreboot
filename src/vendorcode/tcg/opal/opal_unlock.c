@@ -420,10 +420,12 @@ u32 opal_nvme_opal_unlock(pci_devfn_t dev, u16 base_comid, const u8 *password,
 	/* Use a 4KiB IO buffer after the queue pages. */
 	io_buf = queue_base + OPAL_NVME_QUEUE_BYTES;
 
-	if (opal_nvme_init(&nvme, dev, scratch, scratch_size, mmio_base, mmio_size)) {
+	const int init_status = opal_nvme_init(&nvme, dev, scratch, scratch_size,
+					      mmio_base, mmio_size);
+	if (init_status) {
 		/* Fail closed and ensure stale DMA-visible buffers are cleared. */
 		opal_explicit_bzero(queue_base, OPAL_NVME_SCRATCH_MIN_BYTES);
-		return 1;
+		return init_status == OPAL_NVME_INVALID_REGISTER_SPAN ? 5 : 1;
 	}
 
 	memset(&Session, 0, sizeof(Session));
