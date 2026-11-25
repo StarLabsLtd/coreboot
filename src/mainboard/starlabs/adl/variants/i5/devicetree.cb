@@ -229,7 +229,7 @@ chip soc/intel/alderlake
 				register "generic.reset_delay_ms"	= "300"
 				register "generic.has_power_resource"	= "1"
 				register "hid_desc_reg_offset"		= "0x01"
-				device i2c 5d on end
+				device i2c 5d alias touchscreen on end
 			end
 		end
 		device ref pcie_rp9	on				# SSD x4

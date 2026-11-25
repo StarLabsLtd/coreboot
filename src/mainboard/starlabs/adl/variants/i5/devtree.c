@@ -1,9 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <boot/coreboot_tables.h>
 #include <chip.h>
 #include <cpu/intel/turbo.h>
 #include <device/device.h>
+#include <device/pci_def.h>
+#include <device/resource.h>
 #include <devtree_update.h>
+#include <drivers/i2c/hid/chip.h>
+#include <intelblocks/gpio.h>
 #include <option.h>
 #include <static.h>
 #include <types.h>
@@ -48,3 +53,37 @@ void mb_devtree_update(void)
 	if (get_uint_option_checked("card_reader", 0, OPTION_BOOL) == 0)
 		cfg->usb2_ports[3].enable = 0;
 }
+
+#if CONFIG(PAYLOAD_RESOURCE_HANDOFF)
+size_t fill_lb_i2c_hid(struct lb_prh_i2c_hid *devices, size_t capacity)
+{
+	const struct device *touchscreen = DEV_PTR(touchscreen);
+	const struct drivers_i2c_hid_config *config = touchscreen->chip_info;
+	const struct device *controller = DEV_PTR(i2c2);
+	const struct resource *bar;
+
+	if (!capacity || !touchscreen->enabled || !controller->enabled)
+		return 0;
+
+	bar = probe_resource(controller, PCI_BASE_ADDRESS_0);
+	if (!bar || !bar->base || bar->size < 0x100 || bar->size > UINT32_MAX ||
+	    (bar->flags & IORESOURCE_TYPE_MASK) != IORESOURCE_MEM ||
+	    !(bar->flags & IORESOURCE_ASSIGNED) ||
+	    !(bar->flags & (IORESOURCE_STORED | IORESOURCE_FIXED)))
+		return 0;
+
+	/* The board releases reset before handoff and GPP_F18 asserts low. */
+	*devices = (struct lb_prh_i2c_hid) {
+		.revision = LB_PRH_I2C_HID_REVISION,
+		.family = LB_PRH_I2C_HID_DESIGNWARE,
+		.controller_base = bar->base,
+		.controller_size = bar->size,
+		.ready_address = (uintptr_t)gpio_dwx_address(GPP_F18),
+		.ready_mask = PAD_CFG0_RX_STATE,
+		.ready_value = 0,
+		.descriptor_register = config->hid_desc_reg_offset,
+		.address = touchscreen->path.i2c.device,
+	};
+	return 1;
+}
+#endif
