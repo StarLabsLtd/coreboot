@@ -178,8 +178,10 @@ static const struct efi_guid acpi_board_info_guid =
 	GUID(0x0ad3d31b, 0xb3d8, 0x4506, 0xae, 0x71, 0x2e, 0xf1, 0x10, 0x06, 0xd9, 0x0f);
 static const struct efi_guid capsule_ram_guid =
 	GUID(0xaeb3440c, 0xf957, 0x488b, 0x93, 0x50, 0x9a, 0xbc, 0xa6, 0x6a, 0x98, 0x1f);
+#if CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)
 static const struct efi_guid capsule_info_guid =
 	GUID(0x787f43b2, 0x9a19, 0x43d1, 0x83, 0x64, 0x10, 0x79, 0xf1, 0xd4, 0x7e, 0x30);
+#endif
 
 _Static_assert(sizeof(struct hob_handoff) == 56, "Unexpected PHIT size");
 _Static_assert(sizeof(struct hob_module) == 72, "Unexpected module HOB size");
@@ -220,7 +222,8 @@ static void *append_guid_hob(struct hob_builder *builder, const struct efi_guid 
 	return hob + 1;
 }
 
-static int append_runtime_ram(struct hob_builder *builder)
+static int append_runtime_ram(struct hob_builder *builder,
+	struct efi_variable_service_state *state)
 {
 	struct hob_resource *resource;
 	uintptr_t smram_base;
@@ -230,17 +233,18 @@ static int append_runtime_ram(struct hob_builder *builder)
 	/* CPU/SMM setup precedes PCI resource enumeration. Use the already trained
 	 * low-DRAM boundary, not a resource map which is still being populated. */
 	smm_region(&smram_base, &smram_size);
-	if (!smram_size || end > smram_base || end <= 1 * MiB)
+	if (!smram_size || end > smram_base || end > UINT32_MAX || end <= 1 * MiB)
 		return -1;
 	resource = append_hob(builder, HOB_RESOURCE_DESCRIPTOR, sizeof(*resource));
 	if (!resource)
 		return -1;
+	state->capsule_ram_end = end;
 	*resource = (struct hob_resource) {
 		.header = { HOB_RESOURCE_DESCRIPTOR, sizeof(*resource), 0 },
 		.owner = capsule_ram_guid, .type = RESOURCE_SYSTEM_MEMORY,
 		.attributes = RESOURCE_PRESENT | RESOURCE_INITIALIZED | RESOURCE_TESTED |
 			RESOURCE_WRITE_BACK_CACHEABLE,
-		.base = 1 * MiB, .size = end - 1 * MiB,
+		.base = 1 * MiB, .size = state->capsule_ram_end - 1 * MiB,
 	};
 	return 0;
 }
@@ -318,7 +322,8 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 	flash = append_guid_hob(&builder, &variable_flash_guid, sizeof(*flash));
 	spi = append_guid_hob(&builder, &spi_flash_info_guid, sizeof(*spi));
 	acpi = append_guid_hob(&builder, &acpi_board_info_guid, sizeof(*acpi));
-	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
+#if CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)
+	{
 		uint32_t version, lowest;
 		const size_t capsule_size = CONFIG(VBOOT_SLOTS_RW_AB) ?
 			sizeof(struct capsule_vboot_hob) : sizeof(*capsule);
@@ -343,7 +348,8 @@ int efi_variable_service_build_hobs(uintptr_t hob_base, uintptr_t region_end,
 		if (parse_uuid(capsule->image_guid, CONFIG_DRIVERS_EFI_MAIN_FW_GUID))
 			return -1;
 	}
-	if (append_runtime_ram(&builder))
+#endif
+	if (append_runtime_ram(&builder, state))
 		return -1;
 	end = append_hob(&builder, HOB_END, sizeof(*end));
 	if (!handoff || !resource || !spi_config_resource || !spi_mmio_resource ||

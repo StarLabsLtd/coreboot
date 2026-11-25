@@ -15,6 +15,13 @@
 #include "hob.h"
 #include "private_store.h"
 #include "capsule_store.h"
+#include "wire.h"
+#ifdef ASS_NATIVE_LINK_CHECK
+#include "native_capsule_source.h"
+#include "native_capsule.h"
+#include "native_smm.h"
+#include "native_variables.h"
+#endif
 #if CONFIG(VBOOT_SLOTS_RW_AB)
 #include <security/vboot/vbnv.h>
 #include <vb2_api.h>
@@ -43,6 +50,11 @@ static struct efi_private_store variable_store;
 static uint8_t variable_store_buffer[MAX_UNSAFE(CONFIG_SMMSTORE_BLOCK_SIZE,
 					      EFI_CAPSULE_BLOCK_SIZE)];
 static uint8_t capsule_readback[EFI_CAPSULE_BLOCK_SIZE];
+
+#ifdef ASS_NATIVE_LINK_CHECK
+static void *native_arena;
+static struct ass_mm_capsule native_capsule;
+#endif
 
 static uint32_t capsule_read(uint32_t offset, uint32_t size)
 {
@@ -142,6 +154,17 @@ static uint32_t capsule_commit(uint32_t slot)
 	return save_vbnv_flash(ctx.nvdata) ? EFI_VARIABLE_SERVICE_RET_FAILURE :
 		EFI_VARIABLE_SERVICE_RET_SUCCESS;
 }
+
+#ifdef ASS_NATIVE_LINK_CHECK
+static uint32_t native_capsule_commit(uint32_t slot)
+{
+	const uint32_t status = capsule_commit(slot);
+
+	if (status && !slot)
+		printk(BIOS_ERR, "Vboot: could not acknowledge the running firmware slot\n");
+	return status;
+}
+#endif
 #endif
 
 static int prepare_capsule_store(void)
@@ -299,8 +322,12 @@ static int get_service(void)
 	service = (void *)base;
 	if (service->signature != EFI_VARIABLE_SERVICE_STATE_SIGNATURE ||
 	    service->revision != EFI_VARIABLE_SERVICE_STATE_REVISION ||
-	    service->size != sizeof(*service) || !entry_in_core(service->core_entry))
+	    service->size != sizeof(*service))
 		return -1;
+#ifndef ASS_NATIVE_LINK_CHECK
+	if (!entry_in_core(service->core_entry))
+		return -1;
+#endif
 	return 0;
 }
 
@@ -374,30 +401,7 @@ static int initialize_service(void)
 		0 : -1;
 }
 
-struct mm_communication_header32 {
-	EFI_GUID guid;
-	uint32_t message_length;
-	uint8_t data[];
-} __packed;
-
-struct smm_variable_header32 {
-	uint32_t function;
-	uint32_t return_status;
-	uint8_t data[];
-} __packed;
-
-struct smm_variable_access32 {
-	EFI_GUID guid;
-	uint32_t data_size;
-	uint32_t name_size;
-	uint32_t attributes;
-	CHAR16 name[];
-} __packed;
-
-#define SMM_VARIABLE_FUNCTION_GET_VARIABLE 1
-#define SMM_VARIABLE_FUNCTION_SET_VARIABLE 3
-
-static const EFI_GUID efi_smm_variable_protocol_guid = {
+static const EFI_GUID efi_smm_variable_protocol_guid __maybe_unused = {
 	0xed32d533, 0x99e6, 0x4209, { 0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7 }
 };
 
@@ -408,15 +412,6 @@ static const EFI_GUID efi_coreboot_nv_data_guid = {
 static const EFI_GUID efi_variable_service_ready_guid = {
 	0xf4fc98d5, 0xf719, 0x4e49, { 0x88, 0xf4, 0x77, 0xcd, 0xcd, 0xb9, 0xfb, 0x55 }
 };
-
-_Static_assert(sizeof(struct mm_communication_header32) == 20,
-	       "Unexpected MM communication header size");
-
-_Static_assert(sizeof(struct smm_variable_header32) == 8,
-	       "Unexpected MM variable header size");
-
-_Static_assert(sizeof(struct smm_variable_access32) == 28,
-	       "Unexpected MM variable access size");
 
 static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t message_size)
 {
@@ -431,7 +426,9 @@ static int dispatch_message(uintptr_t buffer_base, size_t buffer_size, size_t me
 	typedef void (*mm_entry)(const struct mm_entry_context *context);
 	mm_entry entry;
 
-	if (message_size > buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE)
+	if (buffer_size < EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE ||
+	    message_size < sizeof(struct mm_communication_header32) ||
+	    message_size > buffer_size - EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE)
 		return -1;
 
 	status = (void *)(buffer_base + sizeof(struct efi_variable_service_buffer));
@@ -514,20 +511,81 @@ static int service_ready(void)
 		return -1;
 	if (prepare_private_store())
 		return -1;
+	if (!smm_efi_variable_service_is_s3_resume() && CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000) {
+		int migrated = efi_fv_migration_recover(&variable_store_device,
+			variable_store_buffer, sizeof(variable_store_buffer));
+
+		if (migrated) {
+			if (migrated > 0)
+				printk(BIOS_INFO, "EFI variable store migration recovered\n");
+			return migrated < 0 ? -1 : EFI_VARIABLE_SERVICE_REBOOT_REQUIRED;
+		}
+	}
+#ifdef ASS_NATIVE_LINK_CHECK
+	uintptr_t arena;
+	size_t arena_size;
+	if (smm_subregion(SMM_SUBREGION_EFI_VARIABLE_SERVICE, &arena, &arena_size) ||
+	    arena_size <= sizeof(*service))
+		return -1;
+	/* The current ramstage metadata occupies the first page. All other
+	 * Fixed MM data in this local composition is discarded after admission. */
+	const struct ass_capsule_platform *platform = NULL;
+	if (CONFIG(DRIVERS_EFI_UPDATE_CAPSULES)) {
+#if CONFIG(VBOOT_SLOTS_RW_AB)
+		if (prepare_capsule_store())
+			return -1;
+		platform = ass_native_smm_capsule_platform(service, capsule_program,
+			capsule_boot_slot ? capsule_boot_slot : 3, native_capsule_commit);
+#else
+		platform = ass_native_smm_capsule_platform(service, capsule_program, 0, NULL);
+#endif
+		if (!platform)
+			return -1;
+	}
+	const size_t metadata = 0x1000;
+	if (arena_size <= metadata)
+		return -1;
+	void *owner_arena = (void *)(arena + metadata);
+	const struct authvar_fixed_policy *fixed = NULL;
+#if CONFIG(ASS_FIXED_KEYS)
+	fixed = ass_native_fixed_policy();
+	if (!fixed)
+		return -1;
+#endif
+	if (smm_efi_variable_service_is_s3_resume()) {
+		if (!ass_native_smm_resume(owner_arena, arena_size - metadata,
+		    &variable_store_device, service->store_block_size, fast_spi_wpd_status, fixed))
+			return -1;
+	} else {
+		bool restart;
+
+		if (ass_native_smm_open(owner_arena, arena_size - metadata,
+		    &variable_store_device, service->store_block_size, 0x10000,
+		    fast_spi_wpd_status, true, fixed, &restart))
+			return -1;
+		if (restart)
+			return EFI_VARIABLE_SERVICE_REBOOT_REQUIRED;
+	}
+	native_arena = owner_arena;
+	if (platform) {
+		static struct ass_capsule_source source;
+		struct ass_capsule_transaction *transaction = ass_native_smm_capsule_transaction(
+			native_arena, platform, smm_efi_variable_service_is_s3_resume());
+		if (!transaction)
+			return -1;
+		native_capsule = (struct ass_mm_capsule) {
+			.transaction = transaction, .source = &source,
+			.crypto = ass_native_smm_crypto(native_arena),
+			.platform = platform, .image = variable_store_buffer,
+		};
+	}
+	current_state = SERVICE_READY;
+	return 0;
+#endif
 	if (prepare_capsule_store())
 		return -1;
 
 	if (!smm_efi_variable_service_is_s3_resume()) {
-		if (CONFIG_SMMSTORE_BLOCK_SIZE == 0x1000) {
-			int migrated = efi_fv_migration_recover(&variable_store_device,
-					variable_store_buffer, sizeof(variable_store_buffer));
-
-			if (migrated) {
-				if (migrated > 0)
-					printk(BIOS_INFO, "EFI variable store migration recovered\n");
-				return migrated < 0 ? -1 : EFI_VARIABLE_SERVICE_REBOOT_REQUIRED;
-			}
-		}
 		const enum cb_err ret = efi_fv_initialize(&variable_store_device,
 							service->store_block_size);
 
@@ -568,28 +626,39 @@ uint32_t efi_variable_service_communicate(void)
 {
 	uintptr_t buffer_base;
 	size_t buffer_size;
+	uint32_t message_size;
 	struct efi_variable_service_buffer *buffer;
 	struct efi_mm_communication_status *status;
 	struct mm_communication_header32 *message;
 
-	if (current_state != SERVICE_READY || !service || !entry_in_core(service->dispatch_entry))
+	if (current_state != SERVICE_READY || !service)
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	smm_get_efi_variable_service_buffer(&buffer_base, &buffer_size);
 	if (!buffer_base || buffer_size != EFI_VARIABLE_SERVICE_BUFFER_SIZE)
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+#ifdef ASS_NATIVE_LINK_CHECK
+	return ass_native_smm_communicate(native_arena, (void *)buffer_base, buffer_size,
+		native_capsule.platform ? &native_capsule : NULL);
+#endif
+	if (!entry_in_core(service->dispatch_entry))
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	buffer = (void *)buffer_base;
 	status = (void *)(buffer_base + sizeof(*buffer));
 	message = (void *)(buffer_base + EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE);
+	if (__atomic_load_n(&buffer->state, __ATOMIC_ACQUIRE) !=
+	    EFI_VARIABLE_SERVICE_BUFFER_REQUEST)
+		return EFI_VARIABLE_SERVICE_RET_FAILURE;
+
+	message_size = buffer->message_size;
 	if (buffer->signature != EFI_VARIABLE_SERVICE_BUFFER_SIGNATURE ||
 	    buffer->revision != EFI_VARIABLE_SERVICE_REVISION ||
 	    buffer->header_size != EFI_VARIABLE_SERVICE_BUFFER_HEADER_SIZE ||
-	    buffer->state != EFI_VARIABLE_SERVICE_BUFFER_REQUEST ||
-	    buffer->message_size < sizeof(*message) ||
-	    buffer->message_size > buffer_size - buffer->header_size ||
-	    message->message_length > buffer->message_size - sizeof(*message))
+	    message_size < sizeof(*message) ||
+	    message_size > EFI_VARIABLE_SERVICE_MESSAGE_CAPACITY ||
+	    message->message_length > message_size - sizeof(*message))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 
-	if (dispatch_message(buffer_base, buffer_size, buffer->message_size))
+	if (dispatch_message(buffer_base, buffer_size, message_size))
 		return EFI_VARIABLE_SERVICE_RET_FAILURE;
 	buffer->status = status->return_status;
 	buffer->response_size = status->return_buffer_size;
@@ -599,6 +668,9 @@ uint32_t efi_variable_service_communicate(void)
 
 static enum cb_err boot_access_status(bool *allowed)
 {
+#ifdef ASS_NATIVE_LINK_CHECK
+	return ass_native_smm_boot_access(native_arena, allowed) ? CB_SUCCESS : CB_EFI_ACCESS_ERROR;
+#endif
 	typedef uint32_t (__attribute__((cdecl)) *mm_manage)(const EFI_GUID *, const void *,
 							    void *, size_t *);
 	uint8_t query = 1;
@@ -667,8 +739,15 @@ enum cb_err efi_variable_service_get_uint(const char *name, uint32_t *value)
 		access->name[i] = (uint8_t)name[i];
 
 	manage = (void *)(uintptr_t)service->manage_entry;
-	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &response_size) ||
-	    response_size != request_size ||
+#ifdef ASS_NATIVE_LINK_CHECK
+	if (!ass_native_smm_variable(native_arena, variable, request_size))
+		return CB_EFI_ACCESS_ERROR;
+#else
+	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &response_size))
+		return CB_EFI_ACCESS_ERROR;
+#endif
+	(void)manage;
+	if (response_size != request_size ||
 	    variable->function != SMM_VARIABLE_FUNCTION_GET_VARIABLE)
 		return CB_EFI_ACCESS_ERROR;
 	if (access->name_size != name_size ||
@@ -714,8 +793,12 @@ enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 	size_t request_size;
 	mm_manage manage;
 
-	if (!name || current_state != SERVICE_READY || !entry_in_core(service->manage_entry))
+	if (!name || current_state != SERVICE_READY)
 		return CB_EFI_ACCESS_ERROR;
+#ifndef ASS_NATIVE_LINK_CHECK
+	if (!entry_in_core(service->manage_entry))
+		return CB_EFI_ACCESS_ERROR;
+#endif
 
 	name_length = strnlen(name, max_name);
 	if (name_length == max_name)
@@ -737,8 +820,15 @@ enum cb_err efi_variable_service_set_uint(const char *name, uint32_t value)
 
 	/* Dispatch a firmware-owned request through the untrusted variable handler. */
 	manage = (void *)(uintptr_t)service->manage_entry;
-	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &request_size) ||
-	    request_size < sizeof(*variable) || request_size > sizeof(request.bytes) ||
+#ifdef ASS_NATIVE_LINK_CHECK
+	if (!ass_native_smm_variable(native_arena, variable, request_size))
+		return CB_EFI_ACCESS_ERROR;
+#else
+	if (manage(&efi_smm_variable_protocol_guid, NULL, variable, &request_size))
+		return CB_EFI_ACCESS_ERROR;
+#endif
+	(void)manage;
+	if (request_size < sizeof(*variable) || request_size > sizeof(request.bytes) ||
 	    variable->return_status)
 		return CB_EFI_ACCESS_ERROR;
 
