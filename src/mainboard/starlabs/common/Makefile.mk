@@ -36,9 +36,11 @@ ifneq ($(CONFIG_VBOOT_CLEAR_RECOVERY_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT requires post-lockdown recovery clearing)
 endif
 ifeq ($(CONFIG_VBOOT_SLOTS_RW_AB),y)
-ifneq ($(words $(filter y,$(CONFIG_ASS) $(CONFIG_PAYLOAD_EDK2) \
-	$(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES))),3)
-$(error Star Labs VBOOT A/B requires the EDK2 ASS capsule owner for boot acknowledgement)
+ifneq ($(words $(filter y,$(CONFIG_ASS) $(CONFIG_DRIVERS_EFI_UPDATE_CAPSULES))),2)
+$(error Star Labs VBOOT A/B requires the ASS capsule owner for boot acknowledgement)
+endif
+ifeq ($(filter y,$(CONFIG_ASS_NATIVE) $(CONFIG_PAYLOAD_EDK2)),)
+$(error Star Labs VBOOT A/B requires an owner that supports late boot acknowledgement)
 endif
 ifeq ($(CONFIG_VBOOT_MARK_BOOT_SUCCESSFUL_AFTER_BOOTMEDIA_LOCKDOWN),y)
 $(error Star Labs VBOOT A/B acknowledges boot success at the payload handoff)
@@ -66,9 +68,11 @@ ifneq ($(filter y,$(CONFIG_GBB_FLAG_DISABLE_FW_ROLLBACK_CHECK) \
 	$(CONFIG_GBB_FLAG_FORCE_DEV_BOOT_ALTFW) $(CONFIG_GBB_FLAG_DEFAULT_DEV_BOOT_ALTFW)),)
 $(error Refusing a Star Labs VBOOT image with rollback or developer boot enabled)
 endif
+ifneq ($(CONFIG_ASS_NATIVE),y)
 starlabs-vboot-edk2-revision := $(call strip_quotes,$(CONFIG_EDK2_TAG_OR_REV))
 ifneq ($(shell printf '%s' '$(starlabs-vboot-edk2-revision)' | grep -Eq '^[0-9a-fA-F]{40}$$' && echo y),y)
 $(error Star Labs VBOOT requires a pinned EDK2 revision)
+endif
 endif
 ifeq ($(strip $(STARLABS_VBOOT_KEY_DIR)),)
 $(error STARLABS_VBOOT_KEY_DIR must name the externally provisioned vboot key directory)

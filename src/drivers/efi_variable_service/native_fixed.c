@@ -6,7 +6,7 @@
 
 #include "native_smm.h"
 #include "wire.h"
-#include <ass/fixed_policy.h>
+#include ASS_FIXED_POLICY_HEADER
 
 const struct authvar_fixed_policy *ass_native_fixed_policy(void)
 {

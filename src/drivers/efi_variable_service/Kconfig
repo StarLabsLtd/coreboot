@@ -6,8 +6,7 @@ config ASS
 	depends on SMM_TSEG
 	depends on SMMSTORE
 	depends on ARCH_SMM_X86_32
-	depends on PAYLOAD_EDK2
-	depends on EDK2_REPO_CUSTOM
+	depends on DRIVERS_EFI_VARIABLE_STORE
 	depends on SOC_INTEL_COMMON_BLOCK_SMM
 	depends on SOC_INTEL_COMMON_BLOCK_FAST_SPI
 	depends on !CONSOLE_SPI_FLASH
@@ -17,8 +16,30 @@ config ASS
 	  variable and capsule service in a fixed SMRAM region. The payload can
 	  submit requests through a bounded shared buffer, but cannot supply
 	  executable code or choose the service address.
-	  The selected EDK2 repository must provide the fixed Standalone MM
-	  service description.
+	  Select the native backend explicitly for payloads that implement its
+	  mailbox contract. The existing Fixed MM backend remains available.
+
+config ASS_NATIVE
+	bool "Use the native ASS backend"
+	depends on ASS
+	help
+	  Use the firmware variable and capsule owner in SMM.
+
+config ASS_NATIVE_LATE_EXIT
+	bool "Payload acknowledges native A/B trials at late handoff"
+	depends on ASS_NATIVE && VBOOT_SLOTS_RW_AB
+	help
+	  Select only with a payload that implements late trial acknowledgement.
+
+config ASS_FIXED_KEYS
+	bool "Use firmware-owned Secure Boot keys"
+	depends on ASS_NATIVE
+
+config ASS_FIXED_POLICY_HEADER
+	string "Native ASS public key data header"
+	depends on ASS_FIXED_KEYS
+	help
+	  Path to a header containing the fixed PK, KEK, db and dbx data.
 
 # Keep the decompressed FV out of the S3-cached ramstage image.
 config HEAP_SIZE

@@ -67,6 +67,9 @@ $(call src-to-obj,ramstage,$(obj)/cpu/x86/smm/smmstub.manual): $(obj)/smmstub/sm
 
 # C-based SMM handler.
 
+ifeq ($(CONFIG_ASS_NATIVE),y)
+$(obj)/smm/smm.elf-ldflags += --wrap=mbedtls_rsa_parse_pubkey
+endif
 ifeq ($(CONFIG_ARCH_SMM_X86_32),y)
 $(eval $(call rmodule_link,$(obj)/smm/smm.elf, $(obj)/smm/smm.a,x86_32))
 else
