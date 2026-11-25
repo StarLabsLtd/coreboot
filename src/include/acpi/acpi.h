@@ -79,6 +79,7 @@ enum acpi_tables {
 	/* Alphabetic list of Tables defined by ACPI and used by coreboot */
 	BDAT,	/* BIOS Data ACPI Table */
 	BERT,   /* Boot Error Record Table */
+	BGRT,   /* Boot Graphics Resource Table */
 	CEDT,   /* CXL Early Discovery Table */
 	DBG2,   /* Debug Port Table 2 */
 	DMAR,   /* DMA Remapping Table */

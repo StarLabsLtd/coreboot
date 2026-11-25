@@ -629,10 +629,6 @@ static uintptr_t write_coreboot_table(uintptr_t rom_table_end)
 	if (CONFIG(DRIVERS_OPTION_CFR))
 		lb_cfr_setup_menu(head);
 
-	/* Retain the bitmap before the CBMEM reservation is serialized. */
-	if (CONFIG(BMP_LOGO) && CONFIG(BOOT_SPLASH_HANDOFF))
-		bootsplash_render_primary();
-
 	/* Serialize resource map into mem table types (LB_MEM_*) */
 	bootmem_write_memory_table(lb_memory(head));
 
@@ -756,6 +752,10 @@ void *write_tables(void)
 		printk(BIOS_ERR, "Could not add CBMEM for coreboot table.\n");
 		return NULL;
 	}
+
+	/* Retain the bitmap before publishing ACPI and CBMEM references to it. */
+	if (CONFIG(BMP_LOGO) && CONFIG(BOOT_SPLASH_HANDOFF))
+		bootsplash_render_primary();
 
 	/* Add architecture specific tables. */
 	arch_write_tables(cbtable_start);

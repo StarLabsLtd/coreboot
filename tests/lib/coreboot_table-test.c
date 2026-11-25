@@ -190,8 +190,11 @@ const struct bcd_date coreboot_build_date = {
 
 const unsigned int asl_revision = 0x20200925;
 
+static unsigned int splash_render_calls;
+
 void arch_write_tables(uintptr_t coreboot_table)
 {
+	assert_int_equal(splash_render_calls, 1);
 }
 
 static const uintptr_t ebda_base = 0xf0000;
@@ -207,7 +210,6 @@ enum boot_mode_t get_boot_mode(void)
 
 /* Renderer behavior is covered separately; exercise its actual table dispatch here. */
 static bool retained_splash;
-static unsigned int splash_render_calls;
 static const struct lb_boot_splash expected_splash = {
 	.tag = LB_TAG_BOOT_SPLASH,
 	.size = sizeof(struct lb_boot_splash),
@@ -242,7 +244,6 @@ struct resource mock_bootmem_ranges[] = {
 
 void bootmem_write_memory_table(struct lb_memory *mem)
 {
-	assert_int_equal(splash_render_calls, 1);
 	struct lb_memory_range *lb_r = &mem->map[0];
 	int i;
 

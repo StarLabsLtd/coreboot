@@ -21,6 +21,7 @@
 #include <acpi/acpi_pcct.h>
 #include <acpi/acpi_vfct.h>
 #include <acpi/acpigen.h>
+#include <bootsplash.h>
 #include <cbfs.h>
 #include <cbmem.h>
 #include <commonlib/helpers.h>
@@ -1559,6 +1560,40 @@ static void acpidump_print(void *table_ptr)
 	printk(BIOS_SPEW, "\n");
 }
 
+struct acpi_bgrt {
+	acpi_header_t header;
+	uint16_t version;
+	uint8_t status;
+	uint8_t image_type;
+	uint64_t image_address;
+	uint32_t image_offset_x;
+	uint32_t image_offset_y;
+} __packed;
+
+static unsigned long acpi_write_bgrt(acpi_rsdp_t *rsdp, unsigned long current)
+{
+	struct lb_boot_splash splash;
+	struct acpi_bgrt *bgrt = (void *)current;
+
+	if (!CONFIG(PAYLOAD_EDIIE) || !CONFIG(BOOT_SPLASH_HANDOFF) ||
+	    !bootsplash_get_handoff(&splash) ||
+	    !check_acpi_tables_write_limit(current, acpi_align_current(sizeof(*bgrt))))
+		return current;
+
+	memset(bgrt, 0, sizeof(*bgrt));
+	acpi_fill_header(&bgrt->header, "BGRT", BGRT, sizeof(*bgrt));
+	bgrt->version = 1;
+	/* edIIe sets the Displayed bit once the final boot screen is ready. */
+	bgrt->image_address = splash.bmp_address;
+	bgrt->image_offset_x = splash.image_offset_x;
+	bgrt->image_offset_y = splash.image_offset_y;
+	bgrt->header.checksum = acpi_checksum((void *)bgrt, sizeof(*bgrt));
+
+	printk(BIOS_DEBUG, "ACPI:    * BGRT\n");
+	acpi_add_table(rsdp, bgrt);
+	return acpi_align_current(current + sizeof(*bgrt));
+}
+
 static unsigned long write_acpi_tables(const unsigned long start)
 {
 	unsigned long current;
@@ -1792,6 +1827,8 @@ static unsigned long write_acpi_tables(const unsigned long start)
 		}
 	}
 
+	current = acpi_write_bgrt(rsdp, current);
+
 	printk(BIOS_INFO, "ACPI: done.\n");
 
 	if (CONFIG(DEBUG_ACPICA_COMPATIBLE)) {
@@ -2003,6 +2040,8 @@ int get_acpi_table_revision(enum acpi_tables table)
 	case BERT:
 		return 1;
 	case BDAT:
+		return 1;
+	case BGRT:
 		return 1;
 	case CEDT: /* CXL 3.0 section 9.17.1 */
 		return 1;
