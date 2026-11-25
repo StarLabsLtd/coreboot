@@ -50,6 +50,11 @@ enum cb_err efi_fv_get_option(const struct region_device *rdev,
 			      void *dest,
 			      uint32_t *size);
 
+/* Like efi_fv_get_option(), also returning the selected variable's attributes. */
+enum cb_err efi_fv_get_option_with_attributes(const struct region_device *rdev,
+	const EFI_GUID *guid, const char *name, void *dest, uint32_t *size,
+	uint32_t *attributes);
+
 /**
  * efi_fv_set_option
  * Use the provided EFI variable store inside the region device as variable store.

@@ -117,12 +117,18 @@ static bool efi_is_disk_capsules_boot(void)
 	struct region_device rdev;
 	uint64_t os_indications = 0;
 	uint32_t size = sizeof(os_indications);
+	uint32_t attributes;
 
 	if (smmstore_lookup_region(&rdev))
 		return false;
 
-	if (efi_fv_get_option(&rdev, &efi_global_variable_guid, "OsIndications",
-			      &os_indications, &size) != CB_SUCCESS)
+	if (efi_fv_get_option_with_attributes(&rdev, &efi_global_variable_guid,
+			"OsIndications", &os_indications, &size, &attributes) != CB_SUCCESS)
+		return false;
+
+	if (CONFIG(DRIVERS_EFI_CAPSULE_DISK_ONLY) &&
+	    attributes != (EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
+			   EFI_VARIABLE_RUNTIME_ACCESS))
 		return false;
 
 	return size == sizeof(os_indications) &&
