@@ -377,3 +377,23 @@ root_bridge_info-test-srcs += tests/stubs/console.c
 root_bridge_info-test-config += CONFIG_PCI=1
 
 tests-y += root_bridge_info-test
+
+tests-y += authvar-owner-test
+include $(src)/lib/authvar_sources.mk
+authvar-owner-test-srcs += tests/lib/authvar-owner-test.c $(authvar_sources)
+authvar-owner-test-srcs += src/lib/authvar_fixed_policy.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_variables.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_media.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_smm.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_capsule.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/native_capsule_source.c
+authvar-owner-test-srcs += src/drivers/efi_variable_service/private_store.c
+authvar-owner-test-srcs += src/commonlib/region.c
+authvar-owner-test-config += CONFIG_ASS_FIXED_KEYS=1
+authvar-owner-test-cflags += -Itests/lib/authvar-owner-include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include \
+	-I src/vendorcode/intel/edk2/UDK2017/MdePkg/Include/Ia32 \
+	-I3rdparty/mbedtls/include -I3rdparty/mbedtls/library \
+	-Isrc/lib -Isrc/lib/payload_mm_crypto -DPAYLOAD_MM_AUTHVAR_CRYPTO \
+	-DMBEDTLS_CONFIG_FILE=\"payload_mm_mbedtls_config.h\" \
+	-DMBEDTLS_TEST_SW_INET_PTON -Wl,--wrap=mbedtls_rsa_parse_pubkey
