@@ -2,17 +2,20 @@
 
 #include <acpi/acpigen.h>
 #include <acpi/acpi_device.h>
+#include <commonlib/bsd/helpers.h>
 #include <stdio.h>
 
 #include "chip.h"
 
 static const char *usb_hub_acpi_name(const struct device *dev)
 {
+	/* Devices may share chip_info, but each speed and port needs a stable name. */
+	static char port_names[2][99][ACPI_NAME_BUFFER_SIZE];
 	const char *prefix;
-	struct drivers_usb_hub_config *config = dev->chip_info;
+	char *name;
 
-	if (config->acpi_name[0] != 0)
-		return config->acpi_name;
+	if (dev->path.type != DEVICE_PATH_USB)
+		return NULL;
 
 	/* USB ACPI driver does not have acpi_name operation defined. Hence return
 	   the ACPI name for both the hub and any downstream facing ports. */
@@ -29,10 +32,15 @@ static const char *usb_hub_acpi_name(const struct device *dev)
 		return NULL;
 	}
 
-	snprintf(config->acpi_name, sizeof(config->acpi_name), "%s%02u", prefix,
-		 dev->path.usb.port_id + 1);
+	if (dev->path.usb.port_id >= ARRAY_SIZE(port_names[0]))
+		return NULL;
 
-	return config->acpi_name;
+	name = port_names[dev->path.usb.port_type - 2][dev->path.usb.port_id];
+	if (!name[0])
+		snprintf(name, ACPI_NAME_BUFFER_SIZE, "%s%02u", prefix,
+			 dev->path.usb.port_id + 1);
+
+	return name;
 }
 
 static void usb_hub_add_ports(const struct device *dev)
@@ -45,12 +53,16 @@ static void usb_hub_add_ports(const struct device *dev)
 		if (!port->enabled)
 			continue;
 
+		const char *name = usb_hub_acpi_name(port);
+		if (!name)
+			continue;
+
 		if (child_count++ >= config->port_count) {
 			printk(BIOS_WARNING, "%s cannot be added. Port Count limit reached.\n",
 			       dev_name(port));
 			continue;
 		}
-		acpigen_write_device(usb_hub_acpi_name(port));
+		acpigen_write_device(name);
 		acpigen_write_name_byte("_ADR", port->path.usb.port_id + 1);
 		acpigen_write_device_end();
 	}
@@ -58,6 +70,10 @@ static void usb_hub_add_ports(const struct device *dev)
 
 static void usb_hub_acpi_fill_ssdt(const struct device *dev)
 {
+	/* Ports that inherit these ops are already emitted by their hub. */
+	if (dev->path.type != DEVICE_PATH_USB || dev->path.usb.port_type != 0)
+		return;
+
 	const struct drivers_usb_hub_config *config = config_of(dev);
 	const char *scope = acpi_device_scope(dev);
 	const char *name = acpi_device_name(dev);

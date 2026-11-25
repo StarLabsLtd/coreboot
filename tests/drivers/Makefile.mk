@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+tests-y += usb-hub-acpi-test
+usb-hub-acpi-test-srcs += tests/drivers/usb-hub-acpi.c src/drivers/usb/hub/acpi.c \
+	src/acpi/device.c src/acpi/acpigen.c src/device/device_const.c \
+	src/device/device_util.c tests/stubs/console.c tests/stubs/die.c
+usb-hub-acpi-test-config += CONFIG_ACPI_CPU_STRING=\"C%03X\" CONFIG_GENERIC_GPIO_LIB=0
+
 tests-y += efivars-test
 
 efivars-test-srcs += tests/drivers/efivars.c
