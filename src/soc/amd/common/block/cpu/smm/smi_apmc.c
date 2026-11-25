@@ -8,7 +8,9 @@
 #include <arch/io.h>
 #include <cpu/amd/amd64_save_state.h>
 #include <cpu/x86/smm.h>
+#include <delay.h>
 #include <drivers/option/cfr_runtime.h>
+#include <efi_variable_service.h>
 #include <elog.h>
 #include <soc/smi.h>
 #include <smmstore.h>
@@ -19,6 +21,11 @@
 #define SMM_IO_TRAP_PORT_ADDRESS_MASK	0xffff
 #define SMM_IO_TRAP_RW			(1 << 0)
 #define SMM_IO_TRAP_VALID		(1 << 1)
+#define SMM_IO_TRAP_STR			(1 << 2)
+#define SMM_IO_TRAP_REP			(1 << 3)
+#define SMM_IO_TRAP_SZ8			(1 << 4)
+#define SMM_IO_TRAP_SZ16			(1 << 5)
+#define SMM_IO_TRAP_SZ32			(1 << 6)
 
 static inline u16 get_io_address(u32 info)
 {
@@ -29,13 +36,31 @@ static inline u16 get_io_address(u32 info)
 static void *find_save_state(int cmd)
 {
 	unsigned int core;
-	amd64_smm_state_save_area_t *state;
+	amd64_smm_state_save_area_t *state, *issuer = NULL;
 	u32 smm_io_trap;
 	u8 reg_al;
 
+	if (CONFIG(ASS)) {
+		const unsigned int count = smm_get_cpu_count();
+
+		if (!count || count > CONFIG_MAX_CPUS)
+			return NULL;
+		/* Broadcast peers keep their save states stable until we release the lock. */
+		for (unsigned int elapsed = 0; ; elapsed++) {
+			for (core = 0; core < count; core++)
+				if (!smm_get_current_save_state(core))
+					break;
+			if (core == count)
+				break;
+			if (elapsed == 1000)
+				return NULL;
+			udelay(1);
+		}
+	}
+
 	/* Check all nodes looking for the one that issued the IO */
 	for (core = 0; core < CONFIG_MAX_CPUS; core++) {
-		state = smm_get_save_state(core);
+		state = CONFIG(ASS) ? smm_get_current_save_state(core) : smm_get_save_state(core);
 		if (!state)
 			continue;
 		smm_io_trap = state->smm_io_trap_offset;
@@ -45,15 +70,26 @@ static void *find_save_state(int cmd)
 		/* Make sure it was a write (bit0==0) */
 		if (smm_io_trap & SMM_IO_TRAP_RW)
 			continue;
+		/* Native service calls use one scalar byte OUT, never string IO. */
+		if (CONFIG(ASS) &&
+		    (smm_io_trap & (SMM_IO_TRAP_STR | SMM_IO_TRAP_REP | SMM_IO_TRAP_SZ8 |
+				    SMM_IO_TRAP_SZ16 | SMM_IO_TRAP_SZ32)) != SMM_IO_TRAP_SZ8)
+			continue;
 		/* Check for APMC IO port */
 		if (pm_acpi_smi_cmd_port() != get_io_address(smm_io_trap))
 			continue;
 		/* Check AL against the requested command */
 		reg_al = state->rax;
-		if (reg_al == cmd)
+		if (reg_al != cmd)
+			continue;
+		if (!CONFIG(ASS))
 			return state;
+		/* Never dispatch from an ambiguous or previous-SMI save state. */
+		if (issuer)
+			return NULL;
+		issuer = state;
 	}
-	return NULL;
+	return issuer;
 }
 
 void handle_smi_gsmi(void)
@@ -144,7 +180,35 @@ void fch_apmc_smi_handler(void)
 			cfr_runtime_apply_smi();
 		break;
 	case APM_CNT_SMMINFO:
-		psp_notify_smm();
+		if (CONFIG(ASS)) {
+			amd64_smm_state_save_area_t *state = find_save_state(cmd);
+
+			if (state)
+				state->rax = psp_notify_smm() ? 1 : 0;
+		} else {
+			psp_notify_smm();
+		}
+		break;
+	case APM_CNT_FINALIZE:
+		if (CONFIG(ASS)) {
+			amd64_smm_state_save_area_t *state = find_save_state(cmd);
+
+			if (state) {
+				/* Recovery writes must use only the sealed, checked PSP owner. */
+				int ret = psp_rom_armor_seal() ? efi_variable_service_finalize() : -1;
+
+				state->rax = ret == EFI_VARIABLE_SERVICE_REBOOT_REQUIRED ?
+					APM_FINALIZE_REBOOT_REQUIRED : ret ? APM_FINALIZE_EFI_ERROR : 0;
+			}
+		}
+		break;
+	case APM_CNT_EFI_VARIABLE_SERVICE:
+		if (CONFIG(ASS)) {
+			amd64_smm_state_save_area_t *state = find_save_state(cmd);
+
+			if (state)
+				state->rax = efi_variable_service_communicate();
+		}
 		break;
 	}
 

@@ -58,12 +58,25 @@ static void normal_commands_do_not_reset(void **unused)
 	assert_false(die_called);
 }
 
+static void smm_registration_is_mandatory(void **unused)
+{
+	result = 0;
+	reset_called = die_called = false;
+	assert_int_equal(apm_control(APM_CNT_SMMINFO), CB_SUCCESS);
+	assert_false(die_called);
+	result = 1;
+	expect_assert_failure(apm_control(APM_CNT_SMMINFO));
+	assert_true(die_called);
+	assert_false(reset_called);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(reset_only_after_completed_finalization),
 		cmocka_unit_test(errors_do_not_become_a_reboot),
 		cmocka_unit_test(normal_commands_do_not_reset),
+		cmocka_unit_test(smm_registration_is_mandatory),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }

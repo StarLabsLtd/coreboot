@@ -224,6 +224,8 @@ int send_psp_command(uint32_t command, void *buffer);
 enum cb_err psp_get_ftpm_capabilities(uint32_t *capabilities);
 enum cb_err psp_get_psp_capabilities(uint32_t *capabilities);
 enum cb_err psp_get_hsti_state(uint32_t *state);
+/* SMM ASS receipt. Halt if the ownership transition is uncertain. */
+bool psp_smm_rom_armor_enforced(void);
 enum cb_err soc_read_c2p38(uint32_t *msg_38_value);
 
 void enable_psp_smi(void);
@@ -242,6 +244,9 @@ int psp_ab_recovery_set_bootpartition(const uint32_t partition);
  *         boot partition.
  */
 int psp_ab_recovery_get_bootpartition(void);
+
+/* An outstanding C2P command may still access its request and transfer buffer. */
+bool psp_rom_armor_spi_transaction_available(void);
 
 struct mbox_rom_armor_flash_command;
 /*

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 tests-y += mailbox-legacy-test mailbox-ab-recovery-test
-tests-y += mailbox-backup-flash-test
+tests-y += mailbox-backup-flash-test mailbox-ass-test mailbox-ass-ab-recovery-test
 
 mailbox-legacy-test-srcs += tests/soc/amd/common/psp/mailbox-test.c
 mailbox-legacy-test-srcs += src/soc/amd/common/block/psp/psp_gen2.c
@@ -12,6 +12,12 @@ mailbox-legacy-test-cflags += -Itests/include/tests/lib
 mailbox-legacy-test-config += CONFIG_ROM_SIZE=0x1000000
 mailbox-legacy-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_GEN2=1
 mailbox-legacy-test-config += CONFIG_PSPV2_MBOX_CMD_OFFSET=0x10970
+
+$(call copy-test,mailbox-legacy-test,mailbox-ass-test)
+mailbox-ass-test-config += CONFIG_ASS=1
+
+$(call copy-test,mailbox-ass-test,mailbox-ass-ab-recovery-test)
+mailbox-ass-ab-recovery-test-config += CONFIG_PSP_AB_RECOVERY=1
 
 $(call copy-test,mailbox-legacy-test,mailbox-ab-recovery-test)
 mailbox-ab-recovery-test-config += CONFIG_PSP_AB_RECOVERY=1
@@ -42,3 +48,30 @@ boot-done-df-lock-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK=1
 
 $(call copy-test,boot-done-smm-lock-test,boot-done-locks-test)
 boot-done-locks-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK=1
+
+tests-y += rom-armor-admission-test rom-armor-legacy-test
+rom-armor-admission-test-srcs += tests/soc/amd/common/psp/rom-armor-admission-test.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp_smm.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp_rom_armor_smm.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/psp/psp_rom_armor_cache.c
+rom-armor-admission-test-srcs += src/soc/amd/common/block/spi/mmap_boot_rom3.c
+rom-armor-admission-test-srcs += src/commonlib/region.c tests/stubs/console.c
+rom-armor-admission-test-cflags += -Isrc/soc/amd/common/block/include
+rom-armor-admission-test-cflags += -Isrc/soc/amd/common/block/psp -Isrc/soc/amd/phoenix/include
+rom-armor-admission-test-cflags += -include tests/soc/amd/common/psp/mock-rom-armor-msr.h
+rom-armor-admission-test-config += CONFIG_ROM_SIZE=0x2000000 CONFIG_SOC_AMD_COMMON_BLOCK_PSP_GEN2=1
+rom-armor-admission-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_ROM_ARMOR3=1
+rom-armor-admission-test-config += CONFIG_SOC_AMD_COMMON_BLOCK_PSP_SMI=0
+rom-armor-admission-test-config += CONFIG_CPU_PT_ROM_MAP_GB=8
+rom-armor-admission-test-stage := smm
+
+$(call copy-test,rom-armor-admission-test,rom-armor-legacy-test)
+rom-armor-admission-test-config += CONFIG_ASS=1 CONFIG_ASS_NATIVE=1
+rom-armor-legacy-test-config += CONFIG_ASS=0
+
+tests-y += boot-done-ass-test boot-done-ass-locks-test
+$(call copy-test,boot-done-legacy-test,boot-done-ass-test)
+boot-done-ass-test-config += CONFIG_ASS=1
+$(call copy-test,boot-done-locks-test,boot-done-ass-locks-test)
+boot-done-ass-locks-test-config += CONFIG_ASS=1

@@ -52,12 +52,16 @@ void soc_fill_smm_reg_info(struct smm_register_info *reg); /* v2 only */
 #define PSPSTS_UNSUPPORTED	7
 #define PSPSTS_INVALID_NAME	8
 #define PSPSTS_INVALID_BLOB	9
+/* Gen2 ROM Armor SPI finished with an error and released its buffers. */
+#define PSPSTS_SPI_COMMAND_ERROR	10
 
 /* PSP gen1-only. SoCs with PSP gen2 already have the DRAM initialized when
    the x86 cores are released from reset. */
 int psp_notify_dram(void);
 
 int psp_notify_smm(void);
+/* SMM-only receipt for successful ASS SMMINFO registration. */
+bool psp_smm_info_registered(void);
 
 #if (CONFIG(SOC_AMD_COMMON_BLOCK_PSP_SMI))
 void psp_smi_handler(void);
@@ -105,6 +109,11 @@ static inline bool psp_get_hsti_state_rom_armor_enforced(void) { return false; }
 
 /* Region device accessing the ROM through PSP mailbox */
 extern struct region_device rom_armor_smm_rw;
+
+/* SMM-only ASS writer, available after checked registration, ownership and sealing. */
+const struct region_device *psp_rom_armor_smm_device(void);
+/* Close the raw APMC path irrevocably and report whether the ASS writer is ready. */
+bool psp_rom_armor_seal(void);
 
 /**
  * psp_rom_armor_init - Initialize PSP ROM Armor

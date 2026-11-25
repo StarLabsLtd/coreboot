@@ -11,6 +11,7 @@
 #include <cpu/x86/smm.h>
 #include <device/device.h>
 #include <drivers/efi/capsules.h>
+#include <smm_call.h>
 #include <types.h>
 
 void mp_init_cpus(struct bus *cpu_bus)
@@ -40,6 +41,12 @@ void mp_init_cpus(struct bus *cpu_bus)
 		psp_rom_armor_init(get_boot_mode() == LB_BOOT_MODE_FLASH_UPDATE);
 	}
 	/* SMMINFO only needs to be set up when booting from S5 */
-	if (!acpi_is_wakeup_s3())
-		apm_control(APM_CNT_SMMINFO);
+	if (!acpi_is_wakeup_s3()) {
+		if (CONFIG(ASS_NATIVE)) {
+			if (call_smm(APM_CNT_SMMINFO, 0, NULL))
+				die("PSP SMM registration failed\n");
+		} else {
+			apm_control(APM_CNT_SMMINFO);
+		}
+	}
 }

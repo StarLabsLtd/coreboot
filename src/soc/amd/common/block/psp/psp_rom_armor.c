@@ -118,8 +118,11 @@ void psp_rom_armor_init(bool allow_capsule_update)
 		.capsule_update = allow_capsule_update,
 	};
 	ret = call_smm(APM_CNT_ROM_ARMOR, ROM_ARMOR_APM_CMD_INIT, &params);
-	if (ret != ROM_ARMOR_RET_SUCCESS)
-		printk(BIOS_EMERG, "Failed to initialize ROM Armor. ret=%u\n", ret);
+	if (ret == ROM_ARMOR_RET_SUCCESS)
+		return;
+	if (CONFIG(ASS))
+		die("PSP: Failed to initialize ROM Armor. ret=%u\n", ret);
+	printk(BIOS_EMERG, "Failed to initialize ROM Armor. ret=%u\n", ret);
 }
 
 static void rom_armor_finalize(void *unused)

@@ -170,6 +170,9 @@ void *smm_get_save_state(int cpu);
 /* With the handler lock held, return NULL until this CPU has entered this SMI. */
 void *smm_get_current_save_state(unsigned int cpu);
 
+/* Number of save-state slots installed for this SMM runtime. */
+unsigned int smm_get_cpu_count(void);
+
 /* Returns true if the region overlaps with the SMM */
 bool smm_region_overlaps_handler(const struct region *r);
 

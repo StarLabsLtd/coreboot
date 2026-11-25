@@ -25,9 +25,16 @@ static const uint32_t command_order[] = {
 
 static void run_boot_done(void)
 {
-	assert_int_equal(test_bootstate_end - test_bootstate_begin, 1);
-	struct boot_state_init_entry *entry = test_bootstate_begin[0];
+	struct boot_state_init_entry *entry = NULL;
 
+	for (struct boot_state_init_entry **candidate = test_bootstate_begin;
+	     candidate < test_bootstate_end; candidate++) {
+		if ((*candidate)->state != BS_PAYLOAD_BOOT || (*candidate)->when != BS_ON_ENTRY)
+			continue;
+		assert_null(entry);
+		entry = *candidate;
+	}
+	assert_non_null(entry);
 	assert_int_equal(entry->state, BS_PAYLOAD_BOOT);
 	assert_int_equal(entry->when, BS_ON_ENTRY);
 	assert_non_null(entry->bscb.callback);
@@ -73,15 +80,46 @@ static void boot_done_request(void **state)
 static void rejected_request_is_not_retried(void **state)
 {
 	reset_requests(0x06, -PSPSTS_SEND_ERROR, 0);
-	run_boot_done();
+	if (CONFIG(ASS)) {
+		expect_assert_failure(run_boot_done());
+	} else {
+		run_boot_done();
+	}
 	assert_int_equal(requests, ARRAY_SIZE(command_order));
+}
+
+static void boot_done_status_is_checked(void **state)
+{
+	const struct { int delivery; uint32_t response; } failures[] = {
+		{0, 1}, {-PSPSTS_CMD_TIMEOUT, 0}, {-PSPSTS_NOBASE, 0},
+		{-PSPSTS_RECOVERY, 0}, {-PSPSTS_INIT_TIMEOUT, 0},
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(failures); i++) {
+		reset_requests(0x06, failures[i].delivery, failures[i].response);
+		if (CONFIG(ASS)) {
+			expect_assert_failure(run_boot_done());
+		} else {
+			run_boot_done();
+		}
+		assert_int_equal(requests, ARRAY_SIZE(command_order));
+	}
+}
+
+static void __maybe_unused run_rejected_lock(void)
+{
+	if (CONFIG(ASS)) {
+		expect_assert_failure(run_boot_done());
+	} else {
+		run_boot_done();
+	}
 }
 
 #if CONFIG(SOC_AMD_COMMON_BLOCK_PSP_SMM_LOCK)
 static void rejected_smm_lock_stops_before_boot_done(void **state)
 {
 	reset_requests(0x6c, -PSPSTS_SEND_ERROR, 0);
-	run_boot_done();
+	run_rejected_lock();
 	assert_int_equal(requests, CONFIG(SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK) ? 2 : 1);
 }
 
@@ -95,7 +133,7 @@ static void timed_out_smm_lock_keeps_request_live(void **state)
 static void failed_smm_lock_response_stops_before_boot_done(void **state)
 {
 	reset_requests(0x6c, 0, 1);
-	run_boot_done();
+	run_rejected_lock();
 	assert_int_equal(requests, CONFIG(SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK) ? 2 : 1);
 }
 
@@ -105,7 +143,7 @@ static void unsubmitted_smm_lock_skips_boot_done(void **state)
 
 	for (size_t i = 0; i < ARRAY_SIZE(failures); i++) {
 		reset_requests(0x6c, failures[i], 0);
-		run_boot_done();
+		run_rejected_lock();
 		assert_int_equal(requests, CONFIG(SOC_AMD_COMMON_BLOCK_PSP_DF_LOCK) ? 2 : 1);
 	}
 }
@@ -127,7 +165,7 @@ static void failed_df_lock_stops_before_later_commands(void **state)
 
 	for (size_t i = 0; i < ARRAY_SIZE(failures); i++) {
 		reset_requests(0x1b, failures[i].delivery, failures[i].response);
-		run_boot_done();
+		run_rejected_lock();
 		assert_int_equal(requests, 1);
 	}
 }
@@ -145,6 +183,7 @@ int psp_boot_done_test_main(void)
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(boot_done_request),
 		cmocka_unit_test(rejected_request_is_not_retried),
+		cmocka_unit_test(boot_done_status_is_checked),
 #if CONFIG(SOC_AMD_COMMON_BLOCK_PSP_SMM_LOCK)
 		cmocka_unit_test(rejected_smm_lock_stops_before_boot_done),
 		cmocka_unit_test(timed_out_smm_lock_keeps_request_live),

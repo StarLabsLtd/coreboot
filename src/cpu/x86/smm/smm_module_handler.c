@@ -182,6 +182,11 @@ void *smm_get_save_state(int cpu)
 			(smm_runtime.save_state_size - STM_PSD_SIZE));
 }
 
+unsigned int smm_get_cpu_count(void)
+{
+	return smm_runtime.num_cpus;
+}
+
 void *smm_get_current_save_state(unsigned int cpu)
 {
 	unsigned int generation = __atomic_load_n(&smi_handler_status, __ATOMIC_ACQUIRE);
