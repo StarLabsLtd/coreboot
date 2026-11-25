@@ -475,6 +475,83 @@ uint32_t ass_native_capsule_continue(struct ass_capsule_transaction *transaction
 	return capsule_result(message, request.revision, status);
 }
 
+static uint64_t legacy_floor(struct authvar_owner *owner,
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
+{
+	const uint16_t name[] = u"FmpLsv";
+	uint8_t value[sizeof(uint32_t)];
+	size_t size = sizeof(value);
+	uint32_t attributes;
+	uint64_t status = authvar_owner_get(owner, name, image_guid, &attributes, &size, value);
+
+	if (status == PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND) {
+		*floor = compiled_floor;
+		return 0;
+	}
+	if (status)
+		return status;
+	if (!(attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) || size != sizeof(value))
+		return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
+	*floor = MAX(compiled_floor, read_le32(value));
+	return 0;
+}
+
+static uint64_t capsule_floor(struct authvar_owner *owner, const uint8_t image_guid[16],
+	uint32_t compiled_floor, uint32_t *floor, bool repair_metadata)
+{
+	/* FMP controller state persists as four validity bytes and four LE32 values. */
+	uint8_t state[20];
+	size_t size = sizeof(state);
+	uint32_t stored_floor = compiled_floor;
+	uint32_t attributes;
+
+	if (!owner || !image_guid || !floor)
+		return PAYLOAD_MM_AUTHVAR_STATUS_INVALID_PARAMETER;
+	if (owner->runtime)
+		return PAYLOAD_MM_AUTHVAR_STATUS_ACCESS_DENIED;
+	uint64_t status = authvar_owner_get(owner, u"FmpState", image_guid,
+		&attributes, &size, state);
+	if (!status) {
+		const bool valid_record = (attributes & PAYLOAD_MM_AUTHVAR_ATTR_NON_VOLATILE) &&
+			size == sizeof(state);
+
+		if (valid_record && state[1])
+			stored_floor = MAX(stored_floor, read_le32(state + 8));
+		if (valid_record && state[0] <= 1 && state[1] <= 1 &&
+		    state[2] <= 1 && state[3] <= 1) {
+			*floor = stored_floor;
+			return 0;
+		}
+		if (!repair_metadata)
+			return PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED;
+	} else if (status != PAYLOAD_MM_AUTHVAR_STATUS_NOT_FOUND &&
+		   !(repair_metadata && status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) {
+		return status;
+	}
+
+	status = legacy_floor(owner, image_guid, stored_floor, floor);
+	if (repair_metadata && (status == PAYLOAD_MM_AUTHVAR_STATUS_VOLUME_CORRUPTED ||
+	    status == PAYLOAD_MM_AUTHVAR_STATUS_BUFFER_TOO_SMALL)) {
+		*floor = stored_floor;
+		return 0;
+	}
+	return status;
+}
+
+uint64_t ass_native_capsule_floor(struct authvar_owner *owner,
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor)
+{
+	return capsule_floor(owner, image_guid, compiled_floor, floor, false);
+}
+
+uint64_t ass_native_capsule_boot_floor(struct authvar_owner *owner,
+	const uint8_t image_guid[16], uint32_t compiled_floor, uint32_t *floor, bool repair_metadata)
+{
+	/* EDK2 repairs FMP metadata after SMM starts. Capsule admission still requires
+	 * valid metadata, and must never drop a recoverable floor observed at boot. */
+	return capsule_floor(owner, image_guid, compiled_floor, floor, repair_metadata);
+}
+
 uint32_t ass_native_capsule_info(struct authvar_owner *owner,
 	const struct ass_capsule_geometry *geometry, void *message, size_t size)
 {
@@ -496,8 +573,8 @@ uint32_t ass_native_capsule_info(struct authvar_owner *owner,
 	} else if (!request.transaction && payload_size == sizeof(struct capsule_geometry_reply) &&
 		   geometry->block_size && geometry->flash_size &&
 		   !(geometry->flash_size % geometry->block_size)) {
-		floor = geometry->compiled_floor;
-		status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		status = ass_native_capsule_floor(owner, geometry->image_guid,
+			geometry->compiled_floor, &floor);
 		if (status == PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS) {
 			write_le32(payload, geometry->flash_size);
 			write_le32(payload + 4, geometry->block_size);
@@ -539,8 +616,8 @@ uint32_t ass_native_capsule_dispatch(struct ass_capsule_transaction *transaction
 		*response_size = payload - (uint8_t *)message + 20;
 	}
 	if (request.command == ASS_CAPSULE_INFO || request.command == ASS_CAPSULE_BEGIN) {
-		floor = platform->geometry.compiled_floor;
-		const uint64_t status = PAYLOAD_MM_AUTHVAR_STATUS_SUCCESS;
+		const uint64_t status = ass_native_capsule_floor(owner,
+			platform->geometry.image_guid, platform->geometry.compiled_floor, &floor);
 		if (status)
 			return capsule_result(message, request.revision, status);
 		transaction->floor = MAX(transaction->floor, floor);
