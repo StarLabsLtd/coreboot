@@ -97,6 +97,8 @@ enum {
 	LB_TAG_SDHCI_NONPCI		= 0x004a,
 	LB_TAG_BOOT_REASON		= 0x004b,
 	LB_TAG_EFI_VARIABLE_SERVICE	= 0x004c,
+	LB_TAG_CAPSULE_DELIVERY_POLICY	= 0x0059,
+	LB_TAG_CAPSULE_SMMSTORE		= 0x005c,
 	/* The following options are CMOS-related */
 	LB_TAG_CMOS_OPTION_TABLE	= 0x00c8,
 	LB_TAG_OPTION			= 0x00c9,
@@ -119,6 +121,41 @@ enum {
  */
 
 typedef __aligned(LB_ENTRY_ALIGN) uint64_t lb_uint64_t;
+
+#define LB_CAPSULE_DELIVERY_POLICY_REVISION 1
+#define LB_CAPSULE_DELIVERY_DISK (1U << 1)
+
+#define LB_CAPSULE_SMMSTORE_WRITER_READY (1U << 0)
+#define LB_CAPSULE_SMMSTORE_MAX_REGIONS 64U
+#define LB_CAPSULE_SMMSTORE_REGION_NAME_SIZE 16U
+
+struct lb_capsule_smmstore_region {
+	char name[LB_CAPSULE_SMMSTORE_REGION_NAME_SIZE];
+	uint32_t offset;
+	uint32_t size;
+};
+
+struct lb_capsule_smmstore {
+	uint32_t tag;
+	uint32_t size;
+	uint32_t flags;
+	uint32_t region_count;
+	struct lb_capsule_smmstore_region regions[];
+};
+
+_Static_assert(sizeof(struct lb_capsule_smmstore) == 16, "capsule region header ABI");
+_Static_assert(sizeof(struct lb_capsule_smmstore_region) == 24, "capsule region ABI");
+
+struct lb_capsule_delivery_policy {
+	uint32_t tag;
+	uint32_t size;
+	uint16_t revision;
+	uint16_t header_size;
+	uint32_t allowed_transports;
+	lb_uint64_t max_nonpopulate;
+	lb_uint64_t max_populate;
+	uint32_t reserved[2];
+};
 
 struct lb_header {
 	uint8_t  signature[4]; /* LBIO */

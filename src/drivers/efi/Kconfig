@@ -68,6 +68,14 @@ config DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
 	  Scanning DRAM for capsules is not reliable on some platforms, so this option is
 	  required for those platforms.
 
+config DRIVERS_EFI_CAPSULE_DISK_ONLY
+	bool "Use disk-only capsule delivery"
+	depends on DRIVERS_EFI_UPDATE_CAPSULES && ASS_NATIVE
+	select DRIVERS_EFI_CAPSULE_ON_DISK_SUPPORT
+	help
+	  Publish disk capsule support without scanning retained RAM for
+	  capsule pointers.
+
 config DRIVERS_EFI_CAPSULE_ACCEPT_EMBEDDED_DRIVERS
 	bool "Allow embedded drivers in update capsules"
 	depends on PAYLOAD_EDK2 && DRIVERS_EFI_UPDATE_CAPSULES
@@ -115,7 +123,7 @@ config DRIVERS_EFI_CAPSULE_INITIATE_RESET
 config DRIVERS_EFI_CAPSULE_REGIONS
 	string "FMAP regions to include in the capsule manifest"
 	default "COREBOOT"
-	depends on DRIVERS_EFI_GENERATE_CAPSULE
+	depends on DRIVERS_EFI_GENERATE_CAPSULE || ASS_NATIVE
 	help
 	  Whitespace-separated list of FMAP regions that the update capsule is
 	  allowed to modify. The list is embedded as a manifest inside the ROM
